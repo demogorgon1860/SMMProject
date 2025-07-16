@@ -1,0 +1,191 @@
+spring:
+  application:
+    name: smm-panel
+  
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:development}
+  
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/smm_panel}
+    username: ${SPRING_DATASOURCE_USERNAME:smm_admin}
+    password: ${SPRING_DATASOURCE_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      pool-name: SmmPanelHikariPool
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        show_sql: false
+        jdbc:
+          batch_size: 25
+          batch_versioned_data: true
+        order_inserts: true
+        order_updates: true
+        generate_statistics: false
+    open-in-view: false
+  
+  redis:
+    host: ${SPRING_REDIS_HOST:localhost}
+    port: ${SPRING_REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 20
+        max-idle: 10
+        min-idle: 5
+        max-wait: -1ms
+  
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      batch-size: 16384
+      linger-ms: 1
+      buffer-memory: 33554432
+    consumer:
+      group-id: smm-panel-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.smmpanel.*"
+  
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000
+      cache-null-values: false
+      use-key-prefix: true
+      key-prefix: smm:
+
+  task:
+    execution:
+      pool:
+        core-size: 8
+        max-size: 20
+        queue-capacity: 500
+    scheduling:
+      pool:
+        size: 10
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:http://localhost:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,loggers,caches
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+  health:
+    redis:
+      enabled: true
+    db:
+      enabled: true
+
+logging:
+  level:
+    com.smmpanel: ${LOG_LEVEL:DEBUG}
+    org.springframework.web: INFO
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.kafka: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/smm-panel.log
+    max-size: 10MB
+    max-history: 30
+
+# Application specific properties
+app:
+  jwt:
+    secret: ${JWT_SECRET:your-256-bit-secret-key-for-jwt-token-generation}
+    expiration: ${JWT_EXPIRATION:86400000} # 24 hours
+    refresh-expiration: ${JWT_REFRESH_EXPIRATION:604800000} # 7 days
+  
+  youtube:
+    api:
+      key: ${YOUTUBE_API_KEY:}
+      application-name: SMM Panel
+      quota:
+        daily-limit: 10000
+        per-user-limit: 1000
+  
+  binom:
+    api:
+      url: ${BINOM_API_URL:http://localhost:8080/api}
+      key: ${BINOM_API_KEY:}
+      timeout: 30000
+      retry-attempts: 3
+  
+  cryptomus:
+    api:
+      url: https://api.cryptomus.com/v1
+      key: ${CRYPTOMUS_API_KEY:}
+      merchant-id: ${CRYPTOMUS_MERCHANT_ID:}
+      webhook-url: ${CRYPTOMUS_WEBHOOK_URL:https://yourdomain.com/api/v2/webhooks/cryptomus}
+      supported-currencies: BTC,ETH,USDT,LTC,USDC
+      min-deposit: 5.00
+  
+  selenium:
+    hub:
+      url: ${SELENIUM_HUB_URL:http://selenium-hub:4444/wd/hub}
+      timeout: 300000
+      max-sessions: 10
+  
+  order:
+    processing:
+      batch-size: 100
+      thread-pool-size: 10
+      clip-creation:
+        enabled: true
+        timeout: 300000 # 5 minutes
+        retry-attempts: 2
+  
+  traffic:
+    sources:
+      selection-algorithm: weighted-random # or round-robin
+      performance-threshold: 50.0
+      daily-reset-hour: 0
+  
+  monitoring:
+    stats:
+      refresh-interval: 1800000 # 30 minutes
+      retention-days: 30
+
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001}
+  allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
+  allowed-headers: "*"
+  allow-credentials: true
+  max-age: 3600

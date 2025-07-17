@@ -48,7 +48,15 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
+    public AuthenticationManager authenticationManager(
+        AuthenticationConfiguration config,
+        AuthenticationProvider authenticationProvider) throws Exception {
+    
+    return config.getAuthenticationManager();
     }
+
+    @Bean
+public AuthenticationProvider authenticationProvider() {
+    return new CustomAuthenticationProvider(userRepository, passwordEncoder());
+}
 }

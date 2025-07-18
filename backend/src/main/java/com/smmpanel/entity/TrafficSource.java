@@ -39,6 +39,9 @@ public class TrafficSource {
 
     @Column(name = "geo_targeting")
     private String geoTargeting;
+    
+    @Column(name = "quality_level", nullable = false)
+    private String qualityLevel = "STANDARD"; // STANDARD, PREMIUM, HIGH_QUALITY
 
     private Boolean active = true;
 

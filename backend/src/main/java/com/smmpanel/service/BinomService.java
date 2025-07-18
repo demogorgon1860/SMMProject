@@ -214,32 +214,37 @@ public class BinomService {
         return hasClip ? new BigDecimal("3.0") : new BigDecimal("4.0");
     }
 
-    private TrafficSource selectTrafficSource() {
-        List<TrafficSource> activeSources = trafficSourceRepository.findByActiveTrue();
+    private TrafficSource selectTrafficSource(Long serviceId) {
+        // Определяем качественный уровень по ID услуги
+        String qualityLevel = determineQualityLevel(serviceId);
+        
+        // Получаем источники для конкретного качества
+        List<TrafficSource> activeSources = trafficSourceRepository
+                .findByActiveTrueAndQualityLevel(qualityLevel);
         
         if (activeSources.isEmpty()) {
-            throw new NoAvailableTrafficSourceException("No active traffic sources available");
+            throw new NoAvailableTrafficSourceException("No active traffic sources available for quality: " + qualityLevel);
         }
 
-        // Filter sources that haven't exceeded daily limits
+        // Фильтруем источники по дневным лимитам
         LocalDate today = LocalDate.now();
         List<TrafficSource> availableSources = activeSources.stream()
                 .filter(source -> {
-                    // Reset daily counters if needed
+                    // Сброс дневных счетчиков при необходимости
                     if (source.getLastResetDate().isBefore(today)) {
                         source.setClicksUsedToday(0);
                         source.setLastResetDate(today);
                         trafficSourceRepository.save(source);
                     }
                     
-                    // Check if source has available capacity
+                    // Проверка лимитов
                     return source.getDailyLimit() == null || 
                            source.getClicksUsedToday() < source.getDailyLimit();
                 })
                 .toList();
 
         if (availableSources.isEmpty()) {
-            throw new NoAvailableTrafficSourceException("All traffic sources have reached daily limits");
+            throw new NoAvailableTrafficSourceException("All traffic sources have reached daily limits for quality: " + qualityLevel);
         }
 
         // Weighted random selection
@@ -257,7 +262,7 @@ public class BinomService {
             }
         }
 
-        // Fallback to first available source
+        // Fallback
         return availableSources.get(0);
     }
 
@@ -265,6 +270,15 @@ public class BinomService {
         return campaignRepository.findByOrderIdAndStatus(orderId, "ACTIVE");
     }
 
+    private String determineQualityLevel(Long serviceId) {
+        return switch (serviceId.intValue()) {
+            case 1 -> "STANDARD";
+            case 2 -> "PREMIUM";
+            case 3 -> "HIGH_QUALITY";
+            default -> "STANDARD";
+        };
+    }
+    
     public void updateCampaignStatus(String campaignId, String status) {
         BinomCampaign campaign = campaignRepository.findByCampaignId(campaignId)
                 .orElseThrow(() -> new IllegalArgumentException("Campaign not found: " + campaignId));

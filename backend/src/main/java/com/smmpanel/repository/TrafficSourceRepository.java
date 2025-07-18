@@ -10,4 +10,6 @@ import java.util.List;
 public interface TrafficSourceRepository extends JpaRepository<TrafficSource, Long> {
     List<TrafficSource> findByActiveTrue();
     List<TrafficSource> findByActiveTrueOrderByWeightDesc();
+    List<TrafficSource> findByActiveTrueAndQualityLevel(String qualityLevel);
+    List<TrafficSource> findByQualityLevelOrderByWeightDesc(String qualityLevel);
 }

@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Slf4j
@@ -110,40 +111,48 @@ public class StartupService implements ApplicationRunner {
 
     private void createDefaultTrafficSources() {
         if (trafficSourceRepository.count() == 0) {
-            // Clickadoo Push US
-            TrafficSource source1 = new TrafficSource();
-            source1.setName("Clickadoo Push US");
-            source1.setSourceId("clickadoo_push_us");
-            source1.setWeight(10);
-            source1.setDailyLimit(10000);
-            source1.setGeoTargeting("US");
-            source1.setActive(true);
-            source1.setPerformanceScore(new BigDecimal("95.5"));
-            trafficSourceRepository.save(source1);
+            // STANDARD источники для Service ID 1 ($1)
+            createTrafficSource("Clickadoo Push STANDARD", "clickadoo_push_std", 
+                10, 10000, "US", "STANDARD", 92.5);
+            createTrafficSource("Clickadoo Native STANDARD", "clickadoo_native_std", 
+                8, 8000, "EU", "STANDARD", 85.0);
+            createTrafficSource("Clickadoo Display STANDARD", "clickadoo_display_std", 
+                6, 15000, "GLOBAL", "STANDARD", 78.3);
 
-            // Clickadoo Native EU
-            TrafficSource source2 = new TrafficSource();
-            source2.setName("Clickadoo Native EU");
-            source2.setSourceId("clickadoo_native_eu");
-            source2.setWeight(8);
-            source2.setDailyLimit(8000);
-            source2.setGeoTargeting("EU");
-            source2.setActive(true);
-            source2.setPerformanceScore(new BigDecimal("88.2"));
-            trafficSourceRepository.save(source2);
+            // PREMIUM источники для Service ID 2 ($2)
+            createTrafficSource("Clickadoo Push PREMIUM", "clickadoo_push_prem", 
+                12, 7000, "US", "PREMIUM", 96.8);
+            createTrafficSource("Clickadoo Native PREMIUM", "clickadoo_native_prem", 
+                10, 6000, "EU", "PREMIUM", 94.2);
+            createTrafficSource("Clickadoo Display PREMIUM", "clickadoo_display_prem", 
+                8, 10000, "GLOBAL", "PREMIUM", 91.5);
 
-            // Clickadoo Display Global
-            TrafficSource source3 = new TrafficSource();
-            source3.setName("Clickadoo Display Global");
-            source3.setSourceId("clickadoo_display_global");
-            source3.setWeight(6);
-            source3.setDailyLimit(15000);
-            source3.setGeoTargeting("GLOBAL");
-            source3.setActive(true);
-            source3.setPerformanceScore(new BigDecimal("82.7"));
-            trafficSourceRepository.save(source3);
+            // HIGH_QUALITY источники для Service ID 3 ($3)
+            createTrafficSource("Clickadoo Push HQ", "clickadoo_push_hq", 
+                15, 5000, "US", "HIGH_QUALITY", 99.2);
+            createTrafficSource("Clickadoo Native HQ", "clickadoo_native_hq", 
+                13, 4000, "EU", "HIGH_QUALITY", 98.7);
+            createTrafficSource("Clickadoo Display HQ", "clickadoo_display_hq", 
+                10, 6000, "GLOBAL", "HIGH_QUALITY", 97.3);
 
-            log.info("Created default traffic sources");
+            log.info("Created default traffic sources with quality differentiation");
         }
+    }
+
+    private void createTrafficSource(String name, String sourceId, int weight, 
+                                   int dailyLimit, String geo, String qualityLevel, 
+                                   double performanceScore) {
+        TrafficSource source = new TrafficSource();
+        source.setName(name);
+        source.setSourceId(sourceId);
+        source.setWeight(weight);
+        source.setDailyLimit(dailyLimit);
+        source.setGeoTargeting(geo);
+        source.setQualityLevel(qualityLevel);
+        source.setActive(true);
+        source.setPerformanceScore(new BigDecimal(performanceScore));
+        source.setClicksUsedToday(0);
+        source.setLastResetDate(LocalDate.now());
+        trafficSourceRepository.save(source);
     }
 }

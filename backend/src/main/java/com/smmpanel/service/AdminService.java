@@ -32,8 +32,8 @@ public class AdminService {
     private final BalanceService balanceService;
     private final SeleniumService seleniumService;
     private final BinomService binomService;
-    private final YouTubeService youTubeService
-    
+    private final YouTubeService youTubeService;
+
     public DashboardStats getDashboardStats() {
         LocalDateTime last24Hours = LocalDateTime.now().minusHours(24);
         LocalDateTime last7Days = LocalDateTime.now().minusDays(7);

@@ -1,11 +1,14 @@
 package com.smmpanel.config;
 
+import com.smmpanel.repository.UserRepository;
 import com.smmpanel.security.ApiKeyAuthenticationFilter;
+import com.smmpanel.security.CustomAuthenticationProvider;
 import com.smmpanel.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -24,6 +27,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final ApiKeyAuthenticationFilter apiKeyAuthFilter;
+    private final UserRepository userRepository;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -31,7 +35,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/v2/auth/**", "/actuator/health").permitAll()
+                .requestMatchers("/api/v2/auth/**", "/actuator/health", "/api/v2/webhooks/**").permitAll()
                 .requestMatchers("/api/v2/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/v2/operator/**").hasAnyRole("OPERATOR", "ADMIN")
                 .anyRequest().authenticated()
@@ -48,15 +52,12 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(
-        AuthenticationConfiguration config,
-        AuthenticationProvider authenticationProvider) throws Exception {
-    
-    return config.getAuthenticationManager();
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
     }
 
     @Bean
-public AuthenticationProvider authenticationProvider() {
-    return new CustomAuthenticationProvider(userRepository, passwordEncoder());
-}
+    public AuthenticationProvider authenticationProvider() {
+        return new CustomAuthenticationProvider(userRepository, passwordEncoder());
+    }
 }

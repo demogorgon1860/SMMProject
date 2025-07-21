@@ -2,24 +2,89 @@ package com.smmpanel.exception;
 
 import com.smmpanel.dto.response.ErrorResponse;
 import com.smmpanel.dto.response.PerfectPanelResponse;
+import io.github.bucket4j.ConsumptionProbe;
+import io.github.bucket4j.exceptions.BucketExecutionException;
+import io.github.bucket4j.exceptions.BucketNotFoundException;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.exception.ConstraintViolationException;
+import org.postgresql.util.PSQLException;
+import org.springframework.dao.DataAccessException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ValidationException;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestControllerAdvice
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+
+    @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException ex, HttpHeaders headers,
+            HttpStatus status, WebRequest request) {
+        
+        Map<String, String> errors = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .collect(Collectors.toMap(
+                        FieldError::getField,
+                        fieldError -> fieldError.getDefaultMessage() != null ? 
+                                fieldError.getDefaultMessage() : "Validation failed"
+                ));
+
+        ErrorResponse errorResponse = new ErrorResponse(
+                LocalDateTime.now(),
+                "Validation failed",
+                status.value(),
+                request.getContextPath(),
+                errors
+        );
+
+        return handleExceptionInternal(ex, errorResponse, headers, status, request);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleHttpRequestMethodNotSupported(
+            HttpRequestMethodNotSupportedException ex, HttpHeaders headers,
+            HttpStatus status, WebRequest request) {
+        
+        String message = String.format("Method '%s' is not supported for this request. Supported methods: %s",
+                ex.getMethod(), ex.getSupportedHttpMethods());
+        
+        ErrorResponse errorResponse = new ErrorResponse(
+                LocalDateTime.now(),
+                message,
+                status.value(),
+                request.getContextPath()
+        );
+        
+        return handleExceptionInternal(ex, errorResponse, headers, status, request);
+    }
 
     @ExceptionHandler(ServiceNotFoundException.class)
     public ResponseEntity<PerfectPanelResponse> handleServiceNotFound(ServiceNotFoundException ex) {
@@ -28,11 +93,50 @@ public class GlobalExceptionHandler {
                 .body(PerfectPanelResponse.error(ex.getMessage(), 404));
     }
 
-    @ExceptionHandler(OrderNotFoundException.class)
-    public ResponseEntity<PerfectPanelResponse> handleOrderNotFound(OrderNotFoundException ex) {
-        log.error("Order not found: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(PerfectPanelResponse.error(ex.getMessage(), 404));
+    @ExceptionHandler({
+        AccessDeniedException.class,
+        org.springframework.security.access.AccessDeniedException.class
+    })
+    public ResponseEntity<PerfectPanelResponse> handleAccessDenied(Exception ex) {
+        log.error("Access denied: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(PerfectPanelResponse.error("Access Denied: You don't have permission to access this resource", 403));
+    }
+
+    @ExceptionHandler(BucketExecutionException.class)
+    public ResponseEntity<PerfectPanelResponse> handleBucketExecutionException(BucketExecutionException ex) {
+        log.error("Rate limit exceeded: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("X-Rate-Limit-Retry-After-Seconds", "60")
+                .body(PerfectPanelResponse.error("Too many requests. Please try again later.", 429));
+    }
+
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<PerfectPanelResponse> handleDataAccessException(DataAccessException ex) {
+        log.error("Database access error: {}", ex.getMessage(), ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(PerfectPanelResponse.error("A database error occurred. Please try again later.", 500));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<PerfectPanelResponse> handleConstraintViolation(ConstraintViolationException ex) {
+        log.error("Database constraint violation: {}", ex.getMessage(), ex);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(PerfectPanelResponse.error("Invalid data: " + ex.getConstraintName(), 400));
+    }
+
+    @ExceptionHandler(ValidationException.class)
+    public ResponseEntity<PerfectPanelResponse> handleValidationException(ValidationException ex) {
+        log.error("Validation exception: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(PerfectPanelResponse.error("Validation failed: " + ex.getMessage(), 400));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<PerfectPanelResponse> handleAllUncaughtException(Exception ex, WebRequest request) {
+        log.error("Unhandled exception occurred: {}", ex.getMessage(), ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(PerfectPanelResponse.error("An unexpected error occurred. Please try again later.", 500));
     }
 
     @ExceptionHandler(UserNotFoundException.class)

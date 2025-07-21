@@ -351,6 +351,17 @@ const Dashboard: React.FC<{ user: User; setUser: (user: User | null) => void }> 
   );
 };
 
+// Test component to verify Tailwind CSS
+const TestBanner = () => (
+  <div className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 text-center">
+    <div className="container mx-auto">
+      <p className="text-sm font-medium">
+        🎉 Tailwind CSS is working! This is a test banner with a gradient background.
+      </p>
+    </div>
+  </div>
+);
+
 // Главный компонент приложения
 export default function App() {
   const [user, setUser] = useState<User | null>(null);

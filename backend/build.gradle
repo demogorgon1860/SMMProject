@@ -36,6 +36,12 @@ dependencies {
     // Redis
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'redis.clients:jedis'
+    implementation 'org.apache.commons:commons-pool2'
+    
+    // Rate limiting
+    implementation 'com.bucket4j:bucket4j-core:8.7.0'
+    implementation 'com.bucket4j:bucket4j-redis:8.7.0'
+    implementation 'io.lettuce:lettuce-core:6.2.6.RELEASE'
     
     // Database
     implementation 'org.postgresql:postgresql'
@@ -64,6 +70,9 @@ dependencies {
     // JSON Processing
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-hibernate5-jakarta'
+    
+    // API Documentation
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
     
     // Lombok
     compileOnly 'org.projectlombok:lombok'

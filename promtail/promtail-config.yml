@@ -1,0 +1,59 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: varlogs
+          __path__: /var/log/*log
+
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: label
+            values: ["name=smm-*"]
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      - source_labels: ['__meta_docker_container_log_file']
+        target_label: 'log_file'
+      - source_labels: ['__meta_docker_container_name']
+        regex: 'smm-(\w+)'
+        target_label: 'service'
+      - source_labels: ['__meta_docker_container_name']
+        regex: 'smm-(\w+)'
+        target_label: 'job'
+
+  - job_name: spring-boot
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: spring-boot
+          __path__: /var/log/spring/*.log
+
+pipeline_stages:
+  - docker: {}
+  - regex:
+      expression: '^(?P<time>\d{4}-\d{2}-\d{2} \d{1,2}:\d{2}:\d{2}\.\d{3})  (\S+) (\S+) \[(?P<thread>[^\]]+)\] (?P<level>\w+) (?P<logger>[^\s]+) - (?P<msg>.*)$'
+  - labels:
+      level:
+      logger:
+  - output:
+      source: msg
+  - timestamp:
+      source: time
+      format: 2006-01-02 15:04:05.000

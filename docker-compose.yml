@@ -2,6 +2,45 @@
 # Production-ready infrastructure for SMM Panel
 version: '3.9'
 
+# Environment variables can be set in .env file
+x-common-env: &common-env
+  TZ: ${TZ:-UTC}
+  SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-smm_panel}
+  SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-smm_admin}
+  SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+  SPRING_REDIS_HOST: redis
+  SPRING_REDIS_PORT: 6379
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9093
+  SPRING_SLEUTH_SAMPLER_PROBABILITY: 1.0
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics,prometheus
+  MANAGEMENT_ENDPOINT_HEALTH_SHOWDETAILS: always
+  MANAGEMENT_ENDPOINT_HEALTH_SHOWCOMPONENTS: always
+  MANAGEMENT_HEALTH_REDIS_ENABLED: true
+  MANAGEMENT_HEALTH_DB_ENABLED: true
+  MANAGEMENT_HEALTH_DISKSPACETHRESHOLD: 10MB
+  MANAGEMENT_ENDPOINT_METRICS_ENABLED: true
+  MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED: true
+  MANAGEMENT_METRICS_DISTRIBUTION_PERCENTILES_HISTOGRAM_HTTP_SERVER_REQUESTS: true
+  MANAGEMENT_METRICS_ENABLE_HTTP_CLIENT_METRICS: true
+  MANAGEMENT_METRICS_ENABLE_JVM: true
+  MANAGEMENT_METRICS_ENABLE_SYSTEM: true
+  MANAGEMENT_METRICS_ENABLE_PROCESS_FILES: true
+  MANAGEMENT_METRICS_ENABLE_PROCESS_CPU: true
+  MANAGEMENT_METRICS_ENABLE_JVM_GC: true
+  MANAGEMENT_METRICS_ENABLE_JVM_MEMORY: true
+  MANAGEMENT_METRICS_ENABLE_JVM_THREADS: true
+  MANAGEMENT_METRICS_ENABLE_LOGIN_METRICS: true
+  MANAGEMENT_METRICS_ENABLE_HTTP_REQUEST_METRICS: true
+  MANAGEMENT_METRICS_ENABLE_TOMCAT_METRICS: true
+  MANAGEMENT_METRICS_ENABLE_HIBERNATE_METRICS: true
+  MANAGEMENT_METRICS_ENABLE_CACHE_METRICS: true
+  MANAGEMENT_METRICS_ENABLE_REDIS_METRICS: true
+  MANAGEMENT_METRICS_ENABLE_KAFKA_METRICS: true
+  MANAGEMENT_METRICS_ENABLE_SYSTEM_CPU: true
+  MANAGEMENT_METRICS_ENABLE_SYSTEM_UPTIME: true
+  MANAGEMENT_METRICS_ENABLE_SYSTEM_PROCESS: true
+
 services:
   # PostgreSQL with high performance configuration
   postgres:
@@ -279,6 +318,159 @@ services:
       timeout: 10s
       retries: 3
 
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: smm_prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - smm_network
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: smm_grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - smm_network
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  # Loki for logs
+  loki:
+    image: grafana/loki:latest
+    container_name: smm_loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - smm_network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  # Promtail for log collection
+  promtail:
+    image: grafana/promtail:latest
+    container_name: smm_promtail
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./promtail:/etc/promtail
+      - /var/log:/var/log:ro
+    command: -config.file=/etc/promtail/promtail-config.yml
+    networks:
+      - smm_network
+    depends_on:
+      - loki
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # Jaeger for distributed tracing
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: smm_jaeger
+    restart: unless-stopped
+    ports:
+      - "16686:16686"  # UI
+      - "14268:14268"  # HTTP collector
+      - "14250:14250"  # GRPC collector
+      - "4317:4317"    # OTLP gRPC
+      - "4318:4318"    # OTLP HTTP
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - smm_network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:14269/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  # Portainer for container management
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: smm_portainer
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "8000:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks:
+      - smm_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/api/status"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
 networks:
   smm_network:
     driver: bridge
@@ -296,6 +488,16 @@ volumes:
   zookeeper_data:
     driver: local
   zookeeper_logs:
+    driver: local
+  kafka_logs:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  loki_data:
+    driver: local
+  portainer_data:
     driver: local
   nginx_logs:
     driver: local

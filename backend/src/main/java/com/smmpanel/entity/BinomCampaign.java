@@ -1,17 +1,22 @@
 package com.smmpanel.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * Entity для хранения информации о кампаниях Binom
+ */
 @Data
 @Entity
 @Table(name = "binom_campaigns")
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
 public class BinomCampaign {
     @Id
@@ -28,8 +33,14 @@ public class BinomCampaign {
     @Column(name = "campaign_id", unique = true, nullable = false, length = 100)
     private String campaignId;
 
+    @Column(name = "campaign_name")
+    private String campaignName;
+
     @Column(name = "offer_id", length = 100)
     private String offerId;
+
+    @Column(name = "offer_name")
+    private String offerName;
 
     @Column(name = "target_url", nullable = false, length = 500)
     private String targetUrl;
@@ -38,10 +49,14 @@ public class BinomCampaign {
     @JoinColumn(name = "traffic_source_id")
     private TrafficSource trafficSource;
 
-    @Column(nullable = false, precision = 4, scale = 2)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "fixed_campaign_id")
+    private FixedBinomCampaign fixedCampaign;
+
+    @Column(precision = 4, scale = 2)
     private BigDecimal coefficient;
 
-    @Column(name = "clicks_required", nullable = false)
+    @Column(name = "clicks_required")
     private Integer clicksRequired;
 
     @Column(name = "clicks_delivered")
@@ -56,8 +71,21 @@ public class BinomCampaign {
     @Column(name = "cost_per_click", precision = 8, scale = 6)
     private BigDecimal costPerClick;
 
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @Column(name = "geo_targeting", length = 50)
+    private String geoTargeting = "US";
+
+    @Column
+    private Integer priority;
+
+    @Column(name = "is_fixed_campaign")
+    @Builder.Default
+    private Boolean isFixedCampaign = false;
+
     @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @UpdateTimestamp

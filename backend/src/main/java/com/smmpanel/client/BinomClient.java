@@ -1,9 +1,7 @@
 package com.smmpanel.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.smmpanel.dto.binom.CampaignResponse;
-import com.smmpanel.dto.binom.CampaignStats;
-import com.smmpanel.dto.binom.CreateCampaignRequest;
+import com.smmpanel.dto.binom.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,6 +10,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
@@ -28,11 +27,14 @@ public class BinomClient {
     @Value("${app.binom.api.key}")
     private String apiKey;
 
+    private static final String API_KEY_PARAM = "api_key";
+    private static final String FORMAT_JSON = "json";
+
     public CampaignResponse createCampaign(CreateCampaignRequest request) {
         try {
             String url = UriComponentsBuilder.fromHttpUrl(apiUrl + "/campaign")
-                    .queryParam("api_key", apiKey)
-                    .queryParam("format", "json")
+                    .queryParam(API_KEY_PARAM, apiKey)
+                    .queryParam("format", FORMAT_JSON)
                     .build()
                     .toUriString();
 
@@ -74,11 +76,107 @@ public class BinomClient {
         }
     }
 
+    /**
+     * Создать оффер в Binom
+     */
+    public CreateOfferResponse createOffer(CreateOfferRequest request) {
+        try {
+            String endpoint = "/offer";
+            String url = UriComponentsBuilder.fromHttpUrl(apiUrl + endpoint)
+                    .queryParam(API_KEY_PARAM, apiKey)
+                    .queryParam("format", FORMAT_JSON)
+                    .build()
+                    .toUriString();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            HttpEntity<CreateOfferRequest> entity = new HttpEntity<>(request, headers);
+
+            log.info("Creating offer in Binom: {}", request.getName());
+            ResponseEntity<CreateOfferResponse> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    entity,
+                    CreateOfferResponse.class
+            );
+
+            log.info("Created offer in Binom: {} -> {}", request.getName(), response.getBody().getOfferId());
+            return response.getBody();
+
+        } catch (Exception e) {
+            log.error("Failed to create offer in Binom: {}", e.getMessage(), e);
+            throw new RuntimeException("Binom API error: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Назначить оффер на кампанию
+     */
+    public AssignOfferResponse assignOfferToCampaign(String campaignId, String offerId) {
+        try {
+            String endpoint = "/campaign/" + campaignId + "/offer";
+            String url = UriComponentsBuilder.fromHttpUrl(apiUrl + endpoint)
+                    .queryParam(API_KEY_PARAM, apiKey)
+                    .queryParam("format", FORMAT_JSON)
+                    .build()
+                    .toUriString();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            Map<String, String> requestBody = new HashMap<>();
+            requestBody.put("offer_id", offerId);
+
+            HttpEntity<Map<String, String>> entity = new HttpEntity<>(requestBody, headers);
+
+            log.debug("Assigning offer {} to campaign {}", offerId, campaignId);
+            ResponseEntity<AssignOfferResponse> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    entity,
+                    AssignOfferResponse.class
+            );
+
+            return response.getBody();
+
+        } catch (Exception e) {
+            log.error("Failed to assign offer {} to campaign {}: {}", offerId, campaignId, e.getMessage(), e);
+            throw new RuntimeException("Binom API assignment error: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Проверить существование оффера по имени
+     */
+    public CheckOfferResponse checkOfferExists(String offerName) {
+        try {
+            String endpoint = "/offer/check";
+            String url = UriComponentsBuilder.fromHttpUrl(apiUrl + endpoint)
+                    .queryParam(API_KEY_PARAM, apiKey)
+                    .queryParam("format", FORMAT_JSON)
+                    .queryParam("name", offerName)
+                    .build()
+                    .toUriString();
+
+            log.debug("Checking if offer exists: {}", offerName);
+            ResponseEntity<CheckOfferResponse> response = restTemplate.getForEntity(
+                    url, 
+                    CheckOfferResponse.class
+            );
+            return response.getBody();
+
+        } catch (Exception e) {
+            log.error("Failed to check offer existence: {}", e.getMessage(), e);
+            return CheckOfferResponse.builder().exists(false).build();
+        }
+    }
+
     public CampaignStats getCampaignStats(String campaignId) {
         try {
             String url = UriComponentsBuilder.fromHttpUrl(apiUrl + "/report")
-                    .queryParam("api_key", apiKey)
-                    .queryParam("format", "json")
+                    .queryParam(API_KEY_PARAM, apiKey)
+                    .queryParam("format", FORMAT_JSON)
                     .queryParam("grouping", "campaign")
                     .queryParam("filters[campaign_id]", campaignId)
                     .queryParam("date_from", java.time.LocalDate.now().toString())

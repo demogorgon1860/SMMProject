@@ -1,10 +1,10 @@
 package com.smmpanel.dto.binom;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
+/**
+ * Статистика кампании (существующий)
+ */
 @Data
 @Builder
 @NoArgsConstructor
@@ -13,6 +13,7 @@ public class CampaignStats {
     private String campaignId;
     private Integer clicks;
     private Integer conversions;
-    private Double spend;
-    private Double revenue;
+    private Double ctr;
+    private Double cost;
+    private String status;
 }

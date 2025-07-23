@@ -195,10 +195,55 @@ app:
     processing:
       batch-size: 100
       thread-pool-size: 10
+      max-retry-attempts: 3
+      retry-delay-ms: 60000 # 1 minute
+      initial-delay-ms: 5000 # 5 seconds
+      max-delay-ms: 600000 # 10 minutes
       clip-creation:
         enabled: true
         timeout: 300000 # 5 minutes
         retry-attempts: 2
+      state-transition:
+        timeout-ms: 300000 # 5 minutes
+        max-retries: 3
+    
+    # SLA Configuration
+    sla:
+      monitoring:
+        enabled: true
+        interval-ms: 300000 # 5 minutes
+        initial-delay-ms: 30000 # 30 seconds
+        thread-pool-size: 3
+      processing:
+        warning-threshold-ms: 300000 # 5 minutes
+        critical-threshold-ms: 900000 # 15 minutes
+      completion:
+        warning-threshold-ms: 86400000 # 24 hours
+        critical-threshold-ms: 172800000 # 48 hours
+    
+    # Fraud Detection Configuration
+    fraud:
+      detection:
+        enabled: true
+        rate-limit:
+          enabled: true
+          requests-per-minute: 30
+          bucket-capacity: 30
+          refill-tokens: 30
+          refill-duration-minutes: 1
+        duplicate-detection:
+          enabled: true
+          time-window-minutes: 60
+          max-duplicate-attempts: 3
+        suspicious-patterns:
+          enabled: true
+          max-orders-per-hour: 10
+          max-same-quantity-percent: 60
+          high-value-threshold: 100.0
+        user-verification:
+          enabled: true
+          min-account-age-days: 1
+          min-successful-orders: 1
   
   traffic:
     sources:

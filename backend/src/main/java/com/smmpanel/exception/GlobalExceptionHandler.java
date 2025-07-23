@@ -131,6 +131,50 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(PerfectPanelResponse.error("Validation failed: " + ex.getMessage(), 400));
     }
+    
+    @ExceptionHandler(com.smmpanel.dto.validation.ValidationException.class)
+    public ResponseEntity<PerfectPanelResponse> handleCustomValidationException(
+            com.smmpanel.dto.validation.ValidationException ex) {
+        log.error("Custom validation exception: {}", ex.getMessage());
+        Map<String, Object> errors = new HashMap<>();
+        errors.put("errors", ex.getErrors().stream()
+            .map(error -> Map.of("field", error.getField(), "message", error.getMessage()))
+            .collect(Collectors.toList()));
+            
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(PerfectPanelResponse.error("Validation failed", 400, errors));
+    }
+    
+    @ExceptionHandler(FraudDetectionException.class)
+    public ResponseEntity<PerfectPanelResponse> handleFraudDetectionException(FraudDetectionException ex) {
+        log.warn("Fraud detection triggered: {}", ex.getMessage());
+        Map<String, Object> details = new HashMap<>();
+        details.put("code", ex.getErrorCode());
+        details.put("message", ex.getMessage());
+        
+        if (ex.getAdditionalDetails() != null) {
+            details.putAll(ex.getAdditionalDetails());
+        }
+        
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(PerfectPanelResponse.error("Order rejected by fraud detection", 403, details));
+    }
+    
+    @ExceptionHandler(OrderProcessingException.class)
+    public ResponseEntity<PerfectPanelResponse> handleOrderProcessingException(OrderProcessingException ex) {
+        log.error("Order processing error: {}", ex.getMessage(), ex);
+        
+        Map<String, Object> details = new HashMap<>();
+        details.put("orderId", ex.getOrderId());
+        details.put("status", ex.getCurrentStatus());
+        
+        if (ex.getRetryable() != null) {
+            details.put("retryable", ex.getRetryable());
+        }
+        
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(PerfectPanelResponse.error("Order processing failed: " + ex.getMessage(), 500, details));
+    }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<PerfectPanelResponse> handleAllUncaughtException(Exception ex, WebRequest request) {

@@ -60,8 +60,8 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                 // Rate limiting check would go here
                 // checkRateLimit(apiKey, request);
                 
-                // Find user by API key
-                Optional<User> userOpt = userRepository.findByApiKey(apiKey);
+                // Find user by API key (secure hash-based lookup)
+                Optional<User> userOpt = findUserByApiKey(apiKey);
                 
                 if (userOpt.isEmpty()) {
                     log.warn("API key not found: {}", maskApiKey(apiKey));
@@ -70,13 +70,6 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                 }
                 
                 User user = userOpt.get();
-                
-                // Verify API key hash if using hashed keys
-                if (!verifyApiKey(apiKey, user)) {
-                    log.warn("Invalid API key for user: {}", user.getUsername());
-                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid API key");
-                    return;
-                }
                 
                 if (!user.getIsActive()) {
                     log.warn("Inactive user attempted access: {}", user.getUsername());
@@ -121,6 +114,26 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         }
         
         return StringUtils.trimToNull(apiKey);
+    }
+    
+    private Optional<User> findUserByApiKey(String apiKey) {
+        try {
+            // Hash the API key to search for it securely
+            // Note: We need to search through all users and verify the hash
+            // This is a temporary solution - in production, consider using a lookup table
+            List<User> users = userRepository.findAll();
+            
+            for (User user : users) {
+                if (verifyApiKey(apiKey, user)) {
+                    return Optional.of(user);
+                }
+            }
+            
+            return Optional.empty();
+        } catch (Exception e) {
+            log.error("Error searching for user by API key: {}", e.getMessage());
+            return Optional.empty();
+        }
     }
     
     private boolean verifyApiKey(String apiKey, User user) {

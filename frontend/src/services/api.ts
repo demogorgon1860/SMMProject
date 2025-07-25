@@ -37,10 +37,57 @@ const api = axios.create({
   },
 })
 
+// Secure token storage utility
+const TokenStorage = {
+  setToken: (token: string) => {
+    try {
+      // Use sessionStorage for better security, or implement secure storage
+      sessionStorage.setItem('authToken', token)
+    } catch (error) {
+      console.error('Failed to store auth token:', error)
+    }
+  },
+  
+  getToken: (): string | null => {
+    try {
+      return sessionStorage.getItem('authToken')
+    } catch (error) {
+      console.error('Failed to retrieve auth token:', error)
+      return null
+    }
+  },
+  
+  removeToken: () => {
+    try {
+      sessionStorage.removeItem('authToken')
+      sessionStorage.removeItem('refreshToken')
+    } catch (error) {
+      console.error('Failed to remove auth token:', error)
+    }
+  },
+  
+  setRefreshToken: (token: string) => {
+    try {
+      sessionStorage.setItem('refreshToken', token)
+    } catch (error) {
+      console.error('Failed to store refresh token:', error)
+    }
+  },
+  
+  getRefreshToken: (): string | null => {
+    try {
+      return sessionStorage.getItem('refreshToken')
+    } catch (error) {
+      console.error('Failed to retrieve refresh token:', error)
+      return null
+    }
+  }
+}
+
 // Request interceptor for authentication
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('authToken')
+    const token = TokenStorage.getToken()
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -68,15 +115,15 @@ api.interceptors.response.use(
       originalRequest._retry = true
       
       try {
-        const refreshToken = localStorage.getItem('refreshToken')
+        const refreshToken = TokenStorage.getRefreshToken()
         if (refreshToken) {
           const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
             refreshToken,
           })
           
           const { accessToken, refreshToken: newRefreshToken } = response.data
-          localStorage.setItem('authToken', accessToken)
-          localStorage.setItem('refreshToken', newRefreshToken)
+          TokenStorage.setToken(accessToken)
+          TokenStorage.setRefreshToken(newRefreshToken)
           
           // Retry original request with new token
           originalRequest.headers.Authorization = `Bearer ${accessToken}`

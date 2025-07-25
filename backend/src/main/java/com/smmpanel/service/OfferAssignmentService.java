@@ -1,34 +1,47 @@
 package com.smmpanel.service;
 
-import com.smmpanel.dto.binom.AssignOfferResponse;
+import com.smmpanel.dto.binom.AssignedCampaignInfo;
 import com.smmpanel.dto.binom.OfferAssignmentRequest;
 import com.smmpanel.dto.binom.OfferAssignmentResponse;
 
+import java.util.List;
+
+/**
+ * Service interface for managing offer assignments to Binom campaigns
+ * Supports Perfect Panel compatibility and Binom V2 integration
+ */
 public interface OfferAssignmentService {
     
     /**
-     * Assigns an offer to a campaign
+     * Assigns an offer to all fixed campaigns
      * @param request The offer assignment request containing assignment details
-     * @return Response containing assignment details
+     * @return Response containing assignment details and campaign IDs
      */
-    OfferAssignmentResponse assignOffer(OfferAssignmentRequest request);
+    OfferAssignmentResponse assignOfferToFixedCampaigns(OfferAssignmentRequest request);
     
     /**
-     * Processes the offer assignment asynchronously
-     * @param request The offer assignment request
-     * @return Response with initial assignment status
+     * Gets all campaigns assigned to a specific order
+     * @param orderId The order ID to get campaigns for
+     * @return List of assigned campaign information
      */
-    AssignOfferResponse processOfferAssignment(OfferAssignmentRequest request);
+    List<AssignedCampaignInfo> getAssignedCampaigns(Long orderId);
     
     /**
-     * Updates the status of an offer assignment
-     * @param assignmentId The ID of the assignment to update
+     * Gets the current assignment status for an order
+     * @param orderId The order ID to check status for
+     * @return Assignment status (PENDING, SUCCESS, ERROR, etc.)
+     */
+    String getAssignmentStatus(Long orderId);
+    
+    /**
+     * Updates the assignment status for an order
+     * @param orderId The order ID to update
      * @param status The new status to set
      */
-    void updateAssignmentStatus(String assignmentId, String status);
+    void updateAssignmentStatus(Long orderId, String status);
     
     /**
-     * Validates if the offer can be assigned
+     * Validates if the offer assignment request is valid
      * @param request The offer assignment request to validate
      * @return true if the assignment is valid, false otherwise
      */

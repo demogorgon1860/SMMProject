@@ -23,7 +23,7 @@ public class JwtService {
     private final JwtConfig jwtConfig;
     private final Key jwtSecretKey;
     
-    @Value("${app.jwt.refresh-expiration:604800000}") // 7 days default
+    @org.springframework.beans.factory.annotation.Value("${app.jwt.refresh-expiration:604800000}") // 7 days default
     private long refreshExpiration;
 
     public String extractUsername(String token) {

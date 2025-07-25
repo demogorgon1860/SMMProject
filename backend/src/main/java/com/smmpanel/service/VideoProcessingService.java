@@ -86,7 +86,7 @@ public class VideoProcessingService {
     @Async("asyncExecutor")
     @Transactional
     @Retryable(value = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 5000))
-    public CompletableFuture<Void> processVideo(Long processingId) {
+    public java.util.concurrent.CompletableFuture<Void> processVideo(Long processingId) {
         log.info("Starting video processing for ID: {}", processingId);
         
         VideoProcessing processing = videoProcessingRepository.findById(processingId)
@@ -234,7 +234,6 @@ public class VideoProcessingService {
         } catch (Exception ex) {
             log.error("Error handling processing failure for ID {}: {}", processing.getId(), ex.getMessage(), ex);
         }
-    }
     }
 
     private VideoType determineVideoType(String url) {

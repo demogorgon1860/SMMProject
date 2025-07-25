@@ -10,14 +10,12 @@ import com.smmpanel.repository.UserRepository;
 import com.smmpanel.service.YouTubeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Optional;
 
 @Slf4j
-@Service
+@org.springframework.stereotype.Service
 @RequiredArgsConstructor
 public class OrderValidationService {
     
@@ -62,7 +60,7 @@ public class OrderValidationService {
         }
         
         User user = userOpt.get();
-        if (!user.isActive()) {
+        if (!user.getIsActive()) {
             result.addError("user", "Account is suspended");
         }
     }

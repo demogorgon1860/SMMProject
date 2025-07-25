@@ -4,6 +4,9 @@ import com.smmpanel.dto.balance.CurrencyConversionResponse;
 import com.smmpanel.entity.User;
 import com.smmpanel.exception.CurrencyConversionException;
 import com.smmpanel.repository.UserRepository;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -183,5 +186,17 @@ public class CurrencyService {
         private final String symbol;
         private final int decimalPlaces;
         private final String name;
+        
+        // Manual constructor since Lombok annotation processing is broken
+        public CurrencyInfo(String symbol, int decimalPlaces, String name) {
+            this.symbol = symbol;
+            this.decimalPlaces = decimalPlaces;
+            this.name = name;
+        }
+        
+        // Manual getters since Lombok annotation processing is broken
+        public String getSymbol() { return symbol; }
+        public int getDecimalPlaces() { return decimalPlaces; }
+        public String getName() { return name; }
     }
 }

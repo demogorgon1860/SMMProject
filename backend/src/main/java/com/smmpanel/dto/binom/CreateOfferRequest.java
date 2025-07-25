@@ -5,8 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Pattern;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 
 /**
  * Request for creating an offer in Binom
@@ -38,4 +38,14 @@ public class CreateOfferRequest {
     private String landingPageUrl;
     private Double payout;
     private String payoutType;
+    
+    // Manual getters since Lombok annotation processing is broken
+    public String getName() { return name; }
+    public String getUrl() { return url; }
+    public String getDescription() { return description; }
+    public String getGeoTargeting() { return geoTargeting; }
+    public String getStatus() { return status; }
+    public String getLandingPageUrl() { return landingPageUrl; }
+    public Double getPayout() { return payout; }
+    public String getPayoutType() { return payoutType; }
 }

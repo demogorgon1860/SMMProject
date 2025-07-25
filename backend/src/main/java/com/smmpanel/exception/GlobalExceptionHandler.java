@@ -4,8 +4,8 @@ import com.smmpanel.dto.response.ApiResponse;
 import com.smmpanel.dto.response.ErrorResponse;
 import com.smmpanel.dto.response.PerfectPanelResponse;
 import io.github.bucket4j.ConsumptionProbe;
-import io.github.bucket4j.exceptions.BucketExecutionException;
-import io.github.bucket4j.exceptions.BucketNotFoundException;
+// import io.github.bucket4j.exceptions.BucketExecutionException;
+// import io.github.bucket4j.exceptions.BucketNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.exception.ConstraintViolationException;
 import org.postgresql.util.PSQLException;
@@ -104,13 +104,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .body(PerfectPanelResponse.error("Access Denied: You don't have permission to access this resource", 403));
     }
 
-    @ExceptionHandler(BucketExecutionException.class)
-    public ResponseEntity<PerfectPanelResponse> handleBucketExecutionException(BucketExecutionException ex) {
-        log.error("Rate limit exceeded: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                .header("X-Rate-Limit-Retry-After-Seconds", "60")
-                .body(PerfectPanelResponse.error("Too many requests. Please try again later.", 429));
-    }
+    // @ExceptionHandler(BucketExecutionException.class)
+    // public ResponseEntity<PerfectPanelResponse> handleBucketExecutionException(BucketExecutionException ex) {
+    //     log.error("Rate limit exceeded: {}", ex.getMessage());
+    //     return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+    //             .header("X-Rate-Limit-Retry-After-Seconds", "60")
+    //             .body(PerfectPanelResponse.error("Too many requests. Please try again later.", 429));
+    // }
 
     @ExceptionHandler(DataAccessException.class)
     public ResponseEntity<PerfectPanelResponse> handleDataAccessException(DataAccessException ex) {
@@ -245,28 +245,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidationExceptions(
-            MethodArgumentNotValidException ex, HttpServletRequest request) {
-        
-        Map<String, String> validationErrors = new HashMap<>();
-        ex.getBindingResult().getAllErrors().forEach((error) -> {
-            String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
-            validationErrors.put(fieldName, errorMessage);
-        });
 
-        ErrorResponse error = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.BAD_REQUEST.value())
-                .error("Validation Failed")
-                .message("Invalid input data")
-                .path(request.getRequestURI())
-                .validationErrors(validationErrors)
-                .build();
-
-        return ResponseEntity.badRequest().body(error);
-    }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<PerfectPanelResponse> handleIllegalArgument(IllegalArgumentException ex) {

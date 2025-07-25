@@ -19,6 +19,7 @@ import java.util.List;
 
 /**
  * REST Controller для управления назначением офферов на фиксированные кампании Binom
+ * PRODUCTION-READY with Perfect Panel compatibility
  */
 @Slf4j
 @RestController
@@ -139,3 +140,21 @@ public class OfferAssignmentController {
             return ResponseEntity.internalServerError().body("Assignment failed: " + e.getMessage());
         }
     }
+
+    /**
+     * Статус назначения оффера
+     */
+    @GetMapping("/assignment/{orderId}/status")
+    @Operation(summary = "Проверить статус назначения", 
+               description = "Возвращает текущий статус назначения оффера для заказа")
+    @PreAuthorize("hasRole('USER') or hasRole('OPERATOR') or hasRole('ADMIN')")
+    public ResponseEntity<String> getAssignmentStatus(@PathVariable Long orderId) {
+        try {
+            String status = offerAssignmentService.getAssignmentStatus(orderId);
+            return ResponseEntity.ok(status);
+        } catch (Exception e) {
+            log.error("Failed to get assignment status for order {}: {}", orderId, e.getMessage(), e);
+            return ResponseEntity.internalServerError().body("ERROR");
+        }
+    }
+}

@@ -1,7 +1,7 @@
 package com.smmpanel.service;
 
 import com.smmpanel.entity.Order;
-import com.smmpanel.enums.OrderStatus;
+import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

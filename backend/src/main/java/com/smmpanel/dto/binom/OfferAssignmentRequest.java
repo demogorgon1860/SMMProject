@@ -1,14 +1,15 @@
 package com.smmpanel.dto.binom;
 
-import lombok.Data;
-import lombok.Builder;
-import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
 
 /**
- * DTO для создания оффера и назначения его на фиксированные кампании
+ * Request for assigning an offer to a campaign in Binom
  */
 @Data
 @Builder
@@ -16,17 +17,23 @@ import jakarta.validation.constraints.NotNull;
 @AllArgsConstructor
 public class OfferAssignmentRequest {
     
+    @NotNull(message = "Order ID is required")
+    private Long orderId;
+    
     @NotBlank(message = "Offer name is required")
     private String offerName;
     
     @NotBlank(message = "Target URL is required")
     private String targetUrl;
     
-    @NotNull(message = "Order ID is required")
-    private Long orderId;
-    
-    // Дополнительные параметры (если нужны)
     private String description;
-    private String geoTargeting; // По умолчанию US
-    private Integer priority; // Приоритет оффера (опционально)
+    
+    @Builder.Default
+    private String geoTargeting = "US";
+    
+    @NotBlank(message = "Source is required")
+    private String source; // VIDEO_PROCESSING_CLIP, VIDEO_PROCESSING_ORIGINAL, MANUAL
+    
+    private String campaignId;
+    private Boolean useFixedCampaign;
 }

@@ -6,15 +6,16 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Response for assigning an offer to a campaign in Binom
+ * Response for creating a campaign in Binom
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AssignOfferResponse {
+public class CreateCampaignResponse {
     private String campaignId;
-    private String offerId;
+    private String name;
     private String status;
-    private String assignedAt;
+    private String trafficSourceId;
+    private String geoTargeting;
 }

@@ -1,9 +1,12 @@
 package com.smmpanel.dto.binom;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
- * Ответ на создание оффера в Binom
+ * Response for creating an offer in Binom
  */
 @Data
 @Builder
@@ -14,5 +17,6 @@ public class CreateOfferResponse {
     private String name;
     private String url;
     private String status;
-    private String message;
+    private String geoTargeting;
+    private String category;
 }

@@ -5,8 +5,7 @@ import com.smmpanel.entity.*;
 import com.smmpanel.event.OrderCreatedEvent;
 import com.smmpanel.exception.OrderNotFoundException;
 import com.smmpanel.repository.*;
-import com.smmpanel.service.BalanceService;
-import com.smmpanel.service.YouTubeService;
+import com.smmpanel.service.*;
 import com.smmpanel.service.fraud.FraudDetectionService;
 import com.smmpanel.service.order.state.OrderStateManager;
 import com.smmpanel.service.validation.OrderValidationService;
@@ -24,6 +23,9 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
+/**
+ * PRODUCTION-READY Order Processing Service with complete workflow
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -32,19 +34,23 @@ public class OrderProcessingService {
     private final OrderRepository orderRepository;
     private final OrderStateManager orderStateManager;
     private final YouTubeService youTubeService;
-    private final BinomIntegrationService binomIntegrationService;
     private final VideoProcessingService videoProcessingService;
+    private final BinomService binomService;
     private final NotificationService notificationService;
     private final BalanceService balanceService;
     private final OrderValidationService orderValidationService;
     private final FraudDetectionService fraudDetectionService;
     private final ConversionCoefficientRepository conversionCoefficientRepository;
     
+    /**
+     * Handle order created event - main entry point for order processing
+     */
     @EventListener
-    @Async
+    @Async("asyncExecutor")
     @Retryable(value = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 5000))
     public void handleOrderCreated(OrderCreatedEvent event) {
         try {
+            log.info("Starting order processing for order: {}", event.getOrderId());
             processNewOrder(event.getOrderId());
         } catch (Exception e) {
             log.error("Failed to process order {}: {}", event.getOrderId(), e.getMessage(), e);
@@ -53,12 +59,15 @@ public class OrderProcessingService {
         }
     }
     
+    /**
+     * Main order processing workflow
+     */
     @Transactional
     public void processNewOrder(Long orderId) {
         Order order = orderRepository.findById(orderId)
             .orElseThrow(() -> new OrderNotFoundException("Order not found: " + orderId));
         
-        log.info("Processing new order: {}", orderId);
+        log.info("Processing new order: {} for user: {}", orderId, order.getUser().getUsername());
         
         try {
             // 1. Validate order is in correct state
@@ -104,6 +113,34 @@ public class OrderProcessingService {
         }
     }
     
+    /**
+     * Pause order processing
+     */
+    @Transactional
+    public void pauseOrder(Long orderId, String reason) {
+        try {
+            Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found: " + orderId));
+            
+            if (!canPauseOrder(order)) {
+                throw new IllegalStateException("Order cannot be paused in current status: " + order.getStatus());
+            }
+            
+            orderStateManager.transitionTo(order, OrderStatus.PAUSED);
+            order.setErrorMessage("Paused: " + reason);
+            orderRepository.save(order);
+            
+            // Pause Binom campaigns
+            pauseBinomCampaigns(orderId);
+            
+            log.info("Paused order {} - reason: {}", orderId, reason);
+            
+        } catch (Exception e) {
+            log.error("Failed to pause order {}: {}", orderId, e.getMessage());
+            throw e;
+        }
+    }
+    
     @Transactional
     public void handleClipCreationCompleted(Long videoProcessingId) {
         VideoProcessing videoProcessing = videoProcessingService.getById(videoProcessingId);
@@ -127,6 +164,33 @@ public class OrderProcessingService {
             orderStateManager.transitionTo(order, OrderStatus.HOLDING);
             notificationService.notifyOperators(
                 "Order " + order.getId() + " requires manual intervention");
+        }
+    }
+    
+    /**
+     * Complete order processing (called after successful video processing and Binom integration)
+     */
+    @Transactional
+    public void completeOrderProcessing(Long orderId) {
+        try {
+            Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found: " + orderId));
+            
+            // Transition to ACTIVE status (delivery in progress)
+            orderStateManager.transitionTo(order, OrderStatus.ACTIVE);
+            
+            log.info("Order {} transitioned to ACTIVE - delivery started", orderId);
+            
+            // Send notification to user
+            try {
+                notificationService.sendOrderStartedNotification(order);
+            } catch (Exception e) {
+                log.error("Failed to send order started notification: {}", e.getMessage());
+            }
+            
+        } catch (Exception e) {
+            log.error("Failed to complete order processing for {}: {}", orderId, e.getMessage());
+            throw e;
         }
     }
     
@@ -169,17 +233,44 @@ public class OrderProcessingService {
                 .build());
     }
     
-    private void handleOrderProcessingFailure(Long orderId, Exception error) {
+    /**
+     * Handle order processing failure
+     */
+    @Transactional
+    public void handleOrderProcessingFailure(Long orderId, Exception error) {
         try {
             Order order = orderRepository.findById(orderId).orElse(null);
-            if (order != null) {
-                order.setErrorMessage(error.getMessage());
-                orderStateManager.transitionTo(order, OrderStatus.HOLDING);
-                
-                // Notify operators for manual intervention
-                notificationService.notifyOperators(
-                    String.format("Order %d failed processing: %s", orderId, error.getMessage()));
+            if (order == null) {
+                log.error("Cannot handle failure for non-existent order: {}", orderId);
+                return;
             }
+            
+            // Transition to CANCELLED status
+            orderStateManager.transitionTo(order, OrderStatus.CANCELLED);
+            
+            // Set error message
+            order.setErrorMessage("Processing failed: " + error.getMessage());
+            orderRepository.save(order);
+            
+            // Refund user balance if payment was processed
+            if (order.getCharge() != null && order.getCharge().compareTo(BigDecimal.ZERO) > 0) {
+                try {
+                    balanceService.refundOrder(order);
+                    log.info("Refunded {} to user {} for failed order {}", 
+                            order.getCharge(), order.getUser().getUsername(), orderId);
+                } catch (Exception e) {
+                    log.error("Failed to refund order {}: {}", orderId, e.getMessage());
+                }
+            }
+            
+            // Send notification to user
+            try {
+                notificationService.sendOrderFailedNotification(order, error.getMessage());
+            } catch (Exception e) {
+                log.error("Failed to send failure notification for order {}: {}", orderId, e.getMessage());
+            }
+            
+            log.info("Handled processing failure for order {}", orderId);
         } catch (Exception e) {
             log.error("Failed to handle order processing failure for order {}: {}", 
                 orderId, e.getMessage(), e);

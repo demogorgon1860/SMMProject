@@ -1,17 +1,19 @@
 package com.smmpanel.entity;
 
 public enum VideoType {
-    STANDARD("Standard Video"),
-    SHORTS("YouTube Shorts"),
-    LIVE("Live Stream");
+    REGULAR("Regular Video"),
+    SHORT("YouTube Short"),
+    LIVE("Live Stream"),
+    PREMIERE("Premiere"),
+    UNKNOWN("Unknown");
     
-    private final String description;
+    private final String displayName;
     
-    VideoType(String description) {
-        this.description = description;
+    VideoType(String displayName) {
+        this.displayName = displayName;
     }
     
-    public String getDescription() {
-        return description;
+    public String getDisplayName() {
+        return displayName;
     }
 }

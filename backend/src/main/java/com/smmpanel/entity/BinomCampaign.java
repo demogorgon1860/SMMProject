@@ -24,10 +24,7 @@ public class BinomCampaign {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumns({
-        @JoinColumn(name = "order_id", referencedColumnName = "id"),
-        @JoinColumn(name = "order_created_at", referencedColumnName = "created_at")
-    })
+    @JoinColumn(name = "order_id")
     private Order order;
 
     @Column(name = "campaign_id", unique = true, nullable = false, length = 100)

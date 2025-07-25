@@ -386,32 +386,7 @@ public class BinomService {
         }
     }
 
-    /**
-     * Update campaign statistics from Binom
-     */
-    @Transactional
-    public void updateCampaignStats(String campaignId) {
-        try {
-            CampaignStatsResponse stats = binomClient.getCampaignStats(campaignId);
-            
-            Optional<BinomCampaign> campaignOpt = binomCampaignRepository.findByCampaignId(campaignId);
-            
-            if (campaignOpt.isPresent()) {
-                BinomCampaign campaign = campaignOpt.get();
-                campaign.setClicksDelivered(stats.getClicks());
-                campaign.setViewsGenerated(stats.getViews());
-                campaign.setUpdatedAt(LocalDateTime.now());
-                
-                binomCampaignRepository.save(campaign);
-                
-                log.debug("Updated stats for campaign {}: clicks={}, views={}", 
-                        campaignId, stats.getClicks(), stats.getViews());
-            }
 
-        } catch (Exception e) {
-            log.error("Failed to update stats for campaign {}: {}", campaignId, e.getMessage());
-        }
-    }
 
     /**
      * Get all campaigns for an order
@@ -686,13 +661,5 @@ public class BinomService {
             case 3 -> "HIGH_QUALITY";
             default -> "STANDARD";
         };
-    }
-    
-    public void updateCampaignStatus(String campaignId, String status) {
-        BinomCampaign campaign = campaignRepository.findByCampaignId(campaignId)
-                .orElseThrow(() -> new IllegalArgumentException("Campaign not found: " + campaignId));
-        
-        campaign.setStatus(status);
-        campaignRepository.save(campaign);
     }
 }

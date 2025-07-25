@@ -69,7 +69,7 @@ public class BalanceController {
 
         BalanceResponse response = BalanceResponse.builder()
                 .balance(balance)
-                .currency("USD") // TODO: Make currency configurable
+                .currency(user.getPreferredCurrency())
                 .build();
 
         return ResponseEntity.ok(ApiResponse.success(response));

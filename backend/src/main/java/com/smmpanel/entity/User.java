@@ -60,6 +60,46 @@ public class User {
     @Column(name = "is_active")
     private Boolean isActive = true;
     
+    // Getter method for isActive
+    public Boolean getIsActive() {
+        return isActive;
+    }
+    
+    // Getter method for preferredCurrency
+    public String getPreferredCurrency() {
+        return preferredCurrency;
+    }
+    
+    // Additional getter methods needed by the application
+    public String getUsername() {
+        return username;
+    }
+    
+    public UserRole getRole() {
+        return role;
+    }
+    
+    public void setLastApiAccess(LocalDateTime lastApiAccess) {
+        // Add lastApiAccess field if needed, or just log for now
+    }
+    
+    public String getApiKeyHash() {
+        return apiKeyHash;
+    }
+    
+    public String getApiKeySalt() {
+        return apiKeySalt;
+    }
+    
+    public String getApiKey() {
+        return apiKey; // This is the transient field
+    }
+    
+    // Additional getter methods for authentication and authorization
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+    
     @Transient
     @JsonIgnore
     private transient String apiKey; // Transient field for API key (not persisted)

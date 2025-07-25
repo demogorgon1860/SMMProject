@@ -33,7 +33,7 @@ public class OfferAssignmentConsumer {
     public void handleOfferAssignmentEvent(
             @Payload OfferAssignmentEvent event,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
-            @Header(KafkaHeaders.RECEIVED_PARTITION_ID) int partition
+            @Header(KafkaHeaders.RECEIVED_PARTITION) int partition
     ) {
         try {
             log.info("Processing offer assignment event for order {}: {}", event.getOrderId(), event.getOfferName());

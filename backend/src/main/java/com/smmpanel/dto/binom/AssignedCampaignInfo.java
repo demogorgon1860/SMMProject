@@ -1,12 +1,15 @@
 package com.smmpanel.dto.binom;
 
-import lombok.Data;
-import lombok.Builder;
-import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
 
 /**
- * DTO для информации о назначенной кампании
+ * DTO for assigned campaign information
+ * Compatible with Perfect Panel response format
  */
 @Data
 @Builder
@@ -17,8 +20,14 @@ public class AssignedCampaignInfo {
     private String campaignId;
     private String campaignName;
     private Long trafficSourceId;
-    private String offerId;
-    private Integer clicksRequired;
+    private String trafficSourceName;
+    private String geoTargeting;
+    private Integer weight;
+    private Integer priority;
+    private Boolean active;
+    private LocalDateTime assignedAt;
     private String status;
-    private java.time.LocalDateTime createdAt;
+    private Integer dailyClicks;
+    private Integer totalClicks;
+    private String description;
 }

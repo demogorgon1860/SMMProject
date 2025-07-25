@@ -17,14 +17,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
 @Slf4j
-@Service
+@org.springframework.stereotype.Service
 @RequiredArgsConstructor
 public class OrderService {
 
@@ -43,7 +42,7 @@ public class OrderService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         // Validate service
-        Service service = serviceRepository.findById(request.getService())
+        Service service = serviceRepository.findById(Long.valueOf(request.getService()))
                 .orElseThrow(() -> new ServiceNotFoundException("Service not found"));
 
         if (!service.getActive()) {
@@ -84,7 +83,7 @@ public class OrderService {
         order = orderRepository.save(order);
 
         // Deduct balance
-        balanceService.deductBalance(user, charge, order);
+        balanceService.deductBalance(user, charge, order, "Order #" + order.getId());
 
         // Send to Kafka for processing
         kafkaTemplate.send("order-processing", order.getId());

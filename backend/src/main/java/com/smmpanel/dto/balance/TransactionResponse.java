@@ -34,11 +34,15 @@ public class TransactionResponse {
      * Maps a BalanceTransaction entity to TransactionResponse DTO
      */
     public static TransactionResponse fromEntity(BalanceTransaction transaction) {
+        return fromEntity(transaction, transaction.getUser().getPreferredCurrency());
+    }
+    
+    public static TransactionResponse fromEntity(BalanceTransaction transaction, String currency) {
         return TransactionResponse.builder()
                 .id(transaction.getId())
                 .transactionId(transaction.getTransactionId())
                 .amount(transaction.getAmount().abs())
-                .currency("USD") // TODO: Make currency configurable
+                .currency(currency)
                 .balanceBefore(transaction.getBalanceBefore())
                 .balanceAfter(transaction.getBalanceAfter())
                 .type(transaction.getTransactionType())

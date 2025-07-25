@@ -119,7 +119,7 @@ public class CurrencyUtils {
         String cleanValue = value.replaceAll("[^\\d.,-]+", "");
         
         // Handle different decimal separators
-        if (cleanValue.matches(".*[.,]\d{3}(?:[.,]|$)")) {
+        if (cleanValue.matches(".*[.,]\\d{3}(?:[.,]|$)")) {
             // If there are 3 digits after the decimal point, it's probably using . as thousands separator
             cleanValue = cleanValue.replace(".", "").replace(",", ".");
         } else {

@@ -60,13 +60,11 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             .headers(headers -> headers
-                .xssProtection()
-                .and()
-                .contentSecurityPolicy(
-                    "default-src 'self'; " +
-                    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-                    "style-src 'self' 'unsafe-inline'; " +
-                    "img-src 'self' data:; "
+                .frameOptions().sameOrigin()
+                .contentTypeOptions().and()
+                .httpStrictTransportSecurity(hstsConfig -> hstsConfig
+                    .maxAgeInSeconds(31536000)
+                    .includeSubDomains(true)
                 )
             )
             .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)

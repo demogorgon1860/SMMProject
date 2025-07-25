@@ -1,6 +1,7 @@
 package com.smmpanel.config;
 
 import com.smmpanel.service.CurrencyService;
+import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -42,11 +43,20 @@ public class CurrencyConfig {
         private String defaultCurrency = "USD";
         private ExchangeRateApiProperties exchangeRateApi = new ExchangeRateApiProperties();
         
+        // Manual getters since Lombok annotation processing is broken
+        public String getDefaultCurrency() { return defaultCurrency; }
+        public ExchangeRateApiProperties getExchangeRateApi() { return exchangeRateApi; }
+        
         @Data
         public static class ExchangeRateApiProperties {
             private String url = "https://api.exchangerate.host/latest";
             private String baseCurrency = "USD";
             private long refreshRate = 3600000; // 1 hour in milliseconds
+            
+            // Manual getters since Lombok annotation processing is broken
+            public String getUrl() { return url; }
+            public String getBaseCurrency() { return baseCurrency; }
+            public long getRefreshRate() { return refreshRate; }
         }
     }
 }

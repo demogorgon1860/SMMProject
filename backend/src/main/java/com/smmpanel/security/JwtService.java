@@ -1,10 +1,11 @@
 package com.smmpanel.security;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import com.smmpanel.config.JwtConfig;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
+import io.jsonwebtoken.security.SignatureException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
@@ -14,16 +15,15 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class JwtService {
 
-    @Value("${app.jwt.secret}")
-    private String secretKey;
-
-    @Value("${app.jwt.expiration}")
-    private long jwtExpiration;
-
-    @Value("${app.jwt.refresh-expiration}")
+    private final JwtConfig jwtConfig;
+    private final Key jwtSecretKey;
+    
+    @Value("${app.jwt.refresh-expiration:604800000}") // 7 days default
     private long refreshExpiration;
 
     public String extractUsername(String token) {
@@ -40,7 +40,7 @@ public class JwtService {
     }
 
     public String generateToken(Map<String, Object> extraClaims, String username) {
-        return buildToken(extraClaims, username, jwtExpiration);
+        return buildToken(extraClaims, username, jwtConfig.getJwtExpirationMs());
     }
 
     public String generateRefreshToken(String username) {
@@ -49,15 +49,20 @@ public class JwtService {
 
     private String buildToken(
             Map<String, Object> extraClaims,
-            String username,
-            long expiration) {
-        return Jwts
-                .builder()
+            String subject,
+            long expiration
+    ) {
+        final Date now = new Date();
+        final Date expiryDate = new Date(now.getTime() + expiration);
+        
+        return Jwts.builder()
                 .setClaims(extraClaims)
-                .setSubject(username)
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(getSignInKey(), SignatureAlgorithm.HS256)
+                .setSubject(subject)
+                .setIssuer(jwtConfig.getJwtIssuer())
+                .setIssuedAt(now)
+                .setNotBefore(now) // Ensure token can't be used before now
+                .setExpiration(expiryDate)
+                .signWith(jwtSecretKey, SignatureAlgorithm.HS512)
                 .compact();
     }
 
@@ -79,16 +84,33 @@ public class JwtService {
     }
 
     private Claims extractAllClaims(String token) {
-        return Jwts
-                .parserBuilder()
-                .setSigningKey(getSignInKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+        try {
+            return Jwts.parserBuilder()
+                    .requireIssuer(jwtConfig.getJwtIssuer())
+                    .setSigningKey(jwtSecretKey)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (ExpiredJwtException ex) {
+            log.warn("Expired JWT token: {}", ex.getMessage());
+            throw new JwtAuthenticationException("JWT token has expired", ex);
+        } catch (UnsupportedJwtException | MalformedJwtException | SignatureException ex) {
+            log.warn("Invalid JWT token: {}", ex.getMessage());
+            throw new JwtAuthenticationException("Invalid JWT token", ex);
+        } catch (Exception ex) {
+            log.error("JWT token validation failed: {}", ex.getMessage());
+            throw new JwtAuthenticationException("JWT token validation failed", ex);
+        }
     }
 
-    private Key getSignInKey() {
-        byte[] keyBytes = secretKey.getBytes();
-        return Keys.hmacShaKeyFor(keyBytes);
+    // Custom exception for JWT authentication failures
+    public static class JwtAuthenticationException extends RuntimeException {
+        public JwtAuthenticationException(String message) {
+            super(message);
+        }
+        
+        public JwtAuthenticationException(String message, Throwable cause) {
+            super(message, cause);
+        }
     }
 }

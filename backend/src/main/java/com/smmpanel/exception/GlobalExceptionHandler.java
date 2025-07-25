@@ -1,5 +1,6 @@
 package com.smmpanel.exception;
 
+import com.smmpanel.dto.response.ApiResponse;
 import com.smmpanel.dto.response.ErrorResponse;
 import com.smmpanel.dto.response.PerfectPanelResponse;
 import io.github.bucket4j.ConsumptionProbe;
@@ -126,12 +127,29 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler(ValidationException.class)
-    public ResponseEntity<PerfectPanelResponse> handleValidationException(ValidationException ex) {
-        log.error("Validation exception: {}", ex.getMessage());
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(PerfectPanelResponse.error("Validation failed: " + ex.getMessage(), 400));
+    public ResponseEntity<ErrorResponse> handleValidationException(ValidationException ex) {
+        log.error("Validation error: {}", ex.getMessage());
+        ErrorResponse errorResponse = new ErrorResponse(
+                "VALIDATION_ERROR",
+                "Validation failed: " + ex.getMessage(),
+                LocalDateTime.now()
+        );
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
     
+    /**
+     * Handles ExchangeRateException which occurs during currency conversion or exchange rate operations
+     */
+    @ExceptionHandler(ExchangeRateException.class)
+    public ResponseEntity<ApiResponse<Void>> handleExchangeRateException(ExchangeRateException ex) {
+        log.warn("Exchange rate error: {}", ex.getMessage());
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.error(
+                        "EXCHANGE_RATE_ERROR",
+                        ex.getMessage()
+                ));
+    }
+
     @ExceptionHandler(com.smmpanel.dto.validation.ValidationException.class)
     public ResponseEntity<PerfectPanelResponse> handleCustomValidationException(
             com.smmpanel.dto.validation.ValidationException ex) {

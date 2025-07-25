@@ -1,7 +1,7 @@
 package com.smmpanel.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -10,6 +10,10 @@ import java.time.LocalDateTime;
 @Data
 @Entity
 @Table(name = "video_processing")
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@EqualsAndHashCode(callSuper = false)
 public class VideoProcessing {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -25,11 +29,15 @@ public class VideoProcessing {
     @Column(name = "original_url", nullable = false, length = 500)
     private String originalUrl;
 
+    @Column(name = "final_url", length = 500)
+    private String finalUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "video_type")
     private VideoType videoType;
 
     @Column(name = "clip_created")
+    @Builder.Default
     private Boolean clipCreated = false;
 
     @Column(name = "clip_url", length = 500)
@@ -40,9 +48,11 @@ public class VideoProcessing {
     private YouTubeAccount youtubeAccount;
 
     @Column(name = "processing_status", length = 50)
+    @Builder.Default
     private String processingStatus = "PENDING";
 
     @Column(name = "processing_attempts")
+    @Builder.Default
     private Integer processingAttempts = 0;
 
     @Column(name = "error_message", columnDefinition = "TEXT")

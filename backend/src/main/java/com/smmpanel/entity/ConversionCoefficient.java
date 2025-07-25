@@ -1,8 +1,8 @@
 package com.smmpanel.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
@@ -10,7 +10,11 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "conversion_coefficients")
+@Table(name = "conversion_coefficients", 
+       uniqueConstraints = @UniqueConstraint(columnNames = {"service_id", "without_clip"}))
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
 public class ConversionCoefficient {
     @Id
@@ -20,15 +24,18 @@ public class ConversionCoefficient {
     @Column(name = "service_id", nullable = false)
     private Long serviceId;
 
-    @Column(name = "with_clip", precision = 4, scale = 2)
-    private BigDecimal withClip = new BigDecimal("3.0");
+    @Column(name = "coefficient", precision = 4, scale = 2, nullable = false)
+    private BigDecimal coefficient;
 
-    @Column(name = "without_clip", precision = 4, scale = 2)
-    private BigDecimal withoutClip = new BigDecimal("4.0");
+    @Column(name = "without_clip", nullable = false)
+    private Boolean withoutClip;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "updated_by")
-    private User updatedBy;
+    @Column(name = "updated_by", length = 100)
+    private String updatedBy;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 
     @UpdateTimestamp
     @Column(name = "updated_at")

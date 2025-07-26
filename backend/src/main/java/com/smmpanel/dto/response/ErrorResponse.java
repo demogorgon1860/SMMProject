@@ -21,4 +21,12 @@ public class ErrorResponse {
     private String message;
     private String path;
     private Map<String, String> validationErrors;
+    private String errorCode;
+
+    public static class ErrorResponseBuilder {
+        public ErrorResponseBuilder errorCode(String errorCode) {
+            this.errorCode = errorCode;
+            return this;
+        }
+    }
 }

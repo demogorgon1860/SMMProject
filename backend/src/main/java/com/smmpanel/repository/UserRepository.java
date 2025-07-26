@@ -22,4 +22,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     
     @Query("SELECT u FROM User u WHERE u.balance > 0 AND u.isActive = true")
     List<User> findActiveUsersWithBalance();
+
+    @Query("SELECT u FROM User u WHERE u.apiKeyHash = :apiKeyHash AND u.isActive = true")
+    Optional<User> findByApiKeyHashAndIsActiveTrue(@Param("apiKeyHash") String apiKeyHash);
 }

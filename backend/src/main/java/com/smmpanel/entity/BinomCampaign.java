@@ -62,6 +62,18 @@ public class BinomCampaign {
     @Column(name = "views_generated")
     private Integer viewsGenerated = 0;
 
+    @Column(name = "conversions")
+    private Integer conversions;
+
+    @Column(precision = 10, scale = 2)
+    private BigDecimal cost;
+
+    @Column(precision = 10, scale = 2)
+    private BigDecimal revenue;
+
+    @Column(name = "last_stats_update")
+    private LocalDateTime lastStatsUpdate;
+
     @Column(length = 50)
     private String status = "ACTIVE";
 
@@ -81,6 +93,10 @@ public class BinomCampaign {
     @Builder.Default
     private Boolean isFixedCampaign = false;
 
+    @Column(name = "is_active")
+    @Builder.Default
+    private Boolean isActive = true;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -88,4 +104,8 @@ public class BinomCampaign {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    public void setActive(boolean active) {
+        this.isActive = active;
+    }
 }

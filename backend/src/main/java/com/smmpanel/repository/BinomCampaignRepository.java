@@ -60,4 +60,9 @@ public interface BinomCampaignRepository extends JpaRepository<BinomCampaign, Lo
     @Query("SELECT b FROM BinomCampaign b WHERE b.isFixedCampaign = true AND b.status = 'ACTIVE' " +
            "ORDER BY b.weight DESC")
     List<BinomCampaign> findActiveFixedCampaignsOrderByWeight();
+
+    @Query("SELECT bc FROM BinomCampaign bc WHERE bc.order.id = :orderId AND bc.status = 'ACTIVE'")
+    List<BinomCampaign> findByOrderIdAndActiveTrue(@Param("orderId") Long orderId);
+
+    long countByCampaignIdAndStatus(String campaignId, String status);
 }

@@ -29,7 +29,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
 
-        if (!user.getIsActive()) {
+        if (!user.isActive()) {
             throw new BadCredentialsException("Account is disabled");
         }
 

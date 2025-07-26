@@ -76,7 +76,7 @@ public class ApiKeyService {
             boolean isValid = apiKeyGenerator.verifyApiKey(apiKey, user.getApiKeyHash(), user.getApiKeySalt());
             if (isValid) {
                 // Update last used timestamp
-                user.setLastApiAccess(LocalDateTime.now());
+                user.recordApiAccess();
                 userRepository.save(user);
             }
             return isValid;

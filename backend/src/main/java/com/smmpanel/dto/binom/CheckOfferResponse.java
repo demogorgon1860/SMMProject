@@ -1,17 +1,18 @@
 package com.smmpanel.dto.binom;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
- * Ответ на проверку существования оффера
+ * Check Offer Response DTO
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class CheckOfferResponse {
-    private Boolean exists;
+    private boolean exists;
     private String offerId;
-    private String name;
-    private String url;
 }

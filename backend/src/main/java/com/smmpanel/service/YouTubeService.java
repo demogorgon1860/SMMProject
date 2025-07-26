@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.Collections;
 
 @Slf4j
 @Service
@@ -46,8 +47,8 @@ public class YouTubeService {
     public Long getViewCount(String videoId) {
         try {
             YouTube.Videos.List request = youtube.videos()
-                .list("statistics")
-                .setId(videoId)
+                .list(Collections.singletonList("statistics"))
+                .setId(Collections.singletonList(videoId))
                 .setKey(apiKey);
 
             VideoListResponse response = request.execute();
@@ -60,5 +61,10 @@ public class YouTubeService {
             log.error("Error fetching view count for video: {}", videoId, e);
         }
         return 0L;
+    }
+
+    // Alias for compatibility
+    public int getVideoViewCount(String videoId) {
+        return getViewCount(videoId).intValue();
     }
 }

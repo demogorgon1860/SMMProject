@@ -23,17 +23,7 @@ public class CurrencyConfig {
         return new CurrencyProperties();
     }
 
-    /**
-     * Initialize currency service with configuration
-     */
-    @Bean(initMethod = "fetchLatestRates")
-    public CurrencyService currencyService(CurrencyProperties properties) {
-        return new CurrencyService(
-            properties.getDefaultCurrency(),
-            properties.getExchangeRateApi().getUrl(),
-            properties.getExchangeRateApi().getBaseCurrency()
-        );
-    }
+
 
     /**
      * Currency configuration properties

@@ -19,18 +19,18 @@ public class VideoProcessing {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumns({
-        @JoinColumn(name = "order_id", referencedColumnName = "id"),
-        @JoinColumn(name = "order_created_at", referencedColumnName = "created_at")
-    })
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", nullable = false)
     private Order order;
 
     @Column(name = "original_url", nullable = false, length = 500)
     private String originalUrl;
 
-    @Column(name = "final_url", length = 500)
-    private String finalUrl;
+    @Column(name = "clip_url", length = 500)
+    private String clipUrl;
+
+    @Column(name = "video_id", length = 100)
+    private String videoId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "video_type")
@@ -40,26 +40,25 @@ public class VideoProcessing {
     @Builder.Default
     private Boolean clipCreated = false;
 
-    @Column(name = "clip_url", length = 500)
-    private String clipUrl;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "youtube_account_id")
-    private YouTubeAccount youtubeAccount;
-
-    @Column(name = "processing_status", length = 50)
-    @Builder.Default
-    private String processingStatus = "PENDING";
+    @Column(name = "processing_status")
+    @Enumerated(EnumType.STRING)
+    private VideoProcessingStatus status = VideoProcessingStatus.PENDING;
 
     @Column(name = "processing_attempts")
     @Builder.Default
     private Integer processingAttempts = 0;
 
+    @Column(name = "last_processed_at")
+    private LocalDateTime lastProcessedAt;
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
+
+    @Column(name = "last_error_at")
+    private LocalDateTime lastErrorAt;
+
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
-
-    @Column(columnDefinition = "JSONB")
-    private String metadata;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -68,4 +67,17 @@ public class VideoProcessing {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    // Helper methods for backward compatibility
+    public String getProcessingStatus() {
+        return status != null ? status.name() : "PENDING";
+    }
+
+    public void setProcessingStatus(String status) {
+        this.status = VideoProcessingStatus.valueOf(status);
+    }
+
+    public boolean isClipCreated() {
+        return Boolean.TRUE.equals(this.clipCreated);
+    }
 }

@@ -42,4 +42,19 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
            "FROM Order o WHERE o.createdAt >= :startDate " +
            "GROUP BY DATE(o.createdAt) ORDER BY DATE(o.createdAt)")
     List<Object[]> getDailyRevenue(@Param("startDate") LocalDateTime startDate);
+
+    long countByStatusIn(List<OrderStatus> statuses);
+    long countByStatus(OrderStatus status);
+    
+    @Query("SELECT AVG(o.charge) FROM Order o")
+    Double calculateAverageOrderValue();
+
+    @Query("SELECT o FROM Order o LEFT JOIN FETCH o.user LEFT JOIN FETCH o.service WHERE o.id = :id")
+    Optional<Order> findByIdWithDetails(@Param("id") Long id);
+
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.user.id = :userId AND o.link = :link AND o.createdAt > :createdAt")
+    long countByUserIdAndLinkAndCreatedAtAfter(@Param("userId") Long userId, @Param("link") String link, @Param("createdAt") LocalDateTime createdAt);
+
+    @Query("SELECT o FROM Order o WHERE o.user.id = :userId AND o.createdAt > :createdAt")
+    List<Order> findByUserIdAndCreatedAtAfter(@Param("userId") Long userId, @Param("createdAt") LocalDateTime createdAt);
 }

@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -26,4 +27,10 @@ public interface ConversionCoefficientRepository extends JpaRepository<Conversio
     
     // Legacy method for backward compatibility
     Optional<ConversionCoefficient> findByServiceId(Long serviceId);
+    List<ConversionCoefficient> findByService_CategoryOrderByUpdatedAtDesc(String category);
+    @Query("SELECT cc FROM ConversionCoefficient cc JOIN FETCH cc.service WHERE cc.service.active = true")
+    List<ConversionCoefficient> findAllWithActiveServices();
+    @Query("SELECT cc FROM ConversionCoefficient cc WHERE cc.updatedBy = :username ORDER BY cc.updatedAt DESC")
+    List<ConversionCoefficient> findByUpdatedByOrderByUpdatedAtDesc(@Param("username") String username);
+    boolean existsByServiceId(Long serviceId);
 }

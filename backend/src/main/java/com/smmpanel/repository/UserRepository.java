@@ -9,6 +9,8 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
@@ -25,4 +27,26 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT u FROM User u WHERE u.apiKeyHash = :apiKeyHash AND u.isActive = true")
     Optional<User> findByApiKeyHashAndIsActiveTrue(@Param("apiKeyHash") String apiKeyHash);
+
+    // ADDED: Missing custom query methods
+    @Query("SELECT u FROM User u WHERE " +
+           "(:username IS NULL OR u.username LIKE %:username%) AND " +
+           "(:email IS NULL OR u.email LIKE %:email%) AND " +
+           "(:role IS NULL OR u.role = :role) AND " +
+           "(:isActive IS NULL OR u.isActive = :isActive)")
+    Page<User> findUsersWithFilters(@Param("username") String username,
+                                   @Param("email") String email,
+                                   @Param("role") UserRole role,
+                                   @Param("isActive") Boolean isActive,
+                                   Pageable pageable);
+
+    @Query("SELECT COUNT(u) FROM User u WHERE u.role = :role AND u.isActive = true")
+    Long countByRoleAndIsActiveTrue(@Param("role") UserRole role);
+
+    @Query("SELECT u FROM User u WHERE u.isActive = true AND " +
+           "(u.username LIKE %:searchTerm% OR u.email LIKE %:searchTerm%)")
+    Page<User> searchActiveUsers(@Param("searchTerm") String searchTerm, Pageable pageable);
+
+    @Query("SELECT COUNT(u) > 0 FROM User u WHERE u.email = :email AND u.id != :id")
+    boolean existsByEmailAndIdNot(@Param("email") String email, @Param("id") Long id);
 }

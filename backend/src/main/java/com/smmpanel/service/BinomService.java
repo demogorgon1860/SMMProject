@@ -33,88 +33,57 @@ public class BinomService {
     private final BinomCampaignRepository binomCampaignRepository;
     private final FixedBinomCampaignRepository fixedBinomCampaignRepository;
     private final ConversionCoefficientRepository conversionCoefficientRepository;
+    private final TrafficSourceRepository trafficSourceRepository;
 
     @Value("${app.binom.default-coefficient:3.0}")
     private BigDecimal defaultCoefficient;
 
     /**
-     * CRITICAL METHOD: Create Binom integration for order
-     * MUST distribute offer to exactly 3 fixed campaigns
+     * FIXED: Assign order to existing Binom campaign with traffic source rotation
      */
     @Transactional
-    public BinomIntegrationResponse createBinomIntegration(BinomIntegrationRequest request) {
+    public BinomIntegrationResponse createBinomIntegration(Order order, String videoId, boolean clipCreated, String targetUrl) {
         try {
-            log.info("Creating Binom integration for order: {}", request.getOrderId());
-
-            // 1. Validate request parameters
-            validateRequest(request);
-
-            // 2. Validate order exists
-            Order order = orderRepository.findById(request.getOrderId())
-                    .orElseThrow(() -> new IllegalArgumentException("Order not found: " + request.getOrderId()));
-
-            // 3. Get conversion coefficient (3.0 with clip, 4.0 without clip)
-            BigDecimal coefficient = getConversionCoefficient(order.getService().getId(), request.getClipCreated());
-
-            // 4. Calculate required clicks: target_views * coefficient
-            int totalClicksRequired = calculateRequiredClicks(request.getTargetViews(), coefficient);
-
-            // 5. Create offer in Binom
-            String offerName = generateOfferName(request.getOrderId(), request.getClipCreated());
-            String offerId = createOrGetOffer(offerName, request.getTargetUrl(), request.getGeoTargeting());
-
-            // 6. CRITICAL: Get exactly 3 fixed campaigns and distribute clicks
-            List<FixedBinomCampaign> fixedCampaigns = getThreeFixedCampaigns(request.getGeoTargeting());
-            if (fixedCampaigns.size() != 3) {
-                throw new BinomApiException("Must have exactly 3 fixed campaigns available");
+            // Calculate coefficient based on clip creation
+            BigDecimal coefficient = clipCreated ? new BigDecimal("3.0") : new BigDecimal("4.0");
+            int targetViews = order.getQuantity();
+            int requiredClicks = BigDecimal.valueOf(targetViews).multiply(coefficient).intValue();
+            TrafficSource selectedSource = selectAvailableTrafficSource();
+            if (selectedSource == null) {
+                throw new RuntimeException("No available traffic sources");
             }
-
-            // 7. Distribute clicks among 3 campaigns (equal distribution)
-            List<String> campaignIds = new ArrayList<>();
-            int clicksPerCampaign = totalClicksRequired / 3;
-            int remainingClicks = totalClicksRequired % 3;
-
-            for (int i = 0; i < fixedCampaigns.size(); i++) {
-                FixedBinomCampaign fixedCampaign = fixedCampaigns.get(i);
-                
-                // Add extra click to first campaign if there's remainder
-                int campaignClicks = clicksPerCampaign + (i == 0 ? remainingClicks : 0);
-                
-                // Assign offer to campaign
-                assignOfferToCampaign(fixedCampaign.getCampaignId(), offerId, campaignClicks);
-                campaignIds.add(fixedCampaign.getCampaignId());
-                
-                // Save campaign record
-                saveBinomCampaignRecord(order, fixedCampaign.getCampaignId(), offerId, 
-                                      campaignClicks, request.getTargetUrl());
-                
-                log.info("Assigned {} clicks to campaign {} for order {}", 
-                        campaignClicks, fixedCampaign.getCampaignId(), request.getOrderId());
-            }
-
-            log.info("Successfully created Binom integration for order {}: offer={}, campaigns={}, total_clicks={}", 
-                    request.getOrderId(), offerId, campaignIds, totalClicksRequired);
-
+            BinomCampaign campaign = BinomCampaign.builder()
+                    .orderId(order.getId())
+                    .orderCreatedAt(order.getCreatedAt())
+                    .campaignId(generateCampaignId(order.getId(), selectedSource.getSourceId()))
+                    .targetUrl(targetUrl)
+                    .trafficSource(selectedSource)
+                    .coefficient(coefficient)
+                    .clicksRequired(requiredClicks)
+                    .clicksDelivered(0)
+                    .viewsGenerated(0)
+                    .status("ACTIVE")
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+            binomCampaignRepository.save(campaign);
+            selectedSource.setClicksUsedToday(selectedSource.getClicksUsedToday() + requiredClicks);
+            trafficSourceRepository.save(selectedSource);
+            log.info("Order {} assigned to traffic source {} - Required clicks: {} (coefficient: {})", 
+                    order.getId(), selectedSource.getSourceId(), requiredClicks, coefficient);
             return BinomIntegrationResponse.builder()
                     .success(true)
-                    .orderId(request.getOrderId())
-                    .offerId(offerId)
-                    .campaignIds(campaignIds)
-                    .totalClicksRequired(totalClicksRequired)
-                    .coefficient(coefficient)
-                    .targetUrl(request.getTargetUrl())
-                    .clipCreated(request.getClipCreated())
-                    .message("Binom integration created successfully with 3 campaigns")
+                    .campaignId(campaign.getCampaignId())
+                    .message("Order assigned to traffic source: " + selectedSource.getName())
+                    .createdAt(LocalDateTime.now())
                     .build();
-
         } catch (Exception e) {
-            log.error("CRITICAL ERROR: Failed to create Binom integration for order {}: {}", 
-                     request.getOrderId(), e.getMessage(), e);
-            
+            log.error("Failed to create Binom integration for order {}: {}", order.getId(), e.getMessage());
             return BinomIntegrationResponse.builder()
                     .success(false)
-                    .orderId(request.getOrderId())
-                    .errorMessage("Failed to create Binom integration: " + e.getMessage())
+                    .message("Failed to assign traffic source: " + e.getMessage())
+                    .errorCode("TRAFFIC_SOURCE_ASSIGNMENT_FAILED")
+                    .createdAt(LocalDateTime.now())
                     .build();
         }
     }
@@ -334,5 +303,17 @@ public class BinomService {
         // Stub: Implement campaign creation logic as needed
         log.info("Creating campaign for order {} (stub)", order.getId());
         return null;
+    }
+
+    private TrafficSource selectAvailableTrafficSource() {
+        List<TrafficSource> availableSources = trafficSourceRepository.findByClicksUsedTodayLessThan(1000); // Example limit
+        if (!availableSources.isEmpty()) {
+            return availableSources.get(0); // Select the first available source
+        }
+        return null;
+    }
+
+    private String generateCampaignId(Long orderId, String sourceId) {
+        return String.format("SMM_ORDER_%d_TRAFFIC_%s_%d", orderId, sourceId, System.currentTimeMillis());
     }
 }

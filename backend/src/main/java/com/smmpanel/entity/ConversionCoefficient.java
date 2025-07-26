@@ -24,14 +24,20 @@ public class ConversionCoefficient {
     @Column(name = "service_id", nullable = false)
     private Long serviceId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "service_id", insertable = false, updatable = false)
+    private Service service;
+
     @Column(name = "coefficient", precision = 4, scale = 2, nullable = false)
     private BigDecimal coefficient;
 
-    @Column(name = "without_clip", nullable = false)
-    private BigDecimal withoutClip;
-
+    @Builder.Default
     @Column(name = "with_clip", nullable = false)
-    private BigDecimal withClip;
+    private BigDecimal withClip = new BigDecimal("3.0");
+
+    @Builder.Default
+    @Column(name = "without_clip", nullable = false)
+    private BigDecimal withoutClip = new BigDecimal("4.0");
 
     @Column(name = "updated_by", length = 100)
     private String updatedBy;

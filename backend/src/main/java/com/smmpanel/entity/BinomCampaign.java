@@ -105,6 +105,9 @@ public class BinomCampaign {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Builder
+    private Long orderId;
+
     public void setActive(boolean active) {
         this.isActive = active;
     }

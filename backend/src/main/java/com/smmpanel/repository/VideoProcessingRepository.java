@@ -16,8 +16,18 @@ import java.util.Optional;
 @Repository
 public interface VideoProcessingRepository extends JpaRepository<VideoProcessing, Long> {
 
-    @Query("SELECT vp FROM VideoProcessing vp WHERE vp.order.id = :orderId")
-    Optional<VideoProcessing> findByOrderId(@Param("orderId") Long orderId);
+    Optional<VideoProcessing> findByOrderId(Long orderId);
+    List<VideoProcessing> findByProcessingStatusOrderByCreatedAtAsc(String processingStatus);
+    List<VideoProcessing> findByVideoIdOrderByCreatedAtDesc(String videoId);
+    @Query("SELECT vp FROM VideoProcessing vp WHERE vp.clipCreated = true AND vp.createdAt >= :date")
+    List<VideoProcessing> findClipsCreatedAfter(@Param("date") java.time.LocalDateTime date);
+    @Query("SELECT vp FROM VideoProcessing vp WHERE vp.processingStatus = 'FAILED' AND vp.processingAttempts < 3")
+    List<VideoProcessing> findFailedProcessingForRetry();
+    @Query("SELECT COUNT(vp) FROM VideoProcessing vp WHERE vp.clipCreated = true AND vp.createdAt >= :date")
+    Long countClipsCreatedAfter(@Param("date") java.time.LocalDateTime date);
+    @Query("SELECT vp.videoType, COUNT(vp) FROM VideoProcessing vp WHERE vp.createdAt >= :date GROUP BY vp.videoType")
+    List<Object[]> getProcessingCountByVideoType(@Param("date") java.time.LocalDateTime date);
+    List<VideoProcessing> findByYoutubeAccountIdAndCreatedAtAfter(Long youtubeAccountId, java.time.LocalDateTime date);
 
     @Query("SELECT vp FROM VideoProcessing vp WHERE vp.processingStatus = :status")
     List<VideoProcessing> findByProcessingStatus(@Param("status") String status);

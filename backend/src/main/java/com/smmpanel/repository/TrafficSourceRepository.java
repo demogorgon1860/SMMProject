@@ -30,4 +30,5 @@ public interface TrafficSourceRepository extends JpaRepository<TrafficSource, Lo
     List<TrafficSource> findByActiveTrueOrderByWeightDesc();
     List<TrafficSource> findByActiveTrueAndQualityLevel(String qualityLevel);
     List<TrafficSource> findByQualityLevelOrderByWeightDesc(String qualityLevel);
+    List<TrafficSource> findByClicksUsedTodayLessThan(int limit);
 }

@@ -15,6 +15,7 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.math.BigDecimal;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecificationExecutor<Order> {
@@ -57,4 +58,16 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
 
     @Query("SELECT o FROM Order o WHERE o.user.id = :userId AND o.createdAt > :createdAt")
     List<Order> findByUserIdAndCreatedAtAfter(@Param("userId") Long userId, @Param("createdAt") LocalDateTime createdAt);
+
+    // User-specific queries
+    Page<Order> findByUser_UsernameOrderByCreatedAtDesc(String username, Pageable pageable);
+    Optional<Order> findByIdAndUser_Username(Long id, String username);
+    Long countByUser_Username(String username);
+    Long countByUser_UsernameAndStatus(String username, OrderStatus status);
+    @Query("SELECT COALESCE(SUM(o.charge), 0) FROM Order o WHERE o.user.username = :username")
+    BigDecimal sumChargeByUser_Username(@Param("username") String username);
+    @Query("SELECT COALESCE(SUM(o.charge), 0) FROM Order o WHERE o.user.username = :username AND o.createdAt >= :date")
+    BigDecimal sumChargeByUser_UsernameAndCreatedAtAfter(@Param("username") String username, @Param("date") LocalDateTime date);
+    @Query("SELECT o FROM Order o WHERE o.status = :status AND o.createdAt < :date")
+    List<Order> findByStatusAndCreatedAtBefore(@Param("status") OrderStatus status, @Param("date") LocalDateTime date);
 }

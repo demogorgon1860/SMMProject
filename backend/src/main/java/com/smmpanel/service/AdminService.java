@@ -257,24 +257,31 @@ public class AdminService {
     }
 
     @Transactional
-    public CoefficientDto updateConversionCoefficient(Long serviceId, CoefficientUpdateRequest request) {
-        String operatorUsername = SecurityContextHolder.getContext().getAuthentication().getName();
-        User operator = userRepository.findByUsername(operatorUsername).orElse(null);
-
+    public ConversionCoefficient updateConversionCoefficient(Long serviceId, BigDecimal withClip, BigDecimal withoutClip) {
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
         ConversionCoefficient coefficient = coefficientRepository.findByServiceId(serviceId)
-                .orElse(new ConversionCoefficient());
+                .orElseThrow(() -> new IllegalArgumentException("Coefficient not found for service: " + serviceId));
+        coefficient.setWithClip(withClip);
+        coefficient.setWithoutClip(withoutClip);
+        coefficient.setUpdatedBy(currentUsername);
+        coefficient.setUpdatedAt(LocalDateTime.now());
+        return coefficientRepository.save(coefficient);
+    }
 
-        coefficient.setServiceId(serviceId);
-        coefficient.setWithClip(request.getWithClip());
-        coefficient.setWithoutClip(request.getWithoutClip());
-        coefficient.setUpdatedBy(operator);
-
-        coefficient = coefficientRepository.save(coefficient);
-
-        log.info("Updated conversion coefficients for service {}: with clip={}, without clip={}", 
-                serviceId, request.getWithClip(), request.getWithoutClip());
-
-        return mapToCoefficientDto(coefficient);
+    @Transactional
+    public ConversionCoefficient createConversionCoefficient(Long serviceId, BigDecimal withClip, BigDecimal withoutClip) {
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        com.smmpanel.entity.Service service = serviceRepository.findById(serviceId)
+                .orElseThrow(() -> new IllegalArgumentException("Service not found: " + serviceId));
+        ConversionCoefficient coefficient = ConversionCoefficient.builder()
+                .service(service)
+                .withClip(withClip)
+                .withoutClip(withoutClip)
+                .updatedBy(currentUsername)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        return coefficientRepository.save(coefficient);
     }
 
     public Map<String, Object> getYouTubeAccounts(Pageable pageable) {

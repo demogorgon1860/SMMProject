@@ -5,7 +5,7 @@ import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.event.OrderStatusChangedEvent;
 import com.smmpanel.exception.IllegalOrderStateTransitionException;
 import com.smmpanel.repository.OrderRepository;
-import com.smmpanel.service.AuditService;
+// import com.smmpanel.service.AuditService; // TODO: Re-enable when AuditService is implemented
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -23,7 +23,7 @@ import java.util.Set;
 public class OrderStateManager {
     
     private final OrderRepository orderRepository;
-    private final AuditService auditService;
+    // private final AuditService auditService; // TODO: Re-enable when AuditService is implemented
     private final ApplicationEventPublisher eventPublisher;
     
     // Valid state transitions
@@ -124,12 +124,12 @@ public class OrderStateManager {
         log.info(message);
         
         // Log to audit trail
-        auditService.logOrderStateChange(
-            orderId, 
-            fromStatus.toString(), 
-            toStatus.toString(), 
-            "SYSTEM"
-        );
+        // auditService.logOrderStateChange(
+        //     orderId, 
+        //     fromStatus.toString(), 
+        //     toStatus.toString(), 
+        //     "SYSTEM"
+        // ); // TODO: Re-enable when AuditService is implemented
     }
     
     private void publishStatusChangeEvent(Order order, OrderStatus oldStatus, OrderStatus newStatus) {

@@ -38,6 +38,9 @@ public class BalanceTransaction {
     @Column(name = "balance_after", nullable = false, precision = 10, scale = 2)
     private BigDecimal balanceAfter;
 
+    @Column(name = "transaction_id", unique = true, length = 100)
+    private String transactionId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "transaction_type", nullable = false)
     private TransactionType transactionType;

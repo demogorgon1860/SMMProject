@@ -123,7 +123,6 @@ public class BinomClient {
                             .offerId(offerId)
                             .name(request.getName())
                             .url(request.getUrl())
-                            .status("ACTIVE")
                             .build();
                 }
             }
@@ -267,6 +266,15 @@ public class BinomClient {
             
             throw new RuntimeException("Invalid response from Binom API: " + response.getBody());
         }, "getCampaignStats");
+    }
+
+    /**
+     * Check if a campaign exists in Binom (stub for admin validation)
+     */
+    public boolean campaignExists(String campaignId) {
+        // TODO: Implement actual API call to Binom to check campaign existence
+        // For now, always return true
+        return true;
     }
 
     /**

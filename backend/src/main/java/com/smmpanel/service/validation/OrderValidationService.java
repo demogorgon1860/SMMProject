@@ -33,7 +33,7 @@ public class OrderValidationService {
         }
         
         // 2. Validate service
-        Service service = validateService(request.getService(), result);
+        Service service = validateService(request.getService().intValue(), result);
         if (result.hasErrors() || service == null) {
             return result;
         }
@@ -60,7 +60,7 @@ public class OrderValidationService {
         }
         
         User user = userOpt.get();
-        if (!user.getIsActive()) {
+        if (!user.isActive()) {
             result.addError("user", "Account is suspended");
         }
     }

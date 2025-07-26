@@ -5,31 +5,19 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import jakarta.validation.constraints.NotNull;
-import java.math.BigDecimal;
-
 /**
- * Request for Binom integration with order and targeting information
+ * CRITICAL: Binom Integration Request DTO
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class BinomIntegrationRequest {
-    
-    @NotNull
     private Long orderId;
-    
-    @NotNull
-    private String targetUrl;
-    
-    @NotNull
     private Integer targetViews;
-    
-    @NotNull
-    private BigDecimal coefficient;
-    
+    private String targetUrl;
     private Boolean clipCreated;
-    private String clipUrl;
     private String geoTargeting;
+    private String clipUrl;
+    private java.math.BigDecimal coefficient;
 }

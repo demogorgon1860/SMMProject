@@ -1,19 +1,17 @@
 package com.smmpanel.dto.binom;
 
-import lombok.*;
+import lombok.Builder;
+import lombok.Data;
+import java.math.BigDecimal;
 
-/**
- * Статистика кампании (существующий)
- */
 @Data
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class CampaignStats {
     private String campaignId;
-    private Integer clicks;
-    private Integer conversions;
-    private Double ctr;
-    private Double cost;
-    private String status;
+    private int clicks;
+    private int conversions;
+    private BigDecimal cost;
+    private BigDecimal revenue;
+    private boolean cached;
+    private String error;
 }

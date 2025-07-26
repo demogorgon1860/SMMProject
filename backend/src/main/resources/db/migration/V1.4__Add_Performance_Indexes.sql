@@ -17,6 +17,7 @@ CREATE INDEX IF NOT EXISTS idx_balance_transactions_user_created ON balance_tran
 CREATE INDEX IF NOT EXISTS idx_binom_campaigns_order_id ON binom_campaigns(order_id);
 CREATE INDEX IF NOT EXISTS idx_binom_campaigns_status ON binom_campaigns(status);
 CREATE INDEX IF NOT EXISTS idx_binom_campaigns_campaign_id ON binom_campaigns(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_binom_campaigns_status_campaign_id ON binom_campaigns(status, campaign_id);
 
 -- Video processing indexes
 CREATE INDEX IF NOT EXISTS idx_video_processing_order_id ON video_processing(order_id);

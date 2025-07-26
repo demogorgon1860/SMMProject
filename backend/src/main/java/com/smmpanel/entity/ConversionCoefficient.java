@@ -28,7 +28,10 @@ public class ConversionCoefficient {
     private BigDecimal coefficient;
 
     @Column(name = "without_clip", nullable = false)
-    private Boolean withoutClip;
+    private BigDecimal withoutClip;
+
+    @Column(name = "with_clip", nullable = false)
+    private BigDecimal withClip;
 
     @Column(name = "updated_by", length = 100)
     private String updatedBy;
@@ -40,4 +43,13 @@ public class ConversionCoefficient {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    // Helper methods for backward compatibility
+    public void setWithoutClip(Boolean withoutClip) {
+        this.withoutClip = withoutClip ? BigDecimal.ONE : BigDecimal.ZERO;
+    }
+
+    public Boolean getWithoutClipAsBoolean() {
+        return withoutClip != null && withoutClip.compareTo(BigDecimal.ZERO) > 0;
+    }
 }

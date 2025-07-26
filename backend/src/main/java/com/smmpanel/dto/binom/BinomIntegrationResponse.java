@@ -9,19 +9,22 @@ import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * Response for Binom integration with campaign and offer information
+ * CRITICAL: Binom Integration Response DTO
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class BinomIntegrationResponse {
-    private String status;
-    private String message;
+    private boolean success;
     private Long orderId;
     private String offerId;
     private List<String> campaignIds;
-    private Integer clicksRequired;
+    private Integer totalClicksRequired;
     private BigDecimal coefficient;
     private String targetUrl;
+    private Boolean clipCreated;
+    private String message;
+    private String errorMessage;
+    private String status;
 }

@@ -36,4 +36,10 @@ public class OfferAssignmentRequest {
     
     private String campaignId;
     private Boolean useFixedCampaign;
+    
+    // Additional fields for the new BinomService
+    private Integer clicksLimit;
+    private String status;
+    private String action;
+    private String reason;
 }

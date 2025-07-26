@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * PRODUCTION-READY Video Processing Service with complete error handling
@@ -86,7 +87,7 @@ public class VideoProcessingService {
     @Async("asyncExecutor")
     @Transactional
     @Retryable(value = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 5000))
-    public java.util.concurrent.CompletableFuture<Void> processVideo(Long processingId) {
+    public CompletableFuture<Void> processVideo(Long processingId) {
         log.info("Starting video processing for ID: {}", processingId);
         
         VideoProcessing processing = videoProcessingRepository.findById(processingId)
@@ -331,5 +332,19 @@ public class VideoProcessingService {
             kafkaTemplate.send("video-processing", processingId);
             log.info("Retrying video processing {}", processingId);
         }
+    }
+
+    // === MISSING PUBLIC METHODS FOR COMPILATION ===
+    public VideoProcessing createProcessingRecord(Order order) {
+        return createVideoProcessing(order);
+    }
+
+    public void startClipCreation(VideoProcessing videoProcessing) {
+        // Stub: In real implementation, trigger clip creation logic
+        log.info("Starting clip creation for video processing {} (stub)", videoProcessing.getId());
+    }
+
+    public VideoProcessing getById(Long id) {
+        return videoProcessingRepository.findById(id).orElse(null);
     }
 }

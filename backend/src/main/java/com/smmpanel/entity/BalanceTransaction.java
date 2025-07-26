@@ -1,5 +1,6 @@
 package com.smmpanel.entity;
 
+import com.smmpanel.entity.TransactionType;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;

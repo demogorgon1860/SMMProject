@@ -1,7 +1,7 @@
 package com.smmpanel.controller;
 
 import com.smmpanel.dto.response.PerfectPanelResponse;
-import com.smmpanel.service.ServiceManagementService;
+import com.smmpanel.service.ServiceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,12 +13,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class ServiceController {
 
-    private final ServiceManagementService serviceManagementService;
+    private final ServiceService serviceService;
 
     @GetMapping("/services")
     public ResponseEntity<PerfectPanelResponse> getServices() {
-        return ResponseEntity.ok(PerfectPanelResponse.builder()
-                .services(serviceManagementService.getAllActiveServices())
-                .build());
+        return ResponseEntity.ok(PerfectPanelResponse.success(serviceService.getAllActiveServices()));
     }
 }

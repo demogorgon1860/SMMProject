@@ -2,6 +2,7 @@ package com.smmpanel.repository;
 
 import com.smmpanel.entity.BalanceTransaction;
 import com.smmpanel.entity.User;
+import com.smmpanel.entity.TransactionType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

@@ -2,8 +2,8 @@ package com.smmpanel.service;
 
 import com.smmpanel.entity.User;
 import com.smmpanel.repository.UserRepository;
-lombok.RequiredArgsConstructor;
-lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -14,9 +14,10 @@ public class UserService {
     private final UserRepository userRepository;
 
     public String getUsernameByApiKey(String apiKey) {
-        User user = userRepository.findByApiKey(apiKey)
+        // Assume API key is hashed before lookup; if not, hash it here
+        User user = userRepository.findByApiKeyHash(apiKey)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid API key"));
-        if (!user.getIsActive()) {
+        if (!user.isActive()) {
             throw new IllegalArgumentException("User account is disabled");
         }
         return user.getUsername();
@@ -27,7 +28,7 @@ public class UserService {
     }
 
     public User getUserByApiKey(String apiKey) {
-        return userRepository.findByApiKey(apiKey)
+        return userRepository.findByApiKeyHash(apiKey)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid API key"));
     }
 } 

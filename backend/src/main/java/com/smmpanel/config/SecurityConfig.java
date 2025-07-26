@@ -13,6 +13,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -33,6 +34,7 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final ApiKeyAuthenticationFilter apiKeyAuthFilter;
     private final UserRepository userRepository;
+    private final CustomUserDetailsService customUserDetailsService;
     
     @Value("${app.cors.allowed-origins}")
     private List<String> allowedOrigins;
@@ -124,7 +126,12 @@ public class SecurityConfig {
     }
 
     @Bean
+    public UserDetailsService userDetailsService() {
+        return customUserDetailsService;
+    }
+
+    @Bean
     public AuthenticationProvider authenticationProvider() {
-        return new CustomAuthenticationProvider(userRepository, passwordEncoder());
+        return new CustomAuthenticationProvider(customUserDetailsService, passwordEncoder());
     }
 }

@@ -5,7 +5,7 @@ import com.smmpanel.dto.response.OrderResponse;
 import com.smmpanel.entity.User;
 import com.smmpanel.service.ApiKeyService;
 import com.smmpanel.service.OrderService;
-import com.smmpanel.service.ServiceManagementService;
+import com.smmpanel.service.ServiceService;
 import com.smmpanel.service.BalanceService;
 import com.smmpanel.exception.ApiException;
 import com.smmpanel.exception.ResourceNotFoundException;
@@ -36,7 +36,7 @@ public class PerfectPanelController {
     private final OrderService orderService;
     private final ApiKeyService apiKeyService;
     private final UserRepository userRepository;
-    private final ServiceManagementService serviceManagementService;
+    private final ServiceService serviceService;
     private final BalanceService balanceService;
 
     /**
@@ -154,7 +154,7 @@ public class PerfectPanelController {
      */
     private ResponseEntity<Object> handleGetServices(User user) {
         try {
-            List<Map<String, Object>> services = serviceManagementService.getAllActiveServices()
+            List<Map<String, Object>> services = serviceService.getAllActiveServices()
                     .stream()
                     .map(service -> {
                         Map<String, Object> serviceMap = new HashMap<>();
@@ -170,10 +170,8 @@ public class PerfectPanelController {
                         return serviceMap;
                     })
                     .collect(Collectors.toList());
-            
             // CRITICAL: Perfect Panel services response format
             return ResponseEntity.ok(services);
-
         } catch (Exception e) {
             log.error("Failed to get services: {}", e.getMessage());
             return ResponseEntity.badRequest().body(

@@ -3,8 +3,8 @@ package com.smmpanel.service;
 import com.smmpanel.dto.ServiceResponse;
 import com.smmpanel.entity.Service;
 import com.smmpanel.repository.ServiceRepository;
-lombok.RequiredArgsConstructor;
-lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 
 import java.util.List;
@@ -16,7 +16,7 @@ public class ServiceService {
 
     private final ServiceRepository serviceRepository;
 
-    @Cacheable(value = "services", cacheManager = "redisCacheManager")
+    @Cacheable(value = "services", cacheManager = "redisCacheManager", key = "'active-services'")
     public List<ServiceResponse> getAllActiveServices() {
         List<Service> services = serviceRepository.findByActiveOrderByIdAsc(true);
         return services.stream()

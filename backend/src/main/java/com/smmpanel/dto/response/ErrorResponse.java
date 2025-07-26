@@ -22,10 +22,15 @@ public class ErrorResponse {
     private String path;
     private Map<String, String> validationErrors;
     private String errorCode;
+    private String requestId;
 
     public static class ErrorResponseBuilder {
         public ErrorResponseBuilder errorCode(String errorCode) {
             this.errorCode = errorCode;
+            return this;
+        }
+        public ErrorResponseBuilder requestId(String requestId) {
+            this.requestId = requestId;
             return this;
         }
     }

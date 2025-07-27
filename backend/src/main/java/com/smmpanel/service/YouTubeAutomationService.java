@@ -368,7 +368,7 @@ public class YouTubeAutomationService {
                     orderRepository.save(order);
 
                     // Send to processing queue
-                    kafkaTemplate.send("youtube-processing", orderId);
+                    kafkaTemplate.send("smm.youtube.processing", orderId);
                     
                     log.info("Retrying video processing for order {} (attempt {})", 
                             orderId, processing.getProcessingAttempts());

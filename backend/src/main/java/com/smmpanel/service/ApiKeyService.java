@@ -135,4 +135,19 @@ public class ApiKeyService {
         // Return a masked version of the key (first 4 and last 4 characters)
         return apiKeyGenerator.maskApiKey(user.getApiKeyHash());
     }
+
+    /**
+     * Hash API key for database lookup (without salt for performance)
+     * This is used for initial database lookup, then proper salted verification is done
+     * @param apiKey The API key to hash for lookup
+     * @return The hashed API key for database lookup
+     */
+    public String hashApiKeyForLookup(String apiKey) {
+        try {
+            return apiKeyGenerator.hashApiKey(apiKey, ""); // Empty salt for lookup
+        } catch (Exception e) {
+            log.error("Error hashing API key for lookup: {}", e.getMessage());
+            throw new RuntimeException("Failed to hash API key for lookup", e);
+        }
+    }
 }

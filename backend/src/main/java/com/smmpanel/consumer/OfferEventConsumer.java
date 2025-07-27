@@ -26,7 +26,7 @@ public class OfferEventConsumer {
     private final ObjectMapper objectMapper;
 
     @KafkaListener(
-        topics = "offer-assignments",
+        topics = "smm.offer.assignments",
         groupId = "offer-assignment-group",
         containerFactory = "kafkaListenerContainerFactory"
     )
@@ -46,7 +46,7 @@ public class OfferEventConsumer {
             OfferAssignmentRequest request = objectMapper.readValue(message, OfferAssignmentRequest.class);
 
             // Process the assignment
-            offerAssignmentService.assignOffer(request);
+            offerAssignmentService.assignOfferToFixedCampaigns(request);
 
             // Acknowledge successful processing
             acknowledgment.acknowledge();

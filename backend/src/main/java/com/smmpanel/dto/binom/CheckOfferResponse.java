@@ -5,14 +5,14 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Check Offer Response DTO
- */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class CheckOfferResponse {
-    private boolean exists;
-    private String offerId;
-}
+    private String id;
+    private String status;
+    private String name;
+    private String url;
+    private Boolean active;
+} 

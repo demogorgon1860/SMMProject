@@ -3,6 +3,7 @@ package com.smmpanel.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -11,8 +12,14 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "youtube_accounts")
+@Table(name = "youtube_accounts", indexes = {
+    @Index(name = "idx_youtube_accounts_username", columnList = "username"),
+    @Index(name = "idx_youtube_accounts_email", columnList = "email"),
+    @Index(name = "idx_youtube_accounts_status", columnList = "status"),
+    @Index(name = "idx_youtube_accounts_created_at", columnList = "created_at")
+})
 @EqualsAndHashCode(callSuper = false)
+@Slf4j
 public class YouTubeAccount {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

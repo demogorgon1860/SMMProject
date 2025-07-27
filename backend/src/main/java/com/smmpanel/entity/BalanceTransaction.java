@@ -4,6 +4,7 @@ import com.smmpanel.entity.TransactionType;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
@@ -11,8 +12,16 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "balance_transactions")
+@Table(name = "balance_transactions", indexes = {
+    @Index(name = "idx_balance_transactions_user_id", columnList = "user_id"),
+    @Index(name = "idx_balance_transactions_order_id", columnList = "order_id"),
+    @Index(name = "idx_balance_transactions_deposit_id", columnList = "deposit_id"),
+    @Index(name = "idx_balance_transactions_type", columnList = "transaction_type"),
+    @Index(name = "idx_balance_transactions_created_at", columnList = "created_at"),
+    @Index(name = "idx_balance_transactions_transaction_id", columnList = "transaction_id")
+})
 @EqualsAndHashCode(callSuper = false)
+@Slf4j
 public class BalanceTransaction {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

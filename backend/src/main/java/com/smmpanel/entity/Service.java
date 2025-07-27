@@ -2,6 +2,7 @@ package com.smmpanel.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -10,10 +11,16 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "services")
+@Table(name = "services", indexes = {
+    @Index(name = "idx_services_active", columnList = "active"),
+    @Index(name = "idx_services_category", columnList = "category"),
+    @Index(name = "idx_services_geo_targeting", columnList = "geo_targeting"),
+    @Index(name = "idx_services_created_at", columnList = "created_at")
+})
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Slf4j
 public class Service {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

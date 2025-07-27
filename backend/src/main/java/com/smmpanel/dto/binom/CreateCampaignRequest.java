@@ -31,14 +31,4 @@ public class CreateCampaignRequest {
     private String category;
     private Double costModel;
     private String notes;
-    
-    // Manual getters since Lombok annotation processing is broken
-    public String getName() { return name; }
-    public String getTrafficSourceId() { return trafficSourceId; }
-    public String getDescription() { return description; }
-    public String getGeoTargeting() { return geoTargeting; }
-    public String getStatus() { return status; }
-    public String getCategory() { return category; }
-    public Double getCostModel() { return costModel; }
-    public String getNotes() { return notes; }
 }

@@ -6,8 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Component;
-import org.springframework.util.concurrent.ListenableFuture;
-import org.springframework.util.concurrent.ListenableFutureCallback;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * PRODUCTION-READY Kafka Producers
@@ -27,18 +26,14 @@ public class KafkaProducers {
         try {
             log.info("Sending video processing request for ID: {}", processingId);
 
-            ListenableFuture<SendResult<String, Object>> future = 
-                kafkaTemplate.send("video-processing", processingId);
+            CompletableFuture<SendResult<String, Object>> future = 
+                kafkaTemplate.send("smm.video.processing", processingId);
 
-            future.addCallback(new ListenableFutureCallback<SendResult<String, Object>>() {
-                @Override
-                public void onSuccess(SendResult<String, Object> result) {
+            future.whenComplete((result, ex) -> {
+                if (ex == null) {
                     log.info("Successfully sent video processing request: {} with offset: {}", 
                             processingId, result.getRecordMetadata().offset());
-                }
-
-                @Override
-                public void onFailure(Throwable ex) {
+                } else {
                     log.error("Failed to send video processing request: {}", processingId, ex);
                 }
             });
@@ -57,18 +52,14 @@ public class KafkaProducers {
 
             String message = objectMapper.writeValueAsString(request);
 
-            ListenableFuture<SendResult<String, Object>> future = 
-                kafkaTemplate.send("offer-assignments", message);
+            CompletableFuture<SendResult<String, Object>> future = 
+                kafkaTemplate.send("smm.offer.assignments", message);
 
-            future.addCallback(new ListenableFutureCallback<SendResult<String, Object>>() {
-                @Override
-                public void onSuccess(SendResult<String, Object> result) {
+            future.whenComplete((result, ex) -> {
+                if (ex == null) {
                     log.info("Successfully sent offer assignment request for order: {} with offset: {}", 
                             request.getOrderId(), result.getRecordMetadata().offset());
-                }
-
-                @Override
-                public void onFailure(Throwable ex) {
+                } else {
                     log.error("Failed to send offer assignment request for order: {}", 
                             request.getOrderId(), ex);
                 }
@@ -87,7 +78,7 @@ public class KafkaProducers {
             String message = String.format("{\"orderId\":%d,\"oldStatus\":\"%s\",\"newStatus\":\"%s\",\"timestamp\":\"%s\"}", 
                     orderId, oldStatus, newStatus, java.time.LocalDateTime.now());
 
-            kafkaTemplate.send("order-state-updates", message);
+            kafkaTemplate.send("smm.order.state.updates", message);
             log.debug("Sent order state update: {}", message);
 
         } catch (Exception e) {
@@ -101,7 +92,7 @@ public class KafkaProducers {
     public void sendNotification(String eventType, Object data) {
         try {
             String message = objectMapper.writeValueAsString(data);
-            kafkaTemplate.send("notifications", eventType, message);
+            kafkaTemplate.send("smm.notifications", eventType, message);
             log.debug("Sent notification: {} - {}", eventType, message);
 
         } catch (Exception e) {

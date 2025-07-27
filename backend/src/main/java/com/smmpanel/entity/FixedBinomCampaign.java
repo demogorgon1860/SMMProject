@@ -2,6 +2,7 @@ package com.smmpanel.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -9,10 +10,16 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "fixed_binom_campaigns")
+@Table(name = "fixed_binom_campaigns", indexes = {
+    @Index(name = "idx_fixed_binom_campaigns_campaign_id", columnList = "campaign_id"),
+    @Index(name = "idx_fixed_binom_campaigns_traffic_source_id", columnList = "traffic_source_id"),
+    @Index(name = "idx_fixed_binom_campaigns_active", columnList = "active"),
+    @Index(name = "idx_fixed_binom_campaigns_created_at", columnList = "created_at")
+})
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Slf4j
 public class FixedBinomCampaign {
     
     @Id

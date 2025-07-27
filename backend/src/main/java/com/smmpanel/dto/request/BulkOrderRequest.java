@@ -5,11 +5,17 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class BulkOrderRequest {
     @NotEmpty(message = "Order IDs cannot be empty")
     @Size(max = 100, message = "Cannot process more than 100 orders at once")

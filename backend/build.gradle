@@ -58,7 +58,7 @@ dependencies {
     implementation 'org.liquibase:liquibase-core'
     implementation 'org.springframework.data:spring-data-jpa'
     
-    // JWT
+    // JWT - FIXED VERSION
     implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.3'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.3'
@@ -88,17 +88,17 @@ dependencies {
     
     // JSON Processing
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
-    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-hibernate6'
-    
-    // Email
-    implementation 'org.springframework.boot:spring-boot-starter-mail'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-hibernate5-jakarta'
     
     // API Documentation
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
     
-    // Lombok
-    compileOnly 'org.projectlombok:lombok'
-    annotationProcessor 'org.projectlombok:lombok'
+    // LOMBOK - CRITICAL FIX FOR ANNOTATION PROCESSING
+    compileOnly 'org.projectlombok:lombok:1.18.30'
+    annotationProcessor 'org.projectlombok:lombok:1.18.30'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+    testCompileOnly 'org.projectlombok:lombok:1.18.30'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.30'
     
     // Monitoring
     implementation 'io.micrometer:micrometer-registry-prometheus'
@@ -115,31 +115,25 @@ dependencies {
     testImplementation 'org.testcontainers:kafka'
     testImplementation 'org.mockito:mockito-core'
     testImplementation 'com.h2database:h2'
-    testImplementation 'org.awaitility:awaitility'
 }
 
-// Test configuration
+// CRITICAL: Configure annotation processing properly
+compileJava {
+    options.annotationProcessorPath = configurations.annotationProcessor
+}
+
+compileTestJava {
+    options.annotationProcessorPath = configurations.testAnnotationProcessor
+}
+
 tasks.named('test') {
     useJUnitPlatform()
-    maxHeapSize = "1g"
-    jvmArgs '-XX:+UseG1GC'
 }
 
-// JAR configuration
-jar {
-    enabled = false
-}
-
-// Spring Boot build info
 springBoot {
     buildInfo()
 }
 
-// Flyway configuration
-flyway {
-    url = 'jdbc:postgresql://localhost:5432/smm_panel'
-    user = 'postgres'
-    password = 'password'
-    schemas = ['public']
-    locations = ['classpath:db/migration']
+jar {
+    enabled = false
 }

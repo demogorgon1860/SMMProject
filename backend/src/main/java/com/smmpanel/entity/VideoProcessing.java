@@ -2,6 +2,7 @@ package com.smmpanel.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -9,11 +10,17 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "video_processing")
+@Table(name = "video_processing", indexes = {
+    @Index(name = "idx_video_processing_order_id", columnList = "order_id"),
+    @Index(name = "idx_video_processing_status", columnList = "status"),
+    @Index(name = "idx_video_processing_video_id", columnList = "video_id"),
+    @Index(name = "idx_video_processing_created_at", columnList = "created_at")
+})
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
+@Slf4j
 public class VideoProcessing {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

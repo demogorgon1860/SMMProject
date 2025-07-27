@@ -1,7 +1,1 @@
-package com.smmpanel.entity;
-
-public enum UserRole {
-    USER,         // Regular customer
-    OPERATOR,     // Support operator
-    ADMIN         // System administrator
-}
+package com.smmpanel.entity; public enum UserRole { USER, OPERATOR, ADMIN } 

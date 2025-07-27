@@ -91,7 +91,7 @@ public class OrderService {
             balanceService.deductBalance(user, charge, order, "Order payment for service " + service.getName());
 
             // 8. Send to processing queue
-            kafkaTemplate.send("youtube-processing", order.getId());
+            kafkaTemplate.send("smm.youtube.processing", order.getId());
 
             log.info("Order {} created successfully for user {}", order.getId(), user.getUsername());
 
@@ -106,6 +106,7 @@ public class OrderService {
     /**
      * CRITICAL: Get order with API key (Perfect Panel compatibility)
      */
+    @Transactional(readOnly = true)
     public OrderResponse getOrderWithApiKey(Long orderId, String apiKey) {
         // Find user by API key
         User user = userRepository.findByApiKeyHashAndIsActiveTrue(hashApiKey(apiKey))
@@ -121,13 +122,14 @@ public class OrderService {
     /**
      * CRITICAL: Get services for API key (Perfect Panel format)
      */
+    @Transactional(readOnly = true)
     public List<Map<String, Object>> getServicesForApiKey(String apiKey) {
         // Validate API key
         User user = userRepository.findByApiKeyHashAndIsActiveTrue(hashApiKey(apiKey))
                 .orElseThrow(() -> new OrderValidationException("Invalid API key"));
 
         // Get active services
-        List<com.smmpanel.entity.Service> services = serviceRepository.findByActiveTrue();
+        List<com.smmpanel.entity.Service> services = serviceRepository.findByActiveOrderByIdAsc(true);
 
         // Convert to Perfect Panel format
         return services.stream()
@@ -138,6 +140,7 @@ public class OrderService {
     /**
      * CRITICAL: Get balance for API key (Perfect Panel format)
      */
+    @Transactional(readOnly = true)
     public String getBalanceForApiKey(String apiKey) {
         User user = userRepository.findByApiKeyHashAndIsActiveTrue(hashApiKey(apiKey))
                 .orElseThrow(() -> new OrderValidationException("Invalid API key"));
@@ -148,6 +151,7 @@ public class OrderService {
     /**
      * CRITICAL: Get multiple order status (Perfect Panel batch)
      */
+    @Transactional(readOnly = true)
     public Map<String, Object> getMultipleOrderStatus(String apiKey, String[] orderIds) {
         User user = userRepository.findByApiKeyHashAndIsActiveTrue(hashApiKey(apiKey))
                 .orElseThrow(() -> new OrderValidationException("Invalid API key"));
@@ -199,7 +203,7 @@ public class OrderService {
         order.setUpdatedAt(LocalDateTime.now());
         orderRepository.save(order);
 
-        kafkaTemplate.send("youtube-processing", order.getId());
+        kafkaTemplate.send("smm.youtube.processing", order.getId());
 
         log.info("Order {} refill initiated by user {}", orderId, user.getUsername());
     }

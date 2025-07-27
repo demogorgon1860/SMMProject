@@ -1,13 +1,14 @@
 package com.smmpanel.service;
 
 import com.smmpanel.dto.balance.CurrencyConversionRequest;
-import com.smmpanel.dto.balance.CurrencyConversionResponse;
+import com.smmpanel.dto.balance.CurrencyConversionResultDto;
 import com.smmpanel.entity.User;
 import com.smmpanel.exception.ExchangeRateException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -21,6 +22,7 @@ import java.util.Map;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class CurrencyConversionService {
 
     private final ExchangeRateService exchangeRateService;
@@ -29,7 +31,7 @@ public class CurrencyConversionService {
     /**
      * Convert an amount from one currency to another
      */
-    public CurrencyConversionResponse convert(CurrencyConversionRequest request) {
+    public CurrencyConversionResultDto convert(CurrencyConversionRequest request) {
         BigDecimal amount = request.getAmount();
         String fromCurrency = request.getFromCurrency().toUpperCase();
         String toCurrency = request.getToCurrency().toUpperCase();
@@ -49,7 +51,7 @@ public class CurrencyConversionService {
         // Format the result if requested
         String formattedAmount = format ? formatCurrency(convertedAmount, toCurrency) : null;
         
-        return CurrencyConversionResponse.builder()
+        return CurrencyConversionResultDto.builder()
                 .amount(amount)
                 .fromCurrency(fromCurrency)
                 .toCurrency(toCurrency)

@@ -2,6 +2,7 @@ package com.smmpanel.security;
 
 import com.smmpanel.entity.User;
 import com.smmpanel.repository.UserRepository;
+import com.smmpanel.service.ApiKeyService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,16 +14,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,10 +26,11 @@ import java.util.Optional;
  * PRODUCTION-READY API Key Authentication Filter
  * 
  * SECURITY IMPROVEMENTS:
- * 1. Fixed O(n) lookup performance issue - now uses indexed query
- * 2. Removed database writes from authentication path
- * 3. Added proper error handling
- * 4. Implemented secure API key hashing
+ * 1. Uses proper salted hash from ApiKeyService
+ * 2. Fixed O(n) lookup performance issue - now uses indexed query
+ * 3. Removed database writes from authentication path
+ * 4. Added proper error handling
+ * 5. Implemented secure API key validation
  */
 @Slf4j
 @Component
@@ -41,10 +38,10 @@ import java.util.Optional;
 public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String API_KEY_HEADER = "X-API-Key";
-    private static final String API_KEY_PARAM = "api_key";
+    private static final String API_KEY_PARAM = "key"; // Perfect Panel compatibility
     
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final ApiKeyService apiKeyService;
     
     @Value("${app.security.api-key.enabled:true}")
     private boolean apiKeyAuthEnabled;
@@ -78,16 +75,17 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
     
     private void authenticateWithApiKey(HttpServletRequest request, String apiKey) {
         // FIXED: Use indexed query instead of loading all users (O(1) instead of O(n))
-        String apiKeyHash = hashApiKey(apiKey);
-        Optional<User> userOpt = userRepository.findByApiKeyHashAndIsActiveTrue(apiKeyHash);
+        Optional<User> userOpt = userRepository.findByApiKeyHashAndIsActiveTrue(
+            apiKeyService.hashApiKeyForLookup(apiKey)
+        );
         
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             
-            // SECURITY: Verify API key matches exactly
-            if (verifyApiKey(apiKey, user)) {
+            // SECURITY: Use ApiKeyService for proper salted hash verification
+            if (apiKeyService.validateApiKey(apiKey, user)) {
                 List<SimpleGrantedAuthority> authorities = List.of(
-                    new SimpleGrantedAuthority(user.getRole().getAuthority())
+                    new SimpleGrantedAuthority("ROLE_" + user.getRole().name())
                 );
                 
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
@@ -111,7 +109,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         // Check header first (more secure)
         String apiKey = request.getHeader(apiKeyHeader);
         
-        // Fall back to parameter for backward compatibility
+        // Fall back to parameter for Perfect Panel compatibility
         if (StringUtils.isBlank(apiKey)) {
             apiKey = request.getParameter(API_KEY_PARAM);
         }
@@ -119,59 +117,13 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         return StringUtils.trimToNull(apiKey);
     }
     
-    /**
-     * SECURITY: Hash API key for secure storage and comparison
-     */
-    private String hashApiKey(String apiKey) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(apiKey.getBytes(StandardCharsets.UTF_8));
-            StringBuilder hexString = new StringBuilder();
-            
-            for (byte b : hash) {
-                String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) {
-                    hexString.append('0');
-                }
-                hexString.append(hex);
-            }
-            
-            return hexString.toString();
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 algorithm not available", e);
-        }
-    }
-    
-    /**
-     * SECURITY: Verify API key using constant-time comparison
-     */
-    private boolean verifyApiKey(String providedApiKey, User user) {
-        if (user.getApiKey() == null) {
-            return false;
-        }
-        
-        try {
-            String providedHash = hashApiKey(providedApiKey);
-            String storedHash = user.getApiKeyHash();
-            
-            // Use MessageDigest.isEqual for constant-time comparison to prevent timing attacks
-            return MessageDigest.isEqual(
-                providedHash.getBytes(StandardCharsets.UTF_8),
-                storedHash.getBytes(StandardCharsets.UTF_8)
-            );
-        } catch (Exception e) {
-            log.error("Error verifying API key for user {}: {}", user.getUsername(), e.getMessage());
-            return false;
-        }
-    }
-    
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String path = request.getRequestURI();
         
         // Skip API key auth for public endpoints
-        return path.startsWith("/api/auth/") || 
-               path.startsWith("/api/public/") ||
+        return path.startsWith("/api/v2/auth/") || 
+               path.startsWith("/api/v2/public/") ||
                path.startsWith("/actuator/health") ||
                path.startsWith("/swagger-ui/") ||
                path.startsWith("/v3/api-docs");

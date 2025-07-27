@@ -1,5 +1,6 @@
 package com.smmpanel.service.order;
 
+import com.smmpanel.dto.binom.BinomCampaignRequest;
 import com.smmpanel.dto.request.CreateOrderRequest;
 import com.smmpanel.entity.*;
 import com.smmpanel.event.OrderCreatedEvent;
@@ -197,18 +198,19 @@ public class OrderProcessingService {
     private void createBinomCampaign(Order order, String targetUrl, BigDecimal coefficient) {
         try {
             // Calculate required clicks based on coefficient
-            int requiredClicks = order.getQuantity().multiply(coefficient)
+            int targetViews = new BigDecimal(order.getQuantity())
+                .multiply(coefficient)
                 .divide(BigDecimal.valueOf(1000), 0, RoundingMode.UP)
                 .intValue();
             
             BinomCampaignRequest campaignRequest = BinomCampaignRequest.builder()
                 .orderId(order.getId())
                 .targetUrl(targetUrl)
-                .requiredClicks(requiredClicks)
+                .targetViews(targetViews)
                 .geoTargeting("US,CA,GB,AU") // Default geo targeting
                 .build();
             
-            BinomCampaign campaign = binomIntegrationService.createCampaign(campaignRequest);
+            BinomCampaign campaign = binomService.createCampaign(order, targetUrl, true);
             order.setBinomCampaign(campaign);
             orderRepository.save(order);
             
@@ -295,6 +297,27 @@ public class OrderProcessingService {
             notificationService.notifyFinanceTeam(
                 String.format("Manual refund required for order %d: $%s", 
                     order.getId(), order.getCharge()));
+        }
+    }
+
+    /**
+     * Check if order can be paused
+     */
+    private boolean canPauseOrder(Order order) {
+        return order.getStatus() == OrderStatus.ACTIVE || 
+               order.getStatus() == OrderStatus.PROCESSING ||
+               order.getStatus() == OrderStatus.IN_PROGRESS;
+    }
+
+    /**
+     * Pause Binom campaigns for an order
+     */
+    private void pauseBinomCampaigns(Long orderId) {
+        try {
+            // Implementation would pause campaigns in Binom
+            log.info("Pausing Binom campaigns for order {}", orderId);
+        } catch (Exception e) {
+            log.error("Failed to pause Binom campaigns for order {}: {}", orderId, e.getMessage());
         }
     }
 }

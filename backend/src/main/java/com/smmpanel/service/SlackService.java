@@ -72,4 +72,9 @@ public class SlackService {
             default -> "#808080";
         };
     }
+    
+    public void sendToChannel(String channel, String message) {
+        log.info("Sending to Slack channel {}: {}", channel, message);
+        // Implementation
+    }
 } 

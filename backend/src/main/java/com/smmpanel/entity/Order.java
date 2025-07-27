@@ -52,11 +52,13 @@ public class Order {
     private BigDecimal charge;
 
     @Column(name = "start_count")
+    @Builder.Default
     private Integer startCount = 0;
 
     private Integer remains;
 
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private OrderStatus status = OrderStatus.PENDING;
 
     @Column(name = "youtube_video_id", length = 100)
@@ -84,6 +86,7 @@ public class Order {
     private VideoProcessing videoProcessing;
 
     @Column(name = "processing_priority")
+    @Builder.Default
     private Integer processingPriority = 0;
 
     @Column(name = "error_message", columnDefinition = "TEXT")

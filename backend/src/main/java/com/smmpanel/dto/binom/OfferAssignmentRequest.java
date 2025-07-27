@@ -16,4 +16,6 @@ public class OfferAssignmentRequest {
     private String description;
     private String geoTargeting;
     private Integer requiredClicks;
+    private String source;
+    private Boolean useFixedCampaign;
 } 

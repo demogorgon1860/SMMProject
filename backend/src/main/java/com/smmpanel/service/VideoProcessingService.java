@@ -3,6 +3,7 @@ package com.smmpanel.service;
 import com.smmpanel.dto.binom.BinomIntegrationRequest;
 import com.smmpanel.dto.binom.BinomIntegrationResponse;
 import com.smmpanel.entity.*;
+import com.smmpanel.entity.VideoProcessingStatus;
 import com.smmpanel.exception.VideoProcessingException;
 import com.smmpanel.repository.VideoProcessingRepository;
 import com.smmpanel.repository.YouTubeAccountRepository;
@@ -61,7 +62,7 @@ public class VideoProcessingService {
                     .order(order)
                     .originalUrl(order.getLink())
                     .videoType(determineVideoType(order.getLink()))
-                    .processingStatus("PENDING")
+                    .status(VideoProcessingStatus.PENDING)
                     .processingAttempts(0)
                     .clipCreated(false)
                     .createdAt(LocalDateTime.now())
@@ -131,7 +132,7 @@ public class VideoProcessingService {
     /**
      * Process video and create clip if enabled
      */
-    private String processVideoAndCreateClip(VideoProcessing processing) throws Exception {
+    private String processVideoAndCreateClip(VideoProcessing processing) {
         String targetUrl = processing.getOriginalUrl();
         
         if (clipCreationEnabled && canCreateClip(processing)) {
@@ -154,7 +155,7 @@ public class VideoProcessingService {
                     if (clipUrl != null) {
                         processing.setClipCreated(true);
                         processing.setClipUrl(clipUrl);
-                        processing.setYoutubeAccount(account);
+                        processing.setYoutubeAccountId(account.getId());
                         updateAccountUsage(account);
                         
                         log.info("Successfully created clip {} for processing ID: {}", clipUrl, processing.getId());

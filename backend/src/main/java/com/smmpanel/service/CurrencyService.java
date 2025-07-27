@@ -178,6 +178,44 @@ public class CurrencyService {
     }
 
     /**
+     * Check if the currency symbol should be placed after the amount
+     */
+    public boolean isSymbolAfterAmount(String currencyCode) {
+        return Optional.ofNullable(SUPPORTED_CURRENCIES.get(currencyCode))
+                .map(info -> info.isSymbolAfterAmount())
+                .orElse(false);
+    }
+
+    /**
+     * Get exchange rates for a base currency
+     */
+    public Map<String, BigDecimal> getExchangeRates(String base) {
+        if (base.equals(baseCurrency)) {
+            return exchangeRates;
+        }
+        
+        // Convert rates to the requested base currency
+        BigDecimal baseRate = getExchangeRate(base);
+        Map<String, BigDecimal> convertedRates = new HashMap<>();
+        
+        for (Map.Entry<String, BigDecimal> entry : exchangeRates.entrySet()) {
+            String currency = entry.getKey();
+            BigDecimal rate = entry.getValue();
+            BigDecimal convertedRate = rate.divide(baseRate, 10, RoundingMode.HALF_UP);
+            convertedRates.put(currency, convertedRate);
+        }
+        
+        return convertedRates;
+    }
+
+    /**
+     * Get the default currency
+     */
+    public String getDefaultCurrency() {
+        return defaultCurrency;
+    }
+
+    /**
      * DTO for currency information
      */
     @Data
@@ -186,17 +224,41 @@ public class CurrencyService {
         private final String symbol;
         private final int decimalPlaces;
         private final String name;
+        private boolean preferred;
+        private boolean symbolAfterAmount;
         
         // Manual constructor since Lombok annotation processing is broken
         public CurrencyInfo(String symbol, int decimalPlaces, String name) {
             this.symbol = symbol;
             this.decimalPlaces = decimalPlaces;
             this.name = name;
+            this.preferred = false;
+            this.symbolAfterAmount = false;
+        }
+        
+        public CurrencyInfo(String symbol, int decimalPlaces, String name, boolean preferred) {
+            this.symbol = symbol;
+            this.decimalPlaces = decimalPlaces;
+            this.name = name;
+            this.preferred = preferred;
+            this.symbolAfterAmount = false;
+        }
+        
+        public CurrencyInfo(String symbol, int decimalPlaces, String name, boolean preferred, boolean symbolAfterAmount) {
+            this.symbol = symbol;
+            this.decimalPlaces = decimalPlaces;
+            this.name = name;
+            this.preferred = preferred;
+            this.symbolAfterAmount = symbolAfterAmount;
         }
         
         // Manual getters since Lombok annotation processing is broken
         public String getSymbol() { return symbol; }
         public int getDecimalPlaces() { return decimalPlaces; }
         public String getName() { return name; }
+        public boolean isPreferred() { return preferred; }
+        public void setPreferred(boolean preferred) { this.preferred = preferred; }
+        public boolean isSymbolAfterAmount() { return symbolAfterAmount; }
+        public void setSymbolAfterAmount(boolean symbolAfterAmount) { this.symbolAfterAmount = symbolAfterAmount; }
     }
 }

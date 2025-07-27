@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.math.BigDecimal;
 import java.util.Map;
 
 /**
@@ -257,10 +258,9 @@ public class BinomClient {
                 
                 return CampaignStatsResponse.builder()
                         .campaignId(campaignId)
-                        .clicks(getIntValue(responseBody, "clicks", 0))
-                        .views(getIntValue(responseBody, "views", 0))
-                        .conversions(getIntValue(responseBody, "conversions", 0))
-                        .cost(getDoubleValue(responseBody, "cost", 0.0))
+                        .clicks(Long.valueOf(getIntValue(responseBody, "clicks", 0)))
+                        .conversions(Long.valueOf(getIntValue(responseBody, "conversions", 0)))
+                        .cost(BigDecimal.valueOf(getDoubleValue(responseBody, "cost", 0.0)))
                         .build();
             }
             
@@ -327,5 +327,28 @@ public class BinomClient {
         } catch (NumberFormatException e) {
             return defaultValue;
         }
+    }
+    
+    public CheckOfferResponse checkOffer(String offerName) {
+        // Implementation
+        return CheckOfferResponse.builder()
+            .exists(false)
+            .message("Offer check not implemented")
+            .build();
+    }
+
+    public void stopCampaign(String campaignId) {
+        log.info("Stopping campaign: {}", campaignId);
+        // Implementation
+    }
+
+    public void pauseCampaign(String campaignId) {
+        log.info("Pausing campaign: {}", campaignId);
+        // Implementation
+    }
+
+    public void resumeCampaign(String campaignId) {
+        log.info("Resuming campaign: {}", campaignId);
+        // Implementation
     }
 }

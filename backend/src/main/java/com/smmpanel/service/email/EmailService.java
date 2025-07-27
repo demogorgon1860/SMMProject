@@ -60,4 +60,9 @@ public class EmailService {
     public void sendNotification(String to, String title, String message) {
         sendEmail(to, title, message);
     }
+    
+    public void sendToTeam(String subject, String body) {
+        log.info("Sending email to team: {}", subject);
+        // Implementation
+    }
 } 

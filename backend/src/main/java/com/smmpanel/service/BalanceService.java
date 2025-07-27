@@ -210,4 +210,35 @@ public class BalanceService {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         return transactionRepository.findByUserId(userId, pageable);
     }
+    
+    /**
+     * Get user balance by username
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal getUserBalanceByUsername(String username) {
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with username: " + username))
+                .getBalance();
+    }
+    
+    /**
+     * Refund order amount
+     */
+    @Transactional
+    public void refundOrder(Order order) {
+        User user = order.getUser();
+        BigDecimal refundAmount = order.getCharge();
+        
+        if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
+            addToBalance(user, refundAmount, "Refund for cancelled order #" + order.getId());
+        }
+    }
+    
+    /**
+     * Add to user balance
+     */
+    @Transactional
+    public void addToBalance(User user, BigDecimal amount, String description) {
+        addBalance(user, amount, null, description);
+    }
 }

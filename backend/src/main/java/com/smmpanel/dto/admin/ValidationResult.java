@@ -15,5 +15,6 @@ public class ValidationResult {
     private boolean valid;
     private int activeCampaignCount;
     private String message;
+    @Builder.Default
     private List<String> errors = new ArrayList<>();
 } 

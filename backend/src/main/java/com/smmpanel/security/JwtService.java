@@ -10,6 +10,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import java.security.Key;
+import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -85,16 +86,16 @@ public class JwtService {
 
     private Claims extractAllClaims(String token) {
         try {
-            return Jwts.parserBuilder()
+            return Jwts.parser()
                     .requireIssuer(jwtConfig.getJwtIssuer())
-                    .setSigningKey(jwtSecretKey)
+                    .verifyWith((SecretKey) jwtSecretKey)
                     .build()
-                    .parseClaimsJws(token)
-                    .getBody();
+                    .parseSignedClaims(token)
+                    .getPayload();
         } catch (ExpiredJwtException ex) {
             log.warn("Expired JWT token: {}", ex.getMessage());
             throw new JwtAuthenticationException("JWT token has expired", ex);
-        } catch (UnsupportedJwtException | MalformedJwtException | SignatureException ex) {
+        } catch (UnsupportedJwtException | MalformedJwtException | SecurityException ex) {
             log.warn("Invalid JWT token: {}", ex.getMessage());
             throw new JwtAuthenticationException("Invalid JWT token", ex);
         } catch (Exception ex) {

@@ -53,8 +53,7 @@ public class BinomService {
                 throw new RuntimeException("No available traffic sources");
             }
             BinomCampaign campaign = BinomCampaign.builder()
-                    .orderId(order.getId())
-                    .orderCreatedAt(order.getCreatedAt())
+                    .order(order)
                     .campaignId(generateCampaignId(order.getId(), selectedSource.getSourceId()))
                     .targetUrl(targetUrl)
                     .trafficSource(selectedSource)
@@ -63,8 +62,6 @@ public class BinomService {
                     .clicksDelivered(0)
                     .viewsGenerated(0)
                     .status("ACTIVE")
-                    .createdAt(LocalDateTime.now())
-                    .updatedAt(LocalDateTime.now())
                     .build();
             binomCampaignRepository.save(campaign);
             selectedSource.setClicksUsedToday(selectedSource.getClicksUsedToday() + requiredClicks);
@@ -75,7 +72,6 @@ public class BinomService {
                     .success(true)
                     .campaignId(campaign.getCampaignId())
                     .message("Order assigned to traffic source: " + selectedSource.getName())
-                    .createdAt(LocalDateTime.now())
                     .build();
         } catch (Exception e) {
             log.error("Failed to create Binom integration for order {}: {}", order.getId(), e.getMessage());
@@ -83,7 +79,6 @@ public class BinomService {
                     .success(false)
                     .message("Failed to assign traffic source: " + e.getMessage())
                     .errorCode("TRAFFIC_SOURCE_ASSIGNMENT_FAILED")
-                    .createdAt(LocalDateTime.now())
                     .build();
         }
     }
@@ -179,19 +174,7 @@ public class BinomService {
         }
     }
 
-    /**
-     * Assign offer to specific campaign with click limit
-     */
-    private void assignOfferToCampaign(String campaignId, String offerId, int clicksLimit) {
-        try {
-            binomClient.assignOfferToCampaign(campaignId, offerId);
-            log.info("Assigned offer {} to campaign {} with {} clicks", offerId, campaignId, clicksLimit);
 
-        } catch (Exception e) {
-            log.error("Failed to assign offer {} to campaign {}: {}", offerId, campaignId, e.getMessage());
-            throw new BinomApiException("Failed to assign offer to campaign", e);
-        }
-    }
 
     /**
      * Save Binom campaign record in database
@@ -315,5 +298,56 @@ public class BinomService {
 
     private String generateCampaignId(Long orderId, String sourceId) {
         return String.format("SMM_ORDER_%d_TRAFFIC_%s_%d", orderId, sourceId, System.currentTimeMillis());
+    }
+
+    // Additional methods required by the interface
+    public String createOffer(String name, String url, String geo) {
+        try {
+            CreateOfferRequest offerRequest = CreateOfferRequest.builder()
+                    .name(name)
+                    .url(url)
+                    .geoTargeting(geo)
+                    .description("SMM Panel auto-generated offer")
+                    .build();
+
+            CreateOfferResponse response = binomClient.createOffer(offerRequest);
+            log.info("Created new Binom offer: {}", response.getOfferId());
+            return response.getOfferId();
+
+        } catch (Exception e) {
+            log.error("Failed to create Binom offer: {}", e.getMessage());
+            throw new BinomApiException("Failed to create Binom offer", e);
+        }
+    }
+
+    public boolean assignOfferToCampaign(String offerId, String campaignId, int priority) {
+        try {
+            binomClient.assignOfferToCampaign(campaignId, offerId);
+            log.info("Assigned offer {} to campaign {} with priority {}", offerId, campaignId, priority);
+            return true;
+        } catch (Exception e) {
+            log.error("Failed to assign offer {} to campaign {}: {}", offerId, campaignId, e.getMessage());
+            return false;
+        }
+    }
+
+    public BinomIntegrationResponse createBinomIntegration(BinomIntegrationRequest request) {
+        try {
+            validateRequest(request);
+            
+            Order order = orderRepository.findById(request.getOrderId())
+                    .orElseThrow(() -> new BinomApiException("Order not found: " + request.getOrderId()));
+
+            return createBinomIntegration(order, "video_" + request.getOrderId(), 
+                    request.getClipCreated(), request.getTargetUrl());
+                    
+        } catch (Exception e) {
+            log.error("Failed to create Binom integration: {}", e.getMessage());
+            return BinomIntegrationResponse.builder()
+                    .success(false)
+                    .message("Failed to create Binom integration: " + e.getMessage())
+                    .errorCode("INTEGRATION_FAILED")
+                    .build();
+        }
     }
 }

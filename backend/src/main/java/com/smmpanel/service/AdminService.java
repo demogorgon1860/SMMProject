@@ -25,6 +25,7 @@ public class AdminService {
 
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final ServiceRepository serviceRepository;
     private final TrafficSourceRepository trafficSourceRepository;
     private final ConversionCoefficientRepository coefficientRepository;
     private final YouTubeAccountRepository youTubeAccountRepository;
@@ -261,15 +262,16 @@ public class AdminService {
     }
 
     @Transactional
-    public ConversionCoefficient updateConversionCoefficient(Long serviceId, BigDecimal withClip, BigDecimal withoutClip) {
+    public CoefficientDto updateConversionCoefficient(Long serviceId, CoefficientUpdateRequest request) {
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
         ConversionCoefficient coefficient = coefficientRepository.findByServiceId(serviceId)
                 .orElseThrow(() -> new IllegalArgumentException("Coefficient not found for service: " + serviceId));
-        coefficient.setWithClip(withClip);
-        coefficient.setWithoutClip(withoutClip);
+        coefficient.setWithClip(request.getWithClip());
+        coefficient.setWithoutClip(request.getWithoutClip().compareTo(BigDecimal.ZERO) > 0);
         coefficient.setUpdatedBy(currentUsername);
         coefficient.setUpdatedAt(LocalDateTime.now());
-        return coefficientRepository.save(coefficient);
+        coefficient = coefficientRepository.save(coefficient);
+        return mapToCoefficientDto(coefficient);
     }
 
     @Transactional
@@ -591,7 +593,7 @@ public class AdminService {
                 .serviceId(coefficient.getServiceId())
                 .withClip(coefficient.getWithClip())
                 .withoutClip(coefficient.getWithoutClip())
-                .updatedBy(coefficient.getUpdatedBy() != null ? coefficient.getUpdatedBy().getUsername() : null)
+                .updatedBy(coefficient.getUpdatedBy())
                 .updatedAt(coefficient.getUpdatedAt())
                 .build();
     }

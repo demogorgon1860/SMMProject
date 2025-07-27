@@ -1,7 +1,7 @@
 package com.smmpanel.controller;
 
 import com.smmpanel.dto.balance.CurrencyConversionRequest;
-import com.smmpanel.dto.balance.CurrencyConversionResponse;
+import com.smmpanel.dto.balance.CurrencyConversionResultDto;
 import com.smmpanel.dto.response.ApiResponse;
 import com.smmpanel.entity.User;
 import com.smmpanel.security.CurrentUser;
@@ -78,11 +78,11 @@ public class CurrencyController {
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Convert currency",
               description = "Converts an amount from one currency to another using current exchange rates")
-    public ResponseEntity<ApiResponse<CurrencyConversionResponse>> convertCurrency(
+    public ResponseEntity<ApiResponse<CurrencyConversionResultDto>> convertCurrency(
             @CurrentUser User user,
             @Valid @RequestBody CurrencyConversionRequest request) {
                 
-        CurrencyConversionResponse response = currencyConversionService.convert(request);
+        CurrencyConversionResultDto response = currencyConversionService.convert(request);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
     
@@ -93,7 +93,7 @@ public class CurrencyController {
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Quick convert",
               description = "Quick currency conversion using query parameters")
-    public ResponseEntity<ApiResponse<CurrencyConversionResponse>> quickConvert(
+    public ResponseEntity<ApiResponse<CurrencyConversionResultDto>> quickConvert(
             @CurrentUser User user,
             @RequestParam @NotBlank String from,
             @RequestParam @NotBlank String to,
@@ -107,7 +107,7 @@ public class CurrencyController {
                 .format(format)
                 .build();
                 
-        CurrencyConversionResponse response = currencyConversionService.convert(request);
+        CurrencyConversionResultDto response = currencyConversionService.convert(request);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
     
@@ -182,8 +182,7 @@ public class CurrencyController {
             @RequestParam @NotBlank String fromCurrency,
             @RequestParam @NotNull @PositiveOrZero BigDecimal amount) {
                 
-        String result = userCurrencyPreferenceService.convertAndFormatForUser(
-            user.getId(), amount, fromCurrency);
+        String result = userCurrencyPreferenceService.formatForUser(user.getId(), amount);
             
         return ResponseEntity.ok(ApiResponse.success(result));
     }

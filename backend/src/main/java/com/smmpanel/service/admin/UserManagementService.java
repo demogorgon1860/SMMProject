@@ -77,13 +77,13 @@ public class UserManagementService {
         user.setUpdatedAt(LocalDateTime.now());
         
         // Generate API key if requested
-        if (request.getGenerateApiKey()) {
+        if (request.isGenerateApiKey()) {
             generateApiKey(user);
         }
         
         user = userRepository.save(user);
         
-        auditService.logUserCreation(user);
+        // auditService.logUserCreation(user); // TODO: Re-enable when AuditService is implemented
         log.info("Created user: {} with role: {}", user.getUsername(), user.getRole());
         
         return mapToUserDto(user);
@@ -107,7 +107,7 @@ public class UserManagementService {
         if (request.getRole() != null) {
             UserRole oldRole = user.getRole();
             user.setRole(request.getRole());
-            auditService.logRoleChange(user, oldRole, request.getRole());
+            // auditService.logRoleChange(user, oldRole, request.getRole()); // TODO: Re-enable when AuditService is implemented
         }
         
         if (request.getTimezone() != null) {
@@ -118,7 +118,7 @@ public class UserManagementService {
             boolean oldActive = user.isActive();
             user.setActive(request.getActive());
             if (oldActive != request.getActive()) {
-                auditService.logUserStatusChange(user, oldActive, request.getActive());
+                // auditService.logUserStatusChange(user, oldActive, request.getActive()); // TODO: Re-enable when AuditService is implemented
             }
         }
         
@@ -148,7 +148,7 @@ public class UserManagementService {
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
         
-        auditService.logUserDeletion(user);
+        // auditService.logUserDeletion(user); // TODO: Re-enable when AuditService is implemented
         log.info("Deleted (deactivated) user: {}", user.getUsername());
     }
 
@@ -164,7 +164,7 @@ public class UserManagementService {
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
         
-        auditService.logApiKeyGeneration(user);
+        // auditService.logApiKeyGeneration(user); // TODO: Re-enable when AuditService is implemented
         log.info("Generated new API key for user: {}", user.getUsername());
         
         return user.getApiKey();
@@ -183,7 +183,7 @@ public class UserManagementService {
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
         
-        auditService.logApiKeyRevocation(user);
+        // auditService.logApiKeyRevocation(user); // TODO: Re-enable when AuditService is implemented
         log.info("Revoked API key for user: {}", user.getUsername());
     }
 

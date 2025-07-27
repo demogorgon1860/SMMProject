@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface YouTubeAccountRepository extends JpaRepository<YouTubeAccount, Long> {
@@ -28,4 +29,8 @@ public interface YouTubeAccountRepository extends JpaRepository<YouTubeAccount, 
 
     @Query("SELECT COUNT(ya) FROM YouTubeAccount ya WHERE ya.status = 'ACTIVE'")
     long countActiveAccounts();
+    
+    Optional<YouTubeAccount> findFirstByStatusAndDailyClipsCountLessThanDailyLimit(
+        YouTubeAccountStatus status
+    );
 }

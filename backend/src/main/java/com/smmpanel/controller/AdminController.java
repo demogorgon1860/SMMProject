@@ -72,7 +72,8 @@ public class AdminController {
         }
 
         return ResponseEntity.ok(PerfectPanelResponse.builder()
-                .order(Map.of("message", "Action completed successfully"))
+                .data(Map.of("message", "Action completed successfully"))
+                .success(true)
                 .build());
     }
 
@@ -83,10 +84,11 @@ public class AdminController {
         int processed = adminService.performBulkAction(request);
         
         return ResponseEntity.ok(PerfectPanelResponse.builder()
-                .order(Map.of(
+                .data(Map.of(
                         "message", "Bulk action completed",
                         "processed", processed
                 ))
+                .success(true)
                 .build());
     }
 

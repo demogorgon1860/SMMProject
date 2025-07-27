@@ -47,7 +47,7 @@ public class StartupService implements ApplicationRunner {
             admin.setRole(UserRole.ADMIN);
             admin.setBalance(BigDecimal.valueOf(1000)); // Starting balance
             admin.setApiKey("sk_admin_" + UUID.randomUUID().toString().replace("-", ""));
-            admin.setIsActive(true);
+            admin.setActive(true);
 
             userRepository.save(admin);
             log.info("Created default admin user: admin / admin123");
@@ -57,39 +57,42 @@ public class StartupService implements ApplicationRunner {
     private void createDefaultServices() {
         if (serviceRepository.count() == 0) {
             // Service 1: YouTube Views (Standard)
-            Service service1 = new Service();
-            service1.setId(1L);
-            service1.setName("YouTube Views (Standard)");
-            service1.setCategory("YouTube");
-            service1.setMinOrder(100);
-            service1.setMaxOrder(1000000);
-            service1.setPricePer1000(new BigDecimal("1.0000"));
-            service1.setDescription("Standard YouTube views delivery");
-            service1.setActive(true);
+            com.smmpanel.entity.Service service1 = com.smmpanel.entity.Service.builder()
+                    .id(1L)
+                    .name("YouTube Views (Standard)")
+                    .category("YouTube")
+                    .minOrder(100)
+                    .maxOrder(1000000)
+                    .pricePer1000(new BigDecimal("1.0000"))
+                    .description("Standard YouTube views delivery")
+                    .active(true)
+                    .build();
             serviceRepository.save(service1);
 
             // Service 2: YouTube Views (Premium)
-            Service service2 = new Service();
-            service2.setId(2L);
-            service2.setName("YouTube Views (Premium)");
-            service2.setCategory("YouTube");
-            service2.setMinOrder(100);
-            service2.setMaxOrder(1000000);
-            service2.setPricePer1000(new BigDecimal("2.0000"));
-            service2.setDescription("Premium YouTube views with higher quality");
-            service2.setActive(true);
+            com.smmpanel.entity.Service service2 = com.smmpanel.entity.Service.builder()
+                    .id(2L)
+                    .name("YouTube Views (Premium)")
+                    .category("YouTube")
+                    .minOrder(100)
+                    .maxOrder(1000000)
+                    .pricePer1000(new BigDecimal("2.0000"))
+                    .description("Premium YouTube views with higher quality")
+                    .active(true)
+                    .build();
             serviceRepository.save(service2);
 
             // Service 3: YouTube Views (High Quality)
-            Service service3 = new Service();
-            service3.setId(3L);
-            service3.setName("YouTube Views (High Quality)");
-            service3.setCategory("YouTube");
-            service3.setMinOrder(100);
-            service3.setMaxOrder(1000000);
-            service3.setPricePer1000(new BigDecimal("3.0000"));
-            service3.setDescription("High quality YouTube views with best retention");
-            service3.setActive(true);
+            com.smmpanel.entity.Service service3 = com.smmpanel.entity.Service.builder()
+                    .id(3L)
+                    .name("YouTube Views (High Quality)")
+                    .category("YouTube")
+                    .minOrder(100)
+                    .maxOrder(1000000)
+                    .pricePer1000(new BigDecimal("3.0000"))
+                    .description("High quality YouTube views with best retention")
+                    .active(true)
+                    .build();
             serviceRepository.save(service3);
 
             log.info("Created default services");
@@ -102,7 +105,7 @@ public class StartupService implements ApplicationRunner {
                 ConversionCoefficient coefficient = new ConversionCoefficient();
                 coefficient.setServiceId(serviceId);
                 coefficient.setWithClip(new BigDecimal("3.0"));
-                coefficient.setWithoutClip(new BigDecimal("4.0"));
+                coefficient.setWithoutClip(true);
                 coefficientRepository.save(coefficient);
             }
         }

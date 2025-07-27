@@ -3,6 +3,13 @@ package com.smmpanel.controller;
 import com.smmpanel.dto.balance.*;
 import com.smmpanel.dto.response.ApiResponse;
 import com.smmpanel.dto.response.PerfectPanelResponse;
+import com.smmpanel.entity.BalanceDeposit;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import com.smmpanel.entity.BalanceTransaction;
 import com.smmpanel.entity.User;
 import com.smmpanel.security.CurrentUser;
@@ -19,6 +26,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -47,13 +55,11 @@ public class BalanceController {
      */
     @Deprecated(since = "2.0", forRemoval = true)
     @GetMapping("/v2/balance")
-    public ResponseEntity<PerfectPanelResponse> getBalance() {
+    public ResponseEntity<PerfectPanelResponse<String>> getBalance() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        String balance = balanceService.getUserBalanceByUsername(username);
+        BigDecimal balance = balanceService.getUserBalanceByUsername(username);
 
-        return ResponseEntity.ok(PerfectPanelResponse.builder()
-                .balance(balance)
-                .build());
+        return ResponseEntity.ok(PerfectPanelResponse.success(balance.toString()));
     }
 
     /**
@@ -69,7 +75,7 @@ public class BalanceController {
 
         BalanceResponse response = BalanceResponse.builder()
                 .balance(balance)
-                .currency(user.getPreferredCurrency())
+                .currency(currentUser.getPreferredCurrency())
                 .build();
 
         return ResponseEntity.ok(ApiResponse.success(response));
@@ -170,12 +176,33 @@ public class BalanceController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "" + DEFAULT_PAGE_SIZE) int size) {
 
-        Page<DepositResponse> deposits = cryptomusService.getUserDeposits(
+        Map<String, Object> depositsData = cryptomusService.getUserDeposits(
                 currentUser.getUsername(),
                 page,
                 size
         );
-
-        return ResponseEntity.ok(ApiResponse.success(deposits));
+        
+        @SuppressWarnings("unchecked")
+        List<BalanceDeposit> deposits = (List<BalanceDeposit>) depositsData.get("deposits");
+        int totalPages = (Integer) depositsData.get("totalPages");
+        long totalElements = (Long) depositsData.get("totalElements");
+        
+        // Convert to DepositResponse DTOs
+        List<DepositResponse> depositResponses = deposits.stream()
+                .map(deposit -> DepositResponse.builder()
+                        .id(deposit.getId())
+                        .orderId(deposit.getOrderId())
+                        .amount(deposit.getAmountUsd())
+                        .currency(deposit.getCurrency())
+                        .status(deposit.getStatus().name())
+                        .createdAt(deposit.getCreatedAt())
+                        .updatedAt(deposit.getConfirmedAt() != null ? deposit.getConfirmedAt() : deposit.getCreatedAt())
+                        .build())
+                .collect(Collectors.toList());
+        
+        // Create a Page object manually
+        Page<DepositResponse> response = new PageImpl<>(depositResponses, PageRequest.of(page, size), totalElements);
+        
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

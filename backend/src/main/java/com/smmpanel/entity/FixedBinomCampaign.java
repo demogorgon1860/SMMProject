@@ -12,7 +12,6 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "fixed_binom_campaigns", indexes = {
     @Index(name = "idx_fixed_binom_campaigns_campaign_id", columnList = "campaign_id"),
-    @Index(name = "idx_fixed_binom_campaigns_traffic_source_id", columnList = "traffic_source_id"),
     @Index(name = "idx_fixed_binom_campaigns_active", columnList = "active"),
     @Index(name = "idx_fixed_binom_campaigns_created_at", columnList = "created_at")
 })
@@ -32,9 +31,7 @@ public class FixedBinomCampaign {
     @Column(name = "campaign_name", nullable = false)
     private String campaignName;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "traffic_source_id", nullable = false)
-    private TrafficSource trafficSource;
+
 
     @Column(name = "geo_targeting", length = 50)
     @Builder.Default

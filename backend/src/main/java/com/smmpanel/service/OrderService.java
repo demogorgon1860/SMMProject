@@ -241,6 +241,9 @@ public class OrderService {
     // Private helper methods
 
     private String hashApiKey(String apiKey) {
+        if (apiKey == null) {
+            throw new IllegalArgumentException("API key cannot be null");
+        }
         try {
             java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(apiKey.getBytes(java.nio.charset.StandardCharsets.UTF_8));

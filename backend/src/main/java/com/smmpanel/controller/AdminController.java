@@ -92,36 +92,6 @@ public class AdminController {
                 .build());
     }
 
-    @GetMapping("/traffic-sources")
-    public ResponseEntity<List<TrafficSourceDto>> getTrafficSources() {
-        List<TrafficSourceDto> sources = adminService.getTrafficSources();
-        return ResponseEntity.ok(sources);
-    }
-
-    @PostMapping("/traffic-sources")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<TrafficSourceDto> createTrafficSource(
-            @Valid @RequestBody TrafficSourceDto request) {
-        TrafficSourceDto created = adminService.createTrafficSource(request);
-        return ResponseEntity.ok(created);
-    }
-
-    @PutMapping("/traffic-sources/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<TrafficSourceDto> updateTrafficSource(
-            @PathVariable Long id,
-            @Valid @RequestBody TrafficSourceDto request) {
-        TrafficSourceDto updated = adminService.updateTrafficSource(id, request);
-        return ResponseEntity.ok(updated);
-    }
-
-    @DeleteMapping("/traffic-sources/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteTrafficSource(@PathVariable Long id) {
-        adminService.deleteTrafficSource(id);
-        return ResponseEntity.noContent().build();
-    }
-
     @GetMapping("/conversion-coefficients")
     public ResponseEntity<List<CoefficientDto>> getConversionCoefficients() {
         List<CoefficientDto> coefficients = adminService.getConversionCoefficients();

@@ -18,7 +18,6 @@ import java.time.LocalDateTime;
     @Index(name = "idx_binom_campaigns_order_id", columnList = "order_id"),
     @Index(name = "idx_binom_campaigns_campaign_id", columnList = "campaign_id"),
     @Index(name = "idx_binom_campaigns_offer_id", columnList = "offer_id"),
-    @Index(name = "idx_binom_campaigns_traffic_source_id", columnList = "traffic_source_id"),
     @Index(name = "idx_binom_campaigns_fixed_campaign_id", columnList = "fixed_campaign_id"),
     @Index(name = "idx_binom_campaigns_created_at", columnList = "created_at")
 })
@@ -51,9 +50,7 @@ public class BinomCampaign {
     @Column(name = "target_url", nullable = false, length = 500)
     private String targetUrl;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "traffic_source_id")
-    private TrafficSource trafficSource;
+
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "fixed_campaign_id")

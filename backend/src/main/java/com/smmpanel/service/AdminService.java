@@ -26,7 +26,6 @@ public class AdminService {
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final ServiceRepository serviceRepository;
-    private final TrafficSourceRepository trafficSourceRepository;
     private final ConversionCoefficientRepository coefficientRepository;
     private final YouTubeAccountRepository youTubeAccountRepository;
     private final OperatorLogRepository operatorLogRepository;
@@ -56,7 +55,6 @@ public class AdminService {
                 .completedOrders(orderRepository.findByStatus(OrderStatus.COMPLETED).size())
                 .totalUsers(userRepository.count())
                 .activeYouTubeAccounts(youTubeAccountRepository.findByStatus(YouTubeAccountStatus.ACTIVE).size())
-                .activeTrafficSources(trafficSourceRepository.findByActiveTrue().size())
                 .build();
     }
 
@@ -206,55 +204,6 @@ public class AdminService {
     }
 
     @Transactional(readOnly = true)
-    public List<TrafficSourceDto> getTrafficSources() {
-        return trafficSourceRepository.findAll().stream()
-                .map(this::mapToTrafficSourceDto)
-                .collect(Collectors.toList());
-    }
-
-    @Transactional
-    public TrafficSourceDto createTrafficSource(TrafficSourceDto request) {
-        TrafficSource source = new TrafficSource();
-        source.setName(request.getName());
-        source.setSourceId(request.getSourceId());
-        source.setWeight(request.getWeight());
-        source.setDailyLimit(request.getDailyLimit());
-        source.setGeoTargeting(request.getGeoTargeting());
-        source.setActive(request.getActive());
-
-        source = trafficSourceRepository.save(source);
-
-        log.info("Created traffic source: {}", source.getName());
-        return mapToTrafficSourceDto(source);
-    }
-
-    @Transactional
-    public TrafficSourceDto updateTrafficSource(Long id, TrafficSourceDto request) {
-        TrafficSource source = trafficSourceRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Traffic source not found: " + id));
-
-        source.setName(request.getName());
-        source.setWeight(request.getWeight());
-        source.setDailyLimit(request.getDailyLimit());
-        source.setGeoTargeting(request.getGeoTargeting());
-        source.setActive(request.getActive());
-
-        source = trafficSourceRepository.save(source);
-
-        log.info("Updated traffic source: {}", source.getName());
-        return mapToTrafficSourceDto(source);
-    }
-
-    @Transactional
-    public void deleteTrafficSource(Long id) {
-        TrafficSource source = trafficSourceRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Traffic source not found: " + id));
-
-        trafficSourceRepository.delete(source);
-        log.info("Deleted traffic source: {}", source.getName());
-    }
-
-    @Transactional(readOnly = true)
     public List<CoefficientDto> getConversionCoefficients() {
         return coefficientRepository.findAll().stream()
                 .map(this::mapToCoefficientDto)
@@ -340,7 +289,6 @@ public class AdminService {
 
         // Count active components
         health.put("activeYouTubeAccounts", youTubeAccountRepository.findByStatus(YouTubeAccountStatus.ACTIVE).size());
-        health.put("activeTrafficSources", trafficSourceRepository.findByActiveTrue().size());
         health.put("pendingOrders", orderRepository.findByStatus(OrderStatus.PENDING).size());
         health.put("processingOrders", orderRepository.findByStatus(OrderStatus.PROCESSING).size());
 
@@ -573,19 +521,7 @@ public class AdminService {
                 .build();
     }
 
-    private TrafficSourceDto mapToTrafficSourceDto(TrafficSource source) {
-        return TrafficSourceDto.builder()
-                .id(source.getId())
-                .name(source.getName())
-                .sourceId(source.getSourceId())
-                .weight(source.getWeight())
-                .dailyLimit(source.getDailyLimit())
-                .clicksUsedToday(source.getClicksUsedToday())
-                .geoTargeting(source.getGeoTargeting())
-                .active(source.getActive())
-                .performanceScore(source.getPerformanceScore())
-                .build();
-    }
+
 
     private CoefficientDto mapToCoefficientDto(ConversionCoefficient coefficient) {
         return CoefficientDto.builder()

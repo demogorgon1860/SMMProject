@@ -1,0 +1,50 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: true
+  h2:
+    console:
+      enabled: true
+  redis:
+    host: localhost
+    port: 6379
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1ms
+
+logging:
+  level:
+    com.smmpanel: DEBUG
+    org.springframework: WARN
+    org.hibernate: WARN
+
+# Test-specific configurations
+app:
+  exchange-rate:
+    api-url: https://api.exchangerate.host/latest
+    base-currency: USD
+    cache-duration: 3600
+    api-timeout-ms: 5000
+  fraud-detection:
+    enabled: true
+    rate-limit-per-minute: 10
+    max-orders-per-hour: 100
+    high-value-threshold: 50.0
+  order-processing:
+    async-enabled: true
+    max-retries: 3
+    retry-delay-ms: 1000 

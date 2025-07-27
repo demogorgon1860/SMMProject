@@ -22,8 +22,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Currency;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Service for handling currency conversion and formatting
@@ -47,7 +49,7 @@ public class CurrencyService {
     private final UserRepository userRepository;
 
     // In-memory cache for exchange rates
-    private final Map<String, BigDecimal> exchangeRates = new HashMap<>();
+    private final Map<String, BigDecimal> exchangeRates = new ConcurrentHashMap<>();
     
     // Supported currencies with their display properties
     private static final Map<String, CurrencyInfo> SUPPORTED_CURRENCIES = Map.of(
@@ -94,13 +96,14 @@ public class CurrencyService {
     public String formatCurrency(BigDecimal amount, String currencyCode) {
         int decimalPlaces = getDecimalPlaces(currencyCode);
         String symbol = getCurrencySymbol(currencyCode);
+        boolean symbolAfterAmount = isSymbolAfterAmount(currencyCode);
         
         // Format with proper decimal places and grouping
-        String formattedAmount = amount.setScale(decimalPlaces, RoundingMode.HALF_UP)
-                .stripTrailingZeros()
-                .toPlainString();
-                
-        return symbol + formattedAmount;
+        String formatPattern = "%,." + decimalPlaces + "f";
+        String formattedAmount = String.format(Locale.US, formatPattern, amount);
+        
+        // Add currency symbol based on locale
+        return symbolAfterAmount ? formattedAmount + " " + symbol : symbol + formattedAmount;
     }
 
     /**

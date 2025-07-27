@@ -41,7 +41,7 @@ class OfferAssignmentServiceTest {
     private ConversionCoefficientRepository coefficientRepository;
 
     @InjectMocks
-    private OfferAssignmentService offerAssignmentService;
+    private OfferAssignmentServiceImpl offerAssignmentService;
 
     private Order testOrder;
     private List<FixedBinomCampaign> fixedCampaigns;
@@ -57,27 +57,20 @@ class OfferAssignmentServiceTest {
                 .build();
 
         // Setup fixed campaigns
-        TrafficSource source1 = TrafficSource.builder().id(1L).name("Source 1").build();
-        TrafficSource source2 = TrafficSource.builder().id(2L).name("Source 2").build();
-        TrafficSource source3 = TrafficSource.builder().id(3L).name("Source 3").build();
-
         fixedCampaigns = Arrays.asList(
                 FixedBinomCampaign.builder()
                         .id(1L)
                         .campaignId("CAMPAIGN_001")
-                        .trafficSource(source1)
                         .active(true)
                         .build(),
                 FixedBinomCampaign.builder()
                         .id(2L)
                         .campaignId("CAMPAIGN_002")
-                        .trafficSource(source2)
                         .active(true)
                         .build(),
                 FixedBinomCampaign.builder()
                         .id(3L)
                         .campaignId("CAMPAIGN_003")
-                        .trafficSource(source3)
                         .active(true)
                         .build()
         );
@@ -243,14 +236,12 @@ class OfferAssignmentServiceTest {
                 BinomCampaign.builder()
                         .campaignId("CAMPAIGN_001")
                         .offerId("OFFER_123")
-                        .trafficSource(fixedCampaigns.get(0).getTrafficSource())
                         .clicksRequired(3000)
                         .status("ACTIVE")
                         .build(),
                 BinomCampaign.builder()
                         .campaignId("CAMPAIGN_002")
                         .offerId("OFFER_123")
-                        .trafficSource(fixedCampaigns.get(1).getTrafficSource())
                         .clicksRequired(3000)
                         .status("ACTIVE")
                         .build()
@@ -308,3 +299,4 @@ class OfferAssignmentServiceTest {
         assertEquals("SUCCESS", response.getStatus());
         verify(campaignRepository, times(3)).save(any(BinomCampaign.class));
     }
+}

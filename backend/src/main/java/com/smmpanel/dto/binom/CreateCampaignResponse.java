@@ -16,6 +16,5 @@ public class CreateCampaignResponse {
     private String campaignId;
     private String name;
     private String status;
-    private String trafficSourceId;
     private String geoTargeting;
 }

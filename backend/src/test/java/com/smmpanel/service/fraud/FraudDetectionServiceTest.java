@@ -1,11 +1,10 @@
 package com.smmpanel.service.fraud;
 
-import com.smmpanel.config.fraud.FraudDetectionProperties;
-import com.smmpanel.dto.OrderCreateRequest;
+import com.smmpanel.dto.request.CreateOrderRequest;
+import com.smmpanel.dto.validation.ValidationResult;
 import com.smmpanel.entity.Order;
-import com.smmpanel.entity.ServiceEntity;
+import com.smmpanel.entity.Service;
 import com.smmpanel.entity.User;
-import com.smmpanel.exception.FraudDetectionException;
 import com.smmpanel.repository.OrderRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,13 +12,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
 import java.math.BigDecimal;
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.Date;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -27,48 +27,45 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class FraudDetectionServiceTest {
 
     @Mock
-    private RedisTemplate<String, String> redisTemplate;
+    private RedisTemplate<String, Object> redisTemplate;
     
     @Mock
     private OrderRepository orderRepository;
     
     @Mock
-    private ValueOperations<String, String> valueOperations;
+    private ValueOperations<String, Object> valueOperations;
     
     @InjectMocks
     private FraudDetectionService fraudDetectionService;
     
-    private FraudDetectionProperties properties;
     private User testUser;
-    private ServiceEntity testService;
-    private OrderCreateRequest createRequest;
+    private Service testService;
+    private CreateOrderRequest createRequest;
     private Order testOrder;
     
     @BeforeEach
     void setUp() {
-        properties = new FraudDetectionProperties();
-        fraudDetectionService = new FraudDetectionService(redisTemplate, orderRepository, properties);
-        
         testUser = new User();
         testUser.setId(1L);
         testUser.setUsername("testuser");
         testUser.setBalance(new BigDecimal("1000.00"));
         testUser.setActive(true);
-        testUser.setCreatedAt(Date.from(Instant.now().minus(2, ChronoUnit.DAYS)));
+        testUser.setCreatedAt(LocalDateTime.now().minus(2, ChronoUnit.DAYS));
         
-        testService = new ServiceEntity();
+        testService = new Service();
         testService.setId(1L);
         testService.setName("YouTube Views");
-        testService.setMinQuantity(100);
-        testService.setMaxQuantity(50000);
-        testService.setPricePerThousand(new BigDecimal("2.50"));
+        testService.setMinOrder(100);
+        testService.setMaxOrder(50000);
+        testService.setPricePer1000(new BigDecimal("2.50"));
         testService.setActive(true);
         
-        createRequest = new OrderCreateRequest();
-        createRequest.setServiceId(1L);
+        createRequest = new CreateOrderRequest();
+        createRequest.setService(1L);
         createRequest.setLink("https://youtube.com/watch?v=test123");
         createRequest.setQuantity(1000);
         
@@ -79,83 +76,103 @@ class FraudDetectionServiceTest {
         testOrder.setStatus(com.smmpanel.entity.OrderStatus.PENDING);
         testOrder.setQuantity(1000);
         testOrder.setLink(createRequest.getLink());
-        testOrder.setCreatedAt(new Date());
+        testOrder.setCreatedAt(LocalDateTime.now());
         
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
     }
     
     @Test
-    void checkForFraud_WithNewUserAndHighValueOrder_ShouldPass() {
+    void analyzeOrder_WithNewUserAndHighValueOrder_ShouldPass() {
         // New user with high-value order (above threshold)
-        testOrder.setQuantity(50000); // $125.00 order (50 * 2.50)
+        createRequest.setQuantity(50000); // $125.00 order (50 * 2.50)
         
-        when(orderRepository.countByUserAndCreatedAtAfter(any(), any()))
+        when(orderRepository.countByUserIdAndCreatedAtAfter(any(), any()))
             .thenReturn(0L); // No previous orders
+        when(valueOperations.increment(anyString())).thenReturn(1L);
             
-        // Should pass without exception
-        assertDoesNotThrow(() -> 
-            fraudDetectionService.checkForFraud(testUser, testOrder)
-        );
+        // Should pass without validation errors
+        ValidationResult result = fraudDetectionService.analyzeOrder(testUser.getId(), createRequest);
+        
+        assertFalse(result.hasErrors());
     }
     
     @Test
-    void checkForFraud_WithRateLimitExceeded_ShouldThrowException() {
-        // Configure rate limiting to be very restrictive
-        FraudDetectionProperties.RateLimit rateLimit = new FraudDetectionProperties.RateLimit();
-        rateLimit.setRequestsPerMinute(1);
-        rateLimit.setBucketCapacity(1);
-        properties.setRateLimit(rateLimit);
-        
+    void analyzeOrder_WithRateLimitExceeded_ShouldReturnError() {
         // First request should pass
         when(valueOperations.increment(anyString())).thenReturn(1L);
-        assertDoesNotThrow(() -> fraudDetectionService.checkForFraud(testUser, testOrder));
+        ValidationResult result1 = fraudDetectionService.analyzeOrder(testUser.getId(), createRequest);
+        assertFalse(result1.hasErrors());
         
         // Second request should be rate limited
-        when(valueOperations.increment(anyString())).thenReturn(2L);
-        assertThrows(FraudDetectionException.class, 
-            () -> fraudDetectionService.checkForFraud(testUser, testOrder));
+        when(valueOperations.increment(anyString())).thenReturn(6L); // Exceeds limit of 5
+        ValidationResult result2 = fraudDetectionService.analyzeOrder(testUser.getId(), createRequest);
+        
+        assertTrue(result2.hasErrors());
+        assertTrue(result2.getErrors().stream().anyMatch(error -> 
+            error.getField().equals("rate_limit")));
     }
     
     @Test
-    void checkForFraud_WithDuplicateOrder_ShouldThrowException() {
-        // Configure duplicate detection
-        FraudDetectionProperties.DuplicateDetection dupDetection = new FraudDetectionProperties.DuplicateDetection();
-        dupDetection.setEnabled(true);
-        dupDetection.setTimeWindowMinutes(60);
-        dupDetection.setMaxDuplicateAttempts(1);
-        properties.setDuplicateDetection(dupDetection);
+    void analyzeOrder_WithDuplicateOrder_ShouldReturnError() {
+        when(valueOperations.increment(anyString())).thenReturn(1L);
+        when(redisTemplate.hasKey(anyString())).thenReturn(true);
         
-        // Simulate duplicate order
-        Order duplicateOrder = new Order();
-        duplicateOrder.setId(2L);
-        duplicateOrder.setUser(testUser);
-        duplicateOrder.setService(testService);
-        duplicateOrder.setQuantity(1000);
-        duplicateOrder.setLink("https://youtube.com/watch?v=test123");
-        duplicateOrder.setCreatedAt(new Date());
+        ValidationResult result = fraudDetectionService.analyzeOrder(testUser.getId(), createRequest);
         
-        when(orderRepository.findRecentOrders(any(), any(), any(), any()))
-            .thenReturn(List.of(testOrder));
-        
-        assertThrows(FraudDetectionException.class, 
-            () -> fraudDetectionService.checkForFraud(testUser, duplicateOrder));
+        assertTrue(result.hasErrors());
+        assertTrue(result.getErrors().stream().anyMatch(error -> 
+            error.getField().equals("duplicate")));
     }
     
     @Test
-    void checkForFraud_WithSuspiciousPatterns_ShouldThrowException() {
-        // Configure suspicious patterns
-        FraudDetectionProperties.SuspiciousPatterns suspiciousPatterns = new FraudDetectionProperties.SuspiciousPatterns();
-        suspiciousPatterns.setEnabled(true);
-        suspiciousPatterns.setMaxOrdersPerHour(5);
-        suspiciousPatterns.setMaxSameQuantityPercent(30);
-        suspiciousPatterns.setHighValueThreshold(50.0);
-        properties.setSuspiciousPatterns(suspiciousPatterns);
+    void analyzeOrder_WithSuspiciousPatterns_ShouldReturnError() {
+        when(valueOperations.increment(anyString())).thenReturn(1L);
+        when(redisTemplate.hasKey(anyString())).thenReturn(false);
         
         // Simulate multiple identical orders
-        when(orderRepository.countByUserAndCreatedAtAfter(any(), any()))
-            .thenReturn(10L); // More than maxOrdersPerHour
-            
-        assertThrows(FraudDetectionException.class, 
-            () -> fraudDetectionService.checkForFraud(testUser, testOrder));
+        when(orderRepository.findByUserIdAndCreatedAtAfter(any(), any()))
+            .thenReturn(List.of(testOrder, testOrder, testOrder, testOrder, testOrder, 
+                               testOrder, testOrder, testOrder, testOrder, testOrder,
+                               testOrder, testOrder, testOrder, testOrder, testOrder,
+                               testOrder, testOrder, testOrder, testOrder, testOrder,
+                               testOrder)); // 21 orders, exceeds threshold of 20
+        
+        ValidationResult result = fraudDetectionService.analyzeOrder(testUser.getId(), createRequest);
+        
+        assertTrue(result.hasErrors());
+        assertTrue(result.getErrors().stream().anyMatch(error -> 
+            error.getField().equals("suspicious")));
+    }
+    
+    @Test
+    void analyzeOrder_WithHighValueOrderAndUnverifiedUser_ShouldReturnError() {
+        createRequest.setQuantity(150000); // High value order
+        testUser.setId(500L); // Unverified user (ID < 1000)
+        
+        when(valueOperations.increment(anyString())).thenReturn(1L);
+        when(redisTemplate.hasKey(anyString())).thenReturn(false);
+        when(orderRepository.findByUserIdAndCreatedAtAfter(any(), any()))
+            .thenReturn(List.of());
+        
+        ValidationResult result = fraudDetectionService.analyzeOrder(testUser.getId(), createRequest);
+        
+        assertTrue(result.hasErrors());
+        assertTrue(result.getErrors().stream().anyMatch(error -> 
+            error.getField().equals("verification")));
+    }
+    
+    @Test
+    void analyzeOrder_WithHighValueOrderAndVerifiedUser_ShouldPass() {
+        createRequest.setQuantity(150000); // High value order
+        testUser.setId(1500L); // Verified user (ID > 1000)
+        
+        when(valueOperations.increment(anyString())).thenReturn(1L);
+        when(redisTemplate.hasKey(anyString())).thenReturn(false);
+        when(orderRepository.findByUserIdAndCreatedAtAfter(any(), any()))
+            .thenReturn(List.of());
+        
+        ValidationResult result = fraudDetectionService.analyzeOrder(testUser.getId(), createRequest);
+        
+        assertFalse(result.hasErrors());
     }
 }

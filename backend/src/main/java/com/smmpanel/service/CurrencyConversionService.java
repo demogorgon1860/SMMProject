@@ -42,7 +42,15 @@ public class CurrencyConversionService {
         validateCurrencyCode(toCurrency);
 
         // Get the exchange rate
-        BigDecimal rate = exchangeRateService.getExchangeRate(fromCurrency, toCurrency);
+        BigDecimal rate;
+        if (fromCurrency.equals(toCurrency)) {
+            rate = BigDecimal.ONE;
+        } else {
+            rate = exchangeRateService.getExchangeRate(fromCurrency, toCurrency);
+            if (rate == null) {
+                throw new ExchangeRateException("Exchange rate not available for " + fromCurrency + " to " + toCurrency);
+            }
+        }
         
         // Perform the conversion
         BigDecimal convertedAmount = amount.multiply(rate)
@@ -86,11 +94,12 @@ public class CurrencyConversionService {
         String symbol = currencyService.getCurrencySymbol(currencyCode);
         
         // Format the number with proper grouping and decimal places
-        String formattedNumber = String.format("%,.", decimalPlaces) + "f";
-        formattedNumber = String.format(Locale.US, "%" + formattedNumber, amount);
+        String formatPattern = "%,." + decimalPlaces + "f";
+        String formattedNumber = String.format(Locale.US, formatPattern, amount);
         
-        // Add currency symbol based on locale (simplified for this example)
-        return symbol + formattedNumber;
+        // Add currency symbol based on locale
+        boolean symbolAfterAmount = currencyService.isSymbolAfterAmount(currencyCode);
+        return symbolAfterAmount ? formattedNumber + " " + symbol : symbol + formattedNumber;
     }
 
     /**

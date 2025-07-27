@@ -23,5 +23,4 @@ public class DashboardStats {
     private Integer completedOrders;
     private Long totalUsers;
     private Integer activeYouTubeAccounts;
-    private Integer activeTrafficSources;
 }

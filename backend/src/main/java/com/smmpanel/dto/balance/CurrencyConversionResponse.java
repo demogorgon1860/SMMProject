@@ -21,6 +21,7 @@ public class CurrencyConversionResponse {
     private String base;
     private LocalDate date;
     private Map<String, BigDecimal> rates;
+    private BigDecimal amount;
     
     @JsonProperty("error")
     private ErrorInfo error;

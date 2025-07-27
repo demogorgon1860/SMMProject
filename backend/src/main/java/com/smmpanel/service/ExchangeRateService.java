@@ -41,7 +41,7 @@ public class ExchangeRateService {
     @Value("${app.currency.exchange-rate-api.timeout-ms:5000}")
     private long apiTimeoutMs;
     
-    private final AtomicReference<Instant> lastUpdateTime = new AtomicReference<>();
+    private final AtomicReference<Instant> lastUpdateTime = new AtomicReference<>(Instant.now());
     private final Map<String, BigDecimal> rates = new ConcurrentHashMap<>();
 
     /**

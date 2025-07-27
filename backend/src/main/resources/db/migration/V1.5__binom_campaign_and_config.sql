@@ -22,11 +22,11 @@ ON CONFLICT (config_key) DO UPDATE SET
     config_value = EXCLUDED.config_value,
     updated_at = NOW();
 
--- 3. Insert 3 sample fixed_binom_campaigns (edit campaign_id, campaign_name, traffic_source_id, geo_targeting as needed)
-INSERT INTO fixed_binom_campaigns (campaign_id, campaign_name, traffic_source_id, geo_targeting, priority, weight, active, description) VALUES
-('CAMP_SAMPLE_001', 'Sample Campaign 1', 1, 'US,UK,CA,AU', 1, 100, true, 'Primary traffic source for US/UK/CA/AU geo'),
-('CAMP_SAMPLE_002', 'Sample Campaign 2', 2, 'US,DE,FR,IT', 2, 100, true, 'Secondary traffic source for US/DE/FR/IT geo'),
-('CAMP_SAMPLE_003', 'Sample Campaign 3', 3, 'US,ES,NL,SE', 3, 100, true, 'Tertiary traffic source for US/ES/NL/SE geo')
+-- 3. Insert 3 sample fixed_binom_campaigns (edit campaign_id, campaign_name, geo_targeting as needed)
+INSERT INTO fixed_binom_campaigns (campaign_id, campaign_name, geo_targeting, priority, weight, active, description) VALUES
+('CAMP_SAMPLE_001', 'Sample Campaign 1', 'US,UK,CA,AU', 1, 100, true, 'Primary campaign for US/UK/CA/AU geo'),
+('CAMP_SAMPLE_002', 'Sample Campaign 2', 'US,DE,FR,IT', 2, 100, true, 'Secondary campaign for US/DE/FR/IT geo'),
+('CAMP_SAMPLE_003', 'Sample Campaign 3', 'US,ES,NL,SE', 3, 100, true, 'Tertiary campaign for US/ES/NL/SE geo')
 ON CONFLICT (campaign_id) DO NOTHING;
 
 -- 4. Create/Replace campaign_assignment_status view for monitoring

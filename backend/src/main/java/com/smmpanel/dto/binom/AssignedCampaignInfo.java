@@ -18,9 +18,8 @@ import java.time.LocalDateTime;
 public class AssignedCampaignInfo {
     
     private String campaignId;
+    private String offerId;
     private String campaignName;
-    private Long trafficSourceId;
-    private String trafficSourceName;
     private String geoTargeting;
     private Integer weight;
     private Integer priority;
@@ -29,5 +28,6 @@ public class AssignedCampaignInfo {
     private String status;
     private Integer dailyClicks;
     private Integer totalClicks;
+    private Integer clicksRequired;
     private String description;
 }

@@ -11,6 +11,8 @@ import com.smmpanel.repository.ServiceRepository;
 import com.smmpanel.repository.UserRepository;
 import com.smmpanel.service.ApiKeyService;
 import com.smmpanel.service.OrderService;
+import com.smmpanel.integration.IntegrationTestConfig;
+import org.springframework.context.annotation.Import;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +34,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
+@Import(IntegrationTestConfig.class)
 public class OrderProcessingIntegrationTest {
 
     @Autowired

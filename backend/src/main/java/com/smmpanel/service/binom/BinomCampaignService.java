@@ -5,7 +5,7 @@ import com.smmpanel.dto.binom.*;
 import com.smmpanel.entity.*;
 import com.smmpanel.repository.*;
 import com.smmpanel.exception.BinomApiException;
-// import com.smmpanel.service.AuditService; // TODO: Re-enable when AuditService is implemented
+import com.smmpanel.service.AuditService;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +40,7 @@ public class BinomCampaignService {
     private final OrderRepository orderRepository;
     private final TrafficSourceRepository trafficSourceRepository;
     private final ConversionCoefficientRepository conversionCoefficientRepository;
-    // private final AuditService auditService; // TODO: Re-enable when AuditService is implemented
+    private final AuditService auditService;
 
     @Value("${app.binom.default-coefficient:3.0}")
     private BigDecimal defaultCoefficient;
@@ -113,7 +113,7 @@ public class BinomCampaignService {
      */
     @CircuitBreaker(name = "binom-api", fallbackMethod = "getCampaignStatsFallback")
     @Retry(name = "binom-api")
-    public CampaignStats getCampaignStats(String campaignId) {
+    public CampaignStatsResponse getCampaignStats(String campaignId) {
         try {
             return binomClient.getCampaignStats(campaignId);
         } catch (Exception e) {
@@ -125,7 +125,7 @@ public class BinomCampaignService {
     /**
      * Fallback for campaign stats
      */
-    public CampaignStats getCampaignStatsFallback(String campaignId, Exception ex) {
+    public CampaignStatsResponse getCampaignStatsFallback(String campaignId, Exception ex) {
         log.warn("Using cached stats for campaign {}: {}", campaignId, ex.getMessage());
         
         // Return cached stats from database
@@ -133,19 +133,23 @@ public class BinomCampaignService {
         
         if (campaign.isPresent()) {
             BinomCampaign binomCampaign = campaign.get();
-            return CampaignStats.builder()
+            return CampaignStatsResponse.builder()
                     .campaignId(campaignId)
-                    .clicks(binomCampaign.getClicksDelivered() != null ? binomCampaign.getClicksDelivered() : 0)
-                    .conversions(0)  // Default value when API is unavailable
+                    .clicks(binomCampaign.getClicksDelivered() != null ? binomCampaign.getClicksDelivered().longValue() : 0L)
+                    .conversions(0L)  // Default value when API is unavailable
                     .cost(BigDecimal.ZERO)
                     .revenue(BigDecimal.ZERO)
-                    .cached(true)
+                    .status("CACHED")
                     .build();
         }
         
-        return CampaignStats.builder()
+        return CampaignStatsResponse.builder()
                 .campaignId(campaignId)
-                .error("Campaign stats temporarily unavailable")
+                .clicks(0L)
+                .conversions(0L)
+                .cost(BigDecimal.ZERO)
+                .revenue(BigDecimal.ZERO)
+                .status("ERROR")
                 .build();
     }
 
@@ -225,10 +229,10 @@ public class BinomCampaignService {
             BinomCampaign campaign = campaignOpt.get();
             
             try {
-                CampaignStats stats = getCampaignStats(campaignId);
+                CampaignStatsResponse stats = getCampaignStats(campaignId);
                 
-                campaign.setClicksDelivered(stats.getClicks());
-                campaign.setConversions(stats.getConversions());
+                campaign.setClicksDelivered(stats.getClicks().intValue());
+                campaign.setConversions(stats.getConversions().intValue());
                 campaign.setCost(stats.getCost());
                 campaign.setRevenue(stats.getRevenue());
                 campaign.setLastStatsUpdate(LocalDateTime.now());
@@ -297,7 +301,7 @@ public class BinomCampaignService {
         CreateCampaignRequest campaignRequest = CreateCampaignRequest.builder()
                 .name(campaignName)
                 .offerId(offerId)
-                .trafficSourceId(request.getTrafficSourceId())
+                .trafficSourceId(request.getTrafficSourceId().toString())
                 .geoTargeting(request.getGeoTargeting())
                 .status("ACTIVE")
                 .build();

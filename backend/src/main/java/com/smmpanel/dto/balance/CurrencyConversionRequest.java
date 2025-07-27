@@ -32,5 +32,6 @@ public class CurrencyConversionRequest {
     /**
      * Whether to format the result with currency symbol
      */
+    @Builder.Default
     private boolean format = true;
 }

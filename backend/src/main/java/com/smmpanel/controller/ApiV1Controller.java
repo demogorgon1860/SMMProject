@@ -1,6 +1,7 @@
 package com.smmpanel.controller;
 
 import com.smmpanel.dto.*;
+import com.smmpanel.dto.response.OrderResponse;
 import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.service.*;
 import lombok.RequiredArgsConstructor;
@@ -65,7 +66,7 @@ public class ApiV1Controller {
             Map<String, Object> response = new HashMap<>();
             response.put("charge", order.getCharge());
             response.put("start_count", order.getStartCount());
-            response.put("status", mapStatusToPerfectPanel(order.getStatus()));
+            response.put("status", order.getStatus());
             response.put("remains", order.getRemains());
             response.put("currency", "USD");
             return ResponseEntity.ok(response);

@@ -49,6 +49,7 @@ public class VideoProcessing {
 
     @Column(name = "processing_status")
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private VideoProcessingStatus status = VideoProcessingStatus.PENDING;
 
     @Column(name = "processing_attempts")
@@ -66,6 +67,9 @@ public class VideoProcessing {
 
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
+
+    @Column(name = "youtube_account_id")
+    private Long youtubeAccountId;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

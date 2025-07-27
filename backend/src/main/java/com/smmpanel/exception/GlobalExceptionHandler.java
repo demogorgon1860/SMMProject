@@ -15,7 +15,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.context.request.WebRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import jakarta.validation.ConstraintViolation;
@@ -51,7 +51,7 @@ public class GlobalExceptionHandler {
      * Handle validation errors from @Valid
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidationErrors(MethodArgumentNotValidException ex, WebRequest request) {
+    public ResponseEntity<ErrorResponse> handleValidationErrors(MethodArgumentNotValidException ex, HttpServletRequest request) {
         Map<String, String> errors = new HashMap<>();
         
         ex.getBindingResult().getAllErrors().forEach(error -> {
@@ -76,7 +76,7 @@ public class GlobalExceptionHandler {
      * Handle constraint validation errors
      */
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException ex, WebRequest request) {
+    public ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException ex, HttpServletRequest request) {
         Map<String, String> errors = new HashMap<>();
         
         Set<ConstraintViolation<?>> violations = ex.getConstraintViolations();
@@ -102,7 +102,7 @@ public class GlobalExceptionHandler {
      * Handle authentication errors
      */
     @ExceptionHandler({AuthenticationException.class, BadCredentialsException.class})
-    public ResponseEntity<ErrorResponse> handleAuthenticationError(AuthenticationException ex, WebRequest request) {
+    public ResponseEntity<ErrorResponse> handleAuthenticationError(AuthenticationException ex, HttpServletRequest request) {
         ErrorResponse errorResponse = createErrorResponse(
             HttpStatus.UNAUTHORIZED,
             "AUTHENTICATION_ERROR", 
@@ -118,7 +118,7 @@ public class GlobalExceptionHandler {
      * Handle authorization errors
      */
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex, WebRequest request) {
+    public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
         ErrorResponse errorResponse = createErrorResponse(
             HttpStatus.FORBIDDEN,
             "ACCESS_DENIED",
@@ -134,7 +134,7 @@ public class GlobalExceptionHandler {
      * Handle business logic exceptions
      */
     @ExceptionHandler(UserValidationException.class)
-    public ResponseEntity<ErrorResponse> handleUserValidation(UserValidationException ex, WebRequest request) {
+    public ResponseEntity<ErrorResponse> handleUserValidation(UserValidationException ex, HttpServletRequest request) {
         ErrorResponse errorResponse = createErrorResponse(
             HttpStatus.BAD_REQUEST,
             "USER_VALIDATION_ERROR",
@@ -147,7 +147,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(OrderValidationException.class)
-    public ResponseEntity<ErrorResponse> handleOrderValidation(OrderValidationException ex, WebRequest request) {
+    public ResponseEntity<ErrorResponse> handleOrderValidation(OrderValidationException ex, HttpServletRequest request) {
         ErrorResponse errorResponse = createErrorResponse(
             HttpStatus.BAD_REQUEST,
             "ORDER_VALIDATION_ERROR",
@@ -160,7 +160,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(InsufficientBalanceException.class)
-    public ResponseEntity<ErrorResponse> handleInsufficientBalance(InsufficientBalanceException ex, WebRequest request) {
+    public ResponseEntity<ErrorResponse> handleInsufficientBalance(InsufficientBalanceException ex, HttpServletRequest request) {
         ErrorResponse errorResponse = createErrorResponse(
             HttpStatus.PAYMENT_REQUIRED,
             "INSUFFICIENT_BALANCE",
@@ -176,7 +176,7 @@ public class GlobalExceptionHandler {
      * Handle external service exceptions
      */
     @ExceptionHandler(BinomApiException.class)
-    public ResponseEntity<ErrorResponse> handleBinomApiError(BinomApiException ex, WebRequest request) {
+    public ResponseEntity<ErrorResponse> handleBinomApiError(BinomApiException ex, HttpServletRequest request) {
         ErrorResponse errorResponse = createErrorResponse(
             HttpStatus.SERVICE_UNAVAILABLE,
             "EXTERNAL_SERVICE_ERROR",
@@ -189,7 +189,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(VideoProcessingException.class)
-    public ResponseEntity<ErrorResponse> handleVideoProcessingError(VideoProcessingException ex, WebRequest request) {
+    public ResponseEntity<ErrorResponse> handleVideoProcessingError(VideoProcessingException ex, HttpServletRequest request) {
         ErrorResponse errorResponse = createErrorResponse(
             HttpStatus.UNPROCESSABLE_ENTITY,
             "VIDEO_PROCESSING_ERROR",
@@ -205,7 +205,7 @@ public class GlobalExceptionHandler {
      * Handle state transition errors
      */
     @ExceptionHandler(IllegalOrderStateTransitionException.class)
-    public ResponseEntity<ErrorResponse> handleIllegalStateTransition(IllegalOrderStateTransitionException ex, WebRequest request) {
+    public ResponseEntity<ErrorResponse> handleIllegalStateTransition(IllegalOrderStateTransitionException ex, HttpServletRequest request) {
         ErrorResponse errorResponse = createErrorResponse(
             HttpStatus.CONFLICT,
             "ILLEGAL_STATE_TRANSITION",
@@ -221,7 +221,7 @@ public class GlobalExceptionHandler {
      * Handle HTTP method not supported
      */
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-    public ResponseEntity<ErrorResponse> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex, WebRequest request) {
+    public ResponseEntity<ErrorResponse> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
         ErrorResponse errorResponse = createErrorResponse(
             HttpStatus.METHOD_NOT_ALLOWED,
             "METHOD_NOT_ALLOWED",
@@ -237,7 +237,7 @@ public class GlobalExceptionHandler {
      * Handle missing request parameters
      */
     @ExceptionHandler(MissingServletRequestParameterException.class)
-    public ResponseEntity<ErrorResponse> handleMissingParameter(MissingServletRequestParameterException ex, WebRequest request) {
+    public ResponseEntity<ErrorResponse> handleMissingParameter(MissingServletRequestParameterException ex, HttpServletRequest request) {
         ErrorResponse errorResponse = createErrorResponse(
             HttpStatus.BAD_REQUEST,
             "MISSING_PARAMETER",
@@ -253,7 +253,7 @@ public class GlobalExceptionHandler {
      * Handle type mismatch errors
      */
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex, WebRequest request) {
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
         ErrorResponse errorResponse = createErrorResponse(
             HttpStatus.BAD_REQUEST,
             "TYPE_MISMATCH",
@@ -269,7 +269,7 @@ public class GlobalExceptionHandler {
      * Handle malformed JSON
      */
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ErrorResponse> handleMalformedJson(HttpMessageNotReadableException ex, WebRequest request) {
+    public ResponseEntity<ErrorResponse> handleMalformedJson(HttpMessageNotReadableException ex, HttpServletRequest request) {
         ErrorResponse errorResponse = createErrorResponse(
             HttpStatus.BAD_REQUEST,
             "MALFORMED_JSON",
@@ -285,7 +285,7 @@ public class GlobalExceptionHandler {
      * Handle rate limiting errors
      */
     @ExceptionHandler(RateLimitExceededException.class)
-    public ResponseEntity<ErrorResponse> handleRateLimitExceeded(RateLimitExceededException ex, WebRequest request) {
+    public ResponseEntity<ErrorResponse> handleRateLimitExceeded(RateLimitExceededException ex, HttpServletRequest request) {
         ErrorResponse errorResponse = createErrorResponse(
             HttpStatus.TOO_MANY_REQUESTS,
             "RATE_LIMIT_EXCEEDED",
@@ -301,7 +301,7 @@ public class GlobalExceptionHandler {
      * Handle all other exceptions
      */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex, WebRequest request) {
+    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex, HttpServletRequest request) {
         ErrorResponse errorResponse = createErrorResponse(
             HttpStatus.INTERNAL_SERVER_ERROR,
             "INTERNAL_ERROR",
@@ -317,7 +317,7 @@ public class GlobalExceptionHandler {
     /**
      * Create standardized error response
      */
-    private ErrorResponse createErrorResponse(HttpStatus status, String errorCode, String message, WebRequest request) {
+    private ErrorResponse createErrorResponse(HttpStatus status, String errorCode, String message, HttpServletRequest request) {
         String requestId = UUID.randomUUID().toString();
         String path = extractPath(request);
         
@@ -342,9 +342,9 @@ public class GlobalExceptionHandler {
         return errorResponse;
     }
 
-    private String extractPath(WebRequest request) {
+    private String extractPath(HttpServletRequest request) {
         try {
-            return request.getDescription(false).replace("uri=", "");
+            return request.getRequestURI();
         } catch (Exception e) {
             return "unknown";
         }

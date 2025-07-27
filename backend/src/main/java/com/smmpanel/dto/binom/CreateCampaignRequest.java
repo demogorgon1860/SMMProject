@@ -17,6 +17,8 @@ public class CreateCampaignRequest {
     @NotBlank(message = "Campaign name is required")
     private String name;
     
+    private String offerId; // Add this field
+    
     @NotBlank(message = "Traffic source ID is required")
     private String trafficSourceId;
     

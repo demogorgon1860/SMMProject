@@ -1,26 +1,30 @@
 package com.smmpanel.config;
 
 import io.jsonwebtoken.security.Keys;
-import lombok.RequiredArgsConstructor;
+import lombok.Data;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import javax.crypto.SecretKey;
 
 @Configuration
-@RequiredArgsConstructor
+@ConfigurationProperties(prefix = "jwt")
+@Data
 public class JwtConfig {
-
-    private final AppProperties appProperties;
-
+    
+    private String secret;
+    private long jwtExpirationMs = 86400000;
+    private long refreshExpirationMs = 604800000;
+    private String jwtIssuer = "SMM-Panel";
+    
     @Bean
     public SecretKey jwtSecretKey() {
-        String jwtSecret = appProperties.getJwt().getSecret();
-        if (jwtSecret == null || jwtSecret.length() < 64) {
+        if (secret == null || secret.length() < 64) {
             throw new IllegalStateException(
                 "JWT secret must be at least 64 characters long. " +
-                "Please set app.jwt.secret in your application properties");
+                "Please set jwt.secret in your application properties");
         }
-        return Keys.hmacShaKeyFor(jwtSecret.getBytes());
+        return Keys.hmacShaKeyFor(secret.getBytes());
     }
 }

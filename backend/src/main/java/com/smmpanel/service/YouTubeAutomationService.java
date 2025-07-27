@@ -3,6 +3,8 @@ package com.smmpanel.service;
 import com.smmpanel.entity.*;
 import com.smmpanel.repository.*;
 import com.smmpanel.exception.VideoProcessingException;
+import com.smmpanel.dto.binom.BinomIntegrationRequest;
+import com.smmpanel.dto.binom.BinomIntegrationResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -209,7 +211,7 @@ public class YouTubeAutomationService {
      */
     private YouTubeAccount selectAvailableYouTubeAccount() {
         return youTubeAccountRepository.findFirstByStatusAndDailyClipsCountLessThanDailyLimit(
-                YouTubeAccountStatus.ACTIVE);
+                YouTubeAccountStatus.ACTIVE).orElse(null);
     }
 
     /**

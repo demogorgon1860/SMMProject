@@ -23,6 +23,7 @@ public class ErrorResponse {
     private Map<String, String> validationErrors;
     private String errorCode;
     private String requestId;
+    private Map<String, Object> debugInfo; // Add this field
 
     public static class ErrorResponseBuilder {
         public ErrorResponseBuilder errorCode(String errorCode) {

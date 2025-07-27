@@ -11,6 +11,10 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class OfferAssignmentResponse {
+    private Long orderId;
+    private String offerId;
+    private String offerName;
+    private String targetUrl;
     private String status;
     private String message;
     private Integer campaignsCreated;

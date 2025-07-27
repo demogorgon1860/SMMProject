@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.Map;
 
 @Slf4j
@@ -342,12 +343,14 @@ public class OrderProcessingService {
         String targetUrl = order.getLink();
         boolean hasClip = false;
         
-        videoProcessingService.findByOrderId(orderId).ifPresent(processing -> {
+        Optional<VideoProcessing> processingOpt = videoProcessingService.findByOrderId(orderId);
+        if (processingOpt.isPresent()) {
+            VideoProcessing processing = processingOpt.get();
             if (processing.getClipCreated() && processing.getClipUrl() != null) {
                 targetUrl = processing.getClipUrl();
                 hasClip = true;
             }
-        });
+        }
 
         // Create refill campaign
         binomService.createRefillCampaign(order, targetUrl, remainingViews, hasClip);

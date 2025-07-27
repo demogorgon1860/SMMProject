@@ -1,6 +1,8 @@
 package com.smmpanel.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.smmpanel.dto.binom.OfferAssignmentRequest;
 import com.smmpanel.service.OfferAssignmentService;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +55,9 @@ public class OfferEventConsumer {
             
             log.info("Successfully processed offer assignment for order: {}", request.getOrderId());
 
+        } catch (JsonProcessingException e) {
+            log.error("Failed to parse offer assignment JSON: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to parse offer assignment", e);
         } catch (Exception e) {
             log.error("Failed to process offer assignment: {}", e.getMessage(), e);
             throw e;

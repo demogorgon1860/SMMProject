@@ -11,6 +11,7 @@ import com.smmpanel.repository.UserRepository;
 import com.smmpanel.service.order.state.OrderStateManager;
 // import com.smmpanel.service.AuditService; // TODO: Re-enable when AuditService is implemented
 import com.smmpanel.service.binom.BinomCampaignService;
+import com.smmpanel.service.AuditService;
 import com.smmpanel.exception.OrderValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,7 +46,7 @@ public class OrderManagementService {
     private final UserRepository userRepository;
     private final OrderStateManager orderStateManager;
     private final BinomCampaignService binomCampaignService;
-    // private final AuditService auditService; // TODO: Re-enable when AuditService is implemented
+    private final AuditService auditService; // Re-enable when AuditService is implemented
 
     /**
      * Get dashboard statistics for admin panel
@@ -64,10 +65,9 @@ public class OrderManagementService {
                 .revenueLast24h(orderRepository.sumRevenueAfter(last24Hours))
                 .revenueLast7Days(orderRepository.sumRevenueAfter(last7Days))
                 .revenueLast30Days(orderRepository.sumRevenueAfter(last30Days))
-                .activeOrders(orderRepository.countByStatusIn(Arrays.asList(
-                        OrderStatus.ACTIVE, OrderStatus.PROCESSING, OrderStatus.IN_PROGRESS)))
-                .completedOrders(orderRepository.countByStatus(OrderStatus.COMPLETED))
-                .averageOrderValue(orderRepository.calculateAverageOrderValue())
+                .activeOrders(Math.toIntExact(orderRepository.countByStatusIn(Arrays.asList(
+                        OrderStatus.ACTIVE, OrderStatus.PROCESSING, OrderStatus.IN_PROGRESS))))
+                .completedOrders(Math.toIntExact(orderRepository.countByStatus(OrderStatus.COMPLETED)))
                 .build();
     }
 
@@ -205,7 +205,7 @@ public class OrderManagementService {
             }
         }
         
-        auditService.logBulkOrderAction(orderIds, action);
+        auditService.logBulkOrderAction(orderIds, action.getAction());
         log.info("Performed bulk action {} on {} orders", action.getAction(), orders.size());
     }
 
@@ -271,7 +271,7 @@ public class OrderManagementService {
                 .quantity(order.getQuantity())
                 .startCount(order.getStartCount())
                 .remains(order.getRemains())
-                .status(order.getStatus())
+                .status(order.getStatus().name())
                 .charge(order.getCharge())
                 .processingPriority(order.getProcessingPriority())
                 .errorMessage(order.getErrorMessage())

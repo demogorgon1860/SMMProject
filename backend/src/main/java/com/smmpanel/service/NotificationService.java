@@ -274,6 +274,103 @@ public class NotificationService {
         );
     }
 
+    /**
+     * Send notification to operators
+     */
+    @Async("asyncExecutor")
+    public void notifyOperators(String message) {
+        try {
+            // Send to operator Slack channel
+            sendKafkaNotification("operator.alert", 0L, Map.of("message", message));
+            log.info("Operator notification sent: {}", message);
+        } catch (Exception e) {
+            log.error("Failed to send operator notification: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Send order started notification
+     */
+    @Async("asyncExecutor")
+    public void sendOrderStartedNotification(Order order) {
+        try {
+            String subject = "Order Started - #" + order.getId();
+            String message = buildOrderStartedMessage(order);
+            sendEmailNotification(order.getUser(), subject, message);
+            
+            log.info("Sent order started notification to user {} for order {}", 
+                    order.getUser().getUsername(), order.getId());
+                    
+        } catch (Exception e) {
+            log.error("Failed to send order started notification for order {}: {}", 
+                    order.getId(), e.getMessage());
+        }
+    }
+
+    /**
+     * Notify finance team about manual intervention required
+     */
+    public void notifyFinanceTeam(String message) {
+        try {
+            String subject = "Manual Intervention Required";
+            String financeEmail = "finance@smmpanel.com"; // Configure via properties
+            
+            sendEmailNotification(null, subject, message);
+            log.info("Notified finance team: {}", message);
+            
+        } catch (Exception e) {
+            log.error("Failed to notify finance team: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Send order failed notification
+     */
+    @Async("asyncExecutor")
+    public void sendOrderFailedNotification(Order order, String reason) {
+        try {
+            String subject = "Order Failed - #" + order.getId();
+            String message = buildOrderFailedMessage(order, reason);
+            sendEmailNotification(order.getUser(), subject, message);
+            
+            Map<String, Object> data = buildNotificationData(order);
+            data.put("reason", reason);
+            sendKafkaNotification("order.failed", order.getId(), data);
+        } catch (Exception e) {
+            log.error("Failed to send order failed notification for order {}: {}", order.getId(), e.getMessage());
+        }
+    }
+
+    private String buildOrderStartedMessage(Order order) {
+        return String.format(
+            "Your order #%d has started processing.\n\n" +
+            "Service: %s\n" +
+            "Link: %s\n" +
+            "Quantity: %d\n" +
+            "Status: %s\n\n" +
+            "Your order is now being processed. You will receive updates as it progresses.",
+            order.getId(),
+            order.getService().getName(),
+            order.getLink(),
+            order.getQuantity(),
+            order.getStatus().name()
+        );
+    }
+
+    private String buildOrderFailedMessage(Order order, String reason) {
+        return String.format(
+            "Your order #%d has failed.\n\n" +
+            "Service: %s\n" +
+            "Link: %s\n" +
+            "Reason: %s\n\n" +
+            "We apologize for the inconvenience. Please contact support if you need assistance.",
+            order.getId(),
+            order.getService().getName(),
+            order.getLink(),
+            reason
+        );
+    }
+
     private String buildBalanceUpdatedMessage(User user, BigDecimal oldBalance, BigDecimal newBalance, String reason) {
         return String.format(
             "Your account balance has been updated.\n\n" +

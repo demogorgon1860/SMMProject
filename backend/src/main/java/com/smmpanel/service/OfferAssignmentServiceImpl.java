@@ -72,7 +72,7 @@ public class OfferAssignmentServiceImpl implements OfferAssignmentService {
 
             for (FixedBinomCampaign campaign : fixedCampaigns) {
                 try {
-                    boolean assigned = binomService.assignOfferToCampaign(offerId, campaign.getCampaignId());
+                    boolean assigned = binomService.assignOfferToCampaign(offerId, campaign.getCampaignId(), 1);
                     if (assigned) {
                         assignedCampaignIds.add(campaign.getCampaignId());
                         successfulAssignments++;

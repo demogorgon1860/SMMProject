@@ -27,4 +27,6 @@ public class BinomIntegrationResponse {
     private String message;
     private String errorMessage;
     private String status;
+    private String campaignId;
+    private String errorCode;
 }

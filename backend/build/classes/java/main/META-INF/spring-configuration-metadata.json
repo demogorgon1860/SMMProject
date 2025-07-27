@@ -363,6 +363,11 @@
       "sourceMethod": "getQuota()"
     },
     {
+      "name": "jwt",
+      "type": "com.smmpanel.config.JwtConfig",
+      "sourceType": "com.smmpanel.config.JwtConfig"
+    },
+    {
       "name": "logging",
       "type": "com.smmpanel.config.LoggingProperties",
       "sourceType": "com.smmpanel.config.LoggingProperties"
@@ -1478,6 +1483,29 @@
       "type": "java.lang.Integer",
       "sourceType": "com.smmpanel.config.AppProperties$Youtube$Quota",
       "defaultValue": 100
+    },
+    {
+      "name": "jwt.jwt-expiration-ms",
+      "type": "java.lang.Long",
+      "sourceType": "com.smmpanel.config.JwtConfig",
+      "defaultValue": 86400000
+    },
+    {
+      "name": "jwt.jwt-issuer",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.JwtConfig",
+      "defaultValue": "SMM-Panel"
+    },
+    {
+      "name": "jwt.refresh-expiration-ms",
+      "type": "java.lang.Long",
+      "sourceType": "com.smmpanel.config.JwtConfig",
+      "defaultValue": 604800000
+    },
+    {
+      "name": "jwt.secret",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.JwtConfig"
     },
     {
       "name": "logging.file.name",

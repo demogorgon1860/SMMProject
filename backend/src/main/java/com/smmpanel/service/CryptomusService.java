@@ -54,13 +54,12 @@ public class CryptomusService {
 
         // Create Cryptomus payment request
         CreatePaymentRequest cryptomusRequest = CreatePaymentRequest.builder()
-                .amount(request.getAmount().toString())
+                .amount(request.getAmount())
                 .currency("USD")
-                .network(request.getCurrency())
                 .orderId(orderId)
-                .urlReturn("https://yourdomain.com/deposits/success")
-                .urlCallback("https://yourdomain.com/api/v2/webhooks/cryptomus")
-                .isSubtract(1) // Subtract fees from amount
+                .callbackUrl("https://yourdomain.com/api/v2/webhooks/cryptomus")
+                .successUrl("https://yourdomain.com/deposits/success")
+                .failUrl("https://yourdomain.com/deposits/fail")
                 .build();
 
         try {
@@ -72,7 +71,7 @@ public class CryptomusService {
             deposit.setOrderId(orderId);
             deposit.setAmountUsd(request.getAmount());
             deposit.setCurrency(request.getCurrency());
-            deposit.setCryptoAmount(new BigDecimal(cryptomusResponse.getAmount()));
+            deposit.setCryptoAmount(cryptomusResponse.getAmount());
             deposit.setCryptomusPaymentId(cryptomusResponse.getUuid());
             deposit.setPaymentUrl(cryptomusResponse.getUrl());
             deposit.setStatus(PaymentStatus.PENDING);
@@ -87,7 +86,7 @@ public class CryptomusService {
                     .paymentUrl(cryptomusResponse.getUrl())
                     .amount(request.getAmount())
                     .currency(request.getCurrency())
-                    .cryptoAmount(cryptomusResponse.getAmount())
+                    .cryptoAmount(cryptomusResponse.getAmount().toString())
                     .expiresAt(deposit.getExpiresAt())
                     .build();
 

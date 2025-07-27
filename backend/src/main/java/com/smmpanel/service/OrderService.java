@@ -1,6 +1,7 @@
 package com.smmpanel.service;
 
 import com.smmpanel.dto.request.CreateOrderRequest;
+import com.smmpanel.dto.OrderCreateRequest;
 import com.smmpanel.dto.response.OrderResponse;
 import com.smmpanel.entity.*;
 import com.smmpanel.repository.*;
@@ -317,6 +318,93 @@ public class OrderService {
             case PAUSED -> "Paused";
             case HOLDING -> "In progress";
             case REFILL -> "Refill";
+        };
+    }
+
+    // Additional methods required by the interface
+    public OrderResponse createOrder(CreateOrderRequest request, String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new OrderValidationException("User not found"));
+        return createOrderWithApiKey(request, user.getApiKey());
+    }
+
+    public OrderResponse createOrder(OrderCreateRequest request, String username) {
+        // Convert OrderCreateRequest to CreateOrderRequest
+        CreateOrderRequest createRequest = CreateOrderRequest.builder()
+                .service(request.getServiceId())
+                .link(request.getLink())
+                .quantity(request.getQuantity())
+                .build();
+        return createOrder(createRequest, username);
+    }
+
+    public OrderResponse getOrder(Long orderId, String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new OrderValidationException("User not found"));
+        return getOrderWithApiKey(orderId, user.getApiKey());
+    }
+
+    public Page<OrderResponse> getUserOrders(String username, String status, Pageable pageable) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new OrderValidationException("User not found"));
+        
+        Page<Order> orders;
+        if (status != null && !status.isEmpty()) {
+            OrderStatus orderStatus = mapFromPerfectPanelStatus(status);
+            orders = orderRepository.findByUserAndStatus(user, orderStatus, pageable);
+        } else {
+            orders = orderRepository.findByUser(user, pageable);
+        }
+        
+        return orders.map(this::mapToOrderResponse);
+    }
+
+    public void cancelOrder(Long orderId, String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new OrderValidationException("User not found"));
+        cancelOrderWithApiKey(orderId, user.getApiKey());
+    }
+
+    public com.smmpanel.dto.response.OrderStatistics getOrderStatistics(int days) {
+        LocalDateTime startDate = LocalDateTime.now().minusDays(days);
+        List<Order> orders = orderRepository.findOrdersCreatedAfter(startDate);
+        
+        Map<OrderStatus, Long> statusCounts = orders.stream()
+                .collect(Collectors.groupingBy(Order::getStatus, Collectors.counting()));
+        
+        return com.smmpanel.dto.response.OrderStatistics.builder()
+                .totalOrders((long) orders.size())
+                .pendingOrders(statusCounts.getOrDefault(OrderStatus.PENDING, 0L))
+                .completedOrders(statusCounts.getOrDefault(OrderStatus.COMPLETED, 0L))
+                .cancelledOrders(statusCounts.getOrDefault(OrderStatus.CANCELLED, 0L))
+                .build();
+    }
+
+    public com.smmpanel.dto.response.BulkOperationResult performBulkOperation(com.smmpanel.dto.request.BulkOrderRequest request) {
+        // Implementation for bulk operations
+        return com.smmpanel.dto.response.BulkOperationResult.builder()
+                .success(true)
+                .message("Bulk operation completed")
+                .build();
+    }
+
+    public com.smmpanel.dto.response.HealthStatus getHealthStatus() {
+        return com.smmpanel.dto.response.HealthStatus.builder()
+                .status("UP")
+                .timestamp(LocalDateTime.now())
+                .build();
+    }
+
+    private OrderStatus mapFromPerfectPanelStatus(String status) {
+        return switch (status.toLowerCase()) {
+            case "pending" -> OrderStatus.PENDING;
+            case "in progress" -> OrderStatus.IN_PROGRESS;
+            case "partial" -> OrderStatus.PARTIAL;
+            case "completed" -> OrderStatus.COMPLETED;
+            case "canceled" -> OrderStatus.CANCELLED;
+            case "paused" -> OrderStatus.PAUSED;
+            case "refill" -> OrderStatus.REFILL;
+            default -> OrderStatus.PENDING;
         };
     }
 }

@@ -1,1 +1,23 @@
-package com.smmpanel.event; import lombok.Data; import lombok.Builder; import lombok.NoArgsConstructor; import lombok.AllArgsConstructor; import java.time.LocalDateTime; @Data @Builder @NoArgsConstructor @AllArgsConstructor public class OfferAssignmentEvent { private Long orderId; private String offerName; private String targetUrl; private String description; private String geoTargeting; private String source; private LocalDateTime timestamp; } 
+package com.smmpanel.event;
+
+import lombok.Data;
+import lombok.Builder;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+
+import java.time.LocalDateTime;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class OfferAssignmentEvent {
+    private String eventId;
+    private Long orderId;
+    private String offerName;
+    private String targetUrl;
+    private String description;
+    private String geoTargeting;
+    private String source;
+    private LocalDateTime timestamp;
+} 

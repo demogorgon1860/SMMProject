@@ -73,4 +73,13 @@ public interface OrderRepository extends JpaRepository<Order, Long>, JpaSpecific
     BigDecimal sumChargeByUser_UsernameAndCreatedAtAfter(@Param("username") String username, @Param("date") LocalDateTime date);
     @Query("SELECT o FROM Order o WHERE o.status = :status AND o.createdAt < :date")
     List<Order> findByStatusAndCreatedAtBefore(@Param("status") OrderStatus status, @Param("date") LocalDateTime date);
+    
+    List<Order> findByStatusInAndCreatedAtBefore(
+        List<OrderStatus> statuses, 
+        LocalDateTime dateTime
+    );
+    
+    long countByCreatedAtAfter(LocalDateTime dateTime);
+    
+    long countByUserIdAndCreatedAtAfter(Long userId, LocalDateTime dateTime);
 }

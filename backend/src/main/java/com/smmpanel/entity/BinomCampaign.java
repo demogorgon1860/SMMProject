@@ -66,9 +66,11 @@ public class BinomCampaign {
     private Integer clicksRequired;
 
     @Column(name = "clicks_delivered")
+    @Builder.Default
     private Integer clicksDelivered = 0;
 
     @Column(name = "views_generated")
+    @Builder.Default
     private Integer viewsGenerated = 0;
 
     @Column(name = "conversions")
@@ -84,6 +86,7 @@ public class BinomCampaign {
     private LocalDateTime lastStatsUpdate;
 
     @Column(length = 50)
+    @Builder.Default
     private String status = "ACTIVE";
 
     @Column(name = "cost_per_click", precision = 8, scale = 6)
@@ -93,6 +96,7 @@ public class BinomCampaign {
     private String description;
 
     @Column(name = "geo_targeting", length = 50)
+    @Builder.Default
     private String geoTargeting = "US";
 
     @Column

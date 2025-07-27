@@ -12,6 +12,7 @@ import org.springframework.web.client.RestTemplate;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Base64;
@@ -66,7 +67,7 @@ public class CryptomusClient {
                     return CreatePaymentResponse.builder()
                             .uuid((String) result.get("uuid"))
                             .orderId((String) result.get("order_id"))
-                            .amount((String) result.get("amount"))
+                            .amount(new BigDecimal(String.valueOf(result.get("amount"))))
                             .currency((String) result.get("currency"))
                             .url((String) result.get("url"))
                             .status((String) result.get("status"))

@@ -28,7 +28,7 @@ public class OrderProcessingService {
     private final BinomService binomService;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    @KafkaListener(topics = "order-processing")
+    @KafkaListener(topics = "smm.order.processing")
     @Transactional
     public void processNewOrder(Long orderId) {
         try {
@@ -64,7 +64,7 @@ public class OrderProcessingService {
                 orderRepository.save(order);
                 
                 // Refund the user
-                kafkaTemplate.send("order-refund", orderId);
+                kafkaTemplate.send("smm.order.refund", orderId);
                 return;
             }
 
@@ -84,12 +84,12 @@ public class OrderProcessingService {
                 order.setErrorMessage("Processing failed: " + e.getMessage());
                 orderRepository.save(order);
                 
-                kafkaTemplate.send("order-refund", orderId);
+                kafkaTemplate.send("smm.order.refund", orderId);
             }
         }
     }
 
-    @KafkaListener(topics = "binom-campaign-creation")
+    @KafkaListener(topics = "smm.binom.campaign.creation")
     @Transactional
     public void createBinomCampaign(Map<String, Object> data) {
         try {
@@ -124,12 +124,12 @@ public class OrderProcessingService {
                 order.setErrorMessage("Failed to create campaign: " + e.getMessage());
                 orderRepository.save(order);
                 
-                kafkaTemplate.send("order-refund", orderId);
+                kafkaTemplate.send("smm.order.refund", orderId);
             }
         }
     }
 
-    @KafkaListener(topics = "video-processing-retry")
+    @KafkaListener(topics = "smm.video.processing.retry")
     @Transactional
     public void retryVideoProcessing(Long processingId) {
         try {
@@ -143,7 +143,7 @@ public class OrderProcessingService {
         }
     }
 
-    @KafkaListener(topics = "order-refund")
+    @KafkaListener(topics = "smm.order.refund")
     @Transactional
     public void processRefund(Long orderId) {
         try {

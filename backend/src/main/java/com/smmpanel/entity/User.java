@@ -2,6 +2,7 @@ package com.smmpanel.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.security.core.GrantedAuthority;
@@ -32,7 +33,10 @@ import java.util.List;
     @Index(name = "idx_users_active", columnList = "is_active"),
     @Index(name = "idx_users_role", columnList = "role"),
     @Index(name = "idx_users_balance", columnList = "balance"),
-    @Index(name = "idx_users_created_at", columnList = "created_at")
+    @Index(name = "idx_users_created_at", columnList = "created_at"),
+    @Index(name = "idx_users_api_key_salt", columnList = "api_key_salt"),
+    @Index(name = "idx_users_last_login", columnList = "last_login_at"),
+    @Index(name = "idx_users_last_api_access", columnList = "last_api_access_at")
 })
 @Getter
 @Setter
@@ -40,6 +44,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @ToString(exclude = {"passwordHash", "apiKey", "apiKeyHash"}) // Exclude sensitive fields from toString
+@Slf4j
 public class User implements UserDetails {
 
     @Id

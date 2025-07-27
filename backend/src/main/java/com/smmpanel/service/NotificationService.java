@@ -180,7 +180,7 @@ public class NotificationService {
             data.put("entityId", entityId);
             data.put("timestamp", java.time.LocalDateTime.now().format(DATE_FORMATTER));
             
-            kafkaTemplate.send("notifications." + topic, entityId.toString(), data);
+            kafkaTemplate.send("smm.notifications", entityId.toString(), data);
             log.debug("Kafka notification sent to topic: notifications.{}", topic);
         } catch (Exception e) {
             log.error("Failed to send Kafka notification to topic {}: {}", topic, e.getMessage());

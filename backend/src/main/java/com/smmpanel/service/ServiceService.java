@@ -6,12 +6,14 @@ import com.smmpanel.repository.ServiceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Slf4j
 @org.springframework.stereotype.Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class ServiceService {
 
     private final ServiceRepository serviceRepository;

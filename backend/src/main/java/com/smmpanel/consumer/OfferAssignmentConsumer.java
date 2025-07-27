@@ -26,7 +26,7 @@ public class OfferAssignmentConsumer {
      * Обработка событий назначения офферов на фиксированные кампании
      */
     @KafkaListener(
-            topics = "offer-assignment-events",
+            topics = "smm.offer.assignment.events",
             groupId = "offer-assignment-group",
             containerFactory = "kafkaListenerContainerFactory"
     )

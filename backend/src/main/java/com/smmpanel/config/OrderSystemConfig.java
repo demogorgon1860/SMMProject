@@ -19,7 +19,17 @@ import java.util.concurrent.Executor;
 @EnableConfigurationProperties({
     OrderProcessingProperties.class,
     SlaMonitoringProperties.class,
-    FraudDetectionProperties.class
+    FraudDetectionProperties.class,
+    AppProperties.class,
+    KafkaProperties.class,
+    RedisProperties.class,
+    DatabaseProperties.class,
+    JpaProperties.class,
+    ServerProperties.class,
+    ManagementProperties.class,
+    LoggingProperties.class,
+    TaskProperties.class,
+    Resilience4jProperties.class
 })
 public class OrderSystemConfig {
 

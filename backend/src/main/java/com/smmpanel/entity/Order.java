@@ -6,6 +6,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -15,11 +16,19 @@ import java.util.List;
 
 @Data
 @Entity
-@Table(name = "orders")
+@Table(name = "orders", indexes = {
+    @Index(name = "idx_orders_user_id", columnList = "user_id"),
+    @Index(name = "idx_orders_service_id", columnList = "service_id"),
+    @Index(name = "idx_orders_status", columnList = "status"),
+    @Index(name = "idx_orders_created_at", columnList = "created_at"),
+    @Index(name = "idx_orders_youtube_video_id", columnList = "youtube_video_id"),
+    @Index(name = "idx_orders_order_id", columnList = "order_id")
+})
 @EqualsAndHashCode(callSuper = false)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Slf4j
 public class Order {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -70,7 +70,7 @@ public class VideoProcessingService {
             processing = videoProcessingRepository.save(processing);
 
             // Send to Kafka for async processing
-            kafkaTemplate.send("video-processing", processing.getId());
+            kafkaTemplate.send("smm.video.processing", processing.getId());
 
             log.info("Created video processing record {} for order {}", processing.getId(), order.getId());
             return processing;
@@ -329,7 +329,7 @@ public class VideoProcessingService {
             processing.setErrorMessage(null);
             videoProcessingRepository.save(processing);
             
-            kafkaTemplate.send("video-processing", processingId);
+            kafkaTemplate.send("smm.video.processing", processingId);
             log.info("Retrying video processing {}", processingId);
         }
     }

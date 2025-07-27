@@ -3,6 +3,7 @@ package com.smmpanel.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -12,8 +13,14 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "traffic_sources")
+@Table(name = "traffic_sources", indexes = {
+    @Index(name = "idx_traffic_sources_source_id", columnList = "source_id"),
+    @Index(name = "idx_traffic_sources_active", columnList = "active"),
+    @Index(name = "idx_traffic_sources_quality_level", columnList = "quality_level"),
+    @Index(name = "idx_traffic_sources_created_at", columnList = "created_at")
+})
 @EqualsAndHashCode(callSuper = false)
+@Slf4j
 public class TrafficSource {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

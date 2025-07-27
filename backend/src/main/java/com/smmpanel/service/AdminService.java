@@ -34,6 +34,7 @@ public class AdminService {
     private final BinomService binomService;
     private final YouTubeService youTubeService;
 
+    @Transactional(readOnly = true)
     public DashboardStats getDashboardStats() {
         LocalDateTime last24Hours = LocalDateTime.now().minusHours(24);
         LocalDateTime last7Days = LocalDateTime.now().minusDays(7);
@@ -58,6 +59,7 @@ public class AdminService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
     public Map<String, Object> getAllOrders(String status, String username, String dateFrom, String dateTo, Pageable pageable) {
         Specification<Order> spec = Specification.where(null);
 
@@ -202,6 +204,7 @@ public class AdminService {
         log.info("Manually completed order {}", orderId);
     }
 
+    @Transactional(readOnly = true)
     public List<TrafficSourceDto> getTrafficSources() {
         return trafficSourceRepository.findAll().stream()
                 .map(this::mapToTrafficSourceDto)
@@ -250,6 +253,7 @@ public class AdminService {
         log.info("Deleted traffic source: {}", source.getName());
     }
 
+    @Transactional(readOnly = true)
     public List<CoefficientDto> getConversionCoefficients() {
         return coefficientRepository.findAll().stream()
                 .map(this::mapToCoefficientDto)
@@ -284,6 +288,7 @@ public class AdminService {
         return coefficientRepository.save(coefficient);
     }
 
+    @Transactional(readOnly = true)
     public Map<String, Object> getYouTubeAccounts(Pageable pageable) {
         Page<YouTubeAccount> accounts = youTubeAccountRepository.findAll(pageable);
 
@@ -321,6 +326,7 @@ public class AdminService {
         log.info("Updated YouTube account {} status to {}", account.getUsername(), status);
     }
 
+    @Transactional(readOnly = true)
     public Map<String, Object> getSystemHealth() {
         Map<String, Object> health = new HashMap<>();
 
@@ -339,6 +345,7 @@ public class AdminService {
         return health;
     }
 
+    @Transactional(readOnly = true)
     public Map<String, Object> getOperatorLogs(String operatorUsername, String action, 
                                                String dateFrom, String dateTo, Pageable pageable) {
         Specification<OperatorLog> spec = Specification.where(null);
@@ -374,6 +381,7 @@ public class AdminService {
         return response;
     }
 
+    @Transactional(readOnly = true)
     public Map<String, Object> getRevenueStats(int days) {
         LocalDateTime startDate = LocalDateTime.now().minusDays(days);
         
@@ -388,6 +396,7 @@ public class AdminService {
         return stats;
     }
 
+    @Transactional(readOnly = true)
     public Map<String, Object> getOrderStats(int days) {
         LocalDateTime startDate = LocalDateTime.now().minusDays(days);
         
@@ -406,6 +415,7 @@ public class AdminService {
         return stats;
     }
 
+    @Transactional(readOnly = true)
     public Map<String, Object> getUsers(String search, String role, Pageable pageable) {
         Specification<User> spec = Specification.where(null);
 

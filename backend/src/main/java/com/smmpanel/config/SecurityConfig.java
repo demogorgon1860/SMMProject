@@ -35,9 +35,7 @@ public class SecurityConfig {
     private final ApiKeyAuthenticationFilter apiKeyAuthFilter;
     private final UserRepository userRepository;
     private final CustomUserDetailsService customUserDetailsService;
-    
-    @Value("${app.cors.allowed-origins}")
-    private List<String> allowedOrigins;
+    private final AppProperties appProperties;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, RateLimitFilter rateLimitFilter) throws Exception {
@@ -81,7 +79,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         
         // Set allowed origins from configuration
-        configuration.setAllowedOrigins(allowedOrigins);
+        configuration.setAllowedOrigins(Arrays.asList(appProperties.getCors().getAllowedOrigins().split(",")));
         
         // Allowed HTTP methods
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));

@@ -28,7 +28,7 @@ public class VideoProcessingConsumer {
      * Process video processing requests
      */
     @KafkaListener(
-        topics = "video-processing",
+        topics = "smm.video.processing",
         groupId = "video-processing-group",
         containerFactory = "kafkaListenerContainerFactory"
     )
@@ -64,7 +64,7 @@ public class VideoProcessingConsumer {
      * Handle order state updates
      */
     @KafkaListener(
-        topics = "order-state-updates",
+        topics = "smm.order.state.updates",
         groupId = "order-state-group",
         containerFactory = "kafkaListenerContainerFactory"
     )
@@ -91,7 +91,7 @@ public class VideoProcessingConsumer {
      * Handle notification events
      */
     @KafkaListener(
-        topics = "notifications",
+        topics = "smm.notifications",
         groupId = "notifications-group",
         containerFactory = "kafkaListenerContainerFactory"
     )

@@ -10,6 +10,7 @@ import com.smmpanel.repository.UserRepository;
 import com.smmpanel.service.YouTubeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Optional;
@@ -17,6 +18,7 @@ import java.util.Optional;
 @Slf4j
 @org.springframework.stereotype.Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class OrderValidationService {
     
     private final UserRepository userRepository;

@@ -2,27 +2,36 @@ package com.smmpanel.service;
 
 import com.smmpanel.config.CurrencyConfig;
 import com.smmpanel.dto.balance.CurrencyConversionResponse;
+import com.smmpanel.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class CurrencyServiceTest {
 
     @Mock
     private RestTemplate restTemplate;
+
+    @Mock
+    private UserRepository userRepository;
 
     @InjectMocks
     private CurrencyService currencyService;
@@ -33,17 +42,25 @@ class CurrencyServiceTest {
 
     @BeforeEach
     void setUp() {
-        currencyService = new CurrencyService(defaultCurrency, exchangeRateApiUrl, baseCurrency);
+        // Set the required fields using ReflectionTestUtils since constructor requires UserRepository
+        ReflectionTestUtils.setField(currencyService, "defaultCurrency", defaultCurrency);
+        ReflectionTestUtils.setField(currencyService, "exchangeRateApiUrl", exchangeRateApiUrl);
+        ReflectionTestUtils.setField(currencyService, "baseCurrency", baseCurrency);
         ReflectionTestUtils.setField(currencyService, "restTemplate", restTemplate);
         
         // Mock the REST template response
-        CurrencyConversionResponse mockResponse = new CurrencyConversionResponse();
-        mockResponse.setSuccess(true);
-        mockResponse.setRates(Map.of(
-                "EUR", new BigDecimal("0.85"),
-                "GBP", new BigDecimal("0.73"),
-                "JPY", new BigDecimal("109.50")
-        ));
+        CurrencyConversionResponse mockResponse = CurrencyConversionResponse.builder()
+                .success(true)
+                .timestamp(System.currentTimeMillis())
+                .base("USD")
+                .date(LocalDate.now())
+                .rates(Map.of(
+                        "EUR", new BigDecimal("0.85"),
+                        "GBP", new BigDecimal("0.73"),
+                        "JPY", new BigDecimal("109.50")
+                ))
+                .amount(new BigDecimal("100"))
+                .build();
         
         when(restTemplate.getForObject(anyString(), eq(CurrencyConversionResponse.class)))
                 .thenReturn(mockResponse);
@@ -124,8 +141,8 @@ class CurrencyServiceTest {
 
     @Test
     void fetchLatestRates_UpdatesExchangeRates() {
-        // Clear any existing rates
-        ReflectionTestUtils.setField(currencyService, "exchangeRates", null);
+        // Initialize the exchangeRates field manually since Mockito doesn't inject it
+        ReflectionTestUtils.setField(currencyService, "exchangeRates", new ConcurrentHashMap<>());
         
         // Trigger the fetch
         currencyService.fetchLatestRates();

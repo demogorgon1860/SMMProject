@@ -123,8 +123,18 @@ public class CurrencyUtils {
             // If there are 3 digits after the decimal point, it's probably using . as thousands separator
             cleanValue = cleanValue.replace(".", "").replace(",", ".");
         } else {
-            // Otherwise, just replace the decimal separator with .
-            cleanValue = cleanValue.replace(',', '.');
+            // Count decimal separators to determine format
+            long commaCount = cleanValue.chars().filter(ch -> ch == ',').count();
+            long dotCount = cleanValue.chars().filter(ch -> ch == '.').count();
+            
+            if (commaCount > 0 && dotCount > 0) {
+                // European format: 1.234,56 -> 1234.56
+                cleanValue = cleanValue.replace(".", "").replace(",", ".");
+            } else if (commaCount > 0) {
+                // Comma as decimal separator: 1234,56 -> 1234.56
+                cleanValue = cleanValue.replace(",", ".");
+            }
+            // If only dots, assume it's already in correct format
         }
         
         return new BigDecimal(cleanValue);

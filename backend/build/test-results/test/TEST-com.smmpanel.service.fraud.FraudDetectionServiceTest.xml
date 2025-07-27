@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.smmpanel.service.fraud.FraudDetectionServiceTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2025-07-27T12:03:10" hostname="VALERIA" time="0.212">
+  <properties/>
+  <testcase name="analyzeOrder_WithSuspiciousPatterns_ShouldReturnError()" classname="com.smmpanel.service.fraud.FraudDetectionServiceTest" time="0.196"/>
+  <testcase name="analyzeOrder_WithHighValueOrderAndVerifiedUser_ShouldPass()" classname="com.smmpanel.service.fraud.FraudDetectionServiceTest" time="0.002"/>
+  <testcase name="analyzeOrder_WithRateLimitExceeded_ShouldReturnError()" classname="com.smmpanel.service.fraud.FraudDetectionServiceTest" time="0.003"/>
+  <testcase name="analyzeOrder_WithNewUserAndHighValueOrder_ShouldPass()" classname="com.smmpanel.service.fraud.FraudDetectionServiceTest" time="0.003"/>
+  <testcase name="analyzeOrder_WithDuplicateOrder_ShouldReturnError()" classname="com.smmpanel.service.fraud.FraudDetectionServiceTest" time="0.002"/>
+  <testcase name="analyzeOrder_WithHighValueOrderAndUnverifiedUser_ShouldReturnError()" classname="com.smmpanel.service.fraud.FraudDetectionServiceTest" time="0.004"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

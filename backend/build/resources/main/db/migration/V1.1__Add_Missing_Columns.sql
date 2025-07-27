@@ -22,7 +22,6 @@ CREATE TABLE IF NOT EXISTS fixed_binom_campaigns (
     id BIGSERIAL PRIMARY KEY,
     campaign_id VARCHAR(100) UNIQUE NOT NULL,
     campaign_name VARCHAR(255) NOT NULL,
-    traffic_source_id BIGINT REFERENCES traffic_sources(id),
     geo_targeting VARCHAR(50) DEFAULT 'US',
     weight INTEGER DEFAULT 100,
     priority INTEGER DEFAULT 1,

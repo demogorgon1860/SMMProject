@@ -1,4 +1,4 @@
-package com.smmpanel.service.impl;
+package com.smmpanel.service;
 
 import com.smmpanel.dto.binom.AssignedCampaignInfo;
 import com.smmpanel.dto.binom.OfferAssignmentRequest;
@@ -131,8 +131,6 @@ public class OfferAssignmentServiceImpl implements OfferAssignmentService {
                     .map(campaign -> AssignedCampaignInfo.builder()
                             .campaignId(campaign.getCampaignId())
                             .campaignName(campaign.getCampaignName())
-                            .trafficSourceId(campaign.getTrafficSource() != null ? 
-                                    campaign.getTrafficSource().getId() : null)
                             .geoTargeting(campaign.getGeoTargeting())
                             .weight(campaign.getWeight())
                             .priority(campaign.getPriority())

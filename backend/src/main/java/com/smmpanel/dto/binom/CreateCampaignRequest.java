@@ -19,9 +19,6 @@ public class CreateCampaignRequest {
     
     private String offerId; // Add this field
     
-    @NotBlank(message = "Traffic source ID is required")
-    private String trafficSourceId;
-    
     private String description;
     
     @Builder.Default

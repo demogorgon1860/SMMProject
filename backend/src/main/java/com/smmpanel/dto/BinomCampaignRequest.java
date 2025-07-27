@@ -17,7 +17,6 @@ public class BinomCampaignRequest {
     private Integer targetViews;
     private BigDecimal coefficient;
     private Integer requiredClicks;
-    private String trafficSourceId;
     private boolean clipCreated;
     private String clipUrl;
 } 

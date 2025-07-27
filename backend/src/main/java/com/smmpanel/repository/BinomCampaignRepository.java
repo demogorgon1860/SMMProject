@@ -53,9 +53,7 @@ public interface BinomCampaignRepository extends JpaRepository<BinomCampaign, Lo
            "ORDER BY b.priority ASC, b.weight DESC")
     List<BinomCampaign> findActiveFixedCampaignsByGeoTargeting(@Param("geoTargeting") String geoTargeting);
     
-    @Query("SELECT b FROM BinomCampaign b WHERE b.isFixedCampaign = true AND b.status = 'ACTIVE' " +
-           "AND b.trafficSource.id = :trafficSourceId")
-    List<BinomCampaign> findActiveFixedCampaignsByTrafficSource(@Param("trafficSourceId") Long trafficSourceId);
+
     
     @Query("SELECT b FROM BinomCampaign b WHERE b.isFixedCampaign = true AND b.status = 'ACTIVE' " +
            "ORDER BY b.weight DESC")

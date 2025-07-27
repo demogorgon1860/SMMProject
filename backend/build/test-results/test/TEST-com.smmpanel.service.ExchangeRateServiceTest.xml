@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.smmpanel.service.ExchangeRateServiceTest" tests="9" skipped="0" failures="3" errors="0" timestamp="2025-07-27T12:03:03" hostname="VALERIA" time="6.063">
+  <properties/>
+  <testcase name="isStale_WhenNeverUpdated_ReturnsTrue()" classname="com.smmpanel.service.ExchangeRateServiceTest" time="0.018">
+    <failure message="Wanted but not invoked:&#10;restTemplate.getForObject(&#10;    &lt;any string&gt;,&#10;    class com.smmpanel.dto.balance.CurrencyConversionResponse&#10;);&#10;-&gt; at org.springframework.web.client.RestTemplate.getForObject(RestTemplate.java:392)&#10;Actually, there were zero interactions with this mock.&#10;" type="org.mockito.exceptions.verification.WantedButNotInvoked">Wanted but not invoked:
+restTemplate.getForObject(
+    &lt;any string&gt;,
+    class com.smmpanel.dto.balance.CurrencyConversionResponse
+);
+-&gt; at org.springframework.web.client.RestTemplate.getForObject(RestTemplate.java:392)
+Actually, there were zero interactions with this mock.
+
+	at app//org.springframework.web.client.RestTemplate.getForObject(RestTemplate.java:392)
+	at app//com.smmpanel.service.ExchangeRateServiceTest.isStale_WhenNeverUpdated_ReturnsTrue(ExchangeRateServiceTest.java:132)
+	at java.base@17.0.12/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base@17.0.12/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base@17.0.12/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="isStale_WhenStale_ReturnsTrue()" classname="com.smmpanel.service.ExchangeRateServiceTest" time="6.009"/>
+  <testcase name="isStale_WhenRecentlyUpdated_ReturnsFalse()" classname="com.smmpanel.service.ExchangeRateServiceTest" time="0.002"/>
+  <testcase name="getAllRates_ReturnsAllRates()" classname="com.smmpanel.service.ExchangeRateServiceTest" time="0.002"/>
+  <testcase name="getExchangeRate_UnsupportedCurrency_ThrowsException()" classname="com.smmpanel.service.ExchangeRateServiceTest" time="0.003"/>
+  <testcase name="getExchangeRate_ApiError_ThrowsException()" classname="com.smmpanel.service.ExchangeRateServiceTest" time="0.018">
+    <failure message="org.opentest4j.AssertionFailedError: Expected com.smmpanel.exception.ExchangeRateException to be thrown, but nothing was thrown." type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: Expected com.smmpanel.exception.ExchangeRateException to be thrown, but nothing was thrown.
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:152)
+	at app//org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:73)
+	at app//org.junit.jupiter.api.AssertThrows.assertThrows(AssertThrows.java:35)
+	at app//org.junit.jupiter.api.Assertions.assertThrows(Assertions.java:3115)
+	at app//com.smmpanel.service.ExchangeRateServiceTest.getExchangeRate_ApiError_ThrowsException(ExchangeRateServiceTest.java:102)
+	at java.base@17.0.12/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base@17.0.12/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base@17.0.12/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="fetchLatestRates_UpdatesRates()" classname="com.smmpanel.service.ExchangeRateServiceTest" time="0.003"/>
+  <testcase name="getExchangeRate_SameCurrency_ReturnsOne()" classname="com.smmpanel.service.ExchangeRateServiceTest" time="0.002"/>
+  <testcase name="getExchangeRate_ValidCurrencies_ReturnsRate()" classname="com.smmpanel.service.ExchangeRateServiceTest" time="0.003">
+    <failure message="org.opentest4j.AssertionFailedError: expected: &lt;0&gt; but was: &lt;-1&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: expected: &lt;0&gt; but was: &lt;-1&gt;
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:145)
+	at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:531)
+	at app//com.smmpanel.service.ExchangeRateServiceTest.getExchangeRate_ValidCurrencies_ReturnsRate(ExchangeRateServiceTest.java:86)
+	at java.base@17.0.12/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base@17.0.12/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base@17.0.12/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <system-out><![CDATA[15:03:04.012 [Test worker] INFO com.smmpanel.service.ExchangeRateService -- Fetching latest exchange rates from: https://api.exchangerate.host/latest?base=USD&symbols=GBP,EUR,USD
+15:03:04.012 [Test worker] INFO com.smmpanel.service.ExchangeRateService -- Successfully updated exchange rates for 1 currencies
+15:03:10.018 [Test worker] INFO com.smmpanel.service.ExchangeRateService -- Fetching latest exchange rates from: https://api.exchangerate.host/latest?base=USD&symbols=GBP,EUR,USD
+15:03:10.018 [Test worker] INFO com.smmpanel.service.ExchangeRateService -- Successfully updated exchange rates for 1 currencies
+15:03:10.020 [Test worker] INFO com.smmpanel.service.ExchangeRateService -- Fetching latest exchange rates from: https://api.exchangerate.host/latest?base=USD&symbols=GBP,EUR,USD
+15:03:10.020 [Test worker] INFO com.smmpanel.service.ExchangeRateService -- Successfully updated exchange rates for 1 currencies
+15:03:10.047 [Test worker] INFO com.smmpanel.service.ExchangeRateService -- Fetching latest exchange rates from: https://api.exchangerate.host/latest?base=USD&symbols=GBP,EUR,USD
+15:03:10.047 [Test worker] INFO com.smmpanel.service.ExchangeRateService -- Successfully updated exchange rates for 2 currencies
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

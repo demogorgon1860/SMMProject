@@ -13,7 +13,6 @@ import java.math.BigDecimal;
 public class BinomIntegrationRequest {
     private Long orderId;
     private String campaignId;
-    private String trafficSourceId;
     private Integer requiredClicks;
     private BigDecimal paymentPerClick;
     private String targetUrl;

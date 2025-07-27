@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.smmpanel.service.OfferAssignmentServiceTest" tests="7" skipped="0" failures="7" errors="0" timestamp="2025-07-27T12:03:10" hostname="VALERIA" time="0.334">
+  <properties/>
+  <testcase name="testSuccessfulOfferAssignment()" classname="com.smmpanel.service.OfferAssignmentServiceTest" time="0.298">
+    <failure message="org.opentest4j.AssertionFailedError: expected: &lt;SUCCESS&gt; but was: &lt;ERROR&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: expected: &lt;SUCCESS&gt; but was: &lt;ERROR&gt;
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:182)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:177)
+	at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:1145)
+	at app//com.smmpanel.service.OfferAssignmentServiceTest.testSuccessfulOfferAssignment(OfferAssignmentServiceTest.java:124)
+	at java.base@17.0.12/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base@17.0.12/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base@17.0.12/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="testGetAssignedCampaigns()" classname="com.smmpanel.service.OfferAssignmentServiceTest" time="0.006">
+    <failure message="org.opentest4j.AssertionFailedError: expected: &lt;2&gt; but was: &lt;0&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: expected: &lt;2&gt; but was: &lt;0&gt;
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:145)
+	at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:531)
+	at app//com.smmpanel.service.OfferAssignmentServiceTest.testGetAssignedCampaigns(OfferAssignmentServiceTest.java:257)
+	at java.base@17.0.12/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base@17.0.12/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base@17.0.12/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="testOfferAssignmentWithIncorrectCampaignCount()" classname="com.smmpanel.service.OfferAssignmentServiceTest" time="0.004">
+    <failure message="org.opentest4j.AssertionFailedError: expected: &lt;true&gt; but was: &lt;false&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: expected: &lt;true&gt; but was: &lt;false&gt;
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+	at app//org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+	at app//org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:31)
+	at app//org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:183)
+	at app//com.smmpanel.service.OfferAssignmentServiceTest.testOfferAssignmentWithIncorrectCampaignCount(OfferAssignmentServiceTest.java:208)
+	at java.base@17.0.12/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base@17.0.12/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base@17.0.12/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="testOfferAssignmentWithBinomApiError()" classname="com.smmpanel.service.OfferAssignmentServiceTest" time="0.006">
+    <failure message="org.opentest4j.AssertionFailedError: expected: &lt;true&gt; but was: &lt;false&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: expected: &lt;true&gt; but was: &lt;false&gt;
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+	at app//org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+	at app//org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:31)
+	at app//org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:183)
+	at app//com.smmpanel.service.OfferAssignmentServiceTest.testOfferAssignmentWithBinomApiError(OfferAssignmentServiceTest.java:229)
+	at java.base@17.0.12/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base@17.0.12/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base@17.0.12/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="testOfferAssignmentWithExistingOffer()" classname="com.smmpanel.service.OfferAssignmentServiceTest" time="0.005">
+    <failure message="org.opentest4j.AssertionFailedError: expected: &lt;SUCCESS&gt; but was: &lt;ERROR&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: expected: &lt;SUCCESS&gt; but was: &lt;ERROR&gt;
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:182)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:177)
+	at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:1145)
+	at app//com.smmpanel.service.OfferAssignmentServiceTest.testOfferAssignmentWithExistingOffer(OfferAssignmentServiceTest.java:166)
+	at java.base@17.0.12/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base@17.0.12/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base@17.0.12/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="testClicksCalculation()" classname="com.smmpanel.service.OfferAssignmentServiceTest" time="0.005">
+    <failure message="org.opentest4j.AssertionFailedError: expected: &lt;SUCCESS&gt; but was: &lt;ERROR&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: expected: &lt;SUCCESS&gt; but was: &lt;ERROR&gt;
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:182)
+	at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:177)
+	at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:1145)
+	at app//com.smmpanel.service.OfferAssignmentServiceTest.testClicksCalculation(OfferAssignmentServiceTest.java:299)
+	at java.base@17.0.12/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base@17.0.12/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base@17.0.12/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="testOfferAssignmentWithInvalidOrder()" classname="com.smmpanel.service.OfferAssignmentServiceTest" time="0.005">
+    <failure message="org.opentest4j.AssertionFailedError: expected: &lt;true&gt; but was: &lt;false&gt;" type="org.opentest4j.AssertionFailedError">org.opentest4j.AssertionFailedError: expected: &lt;true&gt; but was: &lt;false&gt;
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at app//org.junit.jupiter.api.AssertTrue.failNotTrue(AssertTrue.java:63)
+	at app//org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:36)
+	at app//org.junit.jupiter.api.AssertTrue.assertTrue(AssertTrue.java:31)
+	at app//org.junit.jupiter.api.Assertions.assertTrue(Assertions.java:183)
+	at app//com.smmpanel.service.OfferAssignmentServiceTest.testOfferAssignmentWithInvalidOrder(OfferAssignmentServiceTest.java:191)
+	at java.base@17.0.12/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base@17.0.12/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base@17.0.12/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <system-out><![CDATA[15:03:10.354 [Test worker] INFO com.smmpanel.service.OfferAssignmentServiceImpl -- Starting offer assignment for order: 1
+15:03:10.358 [Test worker] WARN com.smmpanel.service.OfferAssignmentServiceImpl -- Order does not exist: 1
+15:03:10.367 [Test worker] ERROR com.smmpanel.service.OfferAssignmentServiceImpl -- Failed to get assigned campaigns for order 1: Order not found: 1
+15:03:10.371 [Test worker] INFO com.smmpanel.service.OfferAssignmentServiceImpl -- Starting offer assignment for order: 1
+15:03:10.372 [Test worker] WARN com.smmpanel.service.OfferAssignmentServiceImpl -- Order does not exist: 1
+15:03:10.379 [Test worker] INFO com.smmpanel.service.OfferAssignmentServiceImpl -- Starting offer assignment for order: 1
+15:03:10.379 [Test worker] WARN com.smmpanel.service.OfferAssignmentServiceImpl -- Order does not exist: 1
+15:03:10.385 [Test worker] INFO com.smmpanel.service.OfferAssignmentServiceImpl -- Starting offer assignment for order: 1
+15:03:10.385 [Test worker] WARN com.smmpanel.service.OfferAssignmentServiceImpl -- Order does not exist: 1
+15:03:10.390 [Test worker] INFO com.smmpanel.service.OfferAssignmentServiceImpl -- Starting offer assignment for order: 1
+15:03:10.391 [Test worker] WARN com.smmpanel.service.OfferAssignmentServiceImpl -- Order does not exist: 1
+15:03:10.395 [Test worker] INFO com.smmpanel.service.OfferAssignmentServiceImpl -- Starting offer assignment for order: 999
+15:03:10.396 [Test worker] WARN com.smmpanel.service.OfferAssignmentServiceImpl -- Order does not exist: 999
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

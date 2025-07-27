@@ -37,6 +37,13 @@ public interface FixedBinomCampaignRepository extends JpaRepository<FixedBinomCa
     List<FixedBinomCampaign> findByActiveTrue();
 
     /**
+     * Find all active campaigns (alias for findByActiveTrue)
+     */
+    default List<FixedBinomCampaign> findAllActiveCampaigns() {
+        return findByActiveTrue();
+    }
+
+    /**
      * Find campaign by Binom campaign ID
      */
     Optional<FixedBinomCampaign> findByCampaignId(String campaignId);

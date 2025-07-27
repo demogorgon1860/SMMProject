@@ -4,10 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smmpanel.dto.binom.OfferAssignmentRequest;
 import com.smmpanel.entity.FixedBinomCampaign;
 import com.smmpanel.entity.Order;
-import com.smmpanel.entity.TrafficSource;
+import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.repository.FixedBinomCampaignRepository;
 import com.smmpanel.repository.OrderRepository;
-import com.smmpanel.repository.TrafficSourceRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,9 +40,6 @@ class OfferAssignmentIntegrationTest {
     private OrderRepository orderRepository;
 
     @Autowired
-    private TrafficSourceRepository trafficSourceRepository;
-
-    @Autowired
     private FixedBinomCampaignRepository fixedCampaignRepository;
 
     @Autowired
@@ -61,36 +57,10 @@ class OfferAssignmentIntegrationTest {
     }
 
     private void setupTestData() {
-        // Create traffic sources
-        TrafficSource source1 = TrafficSource.builder()
-                .name("Test Source 1")
-                .sourceId("SOURCE_001")
-                .weight(1)
-                .active(true)
-                .build();
-        source1 = trafficSourceRepository.save(source1);
-
-        TrafficSource source2 = TrafficSource.builder()
-                .name("Test Source 2")
-                .sourceId("SOURCE_002")
-                .weight(1)
-                .active(true)
-                .build();
-        source2 = trafficSourceRepository.save(source2);
-
-        TrafficSource source3 = TrafficSource.builder()
-                .name("Test Source 3")
-                .sourceId("SOURCE_003")
-                .weight(1)
-                .active(true)
-                .build();
-        source3 = trafficSourceRepository.save(source3);
-
-        // Create fixed campaigns
+        // Create fixed campaigns without traffic sources
         FixedBinomCampaign campaign1 = FixedBinomCampaign.builder()
                 .campaignId("TEST_CAMPAIGN_001")
                 .campaignName("Test Fixed Campaign 1")
-                .trafficSource(source1)
                 .active(true)
                 .build();
         fixedCampaignRepository.save(campaign1);
@@ -98,7 +68,6 @@ class OfferAssignmentIntegrationTest {
         FixedBinomCampaign campaign2 = FixedBinomCampaign.builder()
                 .campaignId("TEST_CAMPAIGN_002")
                 .campaignName("Test Fixed Campaign 2")
-                .trafficSource(source2)
                 .active(true)
                 .build();
         fixedCampaignRepository.save(campaign2);
@@ -106,7 +75,6 @@ class OfferAssignmentIntegrationTest {
         FixedBinomCampaign campaign3 = FixedBinomCampaign.builder()
                 .campaignId("TEST_CAMPAIGN_003")
                 .campaignName("Test Fixed Campaign 3")
-                .trafficSource(source3)
                 .active(true)
                 .build();
         fixedCampaignRepository.save(campaign3);
@@ -115,7 +83,7 @@ class OfferAssignmentIntegrationTest {
         testOrder = Order.builder()
                 .quantity(1000)
                 .link("https://youtube.com/watch?v=test123")
-                .status("PENDING")
+                .status(OrderStatus.PENDING)
                 .build();
         testOrder = orderRepository.save(testOrder);
     }

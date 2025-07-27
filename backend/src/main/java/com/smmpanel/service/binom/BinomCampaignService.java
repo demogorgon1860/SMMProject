@@ -38,7 +38,6 @@ public class BinomCampaignService {
     private final BinomClient binomClient;
     private final BinomCampaignRepository binomCampaignRepository;
     private final OrderRepository orderRepository;
-    private final TrafficSourceRepository trafficSourceRepository;
     private final ConversionCoefficientRepository conversionCoefficientRepository;
     private final AuditService auditService;
 
@@ -301,7 +300,6 @@ public class BinomCampaignService {
         CreateCampaignRequest campaignRequest = CreateCampaignRequest.builder()
                 .name(campaignName)
                 .offerId(offerId)
-                .trafficSourceId(request.getTrafficSourceId().toString())
                 .geoTargeting(request.getGeoTargeting())
                 .status("ACTIVE")
                 .build();

@@ -16,4 +16,9 @@ import java.lang.annotation.Target;
 @Documented
 @AuthenticationPrincipal
 public @interface CurrentUser {
+    
+    /**
+     * Request attribute name for storing the current user
+     */
+    String REQUEST_ATTRIBUTE = "currentUser";
 } 

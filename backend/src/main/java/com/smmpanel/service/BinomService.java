@@ -33,13 +33,12 @@ public class BinomService {
     private final BinomCampaignRepository binomCampaignRepository;
     private final FixedBinomCampaignRepository fixedBinomCampaignRepository;
     private final ConversionCoefficientRepository conversionCoefficientRepository;
-    private final TrafficSourceRepository trafficSourceRepository;
 
     @Value("${app.binom.default-coefficient:3.0}")
     private BigDecimal defaultCoefficient;
 
     /**
-     * FIXED: Assign order to existing Binom campaign with traffic source rotation
+     * FIXED: Assign order to existing Binom campaign
      */
     @Transactional
     public BinomIntegrationResponse createBinomIntegration(Order order, String videoId, boolean clipCreated, String targetUrl) {
@@ -48,15 +47,11 @@ public class BinomService {
             BigDecimal coefficient = clipCreated ? new BigDecimal("3.0") : new BigDecimal("4.0");
             int targetViews = order.getQuantity();
             int requiredClicks = BigDecimal.valueOf(targetViews).multiply(coefficient).intValue();
-            TrafficSource selectedSource = selectAvailableTrafficSource();
-            if (selectedSource == null) {
-                throw new RuntimeException("No available traffic sources");
-            }
+            
             BinomCampaign campaign = BinomCampaign.builder()
                     .order(order)
-                    .campaignId(generateCampaignId(order.getId(), selectedSource.getSourceId()))
+                    .campaignId(generateCampaignId(order.getId(), "DEFAULT"))
                     .targetUrl(targetUrl)
-                    .trafficSource(selectedSource)
                     .coefficient(coefficient)
                     .clicksRequired(requiredClicks)
                     .clicksDelivered(0)
@@ -64,21 +59,20 @@ public class BinomService {
                     .status("ACTIVE")
                     .build();
             binomCampaignRepository.save(campaign);
-            selectedSource.setClicksUsedToday(selectedSource.getClicksUsedToday() + requiredClicks);
-            trafficSourceRepository.save(selectedSource);
-            log.info("Order {} assigned to traffic source {} - Required clicks: {} (coefficient: {})", 
-                    order.getId(), selectedSource.getSourceId(), requiredClicks, coefficient);
+            
+            log.info("Order {} assigned to campaign - Required clicks: {} (coefficient: {})", 
+                    order.getId(), requiredClicks, coefficient);
             return BinomIntegrationResponse.builder()
                     .success(true)
                     .campaignId(campaign.getCampaignId())
-                    .message("Order assigned to traffic source: " + selectedSource.getName())
+                    .message("Order assigned to campaign successfully")
                     .build();
         } catch (Exception e) {
             log.error("Failed to create Binom integration for order {}: {}", order.getId(), e.getMessage());
             return BinomIntegrationResponse.builder()
                     .success(false)
-                    .message("Failed to assign traffic source: " + e.getMessage())
-                    .errorCode("TRAFFIC_SOURCE_ASSIGNMENT_FAILED")
+                    .message("Failed to assign campaign: " + e.getMessage())
+                    .errorCode("CAMPAIGN_ASSIGNMENT_FAILED")
                     .build();
         }
     }
@@ -288,13 +282,7 @@ public class BinomService {
         return null;
     }
 
-    private TrafficSource selectAvailableTrafficSource() {
-        List<TrafficSource> availableSources = trafficSourceRepository.findByClicksUsedTodayLessThan(1000); // Example limit
-        if (!availableSources.isEmpty()) {
-            return availableSources.get(0); // Select the first available source
-        }
-        return null;
-    }
+
 
     private String generateCampaignId(Long orderId, String sourceId) {
         return String.format("SMM_ORDER_%d_TRAFFIC_%s_%d", orderId, sourceId, System.currentTimeMillis());

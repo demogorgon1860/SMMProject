@@ -22,7 +22,6 @@ public class StartupService implements ApplicationRunner {
     private final UserRepository userRepository;
     private final ServiceRepository serviceRepository;
     private final ConversionCoefficientRepository coefficientRepository;
-    private final TrafficSourceRepository trafficSourceRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -33,7 +32,6 @@ public class StartupService implements ApplicationRunner {
         createDefaultAdmin();
         createDefaultServices();
         createDefaultCoefficients();
-        createDefaultTrafficSources();
 
         log.info("Application initialization completed successfully");
     }
@@ -112,50 +110,5 @@ public class StartupService implements ApplicationRunner {
         log.info("Created default conversion coefficients");
     }
 
-    private void createDefaultTrafficSources() {
-        if (trafficSourceRepository.count() == 0) {
-            // STANDARD источники для Service ID 1 ($1)
-            createTrafficSource("Clickadoo Push STANDARD", "clickadoo_push_std", 
-                10, 10000, "US", "STANDARD", 92.5);
-            createTrafficSource("Clickadoo Native STANDARD", "clickadoo_native_std", 
-                8, 8000, "EU", "STANDARD", 85.0);
-            createTrafficSource("Clickadoo Display STANDARD", "clickadoo_display_std", 
-                6, 15000, "GLOBAL", "STANDARD", 78.3);
 
-            // PREMIUM источники для Service ID 2 ($2)
-            createTrafficSource("Clickadoo Push PREMIUM", "clickadoo_push_prem", 
-                12, 7000, "US", "PREMIUM", 96.8);
-            createTrafficSource("Clickadoo Native PREMIUM", "clickadoo_native_prem", 
-                10, 6000, "EU", "PREMIUM", 94.2);
-            createTrafficSource("Clickadoo Display PREMIUM", "clickadoo_display_prem", 
-                8, 10000, "GLOBAL", "PREMIUM", 91.5);
-
-            // HIGH_QUALITY источники для Service ID 3 ($3)
-            createTrafficSource("Clickadoo Push HQ", "clickadoo_push_hq", 
-                15, 5000, "US", "HIGH_QUALITY", 99.2);
-            createTrafficSource("Clickadoo Native HQ", "clickadoo_native_hq", 
-                13, 4000, "EU", "HIGH_QUALITY", 98.7);
-            createTrafficSource("Clickadoo Display HQ", "clickadoo_display_hq", 
-                10, 6000, "GLOBAL", "HIGH_QUALITY", 97.3);
-
-            log.info("Created default traffic sources with quality differentiation");
-        }
-    }
-
-    private void createTrafficSource(String name, String sourceId, int weight, 
-                                   int dailyLimit, String geo, String qualityLevel, 
-                                   double performanceScore) {
-        TrafficSource source = new TrafficSource();
-        source.setName(name);
-        source.setSourceId(sourceId);
-        source.setWeight(weight);
-        source.setDailyLimit(dailyLimit);
-        source.setGeoTargeting(geo);
-        source.setQualityLevel(qualityLevel);
-        source.setActive(true);
-        source.setPerformanceScore(new BigDecimal(performanceScore));
-        source.setClicksUsedToday(0);
-        source.setLastResetDate(LocalDate.now());
-        trafficSourceRepository.save(source);
-    }
 }

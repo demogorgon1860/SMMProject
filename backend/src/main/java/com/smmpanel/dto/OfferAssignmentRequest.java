@@ -12,7 +12,6 @@ import lombok.NoArgsConstructor;
 public class OfferAssignmentRequest {
     private Long orderId;
     private Long userId;
-    private String trafficSourceId;
     private String offerType;
     private Integer dailyLimit;
     private boolean active;

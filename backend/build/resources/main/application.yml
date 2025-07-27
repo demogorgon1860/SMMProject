@@ -1,3 +1,4 @@
+---
 # ===============================
 # SERVER CONFIGURATION
 # ===============================
@@ -7,7 +8,9 @@ server:
     context-path: /api
   compression:
     enabled: true
-    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+    mime-types: >
+      text/html,text/xml,text/plain,text/css,text/javascript,
+      application/javascript,application/json
     min-response-size: 1024
   http2:
     enabled: true
@@ -17,13 +20,20 @@ server:
     max-connections: 8192
     max-threads: 200
     min-spare-threads: 10
+  error:
+    include-message: always
+    include-binding-errors: always
 
 # ===============================
-# DATABASE CONFIGURATION
+# SPRING CONFIGURATION
 # ===============================
 spring:
+  # ===============================
+  # DATABASE CONFIGURATION
+  # ===============================
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:smm_panel}
+    url: >
+      jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:smm_panel}
     username: ${DB_USER:postgres}
     password: ${DB_PASSWORD:password}
     driver-class-name: org.postgresql.Driver
@@ -39,7 +49,8 @@ spring:
     hibernate:
       ddl-auto: validate
       naming:
-        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+        physical-strategy: >
+          org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
     show-sql: false
     properties:
       hibernate:
@@ -53,10 +64,9 @@ spring:
         generate_statistics: true
     open-in-view: false
 
-# ===============================
-# REDIS CONFIGURATION
-# ===============================
-spring:
+  # ===============================
+  # REDIS CONFIGURATION
+  # ===============================
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -75,19 +85,20 @@ spring:
     type: redis
     redis:
       time-to-live: 300000
-      key-prefix: smm:cache:
+      key-prefix: "smm:cache:"
       use-key-prefix: true
       cache-null-values: false
 
-# ===============================
-# KAFKA CONFIGURATION
-# ===============================
-spring:
+  # ===============================
+  # KAFKA CONFIGURATION
+  # ===============================
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      key-serializer: >
+        org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: >
+        org.springframework.kafka.support.serializer.JsonSerializer
       acks: all
       retries: 3
       batch-size: 16384
@@ -107,8 +118,10 @@ spring:
           notification:java.util.Map,
           orderStateUpdate:java.util.Map
     consumer:
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      key-deserializer: >
+        org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: >
+        org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       group-id: smm-panel-group
       auto-offset-reset: earliest
       enable-auto-commit: false
@@ -119,8 +132,10 @@ spring:
       heartbeat-interval-ms: 3000
       max-poll-interval-ms: 300000
       properties:
-        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
-        spring.json.trusted.packages: com.smmpanel.entity,com.smmpanel.dto,com.smmpanel.event,java.util
+        spring.deserializer.value.delegate.class: >
+          org.springframework.kafka.support.serializer.JsonDeserializer
+        spring.json.trusted.packages: >
+          com.smmpanel.entity,com.smmpanel.dto,com.smmpanel.event,java.util
         spring.json.type.mapping: >
           order:com.smmpanel.entity.Order,
           videoProcessing:com.smmpanel.entity.VideoProcessing,
@@ -131,12 +146,41 @@ spring:
         spring.json.use.type.headers: false
         spring.json.value.default.type: java.util.Map
 
+  # ===============================
+  # FILE UPLOAD CONFIGURATION
+  # ===============================
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 50MB
+      max-request-size: 50MB
+      file-size-threshold: 1MB
+
+  # ===============================
+  # ASYNC PROCESSING CONFIGURATION
+  # ===============================
+  task:
+    execution:
+      pool:
+        core-size: 8
+        max-size: 20
+        queue-capacity: 1000
+      thread-name-prefix: sms-async-
+    scheduling:
+      pool:
+        size: 5
+      thread-name-prefix: sms-scheduled-
+
 # ===============================
-# SECURITY CONFIGURATION
+# APPLICATION CONFIGURATION
 # ===============================
 app:
+  # ===============================
+  # SECURITY CONFIGURATION
+  # ===============================
   jwt:
-    secret: ${JWT_SECRET:your-super-secret-jwt-key-change-in-production}
+    secret: >
+      ${JWT_SECRET:your-super-secret-jwt-key-change-in-production}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
     refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}
   security:
@@ -145,16 +189,16 @@ app:
       header: X-API-Key
       hash-algorithm: SHA-256
   cors:
-    allowed-origins: ${CORS_ORIGINS:http://localhost:3000,https://demo.perfectpanel.com}
+    allowed-origins: >
+      ${CORS_ORIGINS:http://localhost:3000,https://demo.perfectpanel.com}
     allowed-methods: GET,POST,PUT,DELETE,OPTIONS
     allowed-headers: "*"
     allow-credentials: true
     max-age: 3600
 
-# ===============================
-# RATE LIMITING CONFIGURATION
-# ===============================
-app:
+  # ===============================
+  # RATE LIMITING CONFIGURATION
+  # ===============================
   rate-limit:
     enabled: true
     orders:
@@ -166,10 +210,9 @@ app:
     auth:
       per-minute: 5
 
-# ===============================
-# EXTERNAL API CONFIGURATIONS
-# ===============================
-app:
+  # ===============================
+  # EXTERNAL API CONFIGURATIONS
+  # ===============================
   binom:
     api:
       url: ${BINOM_API_URL:https://your-binom-domain.com/api}
@@ -202,6 +245,79 @@ app:
       page-load: 30
       implicit: 10
     max-concurrent-sessions: 5
+
+  # ===============================
+  # CACHING CONFIGURATION
+  # ===============================
+  cache:
+    services:
+      ttl: 3600
+    users:
+      ttl: 1800
+    conversion-coefficients:
+      ttl: 7200
+    youtube-stats:
+      ttl: 300
+
+  # ===============================
+  # FILE UPLOAD & PROCESSING
+  # ===============================
+  file:
+    upload:
+      path: ${FILE_UPLOAD_PATH:/tmp/smm-panel/uploads}
+    processing:
+      timeout: 300
+      max-concurrent: 3
+
+  # ===============================
+  # ERROR HANDLING CONFIGURATION
+  # ===============================
+  error:
+    include-stack-trace: ${ERROR_INCLUDE_STACK_TRACE:false}
+    include-debug-info: ${ERROR_INCLUDE_DEBUG_INFO:false}
+
+  # ===============================
+  # BUSINESS LOGIC CONFIGURATION
+  # ===============================
+  order:
+    processing:
+      batch-size: 100
+      max-retries: 3
+      retry-delay: 5000
+      timeout: 300000
+  video:
+    processing:
+      max-concurrent: 5
+      timeout: 600000
+      clip-length: 60
+      quality: medium
+  balance:
+    minimum-deposit: 1.00
+    maximum-deposit: 10000.00
+    transaction-timeout: 300000
+  perfectpanel:
+    compatible: true
+    api-version: 2.0
+    status-mapping:
+      enabled: true
+
+  # ===============================
+  # DEVELOPMENT/DEBUG SETTINGS
+  # ===============================
+  features:
+    youtube-processing:
+      enabled: ${YOUTUBE_PROCESSING_ENABLED:true}
+    binom-integration:
+      enabled: ${BINOM_INTEGRATION_ENABLED:true}
+    payment-processing:
+      enabled: ${PAYMENT_PROCESSING_ENABLED:true}
+    email-notifications:
+      enabled: ${EMAIL_NOTIFICATIONS_ENABLED:true}
+  monitoring:
+    enabled: true
+    slow-query-threshold: 1000
+    memory-threshold: 80
+    cpu-threshold: 80
 
 # ===============================
 # RESILIENCE4J CONFIGURATION
@@ -266,46 +382,17 @@ management:
     kafka:
       enabled: true
 
+# ===============================
+# APPLICATION INFO
+# ===============================
 info:
   app:
     name: SMM Panel
-    version: @project.version@
+    version: "@project.version@"
     description: Social Media Marketing Panel
-    encoding: @project.build.sourceEncoding@
+    encoding: "@project.build.sourceEncoding@"
     java:
-      version: @java.version@
-
-# ===============================
-# CACHING CONFIGURATION
-# ===============================
-app:
-  cache:
-    services:
-      ttl: 3600
-    users:
-      ttl: 1800
-    conversion-coefficients:
-      ttl: 7200
-    youtube-stats:
-      ttl: 300
-
-# ===============================
-# FILE UPLOAD & PROCESSING
-# ===============================
-spring:
-  servlet:
-    multipart:
-      enabled: true
-      max-file-size: 50MB
-      max-request-size: 50MB
-      file-size-threshold: 1MB
-app:
-  file:
-    upload:
-      path: ${FILE_UPLOAD_PATH:/tmp/smm-panel/uploads}
-    processing:
-      timeout: 300
-      max-concurrent: 3
+      version: "@java.version@"
 
 # ===============================
 # LOGGING CONFIGURATION
@@ -318,8 +405,10 @@ logging:
     org.hibernate.SQL: WARN
     org.hibernate.type.descriptor.sql.BasicBinder: WARN
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    console: >
+      "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: >
+      "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
   file:
     name: ${LOG_FILE_PATH:/var/log/smm-panel/application.log}
   logback:
@@ -327,83 +416,3 @@ logging:
       max-file-size: 100MB
       total-size-cap: 1GB
       max-history: 30
-
-# ===============================
-# ERROR HANDLING CONFIGURATION
-# ===============================
-app:
-  error:
-    include-stack-trace: ${ERROR_INCLUDE_STACK_TRACE:false}
-    include-debug-info: ${ERROR_INCLUDE_DEBUG_INFO:false}
-server:
-  error:
-    include-message: always
-    include-binding-errors: always
-
-# ===============================
-# ASYNC PROCESSING CONFIGURATION
-# ===============================
-spring:
-  task:
-    execution:
-      pool:
-        core-size: 8
-        max-size: 20
-        queue-capacity: 1000
-      thread-name-prefix: smm-async-
-    scheduling:
-      pool:
-        size: 5
-      thread-name-prefix: smm-scheduled-
-
-# ===============================
-# BUSINESS LOGIC CONFIGURATION
-# ===============================
-app:
-  order:
-    processing:
-      batch-size: 100
-      max-retries: 3
-      retry-delay: 5000
-      timeout: 300000
-  video:
-    processing:
-      max-concurrent: 5
-      timeout: 600000
-      clip-length: 60
-      quality: medium
-  balance:
-    minimum-deposit: 1.00
-    maximum-deposit: 10000.00
-    transaction-timeout: 300000
-  perfectpanel:
-    compatible: true
-    api-version: 2.0
-    status-mapping:
-      enabled: true
-
-# ===============================
-# DEVELOPMENT/DEBUG SETTINGS
-# ===============================
-spring:
-  jpa:
-    properties:
-      hibernate:
-        show_sql: ${DEBUG_SQL:false}
-        format_sql: ${DEBUG_SQL:false}
-        use_sql_comments: ${DEBUG_SQL:false}
-app:
-  features:
-    youtube-processing:
-      enabled: ${YOUTUBE_PROCESSING_ENABLED:true}
-    binom-integration:
-      enabled: ${BINOM_INTEGRATION_ENABLED:true}
-    payment-processing:
-      enabled: ${PAYMENT_PROCESSING_ENABLED:true}
-    email-notifications:
-      enabled: ${EMAIL_NOTIFICATIONS_ENABLED:true}
-  monitoring:
-    enabled: true
-    slow-query-threshold: 1000
-    memory-threshold: 80
-    cpu-threshold: 80

@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Data
 @Builder
@@ -37,5 +38,15 @@ public class ValidationResult {
     
     public void addWarning(String field, String message) {
         this.warnings.add(new ValidationWarning(field, message));
+    }
+    
+    /**
+     * Get formatted error messages as a single string
+     * Useful for exception messages and logging
+     */
+    public String getErrorMessages() {
+        return errors.stream()
+                .map(error -> error.getField() + ": " + error.getMessage())
+                .collect(Collectors.joining("; "));
     }
 }

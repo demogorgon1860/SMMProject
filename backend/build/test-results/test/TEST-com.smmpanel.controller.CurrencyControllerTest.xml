@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.smmpanel.controller.CurrencyControllerTest" tests="15" skipped="0" failures="15" errors="0" timestamp="2025-07-28T03:03:31" hostname="VALERIA" time="2.678">
+  <properties/>
+  <testcase name="updatePreferredCurrency_ShouldUpdateUserPreference()" classname="com.smmpanel.controller.CurrencyControllerTest" time="1.988">
+    <failure message="java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;" type="java.lang.AssertionError">java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;
+	at org.springframework.test.util.AssertionErrors.fail(AssertionErrors.java:59)
+	at org.springframework.test.util.AssertionErrors.assertEquals(AssertionErrors.java:122)
+	at org.springframework.test.web.servlet.result.StatusResultMatchers.lambda$matcher$9(StatusResultMatchers.java:637)
+	at org.springframework.test.web.servlet.MockMvc$1.andExpect(MockMvc.java:214)
+	at com.smmpanel.controller.CurrencyControllerTest.updatePreferredCurrency_ShouldUpdateUserPreference(CurrencyControllerTest.java:254)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="getSupportedCurrencies_ReturnsOk()" classname="com.smmpanel.controller.CurrencyControllerTest" time="0.046">
+    <failure message="java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;" type="java.lang.AssertionError">java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;
+	at org.springframework.test.util.AssertionErrors.fail(AssertionErrors.java:59)
+	at org.springframework.test.util.AssertionErrors.assertEquals(AssertionErrors.java:122)
+	at org.springframework.test.web.servlet.result.StatusResultMatchers.lambda$matcher$9(StatusResultMatchers.java:637)
+	at org.springframework.test.web.servlet.MockMvc$1.andExpect(MockMvc.java:214)
+	at com.smmpanel.controller.CurrencyControllerTest.getSupportedCurrencies_ReturnsOk(CurrencyControllerTest.java:85)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="quickConvert_ValidRequest_ReturnsConvertedAmount()" classname="com.smmpanel.controller.CurrencyControllerTest" time="0.048">
+    <failure message="java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;" type="java.lang.AssertionError">java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;
+	at org.springframework.test.util.AssertionErrors.fail(AssertionErrors.java:59)
+	at org.springframework.test.util.AssertionErrors.assertEquals(AssertionErrors.java:122)
+	at org.springframework.test.web.servlet.result.StatusResultMatchers.lambda$matcher$9(StatusResultMatchers.java:637)
+	at org.springframework.test.web.servlet.MockMvc$1.andExpect(MockMvc.java:214)
+	at com.smmpanel.controller.CurrencyControllerTest.quickConvert_ValidRequest_ReturnsConvertedAmount(CurrencyControllerTest.java:219)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="formatForUser_ShouldFormatAmountInUserCurrency()" classname="com.smmpanel.controller.CurrencyControllerTest" time="0.037">
+    <failure message="java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;" type="java.lang.AssertionError">java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;
+	at org.springframework.test.util.AssertionErrors.fail(AssertionErrors.java:59)
+	at org.springframework.test.util.AssertionErrors.assertEquals(AssertionErrors.java:122)
+	at org.springframework.test.web.servlet.result.StatusResultMatchers.lambda$matcher$9(StatusResultMatchers.java:637)
+	at org.springframework.test.web.servlet.MockMvc$1.andExpect(MockMvc.java:214)
+	at com.smmpanel.controller.CurrencyControllerTest.formatForUser_ShouldFormatAmountInUserCurrency(CurrencyControllerTest.java:273)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="quickConvert_MissingParameters_ReturnsBadRequest()" classname="com.smmpanel.controller.CurrencyControllerTest" time="0.039">
+    <failure message="java.lang.AssertionError: Status expected:&lt;400&gt; but was:&lt;404&gt;" type="java.lang.AssertionError">java.lang.AssertionError: Status expected:&lt;400&gt; but was:&lt;404&gt;
+	at org.springframework.test.util.AssertionErrors.fail(AssertionErrors.java:59)
+	at org.springframework.test.util.AssertionErrors.assertEquals(AssertionErrors.java:122)
+	at org.springframework.test.web.servlet.result.StatusResultMatchers.lambda$matcher$9(StatusResultMatchers.java:637)
+	at org.springframework.test.web.servlet.MockMvc$1.andExpect(MockMvc.java:214)
+	at com.smmpanel.controller.CurrencyControllerTest.quickConvert_MissingParameters_ReturnsBadRequest(CurrencyControllerTest.java:333)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="getPreferredCurrency_ShouldReturnUserPreferredCurrency()" classname="com.smmpanel.controller.CurrencyControllerTest" time="0.043">
+    <failure message="java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;" type="java.lang.AssertionError">java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;
+	at org.springframework.test.util.AssertionErrors.fail(AssertionErrors.java:59)
+	at org.springframework.test.util.AssertionErrors.assertEquals(AssertionErrors.java:122)
+	at org.springframework.test.web.servlet.result.StatusResultMatchers.lambda$matcher$9(StatusResultMatchers.java:637)
+	at org.springframework.test.web.servlet.MockMvc$1.andExpect(MockMvc.java:214)
+	at com.smmpanel.controller.CurrencyControllerTest.getPreferredCurrency_ShouldReturnUserPreferredCurrency(CurrencyControllerTest.java:237)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="updatePreferredCurrency_ValidCurrency_ReturnsSuccess()" classname="com.smmpanel.controller.CurrencyControllerTest" time="0.032">
+    <failure message="java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;" type="java.lang.AssertionError">java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;
+	at org.springframework.test.util.AssertionErrors.fail(AssertionErrors.java:59)
+	at org.springframework.test.util.AssertionErrors.assertEquals(AssertionErrors.java:122)
+	at org.springframework.test.web.servlet.result.StatusResultMatchers.lambda$matcher$9(StatusResultMatchers.java:637)
+	at org.springframework.test.web.servlet.MockMvc$1.andExpect(MockMvc.java:214)
+	at com.smmpanel.controller.CurrencyControllerTest.updatePreferredCurrency_ValidCurrency_ReturnsSuccess(CurrencyControllerTest.java:304)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="convertCurrency_ShouldConvertAmount()" classname="com.smmpanel.controller.CurrencyControllerTest" time="0.186">
+    <failure message="java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;" type="java.lang.AssertionError">java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;
+	at org.springframework.test.util.AssertionErrors.fail(AssertionErrors.java:59)
+	at org.springframework.test.util.AssertionErrors.assertEquals(AssertionErrors.java:122)
+	at org.springframework.test.web.servlet.result.StatusResultMatchers.lambda$matcher$9(StatusResultMatchers.java:637)
+	at org.springframework.test.web.servlet.MockMvc$1.andExpect(MockMvc.java:214)
+	at com.smmpanel.controller.CurrencyControllerTest.convertCurrency_ShouldConvertAmount(CurrencyControllerTest.java:173)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="convertCurrency_InvalidCurrency_ReturnsBadRequest()" classname="com.smmpanel.controller.CurrencyControllerTest" time="0.03">
+    <failure message="java.lang.AssertionError: Status expected:&lt;400&gt; but was:&lt;404&gt;" type="java.lang.AssertionError">java.lang.AssertionError: Status expected:&lt;400&gt; but was:&lt;404&gt;
+	at org.springframework.test.util.AssertionErrors.fail(AssertionErrors.java:59)
+	at org.springframework.test.util.AssertionErrors.assertEquals(AssertionErrors.java:122)
+	at org.springframework.test.web.servlet.result.StatusResultMatchers.lambda$matcher$9(StatusResultMatchers.java:637)
+	at org.springframework.test.web.servlet.MockMvc$1.andExpect(MockMvc.java:214)
+	at com.smmpanel.controller.CurrencyControllerTest.convertCurrency_InvalidCurrency_ReturnsBadRequest(CurrencyControllerTest.java:327)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="convertToUserCurrency_ShouldConvertAndFormatForUser()" classname="com.smmpanel.controller.CurrencyControllerTest" time="0.028">
+    <failure message="java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;" type="java.lang.AssertionError">java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;
+	at org.springframework.test.util.AssertionErrors.fail(AssertionErrors.java:59)
+	at org.springframework.test.util.AssertionErrors.assertEquals(AssertionErrors.java:122)
+	at org.springframework.test.web.servlet.result.StatusResultMatchers.lambda$matcher$9(StatusResultMatchers.java:637)
+	at org.springframework.test.web.servlet.MockMvc$1.andExpect(MockMvc.java:214)
+	at com.smmpanel.controller.CurrencyControllerTest.convertToUserCurrency_ShouldConvertAndFormatForUser(CurrencyControllerTest.java:291)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="getExchangeRates_ReturnsRates()" classname="com.smmpanel.controller.CurrencyControllerTest" time="0.037">
+    <failure message="java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;" type="java.lang.AssertionError">java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;
+	at org.springframework.test.util.AssertionErrors.fail(AssertionErrors.java:59)
+	at org.springframework.test.util.AssertionErrors.assertEquals(AssertionErrors.java:122)
+	at org.springframework.test.web.servlet.result.StatusResultMatchers.lambda$matcher$9(StatusResultMatchers.java:637)
+	at org.springframework.test.web.servlet.MockMvc$1.andExpect(MockMvc.java:214)
+	at com.smmpanel.controller.CurrencyControllerTest.getExchangeRates_ReturnsRates(CurrencyControllerTest.java:312)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="getSupportedCurrencies_ShouldReturnListOfCurrencies()" classname="com.smmpanel.controller.CurrencyControllerTest" time="0.03">
+    <failure message="java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;" type="java.lang.AssertionError">java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;
+	at org.springframework.test.util.AssertionErrors.fail(AssertionErrors.java:59)
+	at org.springframework.test.util.AssertionErrors.assertEquals(AssertionErrors.java:122)
+	at org.springframework.test.web.servlet.result.StatusResultMatchers.lambda$matcher$9(StatusResultMatchers.java:637)
+	at org.springframework.test.web.servlet.MockMvc$1.andExpect(MockMvc.java:214)
+	at com.smmpanel.controller.CurrencyControllerTest.getSupportedCurrencies_ShouldReturnListOfCurrencies(CurrencyControllerTest.java:95)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="getSupportedCurrenciesWithPreference_ShouldMarkUserPreferredCurrency()" classname="com.smmpanel.controller.CurrencyControllerTest" time="0.04">
+    <failure message="java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;" type="java.lang.AssertionError">java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;
+	at org.springframework.test.util.AssertionErrors.fail(AssertionErrors.java:59)
+	at org.springframework.test.util.AssertionErrors.assertEquals(AssertionErrors.java:122)
+	at org.springframework.test.web.servlet.result.StatusResultMatchers.lambda$matcher$9(StatusResultMatchers.java:637)
+	at org.springframework.test.web.servlet.MockMvc$1.andExpect(MockMvc.java:214)
+	at com.smmpanel.controller.CurrencyControllerTest.getSupportedCurrenciesWithPreference_ShouldMarkUserPreferredCurrency(CurrencyControllerTest.java:118)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="convertCurrency_ValidRequest_ReturnsConvertedAmount()" classname="com.smmpanel.controller.CurrencyControllerTest" time="0.031">
+    <failure message="java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;" type="java.lang.AssertionError">java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;
+	at org.springframework.test.util.AssertionErrors.fail(AssertionErrors.java:59)
+	at org.springframework.test.util.AssertionErrors.assertEquals(AssertionErrors.java:122)
+	at org.springframework.test.web.servlet.result.StatusResultMatchers.lambda$matcher$9(StatusResultMatchers.java:637)
+	at org.springframework.test.web.servlet.MockMvc$1.andExpect(MockMvc.java:214)
+	at com.smmpanel.controller.CurrencyControllerTest.convertCurrency_ValidRequest_ReturnsConvertedAmount(CurrencyControllerTest.java:144)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="quickConvert_ShouldConvertUsingQueryParams()" classname="com.smmpanel.controller.CurrencyControllerTest" time="0.04">
+    <failure message="java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;" type="java.lang.AssertionError">java.lang.AssertionError: Status expected:&lt;200&gt; but was:&lt;404&gt;
+	at org.springframework.test.util.AssertionErrors.fail(AssertionErrors.java:59)
+	at org.springframework.test.util.AssertionErrors.assertEquals(AssertionErrors.java:122)
+	at org.springframework.test.web.servlet.result.StatusResultMatchers.lambda$matcher$9(StatusResultMatchers.java:637)
+	at org.springframework.test.web.servlet.MockMvc$1.andExpect(MockMvc.java:214)
+	at com.smmpanel.controller.CurrencyControllerTest.quickConvert_ShouldConvertUsingQueryParams(CurrencyControllerTest.java:202)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <system-out><![CDATA[06:03:32.401 [Test worker] INFO org.hibernate.validator.internal.util.Version -- HV000001: Hibernate Validator 8.0.1.Final
+06:03:33.431 [Test worker] INFO org.springframework.mock.web.MockServletContext -- Initializing Spring TestDispatcherServlet ''
+06:03:33.431 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Initializing Servlet ''
+06:03:33.436 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Completed initialization in 4 ms
+06:03:33.545 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No mapping for PUT /api/currency/preferences/currency
+06:03:33.554 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No endpoint PUT /api/currency/preferences/currency.
+06:03:33.603 [Test worker] INFO org.springframework.mock.web.MockServletContext -- Initializing Spring TestDispatcherServlet ''
+06:03:33.603 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Initializing Servlet ''
+06:03:33.604 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Completed initialization in 1 ms
+06:03:33.607 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No mapping for GET /api/currency/supported
+06:03:33.607 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No endpoint GET /api/currency/supported.
+06:03:33.645 [Test worker] INFO org.springframework.mock.web.MockServletContext -- Initializing Spring TestDispatcherServlet ''
+06:03:33.646 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Initializing Servlet ''
+06:03:33.648 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Completed initialization in 0 ms
+06:03:33.654 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No mapping for GET /api/currency/convert
+06:03:33.655 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No endpoint GET /api/currency/convert.
+06:03:33.687 [Test worker] INFO org.springframework.mock.web.MockServletContext -- Initializing Spring TestDispatcherServlet ''
+06:03:33.688 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Initializing Servlet ''
+06:03:33.688 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Completed initialization in 0 ms
+06:03:33.689 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No mapping for GET /api/currency/format
+06:03:33.690 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No endpoint GET /api/currency/format.
+06:03:33.733 [Test worker] INFO org.springframework.mock.web.MockServletContext -- Initializing Spring TestDispatcherServlet ''
+06:03:33.734 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Initializing Servlet ''
+06:03:33.734 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Completed initialization in 0 ms
+06:03:33.735 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No mapping for GET /api/currency/convert
+06:03:33.736 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No endpoint GET /api/currency/convert.
+06:03:33.775 [Test worker] INFO org.springframework.mock.web.MockServletContext -- Initializing Spring TestDispatcherServlet ''
+06:03:33.775 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Initializing Servlet ''
+06:03:33.776 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Completed initialization in 1 ms
+06:03:33.779 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No mapping for GET /api/currency/preferences/currency
+06:03:33.780 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No endpoint GET /api/currency/preferences/currency.
+06:03:33.811 [Test worker] INFO org.springframework.mock.web.MockServletContext -- Initializing Spring TestDispatcherServlet ''
+06:03:33.811 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Initializing Servlet ''
+06:03:33.811 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Completed initialization in 0 ms
+06:03:33.813 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No mapping for PUT /api/currency/preferences
+06:03:33.813 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No endpoint PUT /api/currency/preferences.
+06:03:33.851 [Test worker] INFO org.springframework.mock.web.MockServletContext -- Initializing Spring TestDispatcherServlet ''
+06:03:33.852 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Initializing Servlet ''
+06:03:33.853 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Completed initialization in 0 ms
+06:03:34.003 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No mapping for POST /api/currency/convert
+06:03:34.004 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No endpoint POST /api/currency/convert.
+06:03:34.033 [Test worker] INFO org.springframework.mock.web.MockServletContext -- Initializing Spring TestDispatcherServlet ''
+06:03:34.034 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Initializing Servlet ''
+06:03:34.034 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Completed initialization in 0 ms
+06:03:34.035 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No mapping for POST /api/currency/convert
+06:03:34.036 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No endpoint POST /api/currency/convert.
+06:03:34.062 [Test worker] INFO org.springframework.mock.web.MockServletContext -- Initializing Spring TestDispatcherServlet ''
+06:03:34.063 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Initializing Servlet ''
+06:03:34.063 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Completed initialization in 0 ms
+06:03:34.064 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No mapping for GET /api/currency/convert-to-user-currency
+06:03:34.065 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No endpoint GET /api/currency/convert-to-user-currency.
+06:03:34.095 [Test worker] INFO org.springframework.mock.web.MockServletContext -- Initializing Spring TestDispatcherServlet ''
+06:03:34.096 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Initializing Servlet ''
+06:03:34.098 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Completed initialization in 1 ms
+06:03:34.101 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No mapping for GET /api/currency/rates
+06:03:34.102 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No endpoint GET /api/currency/rates.
+06:03:34.132 [Test worker] INFO org.springframework.mock.web.MockServletContext -- Initializing Spring TestDispatcherServlet ''
+06:03:34.133 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Initializing Servlet ''
+06:03:34.133 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Completed initialization in 0 ms
+06:03:34.135 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No mapping for GET /api/currency/supported
+06:03:34.135 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No endpoint GET /api/currency/supported.
+06:03:34.165 [Test worker] INFO org.springframework.mock.web.MockServletContext -- Initializing Spring TestDispatcherServlet ''
+06:03:34.165 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Initializing Servlet ''
+06:03:34.166 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Completed initialization in 0 ms
+06:03:34.174 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No mapping for GET /api/currency/supported/with-preference
+06:03:34.176 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No endpoint GET /api/currency/supported/with-preference.
+06:03:34.205 [Test worker] INFO org.springframework.mock.web.MockServletContext -- Initializing Spring TestDispatcherServlet ''
+06:03:34.205 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Initializing Servlet ''
+06:03:34.205 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Completed initialization in 0 ms
+06:03:34.208 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No mapping for POST /api/currency/convert
+06:03:34.208 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No endpoint POST /api/currency/convert.
+06:03:34.239 [Test worker] INFO org.springframework.mock.web.MockServletContext -- Initializing Spring TestDispatcherServlet ''
+06:03:34.240 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Initializing Servlet ''
+06:03:34.240 [Test worker] INFO org.springframework.test.web.servlet.TestDispatcherServlet -- Completed initialization in 0 ms
+06:03:34.247 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No mapping for GET /api/currency/convert
+06:03:34.248 [Test worker] WARN org.springframework.web.servlet.PageNotFound -- No endpoint GET /api/currency/convert.
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

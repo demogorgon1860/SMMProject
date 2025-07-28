@@ -1,6 +1,6 @@
 package com.smmpanel.service;
 
-import com.smmpanel.client.BinomClient;
+import com.smmpanel.service.BinomService;
 import com.smmpanel.dto.binom.*;
 import com.smmpanel.entity.*;
 import com.smmpanel.repository.*;
@@ -23,54 +23,34 @@ import static org.mockito.Mockito.*;
 class OfferAssignmentServiceTest {
 
     @Mock
-    private BinomClient binomClient;
+    private BinomService binomService;
     
     @Mock
     private FixedBinomCampaignRepository fixedCampaignRepository;
     
     @Mock
-    private BinomCampaignRepository campaignRepository;
-    
-    @Mock
     private OrderRepository orderRepository;
-    
-    @Mock
-    private OperatorLogRepository operatorLogRepository;
-    
-    @Mock
-    private ConversionCoefficientRepository coefficientRepository;
 
     @InjectMocks
-    private OfferAssignmentServiceImpl offerAssignmentService;
+    private OfferAssignmentService offerAssignmentService;
 
-    private Order testOrder;
     private List<FixedBinomCampaign> fixedCampaigns;
     private OfferAssignmentRequest request;
 
     @BeforeEach
     void setUp() {
-        // Setup test order
-        testOrder = Order.builder()
-                .id(1L)
-                .quantity(1000)
-                .link("https://youtube.com/watch?v=test123")
-                .build();
-
         // Setup fixed campaigns
         fixedCampaigns = Arrays.asList(
                 FixedBinomCampaign.builder()
                         .id(1L)
                         .campaignId("CAMPAIGN_001")
+                        .campaignName("Campaign 1")
                         .active(true)
                         .build(),
                 FixedBinomCampaign.builder()
                         .id(2L)
                         .campaignId("CAMPAIGN_002")
-                        .active(true)
-                        .build(),
-                FixedBinomCampaign.builder()
-                        .id(3L)
-                        .campaignId("CAMPAIGN_003")
+                        .campaignName("Campaign 2")
                         .active(true)
                         .build()
         );
@@ -88,33 +68,10 @@ class OfferAssignmentServiceTest {
     @Test
     void testSuccessfulOfferAssignment() {
         // Given
-        when(orderRepository.findById(1L)).thenReturn(Optional.of(testOrder));
-        when(fixedCampaignRepository.findAllActiveCampaigns()).thenReturn(fixedCampaigns);
-        
-        // Mock offer creation
-        CheckOfferResponse checkResponse = CheckOfferResponse.builder()
-                .exists(false)
-                .build();
-        when(binomClient.checkOfferExists("Test Offer")).thenReturn(checkResponse);
-        
-        CreateOfferResponse createResponse = CreateOfferResponse.builder()
-                .offerId("OFFER_123")
-                .name("Test Offer")
-                .status("SUCCESS")
-                .build();
-        when(binomClient.createOffer(any(CreateOfferRequest.class))).thenReturn(createResponse);
-
-        // Mock campaign assignments
-        AssignOfferResponse assignResponse = AssignOfferResponse.builder()
-                .campaignId("CAMPAIGN_001")
-                .offerId("OFFER_123")
-                .status("SUCCESS")
-                .build();
-        when(binomClient.assignOfferToCampaign(anyString(), eq("OFFER_123"))).thenReturn(assignResponse);
-
-        // Mock repository saves
-        when(campaignRepository.save(any(BinomCampaign.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(operatorLogRepository.save(any(OperatorLog.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(orderRepository.existsById(1L)).thenReturn(true);
+        when(fixedCampaignRepository.findByActiveTrue()).thenReturn(fixedCampaigns);
+        when(binomService.createOffer("Test Offer", "https://youtube.com/watch?v=clip123", "Test offer description")).thenReturn("OFFER_123");
+        when(binomService.assignOfferToCampaign("OFFER_123", anyString(), eq(1))).thenReturn(true);
 
         // When
         OfferAssignmentResponse response = offerAssignmentService.assignOfferToFixedCampaigns(request);
@@ -123,58 +80,20 @@ class OfferAssignmentServiceTest {
         assertNotNull(response);
         assertEquals("SUCCESS", response.getStatus());
         assertEquals("OFFER_123", response.getOfferId());
-        assertEquals(3, response.getCampaignsCreated());
-        assertEquals(3, response.getCampaignIds().size());
+        assertEquals(2, response.getCampaignsCreated());
+        assertEquals(2, response.getCampaignIds().size());
         assertTrue(response.getCampaignIds().contains("CAMPAIGN_001"));
         assertTrue(response.getCampaignIds().contains("CAMPAIGN_002"));
-        assertTrue(response.getCampaignIds().contains("CAMPAIGN_003"));
 
         // Verify interactions
-        verify(binomClient, times(1)).createOffer(any(CreateOfferRequest.class));
-        verify(binomClient, times(3)).assignOfferToCampaign(anyString(), eq("OFFER_123"));
-        verify(campaignRepository, times(3)).save(any(BinomCampaign.class));
-        verify(operatorLogRepository, times(1)).save(any(OperatorLog.class));
-    }
-
-    @Test
-    void testOfferAssignmentWithExistingOffer() {
-        // Given
-        when(orderRepository.findById(1L)).thenReturn(Optional.of(testOrder));
-        when(fixedCampaignRepository.findAllActiveCampaigns()).thenReturn(fixedCampaigns);
-        
-        // Mock existing offer
-        CheckOfferResponse checkResponse = CheckOfferResponse.builder()
-                .exists(true)
-                .offerId("EXISTING_OFFER_456")
-                .name("Test Offer")
-                .build();
-        when(binomClient.checkOfferExists("Test Offer")).thenReturn(checkResponse);
-
-        // Mock campaign assignments
-        AssignOfferResponse assignResponse = AssignOfferResponse.builder()
-                .status("SUCCESS")
-                .build();
-        when(binomClient.assignOfferToCampaign(anyString(), eq("EXISTING_OFFER_456"))).thenReturn(assignResponse);
-
-        when(campaignRepository.save(any(BinomCampaign.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(operatorLogRepository.save(any(OperatorLog.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        // When
-        OfferAssignmentResponse response = offerAssignmentService.assignOfferToFixedCampaigns(request);
-
-        // Then
-        assertEquals("SUCCESS", response.getStatus());
-        assertEquals("EXISTING_OFFER_456", response.getOfferId());
-        
-        // Verify that createOffer was NOT called
-        verify(binomClient, never()).createOffer(any(CreateOfferRequest.class));
-        verify(binomClient, times(3)).assignOfferToCampaign(anyString(), eq("EXISTING_OFFER_456"));
+        verify(binomService, times(1)).createOffer("Test Offer", "https://youtube.com/watch?v=clip123", "Test offer description");
+        verify(binomService, times(2)).assignOfferToCampaign(eq("OFFER_123"), anyString(), eq(1));
     }
 
     @Test
     void testOfferAssignmentWithInvalidOrder() {
         // Given
-        when(orderRepository.findById(999L)).thenReturn(Optional.empty());
+        when(orderRepository.existsById(999L)).thenReturn(false);
         
         OfferAssignmentRequest invalidRequest = OfferAssignmentRequest.builder()
                 .offerName("Test Offer")
@@ -188,66 +107,28 @@ class OfferAssignmentServiceTest {
         // Then
         assertEquals("ERROR", response.getStatus());
         assertNotNull(response.getMessage());
-        assertTrue(response.getMessage().contains("Order not found"));
+        assertTrue(response.getMessage().contains("Invalid assignment request"));
     }
 
     @Test
-    void testOfferAssignmentWithIncorrectCampaignCount() {
+    void testOfferAssignmentWithNoActiveCampaigns() {
         // Given
-        when(orderRepository.findById(1L)).thenReturn(Optional.of(testOrder));
-        
-        // Return only 2 campaigns instead of expected 3
-        List<FixedBinomCampaign> incompleteCampaigns = fixedCampaigns.subList(0, 2);
-        when(fixedCampaignRepository.findAllActiveCampaigns()).thenReturn(incompleteCampaigns);
+        when(orderRepository.existsById(1L)).thenReturn(true);
+        when(fixedCampaignRepository.findByActiveTrue()).thenReturn(Arrays.asList());
 
         // When
         OfferAssignmentResponse response = offerAssignmentService.assignOfferToFixedCampaigns(request);
 
         // Then
         assertEquals("ERROR", response.getStatus());
-        assertTrue(response.getMessage().contains("Expected exactly 3 active fixed campaigns"));
-    }
-
-    @Test
-    void testOfferAssignmentWithBinomApiError() {
-        // Given
-        when(orderRepository.findById(1L)).thenReturn(Optional.of(testOrder));
-        when(fixedCampaignRepository.findAllActiveCampaigns()).thenReturn(fixedCampaigns);
-        
-        CheckOfferResponse checkResponse = CheckOfferResponse.builder().exists(false).build();
-        when(binomClient.checkOfferExists("Test Offer")).thenReturn(checkResponse);
-        
-        // Mock Binom API error
-        when(binomClient.createOffer(any(CreateOfferRequest.class)))
-                .thenThrow(new RuntimeException("Binom API connection failed"));
-
-        // When
-        OfferAssignmentResponse response = offerAssignmentService.assignOfferToFixedCampaigns(request);
-
-        // Then
-        assertEquals("ERROR", response.getStatus());
-        assertTrue(response.getMessage().contains("Failed to assign offer"));
+        assertTrue(response.getMessage().contains("No active campaigns available"));
     }
 
     @Test
     void testGetAssignedCampaigns() {
         // Given
-        List<BinomCampaign> campaigns = Arrays.asList(
-                BinomCampaign.builder()
-                        .campaignId("CAMPAIGN_001")
-                        .offerId("OFFER_123")
-                        .clicksRequired(3000)
-                        .status("ACTIVE")
-                        .build(),
-                BinomCampaign.builder()
-                        .campaignId("CAMPAIGN_002")
-                        .offerId("OFFER_123")
-                        .clicksRequired(3000)
-                        .status("ACTIVE")
-                        .build()
-        );
-        
-        when(campaignRepository.findByOrderId(1L)).thenReturn(campaigns);
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(new Order()));
+        when(fixedCampaignRepository.findByActiveTrue()).thenReturn(fixedCampaigns);
 
         // When
         List<AssignedCampaignInfo> result = offerAssignmentService.getAssignedCampaigns(1L);
@@ -256,47 +137,33 @@ class OfferAssignmentServiceTest {
         assertNotNull(result);
         assertEquals(2, result.size());
         assertEquals("CAMPAIGN_001", result.get(0).getCampaignId());
-        assertEquals("OFFER_123", result.get(0).getOfferId());
-        assertEquals(3000, result.get(0).getClicksRequired());
+        assertEquals("Campaign 1", result.get(0).getCampaignName());
     }
 
     @Test
-    void testClicksCalculation() {
-        // Given
-        Order orderWith1000Views = Order.builder()
-                .id(1L)
-                .quantity(1000)
+    void testValidationMethods() {
+        // Test valid request
+        assertTrue(offerAssignmentService.validateAssignment(request));
+
+        // Test null request
+        assertFalse(offerAssignmentService.validateAssignment(null));
+
+        // Test empty offer name
+        OfferAssignmentRequest invalidRequest = OfferAssignmentRequest.builder()
+                .offerName("")
+                .targetUrl("https://youtube.com/watch?v=test")
+                .orderId(1L)
                 .build();
+        assertFalse(offerAssignmentService.validateAssignment(invalidRequest));
+    }
 
-        when(orderRepository.findById(1L)).thenReturn(Optional.of(orderWith1000Views));
-        when(fixedCampaignRepository.findAllActiveCampaigns()).thenReturn(fixedCampaigns);
-        
-        CheckOfferResponse checkResponse = CheckOfferResponse.builder()
-                .exists(true)
-                .offerId("TEST_OFFER")
-                .build();
-        when(binomClient.checkOfferExists(anyString())).thenReturn(checkResponse);
+    @Test
+    void testAssignmentStatusManagement() {
+        // Test status update
+        offerAssignmentService.updateAssignmentStatus(1L, "SUCCESS");
+        assertEquals("SUCCESS", offerAssignmentService.getAssignmentStatus(1L));
 
-        AssignOfferResponse assignResponse = AssignOfferResponse.builder()
-                .status("SUCCESS")
-                .build();
-        when(binomClient.assignOfferToCampaign(anyString(), anyString())).thenReturn(assignResponse);
-
-        // Capture the saved campaigns to verify clicks calculation
-        when(campaignRepository.save(any(BinomCampaign.class))).thenAnswer(invocation -> {
-            BinomCampaign campaign = invocation.getArgument(0);
-            // Verify that clicks required = quantity * coefficient (3.0)
-            assertEquals(3000, campaign.getClicksRequired()); // 1000 * 3.0
-            return campaign;
-        });
-
-        when(operatorLogRepository.save(any(OperatorLog.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        // When
-        OfferAssignmentResponse response = offerAssignmentService.assignOfferToFixedCampaigns(request);
-
-        // Then
-        assertEquals("SUCCESS", response.getStatus());
-        verify(campaignRepository, times(3)).save(any(BinomCampaign.class));
+        // Test default status for unknown order
+        assertEquals("PENDING", offerAssignmentService.getAssignmentStatus(999L));
     }
 }

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.smmpanel.dto.balance.CurrencyConversionResultDtoTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2025-07-28T03:03:34" hostname="VALERIA" time="0.026">
+  <properties/>
+  <testcase name="fromParams_WithParams_SetsCorrectFields()" classname="com.smmpanel.dto.balance.CurrencyConversionResultDtoTest" time="0.0"/>
+  <testcase name="buildWithRates_WithRates_SetsCorrectFields()" classname="com.smmpanel.dto.balance.CurrencyConversionResultDtoTest" time="0.0"/>
+  <testcase name="equalsAndHashCode_WithSameValues_AreEqual()" classname="com.smmpanel.dto.balance.CurrencyConversionResultDtoTest" time="0.001"/>
+  <testcase name="equalsAndHashCode_WithDifferentValues_AreNotEqual()" classname="com.smmpanel.dto.balance.CurrencyConversionResultDtoTest" time="0.005"/>
+  <testcase name="builder_WithFormatFalse_ExcludesFormattedAmount()" classname="com.smmpanel.dto.balance.CurrencyConversionResultDtoTest" time="0.002"/>
+  <testcase name="builder_WithNullValues_DoesNotThrow()" classname="com.smmpanel.dto.balance.CurrencyConversionResultDtoTest" time="0.008"/>
+  <testcase name="builder_WithFormatTrue_IncludesFormattedAmount()" classname="com.smmpanel.dto.balance.CurrencyConversionResultDtoTest" time="0.002"/>
+  <testcase name="fromRequest_WithRequest_SetsCorrectFields()" classname="com.smmpanel.dto.balance.CurrencyConversionResultDtoTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

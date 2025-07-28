@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.smmpanel.service.order.OrderProcessingServiceTest" tests="2" skipped="0" failures="1" errors="0" timestamp="2025-07-28T03:03:41" hostname="VALERIA" time="0.55">
+  <properties/>
+  <testcase name="createOrder_WithValidRequest_ShouldCreateOrder()" classname="com.smmpanel.service.order.OrderProcessingServiceTest" time="0.54">
+    <failure message="com.smmpanel.exception.OrderValidationException: Invalid API key" type="com.smmpanel.exception.OrderValidationException">com.smmpanel.exception.OrderValidationException: Invalid API key
+	at app//com.smmpanel.service.OrderService.lambda$createOrderWithApiKey$0(OrderService.java:51)
+	at java.base@17.0.12/java.util.Optional.orElseThrow(Optional.java:403)
+	at app//com.smmpanel.service.OrderService.createOrderWithApiKey(OrderService.java:51)
+	at app//com.smmpanel.service.OrderService.createOrder(OrderService.java:331)
+	at app//com.smmpanel.service.OrderService.createOrder(OrderService.java:341)
+	at app//com.smmpanel.service.order.OrderProcessingServiceTest.createOrder_WithValidRequest_ShouldCreateOrder(OrderProcessingServiceTest.java:114)
+	at java.base@17.0.12/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base@17.0.12/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base@17.0.12/java.util.ArrayList.forEach(ArrayList.java:1511)
+</failure>
+  </testcase>
+  <testcase name="createOrder_WithValidationErrors_ShouldThrowException()" classname="com.smmpanel.service.order.OrderProcessingServiceTest" time="0.009"/>
+  <system-out><![CDATA["2025-07-28 06:03:41 [Test worker] INFO  com.smmpanel.service.OrderService - Creating order with API key for service: 1, quantity: 1000
+"
+"2025-07-28 06:03:41 [Test worker] ERROR com.smmpanel.service.OrderService - Failed to create order with API key: Invalid API key
+"
+"2025-07-28 06:03:41 [Test worker] INFO  com.smmpanel.service.OrderService - Creating order with API key for service: 1, quantity: 50
+"
+"2025-07-28 06:03:41 [Test worker] ERROR com.smmpanel.service.OrderService - Failed to create order with API key: Invalid API key
+"
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

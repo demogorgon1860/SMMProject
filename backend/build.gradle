@@ -5,6 +5,9 @@ plugins {
     id 'org.flywaydb.flyway' version '9.22.3'
 }
 
+// Apply performance testing configuration
+apply from: 'gradle/performance-testing.gradle'
+
 group = 'com.smmpanel'
 version = '1.0.0'
 sourceCompatibility = '17'
@@ -57,6 +60,11 @@ dependencies {
     implementation 'com.vladmihalcea:hibernate-types-60:2.21.1'
     implementation 'org.liquibase:liquibase-core'
     implementation 'org.springframework.data:spring-data-jpa'
+    
+    // Hibernate Second Level Cache (EhCache)
+    implementation 'org.hibernate:hibernate-jcache:6.4.1.Final'
+    implementation 'org.ehcache:ehcache:3.10.8'
+    implementation 'javax.cache:cache-api:1.1.1'
     
     // JWT - FIXED VERSION
     implementation 'io.jsonwebtoken:jjwt-api:0.12.3'

@@ -18,6 +18,8 @@ import java.math.BigDecimal;
 public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
     Optional<User> findByUsername(String username);
     Optional<User> findByEmail(String email);
+    // DEPRECATED: Use findByApiKeyHashAndIsActiveTrue instead for better performance
+    @Deprecated
     @Query("SELECT u FROM User u WHERE u.apiKeyHash = :apiKeyHash")
     Optional<User> findByApiKeyHash(@Param("apiKeyHash") String apiKeyHash);
     boolean existsByUsername(String username);
@@ -27,8 +29,9 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     @Query("SELECT u FROM User u WHERE u.balance > 0 AND u.isActive = true")
     List<User> findActiveUsersWithBalance();
 
-    @Query("SELECT u FROM User u WHERE u.apiKeyHash = :apiKeyHash AND u.isActive = true")
-    Optional<User> findByApiKeyHashAndIsActiveTrue(@Param("apiKeyHash") String apiKeyHash);
+    // OPTIMIZED: Uses partial index idx_users_api_key_hash_active for better performance
+    @Query("SELECT u FROM User u WHERE u.apiKeyHash = :hash AND u.isActive = true")
+    Optional<User> findByApiKeyHashAndIsActiveTrue(@Param("hash") String hash);
 
     // ADDED: Missing custom query methods
     @Query("SELECT u FROM User u WHERE " +
@@ -56,7 +59,7 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
            "(:role IS NULL OR u.role = :role) AND " +
            "(:active IS NULL OR u.isActive = :active) AND " +
            "(:minBalance IS NULL OR u.balance >= :minBalance)")
-    Page<User> findUsersWithFilters(
+    Page<User> findUsersByRoleActiveBalance(
         @Param("role") UserRole role,
         @Param("active") Boolean active,
         @Param("minBalance") BigDecimal minBalance,

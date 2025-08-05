@@ -4,14 +4,17 @@ import com.smmpanel.entity.User;
 import com.smmpanel.exception.ApiException;
 import com.smmpanel.exception.ResourceNotFoundException;
 import com.smmpanel.repository.UserRepository;
+import com.smmpanel.service.security.AuthenticationRateLimitService;
 import com.smmpanel.util.ApiKeyGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.MessageDigest;
 import java.time.LocalDateTime;
 
 /**
@@ -26,6 +29,10 @@ public class ApiKeyService {
     private final UserRepository userRepository;
     private final ApiKeyGenerator apiKeyGenerator;
     private final PasswordEncoder passwordEncoder;
+    private final AuthenticationRateLimitService rateLimitService;
+
+    @Value("${app.security.api-key.global-salt:smm-panel-secure-salt-2024}")
+    private String globalSalt;
 
     /**
      * Generates a new API key for a user.
@@ -137,17 +144,87 @@ public class ApiKeyService {
     }
 
     /**
-     * Hash API key for database lookup (without salt for performance)
-     * This is used for initial database lookup, then proper salted verification is done
+     * SECURITY ENHANCED: Hash API key for database lookup using global salt
+     * This prevents rainbow table attacks while maintaining lookup performance
      * @param apiKey The API key to hash for lookup
      * @return The hashed API key for database lookup
      */
     public String hashApiKeyForLookup(String apiKey) {
         try {
-            return apiKeyGenerator.hashApiKey(apiKey, ""); // Empty salt for lookup
+            // Use global salt for consistent lookup hashing
+            return apiKeyGenerator.hashApiKey(apiKey, globalSalt);
         } catch (Exception e) {
             log.error("Error hashing API key for lookup: {}", e.getMessage());
             throw new RuntimeException("Failed to hash API key for lookup", e);
         }
+    }
+
+    /**
+     * SECURITY ENHANCED: Validates an API key with rate limiting and constant-time comparison
+     * Used in authentication filters to avoid blocking the hot path
+     * @param apiKey The API key to validate
+     * @param apiKeyHash The stored hash to validate against
+     * @param apiKeySalt The salt used for hashing
+     * @param clientIdentifier Identifier for rate limiting (IP or API key prefix)
+     * @return true if the API key is valid, false otherwise
+     */
+    public boolean verifyApiKeyOnly(String apiKey, String apiKeyHash, String apiKeySalt, String clientIdentifier) {
+        // Check rate limiting first
+        if (rateLimitService.isRateLimited(clientIdentifier)) {
+            log.warn("API key validation blocked due to rate limiting for identifier: {}", 
+                maskString(clientIdentifier));
+            return false;
+        }
+
+        if (apiKeyHash == null || apiKeySalt == null) {
+            rateLimitService.recordFailedAttempt(clientIdentifier);
+            return false;
+        }
+        
+        try {
+            boolean isValid = apiKeyGenerator.verifyApiKey(apiKey, apiKeyHash, apiKeySalt);
+            
+            if (isValid) {
+                rateLimitService.recordSuccessfulAttempt(clientIdentifier);
+                log.debug("API key validation successful for identifier: {}", maskString(clientIdentifier));
+            } else {
+                rateLimitService.recordFailedAttempt(clientIdentifier);
+                log.warn("API key validation failed for identifier: {}", maskString(clientIdentifier));
+            }
+            
+            return isValid;
+        } catch (Exception e) {
+            log.error("Error verifying API key for identifier: {}", maskString(clientIdentifier), e);
+            rateLimitService.recordFailedAttempt(clientIdentifier);
+            return false;
+        }
+    }
+
+    /**
+     * BACKWARD COMPATIBILITY: Validates an API key without rate limiting
+     * @deprecated Use verifyApiKeyOnly(apiKey, hash, salt, identifier) for enhanced security
+     */
+    @Deprecated
+    public boolean verifyApiKeyOnly(String apiKey, String apiKeyHash, String apiKeySalt) {
+        if (apiKeyHash == null || apiKeySalt == null) {
+            return false;
+        }
+        
+        try {
+            return apiKeyGenerator.verifyApiKey(apiKey, apiKeyHash, apiKeySalt);
+        } catch (Exception e) {
+            log.error("Error verifying API key: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Utility method to safely mask strings for logging
+     */
+    private String maskString(String input) {
+        if (input == null || input.length() <= 4) {
+            return "[masked]";
+        }
+        return input.substring(0, 2) + "***" + input.substring(input.length() - 2);
     }
 }

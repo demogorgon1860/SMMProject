@@ -1,0 +1,169 @@
+# Development Environment Configuration
+# Optimized for development with detailed Hibernate monitoring and debugging
+
+spring:
+  # ===============================
+  # DEVELOPMENT JPA/HIBERNATE CONFIG
+  # ===============================
+  jpa:
+    # Enable SQL logging for development
+    show-sql: true
+    properties:
+      hibernate:
+        # Enhanced SQL formatting and logging
+        format_sql: true
+        use_sql_comments: true
+        highlight_sql: true
+        
+        # ===============================
+        # DEVELOPMENT STATISTICS
+        # ===============================
+        generate_statistics: true
+        session:
+          events:
+            log:
+              LOG_QUERIES_SLOWER_THAN_MS: 50  # Log queries slower than 50ms
+        
+        # ===============================
+        # OPTIMIZED BATCH CONFIGURATION
+        # ===============================
+        jdbc:
+          batch_size: 50  # Larger batch size for development
+          batch_versioned_data: true
+          fetch_size: 100  # Larger fetch size for development
+          time_zone: UTC
+          
+        # ===============================
+        # ENHANCED QUERY OPTIMIZATION
+        # ===============================
+        default_batch_fetch_size: 32  # Larger batch fetch for development
+        max_fetch_depth: 4
+        
+        # ===============================
+        # QUERY PLAN CACHING (DEVELOPMENT)
+        # ===============================
+        query:
+          plan_cache_max_size: 4096  # Larger cache for development
+          plan_parameter_metadata_max_size: 256
+          in_clause_parameter_padding: true  # Optimize IN clause queries
+          
+        # ===============================
+        # SECOND LEVEL CACHE (DEVELOPMENT)
+        # ===============================
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+          # Development cache settings
+          default_cache_concurrency_strategy: read_write
+          
+        # ===============================
+        # DEVELOPMENT MONITORING
+        # ===============================
+        session_factory:
+          statement_inspector: com.smmpanel.config.HibernateStatementInspector
+        
+        # ===============================
+        # DEVELOPMENT DEBUGGING
+        # ===============================
+        type:
+          descriptor:
+            sql:
+              BasicBinder: TRACE  # Log SQL parameter bindings
+        
+        # Additional development optimizations
+        temp:
+          use_jdbc_metadata_defaults: false
+        auto_quote_keyword: true
+        globally_quoted_identifiers: false
+
+# ===============================
+# DEVELOPMENT LOGGING CONFIGURATION
+# ===============================
+logging:
+  level:
+    # Enhanced Hibernate logging for development
+    org.hibernate: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.stat: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.hibernate.type.descriptor.sql.BasicExtractor: TRACE
+    org.hibernate.engine.QueryParameters: DEBUG
+    org.hibernate.engine.query.HQLQueryPlan: DEBUG
+    org.hibernate.hql.internal.ast.ASTQueryTranslatorFactory: DEBUG
+    org.hibernate.cache: DEBUG
+    org.hibernate.engine.StatefulPersistenceContext.ProxyWarnLog: WARN
+    
+    # Connection pool logging
+    com.zaxxer.hikari: DEBUG
+    com.zaxxer.hikari.HikariConfig: DEBUG
+    
+    # Transaction logging
+    org.springframework.orm.jpa: DEBUG
+    org.springframework.transaction: DEBUG
+    
+    # Application-specific logging
+    com.smmpanel: DEBUG
+    com.smmpanel.config.HibernateStatementInspector: DEBUG
+    
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"
+
+# ===============================
+# DEVELOPMENT CACHE CONFIGURATION
+# ===============================
+app:
+  cache:
+    # Enhanced cache TTL for development
+    services:
+      ttl: 1800  # 30 minutes for development
+    users:
+      ttl: 900   # 15 minutes for development
+    conversion-coefficients:
+      ttl: 3600  # 1 hour for development
+    youtube-stats:
+      ttl: 180   # 3 minutes for development
+
+# ===============================
+# DEVELOPMENT MONITORING
+# ===============================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: >
+          health,info,metrics,prometheus,loggers,hibernate,
+          caches,flyway,beans,conditions,configprops,env,mappings
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+    hibernate:
+      enabled: true
+      cache:
+        time-to-live: 10s
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+        step: 10s
+    enable:
+      hibernate: true
+      jvm: true
+      process: true
+      system: true
+
+# ===============================
+# DEVELOPMENT PERFORMANCE MONITORING
+# ===============================
+hibernate:
+  # Development-specific Hibernate monitoring
+  statistics:
+    # Enable comprehensive statistics collection
+    enabled: true
+    # Log statistics every 100 operations
+    log_summary_on_startup: true
+    # Format statistics output
+    format_sql: true

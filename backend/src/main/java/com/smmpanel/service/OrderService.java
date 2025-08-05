@@ -13,6 +13,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -41,7 +43,10 @@ public class OrderService {
     /**
      * CRITICAL: Create order with API key (Perfect Panel compatibility)
      */
-    @Transactional
+    @Transactional(isolation = Isolation.REPEATABLE_READ, 
+                   propagation = Propagation.REQUIRED,
+                   timeout = 30,
+                   rollbackFor = Exception.class)
     public OrderResponse createOrderWithApiKey(CreateOrderRequest request, String apiKey) {
         try {
             log.info("Creating order with API key for service: {}, quantity: {}", request.getService(), request.getQuantity());
@@ -67,12 +72,7 @@ public class OrderService {
             // 4. Calculate charge
             BigDecimal charge = calculateCharge(service, request.getQuantity());
 
-            // 5. Check balance
-            if (user.getBalance().compareTo(charge) < 0) {
-                throw new InsufficientBalanceException("Insufficient balance. Required: " + charge + ", Available: " + user.getBalance());
-            }
-
-            // 6. Create order
+            // 5. Create order first (optimistic approach)
             Order order = new Order();
             order.setUser(user);
             order.setService(service);
@@ -88,8 +88,15 @@ public class OrderService {
 
             order = orderRepository.save(order);
 
-            // 7. Deduct balance
-            balanceService.deductBalance(user, charge, order, "Order payment for service " + service.getName());
+            // 6. Atomically check and deduct balance (prevents race conditions)
+            boolean balanceDeducted = balanceService.checkAndDeductBalance(user, charge, order, 
+                "Order payment for service " + service.getName());
+            
+            if (!balanceDeducted) {
+                // Clean up the order if balance deduction failed
+                orderRepository.delete(order);
+                throw new InsufficientBalanceException("Insufficient balance. Required: " + charge);
+            }
 
             // 8. Send to processing queue
             kafkaTemplate.send("smm.youtube.processing", order.getId());

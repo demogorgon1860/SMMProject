@@ -3,6 +3,9 @@ package com.smmpanel.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.Cache;
+import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.security.core.GrantedAuthority;
@@ -38,6 +41,7 @@ import java.util.List;
     @Index(name = "idx_users_last_login", columnList = "last_login_at"),
     @Index(name = "idx_users_last_api_access", columnList = "last_api_access_at")
 })
+@Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -148,11 +152,16 @@ public class User implements UserDetails {
     /**
      * PERFORMANCE IMPROVEMENT: Lazy loading relationships to prevent N+1 queries
      * Orders will only be loaded when explicitly accessed
+     * BatchSize optimization for efficient collection loading
      */
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @BatchSize(size = 25)
+    @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
     private List<Order> orders;
 
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @BatchSize(size = 20)
+    @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
     private List<BalanceTransaction> balanceTransactions;
 
     // Spring Security UserDetails implementation

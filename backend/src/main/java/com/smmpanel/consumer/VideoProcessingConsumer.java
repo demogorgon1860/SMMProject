@@ -29,8 +29,8 @@ public class VideoProcessingConsumer {
      */
     @KafkaListener(
         topics = "smm.video.processing",
-        groupId = "video-processing-group",
-        containerFactory = "kafkaListenerContainerFactory"
+        groupId = "smm-video-processing-group",
+        containerFactory = "highThroughputKafkaListenerContainerFactory"
     )
     @Retryable(value = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 5000))
     public void handleVideoProcessing(

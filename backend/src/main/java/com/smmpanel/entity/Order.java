@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -76,10 +77,8 @@ public class Order {
     @Column(name = "order_id", unique = true, length = 50)
     private String orderId;
 
-    @OneToOne(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private BinomCampaign binomCampaign;
-
     @OneToMany(mappedBy = "order", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @BatchSize(size = 10)
     private List<BinomCampaign> binomCampaigns;
 
     @OneToOne(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
@@ -91,6 +90,48 @@ public class Order {
 
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
+
+    // ERROR RECOVERY TRACKING FIELDS
+    @Column(name = "retry_count")
+    @Builder.Default
+    private Integer retryCount = 0;
+
+    @Column(name = "max_retries")
+    @Builder.Default
+    private Integer maxRetries = 3;
+
+    @Column(name = "last_error_type", length = 100)
+    private String lastErrorType;
+
+    @Column(name = "last_retry_at")
+    private LocalDateTime lastRetryAt;
+
+    @Column(name = "next_retry_at")
+    private LocalDateTime nextRetryAt;
+
+    @Column(name = "failure_reason", columnDefinition = "TEXT")
+    private String failureReason;
+
+    @Column(name = "error_stack_trace", columnDefinition = "TEXT")
+    private String errorStackTrace;
+
+    @Column(name = "failed_phase", length = 50)
+    private String failedPhase;
+
+    @Column(name = "is_manually_failed")
+    @Builder.Default
+    private Boolean isManuallyFailed = false;
+
+    @Column(name = "operator_notes", columnDefinition = "TEXT")
+    private String operatorNotes;
+
+    /**
+     * Optimistic locking version counter - incremented on each update
+     * Prevents concurrent modification issues during order processing
+     */
+    @Version
+    @Column(name = "version")
+    private Long version;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

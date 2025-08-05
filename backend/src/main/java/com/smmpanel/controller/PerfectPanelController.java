@@ -121,6 +121,7 @@ public class PerfectPanelController {
 
     /**
      * CRITICAL: Order status - MUST return Perfect Panel compatible format
+     * OPTIMIZED: Uses optimized repository query to prevent N+1 issues
      */
     private ResponseEntity<Object> handleOrderStatus(User user, Long orderId) {
         if (orderId == null) {
@@ -130,7 +131,8 @@ public class PerfectPanelController {
         }
 
         try {
-            OrderResponse order = orderService.getOrder(orderId, user.getUsername());
+            // OPTIMIZED: Uses optimized service method
+            OrderResponse order = orderService.getOrderOptimized(orderId, user.getUsername());
 
             // CRITICAL: Perfect Panel status response format
             return ResponseEntity.ok(Map.of(
@@ -151,10 +153,12 @@ public class PerfectPanelController {
 
     /**
      * CRITICAL: Get services - MUST return Perfect Panel compatible format
+     * OPTIMIZED: Uses cached services to avoid repeated database queries
      */
     private ResponseEntity<Object> handleGetServices(User user) {
         try {
-            List<Map<String, Object>> services = serviceService.getAllActiveServices()
+            // OPTIMIZED: Uses service method that implements caching
+            List<Map<String, Object>> services = serviceService.getAllActiveServicesCached()
                     .stream()
                     .map(service -> {
                         Map<String, Object> serviceMap = new HashMap<>();
@@ -214,18 +218,30 @@ public class PerfectPanelController {
             String[] ids = orderIds.split(",");
             Map<String, Object> results = new HashMap<>();
             
+            // OPTIMIZED: Batch fetch orders to prevent N+1 queries
+            List<Long> orderIds = Arrays.stream(ids)
+                    .map(String::trim)
+                    .map(Long::valueOf)
+                    .collect(Collectors.toList());
+            
+            Map<Long, OrderResponse> orderMap = orderService.getOrdersBatchOptimized(orderIds, user.getUsername());
+            
             for (String idStr : ids) {
                 try {
                     Long orderId = Long.valueOf(idStr.trim());
-                    OrderResponse order = orderService.getOrder(orderId, user.getUsername());
+                    OrderResponse order = orderMap.get(orderId);
                     
-                    results.put(idStr, Map.of(
-                        "charge", order.getCharge(),
-                        "start_count", order.getStartCount() != null ? order.getStartCount() : 0,
-                        "status", mapToPerfectPanelStatus(order.getStatus()),
-                        "remains", order.getRemains(),
-                        "currency", "USD"
-                    ));
+                    if (order != null) {
+                        results.put(idStr, Map.of(
+                            "charge", order.getCharge(),
+                            "start_count", order.getStartCount() != null ? order.getStartCount() : 0,
+                            "status", mapToPerfectPanelStatus(order.getStatus()),
+                            "remains", order.getRemains(),
+                            "currency", "USD"
+                        ));
+                    } else {
+                        results.put(idStr, Map.of("error", "Order not found"));
+                    }
                 } catch (Exception e) {
                     results.put(idStr, Map.of("error", e.getMessage()));
                 }
@@ -301,8 +317,8 @@ public class PerfectPanelController {
             throw new ApiException("API key is required");
         }
 
-        // Find user by API key hash
-        User user = userRepository.findByApiKeyHash(apiKey)
+        // Find active user by API key hash (optimized query)
+        User user = userRepository.findByApiKeyHashAndIsActiveTrue(apiKey)
                 .orElseThrow(() -> new ApiException("Invalid API key"));
 
         // Validate the API key

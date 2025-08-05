@@ -93,6 +93,7 @@ public class OrderController {
 
     /**
      * Get user's orders with pagination and filtering
+     * OPTIMIZED: Uses repository methods with JOIN FETCH to prevent N+1 queries
      */
     @GetMapping
     @Operation(
@@ -133,7 +134,8 @@ public class OrderController {
         Sort.Direction sortDirection = Sort.Direction.fromString(direction);
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sort));
         
-        Page<OrderResponse> orders = orderService.getUserOrders(principal.getName(), status, pageable);
+        // OPTIMIZED: Uses optimized service method that prevents N+1 queries
+        Page<OrderResponse> orders = orderService.getUserOrdersOptimized(principal.getName(), status, pageable);
         
         PerfectPanelResponse<Page<OrderResponse>> response = PerfectPanelResponse.<Page<OrderResponse>>builder()
                 .data(orders)
@@ -146,6 +148,7 @@ public class OrderController {
 
     /**
      * Get specific order by ID
+     * OPTIMIZED: Uses repository method with JOIN FETCH to prevent N+1 queries
      */
     @GetMapping("/{id}")
     @Operation(
@@ -159,7 +162,8 @@ public class OrderController {
             Long id,
             Principal principal) {
 
-        OrderResponse order = orderService.getOrder(id, principal.getName());
+        // OPTIMIZED: Uses optimized service method that fetches all relations in one query
+        OrderResponse order = orderService.getOrderOptimized(id, principal.getName());
         
         PerfectPanelResponse<OrderResponse> response = PerfectPanelResponse.<OrderResponse>builder()
                 .data(order)

@@ -3,6 +3,8 @@ package com.smmpanel.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.annotations.Cache;
+import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -17,6 +19,7 @@ import java.time.LocalDateTime;
     @Index(name = "idx_services_geo_targeting", columnList = "geo_targeting"),
     @Index(name = "idx_services_created_at", columnList = "created_at")
 })
+@Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

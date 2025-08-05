@@ -39,6 +39,7 @@ public class KafkaConfig {
 
     private final ObjectMapper objectMapper;
     private final KafkaErrorHandlerConfig errorHandlerConfig;
+    private final KafkaConsumerErrorConfiguration consumerErrorConfiguration;
 
     // ===============================
     // TOPIC DEFINITIONS - FIXED NAMES
@@ -387,9 +388,64 @@ public class KafkaConfig {
         factory.setConcurrency(3);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
         factory.getContainerProperties().setSyncCommits(true);
+        factory.getContainerProperties().setPollTimeout(3000L);
         
-        // Configure error handler with DLQ
-        factory.setCommonErrorHandler(errorHandlerConfig.createErrorHandler());
+        // Configure enhanced error handler with comprehensive retry and DLQ support
+        factory.setCommonErrorHandler(consumerErrorConfiguration.defaultKafkaErrorHandler());
+        return factory;
+    }
+
+    /**
+     * Specialized container factory for dead letter queue processing
+     */
+    @Bean("deadLetterQueueKafkaListenerContainerFactory")
+    public ConcurrentKafkaListenerContainerFactory<String, Object> deadLetterQueueKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, Object> factory = 
+            new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(consumerFactory());
+        factory.setConcurrency(1); // DLQ processing should be single-threaded
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        factory.getContainerProperties().setSyncCommits(true);
+        factory.getContainerProperties().setPollTimeout(5000L);
+        
+        // Use specialized DLQ error handler
+        factory.setCommonErrorHandler(consumerErrorConfiguration.deadLetterQueueErrorHandler());
+        return factory;
+    }
+
+    /**
+     * High priority container factory for critical processing
+     */
+    @Bean("highPriorityKafkaListenerContainerFactory")
+    public ConcurrentKafkaListenerContainerFactory<String, Object> highPriorityKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, Object> factory = 
+            new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(consumerFactory());
+        factory.setConcurrency(5); // More threads for high priority
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        factory.getContainerProperties().setSyncCommits(true);
+        factory.getContainerProperties().setPollTimeout(1000L); // Faster polling
+        
+        // Use high priority error handler
+        factory.setCommonErrorHandler(consumerErrorConfiguration.highPriorityErrorHandler());
+        return factory;
+    }
+
+    /**
+     * Order processing container factory with business logic error handling
+     */
+    @Bean("orderProcessingKafkaListenerContainerFactory") 
+    public ConcurrentKafkaListenerContainerFactory<String, Object> orderProcessingKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, Object> factory = 
+            new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(consumerFactory());
+        factory.setConcurrency(3);
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        factory.getContainerProperties().setSyncCommits(true);
+        factory.getContainerProperties().setPollTimeout(3000L);
+        
+        // Use order-specific error handler
+        factory.setCommonErrorHandler(consumerErrorConfiguration.orderProcessingErrorHandler());
         return factory;
     }
 

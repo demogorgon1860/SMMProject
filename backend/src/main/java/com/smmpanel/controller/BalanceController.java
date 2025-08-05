@@ -107,6 +107,7 @@ public class BalanceController {
 
     /**
      * Get transaction history with pagination
+     * OPTIMIZED: Uses repository methods with JOIN FETCH to prevent N+1 queries
      * @param currentUser The authenticated user
      * @param page Page number (0-based)
      * @param size Number of items per page
@@ -121,15 +122,16 @@ public class BalanceController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "" + DEFAULT_PAGE_SIZE) int size) {
 
-        Page<BalanceTransaction> transactions = balanceService.getTransactionHistory(
+        // OPTIMIZED: Uses optimized service method that fetches with relations
+        Page<BalanceTransaction> transactions = balanceService.getTransactionHistoryOptimized(
                 currentUser.getId(),
                 page,
                 size
         );
 
-        // Map to DTO
-        Page<TransactionResponse> response = transactions.map(transaction ->
-                TransactionResponse.fromEntity(transaction)
+        // OPTIMIZED: Map to DTO using optimized method that assumes relations are fetched
+        Page<TransactionResponse> response = transactions.map(
+                TransactionResponse::fromEntityWithFetchedRelations
         );
 
         return ResponseEntity.ok(ApiResponse.success(response));

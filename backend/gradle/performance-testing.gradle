@@ -1,0 +1,55 @@
+/**
+ * Performance testing configuration for Hibernate optimization tests
+ * Adds custom tasks to run performance tests and generate reports
+ */
+
+// Task to run only performance tests
+tasks.register('performanceTest', Test) {
+    description = 'Run query performance tests'
+    group = 'verification'
+    
+    // Use test profile for performance testing
+    systemProperty 'spring.profiles.active', 'test'
+    systemProperty 'spring.jpa.show-sql', 'true'
+    systemProperty 'spring.jpa.properties.hibernate.format_sql', 'true'
+    systemProperty 'spring.jpa.properties.hibernate.generate_statistics', 'true'
+    
+    // Include performance test packages
+    include '**/*Performance*Test*'
+    include '**/cache/**'
+    include '**/performance/**'
+    
+    // Exclude regular tests to focus on performance
+    exclude '**/controller/**'
+    exclude '**/dto/**'
+    exclude '**/util/**'
+    
+    // Configure test execution
+    maxHeapSize = '1g'
+    jvmArgs = [
+        '-XX:+PrintGC',
+        '-XX:+PrintGCTimeStamps',
+        '-Dhibernate.generate_statistics=true',
+        '-Dhibernate.session.events.log=true'
+    ]
+    
+    // Configure test reporting
+    testLogging {
+        events "passed", "skipped", "failed"
+        exceptionFormat "full"
+        showStandardStreams = true
+    }
+    
+    // Ensure clean state for each performance test run
+    dependsOn 'cleanTest'
+}
+
+// Configure test task dependencies
+test {
+    // Don't run performance tests as part of regular test suite
+    exclude '**/performance/**'
+    exclude '**/*PerformanceTest*'
+}
+
+// Add performance testing to check task
+// check.dependsOn performanceTest

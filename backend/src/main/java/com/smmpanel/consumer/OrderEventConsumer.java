@@ -7,17 +7,22 @@ import com.smmpanel.event.OrderStatusChangedEvent;
 import com.smmpanel.producer.OrderEventProducer;
 import com.smmpanel.repository.OrderRepository;
 import com.smmpanel.service.BinomService;
+import com.smmpanel.service.MessageProcessingService;
+import com.smmpanel.service.MessageProcessingService.ProcessingResult;
 import com.smmpanel.service.YouTubeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Order Event Consumer
@@ -32,51 +37,46 @@ public class OrderEventConsumer {
     private final YouTubeService youTubeService;
     private final BinomService binomService;
     private final OrderEventProducer orderEventProducer;
+    private final MessageProcessingService messageProcessingService;
 
     /**
-     * Process order created events
+     * Process order created events with comprehensive error handling and idempotency
      */
     @KafkaListener(
-        topics = "smm.order.processing",
-        groupId = "order-processing-group",
-        containerFactory = "kafkaListenerContainerFactory"
+        topics = "smm.order.processing", 
+        groupId = "smm-order-processing-group",
+        containerFactory = "orderProcessingConsumerGroupFactory"
     )
-    @Transactional
     public void processOrderCreatedEvent(
             @Payload OrderCreatedEvent event,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
-            @Header(KafkaHeaders.OFFSET) long offset) {
+            @Header(KafkaHeaders.OFFSET) long offset,
+            Acknowledgment acknowledgment) {
         
-        log.info("Processing order created event: orderId={}, userId={}, topic={}, partition={}, offset={}", 
-                event.getOrderId(), event.getUserId(), topic, partition, offset);
+        // Generate unique message ID for idempotency
+        String messageId = generateMessageId("order-created", event.getOrderId(), event.getTimestamp());
         
-        try {
-            Optional<Order> orderOpt = orderRepository.findById(event.getOrderId());
-            if (orderOpt.isEmpty()) {
-                log.error("Order not found: orderId={}", event.getOrderId());
-                return;
-            }
-            
-            Order order = orderOpt.get();
-            
-            // Step 1: Verify YouTube video exists and get start_count
-            processYouTubeVerification(order);
-            
-            // Step 2: Update order status to PROCESSING
-            updateOrderStatus(order, OrderStatus.PROCESSING);
-            
-            // Step 3: Create Binom campaign
-            processBinomCampaignCreation(order);
-            
-            // Step 4: Update order status to ACTIVE
-            updateOrderStatus(order, OrderStatus.ACTIVE);
-            
-            log.info("Successfully processed order: orderId={}", event.getOrderId());
-            
-        } catch (Exception e) {
-            log.error("Failed to process order created event: orderId={}", event.getOrderId(), e);
-            throw e; // Let Kafka retry or send to DLQ
+        log.info("Processing order created event: orderId={}, userId={}, messageId={}, topic={}, partition={}, offset={}", 
+                event.getOrderId(), event.getUserId(), messageId, topic, partition, offset);
+        
+        // Process with comprehensive error handling and idempotency
+        ProcessingResult result = messageProcessingService.processMessageWithRetry(
+                event, 
+                messageId, 
+                topic, 
+                partition, 
+                offset, 
+                acknowledgment,
+                this::processOrderCreatedEventInternal
+        );
+        
+        if (result.isSuccess()) {
+            log.info("Successfully processed order created event: orderId={}, messageId={}", 
+                    event.getOrderId(), messageId);
+        } else if (!result.isDuplicate()) {
+            log.error("Failed to process order created event: orderId={}, messageId={}, error={}", 
+                    event.getOrderId(), messageId, result.getErrorMessage());
         }
     }
 

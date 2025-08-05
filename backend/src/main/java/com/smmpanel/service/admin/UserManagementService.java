@@ -44,7 +44,7 @@ public class UserManagementService {
      * Get paginated users with optional filters
      */
     public Page<UserDto> getUsers(UserRole role, Boolean active, BigDecimal minBalance, Pageable pageable) {
-        Page<User> users = userRepository.findUsersWithFilters(role, active, minBalance, pageable);
+        Page<User> users = userRepository.findUsersByRoleActiveBalance(role, active, minBalance, pageable);
         return users.map(this::mapToUserDto);
     }
 

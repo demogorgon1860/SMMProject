@@ -1,0 +1,30 @@
+# Kafka Consumer Memory Configuration
+kafka.consumer.memory:
+  # Buffer sizes
+  fetch-max-bytes: 52428800  # 50MB
+  max-partition-fetch-bytes: 1048576  # 1MB
+  send-buffer-bytes: 131072  # 128KB
+  receive-buffer-bytes: 262144  # 256KB
+  max-request-size: 104857600  # 100MB
+  buffer-size: 67108864  # 64MB
+  max-poll-records: 500
+
+  # JVM Heap Settings
+  heap:
+    initial-size: 1g
+    max-size: 4g
+    young-gen-size: 256m
+    use-g1gc: true
+    g1-new-size-percent: 20
+    g1-max-new-size-percent: 60
+    initiating-heap-occupancy-percent: 45
+
+# Prometheus monitoring endpoints
+management.endpoints.web.exposure.include: metrics,prometheus
+management.metrics.export.prometheus.enabled: true
+
+# Memory monitoring settings
+memory.monitoring:
+  enabled: true
+  alert-threshold-percent: 85
+  metrics-update-interval-ms: 5000

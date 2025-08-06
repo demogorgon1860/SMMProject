@@ -1,0 +1,44 @@
+# Kafka Consumer JVM Options
+# Place these in KAFKA_JVM_PERFORMANCE_OPTS environment variable
+
+# Memory settings
+-Xms1g
+-Xmx4g
+-XX:MaxMetaspaceSize=256m
+-XX:MetaspaceSize=128m
+
+# G1GC Settings
+-XX:+UseG1GC
+-XX:MaxGCPauseMillis=200
+-XX:G1HeapRegionSize=8m
+-XX:G1ReservePercent=20
+-XX:G1NewSizePercent=40
+-XX:G1MaxNewSizePercent=60
+-XX:InitiatingHeapOccupancyPercent=45
+-XX:G1MixedGCLiveThresholdPercent=85
+-XX:G1HeapWastePercent=5
+
+# GC Logging
+-Xlog:gc*=info:file=logs/kafka-consumer-gc-%t.log:time,uptime,level,tags:filecount=7,filesize=50M
+
+# Memory Leak Detection
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=logs/kafka-consumer-heap-dump.hprof
+-XX:+ExitOnOutOfMemoryError
+
+# Performance Optimization
+-XX:+OptimizeStringConcat
+-XX:+UseStringDeduplication
+-XX:+UseCompressedOops
+-XX:+UseCompressedClassPointers
+
+# Thread Stack Size
+-Xss512k
+
+# Large Page Support
+-XX:+UseLargePages
+-XX:LargePageSizeInBytes=2m
+
+# Network Settings
+-Djava.net.preferIPv4Stack=true
+-Dsun.net.inetaddr.ttl=30

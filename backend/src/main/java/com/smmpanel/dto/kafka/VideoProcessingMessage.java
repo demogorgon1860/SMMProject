@@ -23,6 +23,20 @@ import java.util.Map;
 public class VideoProcessingMessage {
 
     /**
+     * Unique message identifier for idempotency
+     */
+    @NotNull
+    @JsonProperty("messageId")
+    private String messageId;
+
+    /**
+     * Message timestamp for idempotency tracking
+     */
+    @NotNull
+    @JsonProperty("timestamp")
+    private LocalDateTime timestamp;
+
+    /**
      * Unique identifier for the order being processed
      */
     @NotNull

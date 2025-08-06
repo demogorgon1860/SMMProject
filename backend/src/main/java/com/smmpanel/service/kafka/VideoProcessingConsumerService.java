@@ -5,6 +5,8 @@ import com.smmpanel.service.YouTubeAutomationService;
 import com.smmpanel.service.OrderStateManagementService;
 import com.smmpanel.service.ErrorRecoveryService;
 import com.smmpanel.service.DeadLetterQueueService;
+import com.smmpanel.service.monitoring.MemoryMonitoringService;
+import com.smmpanel.config.KafkaConsumerMemoryConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,8 +19,11 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StopWatch;
 
+import jakarta.annotation.PostConstruct;
 import java.time.LocalDateTime;
 import java.util.concurrent.atomic.AtomicLong;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
 
 /**
  * KAFKA CONSUMER SERVICE: Video Processing Message Queue
@@ -28,6 +33,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * 2. Error handling and retry logic
  * 3. Performance monitoring and metrics
  * 4. Dead letter queue handling for failed messages
+ * 5. Memory usage monitoring and management
  */
 @Slf4j
 @Service
@@ -39,6 +45,8 @@ public class VideoProcessingConsumerService {
     private final OrderStateManagementService orderStateManagementService;
     private final ErrorRecoveryService errorRecoveryService;
     private final DeadLetterQueueService deadLetterQueueService;
+    private final MemoryMonitoringService memoryMonitoringService;
+    private final KafkaConsumerMemoryConfig memoryConfig;
 
     @Value("${app.kafka.video-processing.consumer.processing-timeout:300000}")
     private long processingTimeoutMs;
@@ -46,8 +54,25 @@ public class VideoProcessingConsumerService {
     @Value("${app.kafka.video-processing.consumer.retry-delay-seconds:30}")
     private int retryDelaySeconds;
 
+    private final MemoryMonitoringService memoryMonitoringService;
+    private final KafkaConsumerMemoryConfig memoryConfig;
+    private final TransactionTemplate transactionTemplate;
+
     // Metrics tracking
     private final AtomicLong messagesReceived = new AtomicLong(0);
+    
+    @PostConstruct
+    public void initialize() {
+        // Configure memory settings from properties
+        System.setProperty("kafka.consumer.memory.max", memoryConfig.getHeap().getMaxSize());
+        System.setProperty("kafka.consumer.memory.initial", memoryConfig.getHeap().getInitialSize());
+        
+        // Initialize memory monitoring
+        memoryMonitoringService.initialize();
+        
+        log.info("Initialized Kafka consumer with memory settings: {}", 
+                memoryMonitoringService.getMemoryUsageSummary().getFormattedSummary());
+    }
     private final AtomicLong messagesProcessed = new AtomicLong(0);
     private final AtomicLong messagesFailed = new AtomicLong(0);
     private final AtomicLong messagesRetried = new AtomicLong(0);
@@ -57,6 +82,17 @@ public class VideoProcessingConsumerService {
      * MAIN CONSUMER: Process video processing messages from queue
      * Configured for manual acknowledgment and reliable processing
      */
+    private final KafkaMonitoringService monitoringService;
+
+    @PostConstruct
+    public void initialize() {
+        // Initialize monitoring for this consumer group
+        monitoringService.initializeConsumerGroupMonitoring(
+            "${app.kafka.video-processing.consumer.group-id:video-processing-group}",
+            "${app.kafka.video-processing.topic:video.processing.queue}"
+        );
+    }
+
     @KafkaListener(
         topics = "${app.kafka.video-processing.topic:video.processing.queue}",
         groupId = "${app.kafka.video-processing.consumer.group-id:video-processing-group}",
@@ -70,8 +106,17 @@ public class VideoProcessingConsumerService {
             @Header(KafkaHeaders.OFFSET) long offset,
             Acknowledgment acknowledgment) {
 
+        final String groupId = "${app.kafka.video-processing.consumer.group-id:video-processing-group}";
         StopWatch stopWatch = new StopWatch();
         stopWatch.start();
+
+        // Check idempotency first
+        if (messageIdempotencyService.isDuplicate(message.getMessageId(), message.getTimestamp())) {
+            log.info("Skipping duplicate message: messageId={}, orderId={}", 
+                    message.getMessageId(), message.getOrderId());
+            acknowledgment.acknowledge();
+            return;
+        }
         
         try {
             messagesReceived.incrementAndGet();
@@ -120,7 +165,15 @@ public class VideoProcessingConsumerService {
             log.error("Unexpected error processing video message: orderId={}, error={}", 
                     message.getOrderId(), e.getMessage(), e);
             
+            // Record error in monitoring
+            monitoringService.recordError(groupId);
+            
             handleProcessingFailure(message, acknowledgment);
+            
+        } finally {
+            stopWatch.stop();
+            // Record processing time
+            monitoringService.recordProcessingTime(groupId, stopWatch.getTotalTimeMillis());
             
         } finally {
             stopWatch.stop();
@@ -133,15 +186,23 @@ public class VideoProcessingConsumerService {
      * WITH STATE MANAGEMENT INTEGRATION
      */
     private boolean processMessage(VideoProcessingMessage message) {
+        final String operationId = UUID.randomUUID().toString();
+        
         try {
-            log.info("Processing video order: orderId={}, videoId={}, priority={}", 
-                    message.getOrderId(), message.getVideoId(), message.getPriority());
+            log.info("Processing video order: orderId={}, videoId={}, priority={}, operationId={}", 
+                    message.getOrderId(), message.getVideoId(), message.getPriority(), operationId);
 
-            // Update processing status to indicate message consumption
-            orderStateManagementService.updateProcessingStatus(message.getOrderId(),
-                    OrderStateManagementService.ProcessingPhase.VIDEO_ANALYSIS,
-                    String.format("Kafka consumer processing message (attempt %d/%d)", 
-                            message.getAttemptNumber(), message.getMaxAttempts()));
+            // Start transactional processing
+            return transactionTemplate.execute(status -> {
+                try {
+                    // Update processing status to indicate message consumption
+                    orderStateManagementService.updateProcessingStatus(message.getOrderId(),
+                            OrderStateManagementService.ProcessingPhase.VIDEO_ANALYSIS,
+                            String.format("Kafka consumer processing message (attempt %d/%d)", 
+                                    message.getAttemptNumber(), message.getMaxAttempts()));
+
+                    // Record processing attempt for idempotency
+                    messageIdempotencyService.markAsProcessed(message.getMessageId(), message.getTimestamp());
 
             // Add message metadata to track processing
             if (message.getMetadata() != null) {
@@ -184,10 +245,17 @@ public class VideoProcessingConsumerService {
         messagesFailed.incrementAndGet();
         
         try {
+            // Record failure metrics
+            errorRecoveryService.recordFailure(message.getOrderId(), "video-processing", 
+                    String.format("Processing failed on attempt %d/%d", 
+                    message.getAttemptNumber(), message.getMaxAttempts()));
+
             if (!message.hasExceededMaxAttempts()) {
-                // Retry the message
-                log.info("Retrying video processing message: orderId={}, attempt={}/{}", 
-                        message.getOrderId(), message.getAttemptNumber() + 1, message.getMaxAttempts());
+                // Determine if error is retryable
+                if (errorRecoveryService.isRetryableError(message.getOrderId())) {
+                    // Retry the message with exponential backoff
+                    log.info("Retrying video processing message: orderId={}, attempt={}/{}", 
+                            message.getOrderId(), message.getAttemptNumber() + 1, message.getMaxAttempts());
                 
                 VideoProcessingMessage retryMessage = message.createRetryMessage();
                 retryMessage.addMetadata("retry-reason", "processing-failed");
@@ -201,11 +269,30 @@ public class VideoProcessingConsumerService {
                 acknowledgment.acknowledge();
                 
             } else {
-                // Max attempts exceeded - send to dead letter queue
+                // Max attempts exceeded - send to dead letter queue with enhanced metadata
                 log.error("Max retry attempts exceeded for message: orderId={}, sending to DLQ", 
                         message.getOrderId());
                 
-                deadLetterQueueService.sendToDeadLetterQueue(message, "Max retry attempts exceeded");
+                // Gather error context
+                Map<String, Object> errorContext = new HashMap<>();
+                errorContext.put("failedAttempts", message.getAttemptNumber());
+                errorContext.put("firstFailureTimestamp", message.getTimestamp());
+                errorContext.put("lastProcessingTimestamp", LocalDateTime.now());
+                errorContext.put("errorHistory", errorRecoveryService.getErrorHistory(message.getOrderId()));
+                
+                // Send to DLQ with enhanced metadata
+                deadLetterQueueService.sendToDeadLetterQueue(
+                    message, 
+                    "Max retry attempts exceeded - Processing permanently failed",
+                    errorContext
+                );
+                
+                // Update order status and notify relevant parties
+                orderStateManagementService.markOrderAsFailed(
+                    message.getOrderId(),
+                    "Processing failed permanently after " + message.getAttemptNumber() + " attempts"
+                );
+                
                 acknowledgment.acknowledge();
             }
             
@@ -227,6 +314,18 @@ public class VideoProcessingConsumerService {
             return false;
         }
 
+        // Check idempotency fields
+        if (message.getMessageId() == null || message.getMessageId().trim().isEmpty()) {
+            log.error("Missing messageId for idempotency");
+            return false;
+        }
+
+        if (message.getTimestamp() == null) {
+            log.error("Missing timestamp for idempotency");
+            return false;
+        }
+
+        // Check business fields
         if (message.getOrderId() == null || message.getOrderId() <= 0) {
             log.error("Invalid order ID in message: {}", message.getOrderId());
             return false;

@@ -1,7 +1,8 @@
 package com.smmpanel.security.validation;
 
-import javax.validation.Constraint;
-import javax.validation.Payload;
+import lombok.extern.slf4j.Slf4j;
+import jakarta.validation.Constraint;
+import jakarta.validation.Payload;
 import java.lang.annotation.*;
 
 @Documented
@@ -13,3 +14,4 @@ public @interface SqlInjectionSafe {
     Class<?>[] groups() default {};
     Class<? extends Payload>[] payload() default {};
 }
+

@@ -1,7 +1,7 @@
 package com.smmpanel.service.kafka;
 
 import com.smmpanel.dto.kafka.VideoProcessingMessage;
-import com.smmpanel.service.YouTubeAutomationService;
+import com.smmpanel.service.YouTubeProcessingService;
 import com.smmpanel.service.OrderStateManagementService;
 import com.smmpanel.service.ErrorRecoveryService;
 import com.smmpanel.service.DeadLetterQueueService;
@@ -40,7 +40,7 @@ import java.lang.management.MemoryMXBean;
 @RequiredArgsConstructor
 public class VideoProcessingConsumerService {
 
-    private final YouTubeAutomationService youTubeAutomationService;
+    private final YouTubeProcessingService youTubeProcessingService;
     private final VideoProcessingProducerService producerService;
     private final OrderStateManagementService orderStateManagementService;
     private final ErrorRecoveryService errorRecoveryService;
@@ -54,8 +54,6 @@ public class VideoProcessingConsumerService {
     @Value("${app.kafka.video-processing.consumer.retry-delay-seconds:30}")
     private int retryDelaySeconds;
 
-    private final MemoryMonitoringService memoryMonitoringService;
-    private final KafkaConsumerMemoryConfig memoryConfig;
     private final TransactionTemplate transactionTemplate;
 
     // Metrics tracking
@@ -174,9 +172,6 @@ public class VideoProcessingConsumerService {
             stopWatch.stop();
             // Record processing time
             monitoringService.recordProcessingTime(groupId, stopWatch.getTotalTimeMillis());
-            
-        } finally {
-            stopWatch.stop();
             totalProcessingTimeMs.addAndGet(stopWatch.getTotalTimeMillis());
         }
     }
@@ -192,17 +187,11 @@ public class VideoProcessingConsumerService {
             log.info("Processing video order: orderId={}, videoId={}, priority={}, operationId={}", 
                     message.getOrderId(), message.getVideoId(), message.getPriority(), operationId);
 
-            // Start transactional processing
-            return transactionTemplate.execute(status -> {
-                try {
-                    // Update processing status to indicate message consumption
-                    orderStateManagementService.updateProcessingStatus(message.getOrderId(),
-                            OrderStateManagementService.ProcessingPhase.VIDEO_ANALYSIS,
-                            String.format("Kafka consumer processing message (attempt %d/%d)", 
-                                    message.getAttemptNumber(), message.getMaxAttempts()));
-
-                    // Record processing attempt for idempotency
-                    messageIdempotencyService.markAsProcessed(message.getMessageId(), message.getTimestamp());
+            // Update processing status to indicate message consumption
+            orderStateManagementService.updateProcessingStatus(message.getOrderId(),
+                    OrderStateManagementService.ProcessingPhase.VIDEO_ANALYSIS,
+                    String.format("Kafka consumer processing message (attempt %d/%d)", 
+                            message.getAttemptNumber(), message.getMaxAttempts()));
 
             // Add message metadata to track processing
             if (message.getMetadata() != null) {
@@ -210,8 +199,8 @@ public class VideoProcessingConsumerService {
                 message.addMetadata("consumer-attempt", message.getAttemptNumber().toString());
             }
 
-            // Delegate to YouTube automation service for actual processing
-            youTubeAutomationService.processYouTubeOrder(message.getOrderId());
+            // Delegate to YouTube processing service for actual processing
+            youTubeProcessingService.processYouTubeOrder(message.getOrderId());
             
             log.info("Video processing completed successfully: orderId={}", message.getOrderId());
             return true;
@@ -257,17 +246,21 @@ public class VideoProcessingConsumerService {
                     log.info("Retrying video processing message: orderId={}, attempt={}/{}", 
                             message.getOrderId(), message.getAttemptNumber() + 1, message.getMaxAttempts());
                 
-                VideoProcessingMessage retryMessage = message.createRetryMessage();
-                retryMessage.addMetadata("retry-reason", "processing-failed");
-                retryMessage.addMetadata("retry-timestamp", LocalDateTime.now().toString());
-                
-                // Send retry message with delay
-                producerService.sendRetryMessage(message);
-                messagesRetried.incrementAndGet();
-                
-                // Acknowledge original message to avoid duplicate processing
-                acknowledgment.acknowledge();
-                
+                    VideoProcessingMessage retryMessage = message.createRetryMessage();
+                    retryMessage.addMetadata("retry-reason", "processing-failed");
+                    retryMessage.addMetadata("retry-timestamp", LocalDateTime.now().toString());
+                    
+                    // Send retry message with delay
+                    producerService.sendRetryMessage(message);
+                    messagesRetried.incrementAndGet();
+                    
+                    // Acknowledge original message to avoid duplicate processing
+                    acknowledgment.acknowledge();
+                } else {
+                    // Error is not retryable - send directly to DLQ
+                    log.warn("Non-retryable error for message: orderId={}, sending to DLQ", message.getOrderId());
+                    acknowledgment.acknowledge();
+                }
             } else {
                 // Max attempts exceeded - send to dead letter queue with enhanced metadata
                 log.error("Max retry attempts exceeded for message: orderId={}, sending to DLQ", 

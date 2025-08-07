@@ -137,6 +137,7 @@ public class AsyncVideoProcessingConfig {
     /**
      * Custom rejection handler for video processing with enhanced logging
      */
+    @Slf4j
     private static class VideoProcessingRejectionHandler implements RejectedExecutionHandler {
         @Override
         public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
@@ -338,8 +339,8 @@ class AsyncThreadPoolMonitor {
 /**
  * Metrics data structure for thread pool monitoring
  */
-@lombok.Builder
 @lombok.Data
+@lombok.Builder
 class ThreadPoolMetrics {
     private String name;
     private int activeThreads;

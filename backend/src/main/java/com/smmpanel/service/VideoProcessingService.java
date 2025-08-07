@@ -39,6 +39,7 @@ public class VideoProcessingService {
     private final YouTubeService youTubeService;
     private final BinomService binomService;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final YouTubeProcessingHelper youTubeProcessingHelper;
     private final Random random = new Random();
 
     @Value("${app.order.processing.clip-creation.enabled:true}")
@@ -61,7 +62,7 @@ public class VideoProcessingService {
             VideoProcessing processing = VideoProcessing.builder()
                     .order(order)
                     .originalUrl(order.getLink())
-                    .videoType(determineVideoType(order.getLink()))
+                    .videoType(youTubeProcessingHelper.determineVideoType(order.getLink()))
                     .status(VideoProcessingStatus.PENDING)
                     .processingAttempts(0)
                     .clipCreated(false)
@@ -135,12 +136,12 @@ public class VideoProcessingService {
     private String processVideoAndCreateClip(VideoProcessing processing) {
         String targetUrl = processing.getOriginalUrl();
         
-        if (clipCreationEnabled && canCreateClip(processing)) {
+        if (clipCreationEnabled && youTubeProcessingHelper.canCreateClipForVideoType(processing.getVideoType())) {
             log.info("Attempting to create clip for processing ID: {}", processing.getId());
             
             for (int attempt = 1; attempt <= clipCreationRetryAttempts; attempt++) {
                 try {
-                    YouTubeAccount account = selectYouTubeAccount();
+                    YouTubeAccount account = youTubeProcessingHelper.selectAvailableYouTubeAccount();
                     if (account == null) {
                         log.warn("No available YouTube accounts for clip creation");
                         break;
@@ -149,14 +150,14 @@ public class VideoProcessingService {
                     String clipUrl = seleniumService.createClip(
                             processing.getOriginalUrl(),
                             account,
-                            generateClipTitle(processing.getOrder())
+                            youTubeProcessingHelper.generateClipTitle(processing.getOrder())
                     );
                     
                     if (clipUrl != null) {
                         processing.setClipCreated(true);
                         processing.setClipUrl(clipUrl);
                         processing.setYoutubeAccountId(account.getId());
-                        updateAccountUsage(account);
+                        youTubeProcessingHelper.updateAccountUsage(account);
                         
                         log.info("Successfully created clip {} for processing ID: {}", clipUrl, processing.getId());
                         return clipUrl;
@@ -238,84 +239,15 @@ public class VideoProcessingService {
         }
     }
 
-    private VideoType determineVideoType(String url) {
-        if (url.contains("/shorts/")) {
-            return VideoType.SHORTS;
-        } else if (url.contains("/live/") || url.contains("live_stream")) {
-            return VideoType.LIVE;
-        } else {
-            return VideoType.STANDARD;
-        }
-    }
+    // REMOVED: determineVideoType - now in YouTubeProcessingHelper
 
-    private boolean canCreateClip(VideoProcessing processing) {
-        // Can't create clips from Shorts or certain Live streams
-        if (processing.getVideoType() == VideoType.SHORTS) {
-            return false;
-        }
-        
-        // Check if video allows clipping
-        try {
-            String videoId = youTubeService.extractVideoId(processing.getOriginalUrl());
-            // Additional checks can be added here via YouTube API
-            return true;
-        } catch (Exception e) {
-            log.warn("Cannot determine if video allows clipping: {}", e.getMessage());
-            return false;
-        }
-    }
+    // REMOVED: canCreateClip - now in YouTubeProcessingHelper.canCreateClipForVideoType
 
-    private YouTubeAccount selectYouTubeAccount() {
-        List<YouTubeAccount> activeAccounts = youTubeAccountRepository.findByStatus(YouTubeAccountStatus.ACTIVE);
-        
-        if (activeAccounts.isEmpty()) {
-            log.warn("No active YouTube accounts available for clip creation");
-            return null;
-        }
+    // REMOVED: selectYouTubeAccount - now in YouTubeProcessingHelper
 
-        LocalDate today = LocalDate.now();
-        
-        // Filter accounts that haven't reached daily limits
-        List<YouTubeAccount> availableAccounts = activeAccounts.stream()
-                .filter(account -> {
-                    // Reset daily counter if needed
-                    if (account.getLastClipDate() == null || account.getLastClipDate().isBefore(today)) {
-                        account.setDailyClipsCount(0);
-                        account.setLastClipDate(today);
-                        youTubeAccountRepository.save(account);
-                    }
-                    
-                    return account.getDailyClipsCount() < account.getDailyLimit();
-                })
-                .toList();
+    // REMOVED: updateAccountUsage - now in YouTubeProcessingHelper
 
-        if (availableAccounts.isEmpty()) {
-            log.warn("All YouTube accounts have reached daily clip limits");
-            return null;
-        }
-
-        // Select random account
-        return availableAccounts.get(random.nextInt(availableAccounts.size()));
-    }
-
-    private void updateAccountUsage(YouTubeAccount account) {
-        account.setDailyClipsCount(account.getDailyClipsCount() + 1);
-        account.setTotalClipsCreated(account.getTotalClipsCreated() + 1);
-        account.setLastClipDate(LocalDate.now());
-        youTubeAccountRepository.save(account);
-    }
-
-    private String generateClipTitle(Order order) {
-        String[] templates = {
-                "Amazing moment from this video!",
-                "Check out this highlight!",
-                "Best part of the video",
-                "Must see clip!",
-                "Viral moment here"
-        };
-        
-        return templates[random.nextInt(templates.length)];
-    }
+    // REMOVED: generateClipTitle - now in YouTubeProcessingHelper
 
     public Optional<VideoProcessing> findByOrderId(Long orderId) {
         return videoProcessingRepository.findByOrderId(orderId);

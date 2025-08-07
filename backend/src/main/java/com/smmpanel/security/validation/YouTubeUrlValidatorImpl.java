@@ -1,8 +1,8 @@
 package com.smmpanel.security.validation;
 
 import org.apache.commons.validator.routines.UrlValidator;
-import javax.validation.ConstraintValidator;
-import javax.validation.ConstraintValidatorContext;
+import jakarta.validation.ConstraintValidator;
+import jakarta.validation.ConstraintValidatorContext;
 import java.util.regex.Pattern;
 
 public class YouTubeUrlValidatorImpl implements ConstraintValidator<YouTubeUrl, String> {
@@ -56,3 +56,4 @@ public class YouTubeUrlValidatorImpl implements ConstraintValidator<YouTubeUrl, 
                .addConstraintViolation();
     }
 }
+

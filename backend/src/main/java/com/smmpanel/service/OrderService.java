@@ -37,7 +37,7 @@ public class OrderService {
     private final UserRepository userRepository;
     private final ServiceRepository serviceRepository;
     private final BalanceService balanceService;
-    private final YouTubeAutomationService youTubeAutomationService;
+    private final YouTubeProcessingService youTubeProcessingService;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     /**

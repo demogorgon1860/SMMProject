@@ -2,8 +2,8 @@ package com.smmpanel.security.filter;
 
 import org.apache.commons.io.IOUtils;
 import org.springframework.web.util.HtmlUtils;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletRequestWrapper;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
 import java.io.*;
 import java.util.regex.Pattern;
 import java.util.ArrayList;
@@ -150,3 +150,4 @@ public class XssRequestWrapper extends HttpServletRequestWrapper {
                lowercaseValue.matches(".*&#x?[0-9a-f]+;.*");  // HTML entities
     }
 }
+

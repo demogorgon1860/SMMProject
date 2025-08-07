@@ -1,12 +1,16 @@
 package com.smmpanel.security.validation;
 
+import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.springframework.util.StringUtils;
-import javax.validation.ConstraintValidator;
-import javax.validation.ConstraintValidatorContext;
+import jakarta.validation.ConstraintValidator;
+import jakarta.validation.ConstraintValidatorContext;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
+@Slf4j
+@RequiredArgsConstructor
 public class SqlInjectionValidatorImpl implements ConstraintValidator<SqlInjectionSafe, String> {
     
     private static final List<Pattern> SQL_INJECTION_PATTERNS = Arrays.asList(
@@ -89,3 +93,4 @@ public class SqlInjectionValidatorImpl implements ConstraintValidator<SqlInjecti
                .addConstraintViolation();
     }
 }
+

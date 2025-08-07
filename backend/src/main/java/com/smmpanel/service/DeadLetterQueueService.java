@@ -360,7 +360,7 @@ class DeadLetterQueueEntry {
  */
 @lombok.Builder
 @lombok.Data
-static class DlqOperationResult {
+public static class DlqOperationResult {
     private final Long orderId;
     private final boolean success;
     private final String message;
@@ -387,7 +387,7 @@ static class DlqOperationResult {
  */
 @lombok.Builder
 @lombok.Data
-static class DeadLetterQueueStats {
+public static class DeadLetterQueueStats {
     private final long totalDlqOrders;
     private final long dlqLast24Hours;
     private final long dlqLastWeek;
@@ -414,7 +414,7 @@ static class DeadLetterQueueStats {
  */
 @lombok.Builder
 @lombok.Data
-static class DlqErrorTypeStats {
+public static class DlqErrorTypeStats {
     private final String errorType;
     private final Long count;
 }

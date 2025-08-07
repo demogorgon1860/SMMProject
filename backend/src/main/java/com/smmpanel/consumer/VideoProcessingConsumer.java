@@ -1,6 +1,6 @@
 package com.smmpanel.consumer;
 
-import com.smmpanel.service.VideoProcessingService;
+import com.smmpanel.service.YouTubeProcessingService;
 import com.smmpanel.service.order.OrderProcessingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class VideoProcessingConsumer {
 
-    private final VideoProcessingService videoProcessingService;
+    private final YouTubeProcessingService youTubeProcessingService;
     private final OrderProcessingService orderProcessingService;
 
     /**
@@ -45,7 +45,7 @@ public class VideoProcessingConsumer {
                     processingId, topic, partition, offset);
 
             // Process video asynchronously
-            videoProcessingService.processVideo(processingId);
+            youTubeProcessingService.processVideo(processingId);
 
             // Acknowledge successful processing
             acknowledgment.acknowledge();

@@ -1,12 +1,11 @@
 package com.smmpanel.interceptor;
 
+import lombok.extern.slf4j.Slf4j;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.servlet.HandlerInterceptor;
 import java.util.UUID;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Request Validation Interceptor
@@ -16,9 +15,8 @@ import org.slf4j.LoggerFactory;
  * - Request size limits
  * - Security headers validation
  */
+@Slf4j
 public class RequestValidationInterceptor implements HandlerInterceptor {
-
-    private static final Logger log = LoggerFactory.getLogger(RequestValidationInterceptor.class);
     private static final int MAX_URL_LENGTH = 2000;
     private static final int MAX_PAYLOAD_SIZE = 10 * 1024 * 1024; // 10MB
 

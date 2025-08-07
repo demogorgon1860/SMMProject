@@ -2,8 +2,9 @@ package com.smmpanel.service.ratelimit;
 
 import com.smmpanel.domain.User;
 import com.smmpanel.service.user.UserService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -12,11 +13,17 @@ import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class RateLimitService {
 
     private final RedisTemplate<String, Object> redisTemplate;
-    private final UserService userService;
+    
+    @Autowired
+    @Lazy  // Add this to break circular dependency
+    private UserService userService;
+    
+    public RateLimitService(RedisTemplate<String, Object> redisTemplate) {
+        this.redisTemplate = redisTemplate;
+    }
     
     private static final String RATE_LIMIT_KEY = "ratelimit:%s:%s"; // userId:endpoint
     private static final String PROGRESSIVE_LIMIT_KEY = "progressive:%s:%s"; // userId:endpoint

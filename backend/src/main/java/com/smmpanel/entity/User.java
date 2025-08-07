@@ -107,6 +107,17 @@ public class User implements UserDetails {
     @Builder.Default
     private int failedLoginAttempts = 0;
 
+    @Column(name = "account_locked")
+    @Builder.Default
+    private boolean accountLocked = false;
+
+    @Column(name = "failed_attempts")
+    @Builder.Default
+    private int failedAttempts = 0;
+
+    @Column(name = "lock_time")
+    private LocalDateTime lockTime;
+
     @Column(name = "locked_until")
     private LocalDateTime lockedUntil;
 

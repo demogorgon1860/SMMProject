@@ -334,7 +334,7 @@ public class ErrorRecoveryService {
  */
 @lombok.Builder
 @lombok.Data
-static class ErrorRecoveryResult {
+public static class ErrorRecoveryResult {
     private final Long orderId;
     private final boolean success;
     private final String errorMessage;
@@ -377,7 +377,7 @@ static class ErrorRecoveryResult {
  */
 @lombok.Builder
 @lombok.Data
-static class ManualRetryResult {
+public static class ManualRetryResult {
     private final Long orderId;
     private final boolean success;
     private final String errorMessage;
@@ -407,7 +407,7 @@ static class ManualRetryResult {
  */
 @lombok.Builder
 @lombok.Data
-static class ErrorRecoveryStats {
+public static class ErrorRecoveryStats {
     private final long totalFailedOrders;
     private final long failedLast24Hours;
     private final long failedLastWeek;
@@ -432,7 +432,7 @@ static class ErrorRecoveryStats {
  */
 @lombok.Builder
 @lombok.Data
-static class ErrorTypeStats {
+public static class ErrorTypeStats {
     private final String errorType;
     private final long count;
     private final double percentage;

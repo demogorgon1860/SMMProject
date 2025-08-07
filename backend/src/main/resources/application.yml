@@ -18,8 +18,9 @@ server:
     connection-timeout: 20s
     keep-alive-timeout: 20s
     max-connections: 8192
-    max-threads: 200
-    min-spare-threads: 10
+    threads:
+      max: 200
+      min-spare: 10
   error:
     include-message: always
     include-binding-errors: always
@@ -256,7 +257,7 @@ app:
   cors:
     allowed-origins: >
       ${CORS_ORIGINS:http://localhost:3000,https://demo.perfectpanel.com}
-    allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+    allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
     allowed-headers: "*"
     allow-credentials: true
     max-age: 3600

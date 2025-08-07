@@ -4,7 +4,7 @@ import com.smmpanel.security.validation.YouTubeUrl;
 import com.smmpanel.security.validation.SqlInjectionSafe;
 import lombok.Data;
 
-import javax.validation.constraints.*;
+import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 
 @Data
@@ -35,3 +35,4 @@ public class OrderRequestDTO {
     @Digits(integer = 10, fraction = 2, message = "Invalid amount format")
     private BigDecimal amount;
 }
+

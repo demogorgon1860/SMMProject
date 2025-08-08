@@ -52,7 +52,7 @@ public class KafkaMemoryOptimizedConsumerConfig {
         
         // Configure container properties
         ContainerProperties props = factory.getContainerProperties();
-        props.setIdleBetweenPolls(100); // Reduce CPU usage when idle
+        props.setIdleBetweenPolls(100L); // Reduce CPU usage when idle
         props.setPollTimeout(3000);
         props.setAckMode(ContainerProperties.AckMode.MANUAL);
         
@@ -74,16 +74,12 @@ public class KafkaMemoryOptimizedConsumerConfig {
         
         // Configure container properties for batch processing
         ContainerProperties props = factory.getContainerProperties();
-        props.setIdleBetweenPolls(100);
+        props.setIdleBetweenPolls(100L);
         props.setPollTimeout(5000);
         props.setAckMode(ContainerProperties.AckMode.MANUAL);
         
         // Set batch error handler
-        factory.setBatchErrorHandler((exception, data) -> {
-            // Log memory usage on batch errors
-            memoryMonitoringService.getMemoryUsageSummary().getFormattedSummary();
-            throw exception;
-        });
+        factory.setCommonErrorHandler(new org.springframework.kafka.listener.DefaultErrorHandler());
         
         return factory;
     }

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -105,8 +106,8 @@ public class LoginAttemptService {
 
         // Update user status in database
         userRepository.findByUsername(username).ifPresent(user -> {
-            user.setLocked(true);
-            user.setLockedAt(Instant.now());
+            user.setAccountLocked(true);
+            user.setLockTime(LocalDateTime.now());
             userRepository.save(user);
         });
     }
@@ -120,8 +121,8 @@ public class LoginAttemptService {
 
         // Update user status in database
         userRepository.findByUsername(username).ifPresent(user -> {
-            user.setLocked(false);
-            user.setLockedAt(null);
+            user.setAccountLocked(false);
+            user.setLockTime(null);
             userRepository.save(user);
         });
 

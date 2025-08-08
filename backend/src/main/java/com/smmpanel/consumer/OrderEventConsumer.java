@@ -194,4 +194,37 @@ public class OrderEventConsumer {
         log.info("Order cancelled: orderId={}", order.getId());
         // Additional logic for cancelled orders
     }
+
+    /**
+     * Generate unique message ID for idempotency
+     */
+    private String generateMessageId(String eventType, Long orderId, long timestamp) {
+        return String.format("%s-%d-%d", eventType, orderId, timestamp);
+    }
+
+    /**
+     * Internal processing method for order created events
+     */
+    private ProcessingResult processOrderCreatedEventInternal(OrderCreatedEvent event) {
+        try {
+            Order order = orderRepository.findById(event.getOrderId())
+                    .orElseThrow(() -> new RuntimeException("Order not found: " + event.getOrderId()));
+
+            // Process YouTube verification
+            processYouTubeVerification(order);
+
+            // Process Binom campaign creation
+            processBinomCampaignCreation(order);
+
+            // Update order status to ACTIVE
+            updateOrderStatus(order, OrderStatus.ACTIVE);
+
+            log.info("Order created event processed successfully: orderId={}", event.getOrderId());
+            return ProcessingResult.success("order-created-" + event.getOrderId());
+
+        } catch (Exception e) {
+            log.error("Failed to process order created event internally: orderId={}", event.getOrderId(), e);
+            return ProcessingResult.error("order-created-" + event.getOrderId(), e.getMessage(), e);
+        }
+    }
 } 

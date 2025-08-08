@@ -76,7 +76,7 @@ public class ErrorRecoveryConfig {
         
         // Configure error handling for DLQ consumer
         factory.setCommonErrorHandler(new org.springframework.kafka.listener.DefaultErrorHandler(
-                new org.springframework.kafka.listener.FixedBackOff(5000L, 3L)));
+                new org.springframework.util.backoff.FixedBackOff(5000L, 3L)));
         
         return factory;
     }

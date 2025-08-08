@@ -1,0 +1,64 @@
+
+> Task :compileJava
+C:\Users\user\Desktop\Projects\backend\src\main\java\com\smmpanel\config\ApiSecurityConfig.java:59: warning: [removal] and() in HeadersConfigurer.XXssConfig has been deprecated and marked for removal
+                .xssProtection(xss -> xss.and())
+                                         ^
+  where H is a type-variable:
+    H extends HttpSecurityBuilder<H> declared in class HeadersConfigurer
+C:\Users\user\Desktop\Projects\backend\src\main\java\com\smmpanel\consumer\OrderEventConsumer.java:58: error: cannot find symbol
+        String messageId = generateMessageId("order-created", event.getOrderId(), event.getTimestamp());
+                           ^
+  symbol:   method generateMessageId(String,Long,long)
+  location: class OrderEventConsumer
+C:\Users\user\Desktop\Projects\backend\src\main\java\com\smmpanel\consumer\OrderEventConsumer.java:71: error: invalid method reference
+                this::processOrderCreatedEventInternal
+                ^
+  cannot find symbol
+    symbol:   method processOrderCreatedEventInternal()
+    location: class OrderEventConsumer
+C:\Users\user\Desktop\Projects\backend\src\main\java\com\smmpanel\service\YouTubeProcessingService.java:554: error: cannot find symbol
+                    .status(VideoProcessingStatus.PENDING)
+                                                 ^
+  symbol:   variable PENDING
+  location: class VideoProcessingStatus
+C:\Users\user\Desktop\Projects\backend\src\main\java\com\smmpanel\service\order\OrderProcessingService.java:214: error: cannot find symbol
+            order.setBinomCampaign(campaign);
+                 ^
+  symbol:   method setBinomCampaign(BinomCampaign)
+  location: variable order of type Order
+C:\Users\user\Desktop\Projects\backend\src\main\java\com\smmpanel\controller\BalanceController.java:134: error: invalid method reference
+                TransactionResponse::fromEntityWithFetchedRelations
+                ^
+  cannot find symbol
+    symbol:   method fromEntityWithFetchedRelations()
+    location: class TransactionResponse
+C:\Users\user\Desktop\Projects\backend\src\main\java\com\smmpanel\controller\PerfectPanelController.java:222: error: variable orderIds is already defined in method handleMultipleOrderStatus(String,String)
+            List<Long> orderIds = Arrays.stream(ids)
+                       ^
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+6 errors
+1 warning
+
+> Task :compileJava FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileJava'.
+> Compilation failed; see the compiler error output for details.
+
+* Try:
+> Run with --info option to get more log output.
+> Run with --scan to get full insights.
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.5/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 10s
+1 actionable task: 1 executed

@@ -23,6 +23,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.kafka.common.header.internals.RecordHeaders;
 
 /**
  * ENHANCED KAFKA CONSUMER ERROR CONFIGURATION
@@ -81,18 +82,18 @@ public class KafkaConsumerErrorConfiguration {
 
         // Enhance DLQ messages with additional metadata
         recoverer.setHeadersFunction((consumerRecord, exception) -> {
-            Map<String, Object> headers = new HashMap<>();
-            headers.put("dlt-original-topic", consumerRecord.topic());
-            headers.put("dlt-original-partition", consumerRecord.partition());
-            headers.put("dlt-original-offset", consumerRecord.offset());
-            headers.put("dlt-original-timestamp", consumerRecord.timestamp());
-            headers.put("dlt-exception-class", exception.getClass().getSimpleName());
-            headers.put("dlt-exception-message", exception.getMessage());
-            headers.put("dlt-failure-timestamp", LocalDateTime.now().toString());
-            headers.put("dlt-retry-attempts", maxRetries);
+            RecordHeaders headers = new RecordHeaders();
+            headers.add("dlt-original-topic", consumerRecord.topic().getBytes());
+            headers.add("dlt-original-partition", String.valueOf(consumerRecord.partition()).getBytes());
+            headers.add("dlt-original-offset", String.valueOf(consumerRecord.offset()).getBytes());
+            headers.add("dlt-original-timestamp", String.valueOf(consumerRecord.timestamp()).getBytes());
+            headers.add("dlt-exception-class", exception.getClass().getSimpleName().getBytes());
+            headers.add("dlt-exception-message", exception.getMessage().getBytes());
+            headers.add("dlt-failure-timestamp", LocalDateTime.now().toString().getBytes());
+            headers.add("dlt-retry-attempts", String.valueOf(maxRetries).getBytes());
             
             if (includeStackTrace) {
-                headers.put("dlt-stack-trace", getStackTrace(exception));
+                headers.add("dlt-stack-trace", getStackTrace(exception).getBytes());
             }
             
             return headers;
@@ -170,14 +171,14 @@ public class KafkaConsumerErrorConfiguration {
         
         // Add high-priority specific metadata
         recoverer.setHeadersFunction((consumerRecord, exception) -> {
-            Map<String, Object> headers = new HashMap<>();
-            headers.put("dlt-priority", "HIGH");
-            headers.put("dlt-original-topic", consumerRecord.topic());
-            headers.put("dlt-original-partition", consumerRecord.partition());
-            headers.put("dlt-original-offset", consumerRecord.offset());
-            headers.put("dlt-exception-class", exception.getClass().getSimpleName());
-            headers.put("dlt-exception-message", exception.getMessage());
-            headers.put("dlt-failure-timestamp", LocalDateTime.now().toString());
+            RecordHeaders headers = new RecordHeaders();
+            headers.add("dlt-priority", "HIGH".getBytes());
+            headers.add("dlt-original-topic", consumerRecord.topic().getBytes());
+            headers.add("dlt-original-partition", String.valueOf(consumerRecord.partition()).getBytes());
+            headers.add("dlt-original-offset", String.valueOf(consumerRecord.offset()).getBytes());
+            headers.add("dlt-exception-class", exception.getClass().getSimpleName().getBytes());
+            headers.add("dlt-exception-message", exception.getMessage().getBytes());
+            headers.add("dlt-failure-timestamp", LocalDateTime.now().toString().getBytes());
             return headers;
         });
         

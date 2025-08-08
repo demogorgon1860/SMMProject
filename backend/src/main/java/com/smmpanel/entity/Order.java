@@ -148,4 +148,25 @@ public class Order {
     public String getLink() {
         return link;
     }
+
+    /**
+     * Convenience method to add a BinomCampaign to the order
+     * This method adds the campaign to the binomCampaigns list and sets the bidirectional relationship
+     */
+    public void setBinomCampaign(BinomCampaign campaign) {
+        if (this.binomCampaigns == null) {
+            this.binomCampaigns = new java.util.ArrayList<>();
+        }
+        
+        // Remove any existing campaign first (if we want single campaign per order)
+        this.binomCampaigns.clear();
+        
+        // Add the new campaign
+        this.binomCampaigns.add(campaign);
+        
+        // Set bidirectional relationship
+        if (campaign != null) {
+            campaign.setOrder(this);
+        }
+    }
 }

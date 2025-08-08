@@ -368,7 +368,6 @@ public class KafkaConsumerGroupManagementService {
      * Consumer group health data class
      */
     @lombok.Builder
-    @lombok.Data
     public static class ConsumerGroupHealth {
         private final String groupId;
         private final String state;
@@ -381,6 +380,19 @@ public class KafkaConsumerGroupManagementService {
         private final String partitionAssignor;
         private final LocalDateTime lastUpdateTime;
         private final String errorMessage;
+        
+        // Explicit getters to ensure compatibility
+        public String getGroupId() { return groupId; }
+        public String state() { return state; }
+        public boolean isHealthy() { return isHealthy; }
+        public int memberCount() { return memberCount; }
+        public int getPartitionCount() { return partitionCount; }
+        public long totalLag() { return totalLag; }
+        public long maxLag() { return maxLag; }
+        public String getCoordinator() { return coordinator; }
+        public String getPartitionAssignor() { return partitionAssignor; }
+        public LocalDateTime getLastUpdateTime() { return lastUpdateTime; }
+        public String getErrorMessage() { return errorMessage; }
     }
 
     /**

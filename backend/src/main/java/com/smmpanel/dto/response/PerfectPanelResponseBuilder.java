@@ -120,6 +120,8 @@ public class PerfectPanelResponseBuilder {
             case PAUSED -> "Paused";
             case HOLDING -> "In progress";
             case REFILL -> "Refill";
+            case ERROR -> "Error";
+            case SUSPENDED -> "Canceled";
         };
     }
 

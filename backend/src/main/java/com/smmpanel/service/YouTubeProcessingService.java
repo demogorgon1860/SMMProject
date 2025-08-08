@@ -4,6 +4,7 @@ import com.smmpanel.dto.binom.BinomIntegrationRequest;
 import com.smmpanel.dto.binom.BinomIntegrationResponse;
 import com.smmpanel.dto.kafka.VideoProcessingMessage;
 import com.smmpanel.entity.*;
+import com.smmpanel.entity.VideoProcessingStatus;
 import com.smmpanel.exception.VideoProcessingException;
 import com.smmpanel.exception.YouTubeApiException;
 import com.smmpanel.repository.*;

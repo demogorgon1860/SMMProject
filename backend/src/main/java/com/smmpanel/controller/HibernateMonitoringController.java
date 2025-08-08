@@ -64,7 +64,8 @@ public class HibernateMonitoringController {
             queryStats.put("queryExecutionCount", statistics.getQueryExecutionCount());
             queryStats.put("queryExecutionMaxTime", statistics.getQueryExecutionMaxTime());
             queryStats.put("queryExecutionMaxTimeQueryString", statistics.getQueryExecutionMaxTimeQueryString());
-            queryStats.put("slowQueryCount", statistics.getSlowQueryCount());
+            // Note: getSlowQueryCount() method was removed in newer Hibernate versions
+            queryStats.put("slowQueryCount", "N/A - Method removed in current Hibernate version");
             stats.put("queryStatistics", queryStats);
             
             // Entity statistics
@@ -283,7 +284,8 @@ public class HibernateMonitoringController {
             log.info("=== Admin-Requested Hibernate Statistics Summary ===");
             log.info("Query Execution Count: {}", statistics.getQueryExecutionCount());
             log.info("Query Execution Max Time: {}ms", statistics.getQueryExecutionMaxTime());
-            log.info("Slow Query Count: {}", statistics.getSlowQueryCount());
+            // Note: getSlowQueryCount() method was removed in newer Hibernate versions
+            log.info("Slow Query Count: N/A (method removed in current Hibernate version)");
             log.info("Entity Load Count: {}", statistics.getEntityLoadCount());
             log.info("Second Level Cache Hit Count: {}", statistics.getSecondLevelCacheHitCount());
             log.info("Second Level Cache Miss Count: {}", statistics.getSecondLevelCacheMissCount());

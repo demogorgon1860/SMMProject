@@ -56,6 +56,13 @@ public class AlertService {
     }
 
     /**
+     * Send an alert with default WARNING level
+     */
+    public void sendAlert(String title, String message) {
+        sendAlert(title, message, "WARNING");
+    }
+
+    /**
      * Send an informational alert
      */
     public void sendInfo(String title, String message) {
@@ -80,6 +87,13 @@ public class AlertService {
      * Send a critical alert
      */
     public void sendCritical(String title, String message) {
+        sendAlert(title, message, "CRITICAL");
+    }
+
+    /**
+     * Send a critical alert (alternative method signature)
+     */
+    public void sendCriticalAlert(String title, String message) {
         sendAlert(title, message, "CRITICAL");
     }
 

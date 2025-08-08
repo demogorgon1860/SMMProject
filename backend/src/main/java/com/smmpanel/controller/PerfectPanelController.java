@@ -219,12 +219,12 @@ public class PerfectPanelController {
             Map<String, Object> results = new HashMap<>();
             
             // OPTIMIZED: Batch fetch orders to prevent N+1 queries
-            List<Long> orderIds = Arrays.stream(ids)
+            List<Long> orderIdList = Arrays.stream(ids)
                     .map(String::trim)
                     .map(Long::valueOf)
                     .collect(Collectors.toList());
             
-            Map<Long, OrderResponse> orderMap = orderService.getOrdersBatchOptimized(orderIds, user.getUsername());
+            Map<Long, OrderResponse> orderMap = orderService.getOrdersBatchOptimized(orderIdList, user.getUsername());
             
             for (String idStr : ids) {
                 try {

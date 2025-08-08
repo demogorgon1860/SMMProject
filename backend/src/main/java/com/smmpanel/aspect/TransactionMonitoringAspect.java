@@ -7,6 +7,7 @@ import org.aspectj.lang.annotation.Aspect;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -75,7 +76,7 @@ public class TransactionMonitoringAspect {
             long duration = System.currentTimeMillis() - startTime;
             metrics.recordFailure(duration);
             
-            boolean isMarkedRollbackOnly = TransactionSynchronizationManager.isCurrentTransactionRollbackOnly();
+            boolean isMarkedRollbackOnly = TransactionAspectSupport.currentTransactionStatus().isRollbackOnly();
             
             log.error("Transaction {} failed - Method: {}, Duration: {}ms, Exception: {}, RollbackOnly: {}", 
                 transactionId, methodName, duration, e.getClass().getSimpleName(), isMarkedRollbackOnly);

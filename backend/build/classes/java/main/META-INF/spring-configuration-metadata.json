@@ -1,0 +1,2507 @@
+{
+  "groups": [
+    {
+      "name": "app",
+      "type": "com.smmpanel.config.AppProperties",
+      "sourceType": "com.smmpanel.config.AppProperties"
+    },
+    {
+      "name": "app.alerts",
+      "type": "com.smmpanel.config.AppProperties$Alerts",
+      "sourceType": "com.smmpanel.config.AppProperties",
+      "sourceMethod": "getAlerts()"
+    },
+    {
+      "name": "app.balance",
+      "type": "com.smmpanel.config.AppProperties$Balance",
+      "sourceType": "com.smmpanel.config.AppProperties",
+      "sourceMethod": "getBalance()"
+    },
+    {
+      "name": "app.binom",
+      "type": "com.smmpanel.config.AppProperties$Binom",
+      "sourceType": "com.smmpanel.config.AppProperties",
+      "sourceMethod": "getBinom()"
+    },
+    {
+      "name": "app.binom.api",
+      "type": "com.smmpanel.config.AppProperties$Binom$Api",
+      "sourceType": "com.smmpanel.config.AppProperties$Binom",
+      "sourceMethod": "getApi()"
+    },
+    {
+      "name": "app.cache",
+      "type": "com.smmpanel.config.AppProperties$Cache",
+      "sourceType": "com.smmpanel.config.AppProperties",
+      "sourceMethod": "getCache()"
+    },
+    {
+      "name": "app.cache.conversion-coefficients",
+      "type": "com.smmpanel.config.AppProperties$Cache$ConversionCoefficients",
+      "sourceType": "com.smmpanel.config.AppProperties$Cache",
+      "sourceMethod": "getConversionCoefficients()"
+    },
+    {
+      "name": "app.cache.services",
+      "type": "com.smmpanel.config.AppProperties$Cache$Services",
+      "sourceType": "com.smmpanel.config.AppProperties$Cache",
+      "sourceMethod": "getServices()"
+    },
+    {
+      "name": "app.cache.users",
+      "type": "com.smmpanel.config.AppProperties$Cache$Users",
+      "sourceType": "com.smmpanel.config.AppProperties$Cache",
+      "sourceMethod": "getUsers()"
+    },
+    {
+      "name": "app.cache.youtube-stats",
+      "type": "com.smmpanel.config.AppProperties$Cache$YoutubeStats",
+      "sourceType": "com.smmpanel.config.AppProperties$Cache",
+      "sourceMethod": "getYoutubeStats()"
+    },
+    {
+      "name": "app.cors",
+      "type": "com.smmpanel.config.AppProperties$Cors",
+      "sourceType": "com.smmpanel.config.AppProperties",
+      "sourceMethod": "getCors()"
+    },
+    {
+      "name": "app.cryptomus",
+      "type": "com.smmpanel.config.AppProperties$Cryptomus",
+      "sourceType": "com.smmpanel.config.AppProperties",
+      "sourceMethod": "getCryptomus()"
+    },
+    {
+      "name": "app.cryptomus.api",
+      "type": "com.smmpanel.config.AppProperties$Cryptomus$Api",
+      "sourceType": "com.smmpanel.config.AppProperties$Cryptomus",
+      "sourceMethod": "getApi()"
+    },
+    {
+      "name": "app.cryptomus.webhook",
+      "type": "com.smmpanel.config.AppProperties$Cryptomus$Webhook",
+      "sourceType": "com.smmpanel.config.AppProperties$Cryptomus",
+      "sourceMethod": "getWebhook()"
+    },
+    {
+      "name": "app.currency",
+      "type": "com.smmpanel.config.CurrencyConfig$CurrencyProperties",
+      "sourceType": "com.smmpanel.config.CurrencyConfig",
+      "sourceMethod": "currencyProperties()"
+    },
+    {
+      "name": "app.currency.exchange-rate-api",
+      "type": "com.smmpanel.config.CurrencyConfig$CurrencyProperties$ExchangeRateApiProperties",
+      "sourceType": "com.smmpanel.config.CurrencyConfig$CurrencyProperties",
+      "sourceMethod": "getExchangeRateApi()"
+    },
+    {
+      "name": "app.error",
+      "type": "com.smmpanel.config.AppProperties$Error",
+      "sourceType": "com.smmpanel.config.AppProperties",
+      "sourceMethod": "getError()"
+    },
+    {
+      "name": "app.error-recovery",
+      "type": "com.smmpanel.config.ErrorRecoveryProperties",
+      "sourceType": "com.smmpanel.config.ErrorRecoveryProperties"
+    },
+    {
+      "name": "app.error-recovery.cleanup",
+      "type": "com.smmpanel.config.ErrorRecoveryProperties$Cleanup",
+      "sourceType": "com.smmpanel.config.ErrorRecoveryProperties",
+      "sourceMethod": "getCleanup()"
+    },
+    {
+      "name": "app.error-recovery.dead-letter-queue",
+      "type": "com.smmpanel.config.ErrorRecoveryProperties$DeadLetterQueue",
+      "sourceType": "com.smmpanel.config.ErrorRecoveryProperties",
+      "sourceMethod": "getDeadLetterQueue()"
+    },
+    {
+      "name": "app.error-recovery.thread-pool",
+      "type": "com.smmpanel.config.ErrorRecoveryProperties$ThreadPool",
+      "sourceType": "com.smmpanel.config.ErrorRecoveryProperties",
+      "sourceMethod": "getThreadPool()"
+    },
+    {
+      "name": "app.features",
+      "type": "com.smmpanel.config.AppProperties$Features",
+      "sourceType": "com.smmpanel.config.AppProperties",
+      "sourceMethod": "getFeatures()"
+    },
+    {
+      "name": "app.file",
+      "type": "com.smmpanel.config.AppProperties$File",
+      "sourceType": "com.smmpanel.config.AppProperties",
+      "sourceMethod": "getFile()"
+    },
+    {
+      "name": "app.file.processing",
+      "type": "com.smmpanel.config.AppProperties$File$Processing",
+      "sourceType": "com.smmpanel.config.AppProperties$File",
+      "sourceMethod": "getProcessing()"
+    },
+    {
+      "name": "app.file.upload",
+      "type": "com.smmpanel.config.AppProperties$File$Upload",
+      "sourceType": "com.smmpanel.config.AppProperties$File",
+      "sourceMethod": "getUpload()"
+    },
+    {
+      "name": "app.jwt",
+      "type": "com.smmpanel.config.AppProperties$Jwt",
+      "sourceType": "com.smmpanel.config.AppProperties",
+      "sourceMethod": "getJwt()"
+    },
+    {
+      "name": "app.mail",
+      "type": "com.smmpanel.config.AppProperties$Mail",
+      "sourceType": "com.smmpanel.config.AppProperties",
+      "sourceMethod": "getMail()"
+    },
+    {
+      "name": "app.monitoring",
+      "type": "com.smmpanel.config.AppProperties$Monitoring",
+      "sourceType": "com.smmpanel.config.AppProperties",
+      "sourceMethod": "getMonitoring()"
+    },
+    {
+      "name": "app.notifications",
+      "type": "com.smmpanel.config.AppProperties$Notifications",
+      "sourceType": "com.smmpanel.config.AppProperties",
+      "sourceMethod": "getNotifications()"
+    },
+    {
+      "name": "app.notifications.kafka",
+      "type": "com.smmpanel.config.AppProperties$Notifications$Kafka",
+      "sourceType": "com.smmpanel.config.AppProperties$Notifications",
+      "sourceMethod": "getKafka()"
+    },
+    {
+      "name": "app.order",
+      "type": "com.smmpanel.config.AppProperties$Order",
+      "sourceType": "com.smmpanel.config.AppProperties",
+      "sourceMethod": "getOrder()"
+    },
+    {
+      "name": "app.order.fraud.detection",
+      "type": "com.smmpanel.config.fraud.FraudDetectionProperties",
+      "sourceType": "com.smmpanel.config.fraud.FraudDetectionProperties"
+    },
+    {
+      "name": "app.order.fraud.detection.duplicate-detection",
+      "type": "com.smmpanel.config.fraud.FraudDetectionProperties$DuplicateDetection",
+      "sourceType": "com.smmpanel.config.fraud.FraudDetectionProperties",
+      "sourceMethod": "getDuplicateDetection()"
+    },
+    {
+      "name": "app.order.fraud.detection.rate-limit",
+      "type": "com.smmpanel.config.fraud.FraudDetectionProperties$RateLimit",
+      "sourceType": "com.smmpanel.config.fraud.FraudDetectionProperties",
+      "sourceMethod": "getRateLimit()"
+    },
+    {
+      "name": "app.order.fraud.detection.suspicious-patterns",
+      "type": "com.smmpanel.config.fraud.FraudDetectionProperties$SuspiciousPatterns",
+      "sourceType": "com.smmpanel.config.fraud.FraudDetectionProperties",
+      "sourceMethod": "getSuspiciousPatterns()"
+    },
+    {
+      "name": "app.order.fraud.detection.user-verification",
+      "type": "com.smmpanel.config.fraud.FraudDetectionProperties$UserVerification",
+      "sourceType": "com.smmpanel.config.fraud.FraudDetectionProperties",
+      "sourceMethod": "getUserVerification()"
+    },
+    {
+      "name": "app.order.processing",
+      "type": "com.smmpanel.config.AppProperties$Order$Processing",
+      "sourceType": "com.smmpanel.config.AppProperties$Order",
+      "sourceMethod": "getProcessing()"
+    },
+    {
+      "name": "app.order.processing",
+      "type": "com.smmpanel.config.order.OrderProcessingProperties",
+      "sourceType": "com.smmpanel.config.order.OrderProcessingProperties"
+    },
+    {
+      "name": "app.order.processing.clip-creation",
+      "type": "com.smmpanel.config.AppProperties$Order$Processing$ClipCreation",
+      "sourceType": "com.smmpanel.config.AppProperties$Order$Processing",
+      "sourceMethod": "getClipCreation()"
+    },
+    {
+      "name": "app.order.processing.clip-creation",
+      "type": "com.smmpanel.config.order.OrderProcessingProperties$ClipCreation",
+      "sourceType": "com.smmpanel.config.order.OrderProcessingProperties",
+      "sourceMethod": "getClipCreation()"
+    },
+    {
+      "name": "app.order.processing.state-transition",
+      "type": "com.smmpanel.config.order.OrderProcessingProperties$StateTransition",
+      "sourceType": "com.smmpanel.config.order.OrderProcessingProperties",
+      "sourceMethod": "getStateTransition()"
+    },
+    {
+      "name": "app.order.sla",
+      "type": "com.smmpanel.config.monitoring.SlaMonitoringProperties",
+      "sourceType": "com.smmpanel.config.monitoring.SlaMonitoringProperties"
+    },
+    {
+      "name": "app.order.sla.completion",
+      "type": "com.smmpanel.config.monitoring.SlaMonitoringProperties$CompletionThresholds",
+      "sourceType": "com.smmpanel.config.monitoring.SlaMonitoringProperties",
+      "sourceMethod": "getCompletion()"
+    },
+    {
+      "name": "app.order.sla.processing",
+      "type": "com.smmpanel.config.monitoring.SlaMonitoringProperties$Thresholds",
+      "sourceType": "com.smmpanel.config.monitoring.SlaMonitoringProperties",
+      "sourceMethod": "getProcessing()"
+    },
+    {
+      "name": "app.perfectpanel",
+      "type": "com.smmpanel.config.AppProperties$Perfectpanel",
+      "sourceType": "com.smmpanel.config.AppProperties",
+      "sourceMethod": "getPerfectpanel()"
+    },
+    {
+      "name": "app.perfectpanel.status-mapping",
+      "type": "com.smmpanel.config.AppProperties$Perfectpanel$StatusMapping",
+      "sourceType": "com.smmpanel.config.AppProperties$Perfectpanel",
+      "sourceMethod": "getStatusMapping()"
+    },
+    {
+      "name": "app.rate-limit",
+      "type": "com.smmpanel.config.AppProperties$RateLimit",
+      "sourceType": "com.smmpanel.config.AppProperties",
+      "sourceMethod": "getRateLimit()"
+    },
+    {
+      "name": "app.rate-limit.api",
+      "type": "com.smmpanel.config.AppProperties$RateLimit$Api",
+      "sourceType": "com.smmpanel.config.AppProperties$RateLimit",
+      "sourceMethod": "getApi()"
+    },
+    {
+      "name": "app.rate-limit.auth",
+      "type": "com.smmpanel.config.AppProperties$RateLimit$Auth",
+      "sourceType": "com.smmpanel.config.AppProperties$RateLimit",
+      "sourceMethod": "getAuth()"
+    },
+    {
+      "name": "app.rate-limit.orders",
+      "type": "com.smmpanel.config.AppProperties$RateLimit$Orders",
+      "sourceType": "com.smmpanel.config.AppProperties$RateLimit",
+      "sourceMethod": "getOrders()"
+    },
+    {
+      "name": "app.security",
+      "type": "com.smmpanel.config.AppProperties$Security",
+      "sourceType": "com.smmpanel.config.AppProperties",
+      "sourceMethod": "getSecurity()"
+    },
+    {
+      "name": "app.security.api-key",
+      "type": "com.smmpanel.config.AppProperties$Security$ApiKey",
+      "sourceType": "com.smmpanel.config.AppProperties$Security",
+      "sourceMethod": "getApiKey()"
+    },
+    {
+      "name": "app.selenium",
+      "type": "com.smmpanel.config.AppProperties$Selenium",
+      "sourceType": "com.smmpanel.config.AppProperties",
+      "sourceMethod": "getSelenium()"
+    },
+    {
+      "name": "app.selenium.browser",
+      "type": "com.smmpanel.config.AppProperties$Selenium$Browser",
+      "sourceType": "com.smmpanel.config.AppProperties$Selenium",
+      "sourceMethod": "getBrowser()"
+    },
+    {
+      "name": "app.selenium.driver",
+      "type": "com.smmpanel.config.AppProperties$Selenium$Driver",
+      "sourceType": "com.smmpanel.config.AppProperties$Selenium",
+      "sourceMethod": "getDriver()"
+    },
+    {
+      "name": "app.selenium.hub",
+      "type": "com.smmpanel.config.AppProperties$Selenium$Hub",
+      "sourceType": "com.smmpanel.config.AppProperties$Selenium",
+      "sourceMethod": "getHub()"
+    },
+    {
+      "name": "app.selenium.retry",
+      "type": "com.smmpanel.config.AppProperties$Selenium$Retry",
+      "sourceType": "com.smmpanel.config.AppProperties$Selenium",
+      "sourceMethod": "getRetry()"
+    },
+    {
+      "name": "app.selenium.timeout",
+      "type": "com.smmpanel.config.AppProperties$Selenium$Timeout",
+      "sourceType": "com.smmpanel.config.AppProperties$Selenium",
+      "sourceMethod": "getTimeout()"
+    },
+    {
+      "name": "app.slack",
+      "type": "com.smmpanel.config.AppProperties$Slack",
+      "sourceType": "com.smmpanel.config.AppProperties",
+      "sourceMethod": "getSlack()"
+    },
+    {
+      "name": "app.video",
+      "type": "com.smmpanel.config.AppProperties$Video",
+      "sourceType": "com.smmpanel.config.AppProperties",
+      "sourceMethod": "getVideo()"
+    },
+    {
+      "name": "app.video.processing",
+      "type": "com.smmpanel.config.AppProperties$Video$Processing",
+      "sourceType": "com.smmpanel.config.AppProperties$Video",
+      "sourceMethod": "getProcessing()"
+    },
+    {
+      "name": "app.youtube",
+      "type": "com.smmpanel.config.AppProperties$Youtube",
+      "sourceType": "com.smmpanel.config.AppProperties",
+      "sourceMethod": "getYoutube()"
+    },
+    {
+      "name": "app.youtube.api",
+      "type": "com.smmpanel.config.AppProperties$Youtube$Api",
+      "sourceType": "com.smmpanel.config.AppProperties$Youtube",
+      "sourceMethod": "getApi()"
+    },
+    {
+      "name": "app.youtube.clip-creation",
+      "type": "com.smmpanel.config.AppProperties$Youtube$ClipCreation",
+      "sourceType": "com.smmpanel.config.AppProperties$Youtube",
+      "sourceMethod": "getClipCreation()"
+    },
+    {
+      "name": "app.youtube.quota",
+      "type": "com.smmpanel.config.AppProperties$Youtube$Quota",
+      "sourceType": "com.smmpanel.config.AppProperties$Youtube",
+      "sourceMethod": "getQuota()"
+    },
+    {
+      "name": "jwt",
+      "type": "com.smmpanel.config.JwtConfig",
+      "sourceType": "com.smmpanel.config.JwtConfig"
+    },
+    {
+      "name": "kafka.consumer.memory",
+      "type": "com.smmpanel.config.KafkaConsumerMemoryConfig",
+      "sourceType": "com.smmpanel.config.KafkaConsumerMemoryConfig"
+    },
+    {
+      "name": "kafka.consumer.memory.heap",
+      "type": "com.smmpanel.config.KafkaConsumerMemoryConfig$JvmHeapSettings",
+      "sourceType": "com.smmpanel.config.KafkaConsumerMemoryConfig",
+      "sourceMethod": "getHeap()"
+    },
+    {
+      "name": "logging",
+      "type": "com.smmpanel.config.LoggingProperties",
+      "sourceType": "com.smmpanel.config.LoggingProperties"
+    },
+    {
+      "name": "logging.file",
+      "type": "com.smmpanel.config.LoggingProperties$File",
+      "sourceType": "com.smmpanel.config.LoggingProperties",
+      "sourceMethod": "getFile()"
+    },
+    {
+      "name": "logging.level",
+      "type": "com.smmpanel.config.LoggingProperties$Level",
+      "sourceType": "com.smmpanel.config.LoggingProperties",
+      "sourceMethod": "getLevel()"
+    },
+    {
+      "name": "logging.logback",
+      "type": "com.smmpanel.config.LoggingProperties$Logback",
+      "sourceType": "com.smmpanel.config.LoggingProperties",
+      "sourceMethod": "getLogback()"
+    },
+    {
+      "name": "logging.logback.rollingpolicy",
+      "type": "com.smmpanel.config.LoggingProperties$Logback$Rollingpolicy",
+      "sourceType": "com.smmpanel.config.LoggingProperties$Logback",
+      "sourceMethod": "getRollingpolicy()"
+    },
+    {
+      "name": "logging.pattern",
+      "type": "com.smmpanel.config.LoggingProperties$Pattern",
+      "sourceType": "com.smmpanel.config.LoggingProperties",
+      "sourceMethod": "getPattern()"
+    },
+    {
+      "name": "management",
+      "type": "com.smmpanel.config.ManagementProperties",
+      "sourceType": "com.smmpanel.config.ManagementProperties"
+    },
+    {
+      "name": "management.endpoint",
+      "type": "com.smmpanel.config.ManagementProperties$Endpoint",
+      "sourceType": "com.smmpanel.config.ManagementProperties",
+      "sourceMethod": "getEndpoint()"
+    },
+    {
+      "name": "management.endpoint.health",
+      "type": "com.smmpanel.config.ManagementProperties$Endpoint$Health",
+      "sourceType": "com.smmpanel.config.ManagementProperties$Endpoint",
+      "sourceMethod": "getHealth()"
+    },
+    {
+      "name": "management.endpoint.kafka-errors",
+      "type": "com.smmpanel.controller.KafkaErrorsEndpoint",
+      "sourceType": "com.smmpanel.controller.KafkaErrorsEndpoint"
+    },
+    {
+      "name": "management.endpoints",
+      "type": "com.smmpanel.config.ManagementProperties$Endpoints",
+      "sourceType": "com.smmpanel.config.ManagementProperties",
+      "sourceMethod": "getEndpoints()"
+    },
+    {
+      "name": "management.endpoints.web",
+      "type": "com.smmpanel.config.ManagementProperties$Endpoints$Web",
+      "sourceType": "com.smmpanel.config.ManagementProperties$Endpoints",
+      "sourceMethod": "getWeb()"
+    },
+    {
+      "name": "management.endpoints.web.exposure",
+      "type": "com.smmpanel.config.ManagementProperties$Endpoints$Web$Exposure",
+      "sourceType": "com.smmpanel.config.ManagementProperties$Endpoints$Web",
+      "sourceMethod": "getExposure()"
+    },
+    {
+      "name": "management.health",
+      "type": "com.smmpanel.config.ManagementProperties$Health",
+      "sourceType": "com.smmpanel.config.ManagementProperties",
+      "sourceMethod": "getHealth()"
+    },
+    {
+      "name": "management.metrics",
+      "type": "com.smmpanel.config.ManagementProperties$Metrics",
+      "sourceType": "com.smmpanel.config.ManagementProperties",
+      "sourceMethod": "getMetrics()"
+    },
+    {
+      "name": "management.metrics.export",
+      "type": "com.smmpanel.config.ManagementProperties$Metrics$Export",
+      "sourceType": "com.smmpanel.config.ManagementProperties$Metrics",
+      "sourceMethod": "getExport()"
+    },
+    {
+      "name": "management.metrics.export.prometheus",
+      "type": "com.smmpanel.config.ManagementProperties$Metrics$Export$Prometheus",
+      "sourceType": "com.smmpanel.config.ManagementProperties$Metrics$Export",
+      "sourceMethod": "getPrometheus()"
+    },
+    {
+      "name": "resilience4j",
+      "type": "com.smmpanel.config.Resilience4jProperties",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties"
+    },
+    {
+      "name": "resilience4j.circuitbreaker",
+      "type": "com.smmpanel.config.Resilience4jProperties$Circuitbreaker",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties",
+      "sourceMethod": "getCircuitbreaker()"
+    },
+    {
+      "name": "resilience4j.circuitbreaker.instances",
+      "type": "com.smmpanel.config.Resilience4jProperties$Circuitbreaker$Instances",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Circuitbreaker",
+      "sourceMethod": "getInstances()"
+    },
+    {
+      "name": "resilience4j.circuitbreaker.instances.binom-api",
+      "type": "com.smmpanel.config.Resilience4jProperties$Circuitbreaker$Instances$BinomApi",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Circuitbreaker$Instances",
+      "sourceMethod": "getBinomApi()"
+    },
+    {
+      "name": "resilience4j.circuitbreaker.instances.payment-api",
+      "type": "com.smmpanel.config.Resilience4jProperties$Circuitbreaker$Instances$PaymentApi",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Circuitbreaker$Instances",
+      "sourceMethod": "getPaymentApi()"
+    },
+    {
+      "name": "resilience4j.circuitbreaker.instances.youtube-api",
+      "type": "com.smmpanel.config.Resilience4jProperties$Circuitbreaker$Instances$YoutubeApi",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Circuitbreaker$Instances",
+      "sourceMethod": "getYoutubeApi()"
+    },
+    {
+      "name": "resilience4j.retry",
+      "type": "com.smmpanel.config.Resilience4jProperties$Retry",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties",
+      "sourceMethod": "getRetry()"
+    },
+    {
+      "name": "resilience4j.retry.instances",
+      "type": "com.smmpanel.config.Resilience4jProperties$Retry$Instances",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Retry",
+      "sourceMethod": "getInstances()"
+    },
+    {
+      "name": "resilience4j.retry.instances.binom-api",
+      "type": "com.smmpanel.config.Resilience4jProperties$Retry$Instances$BinomApi",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Retry$Instances",
+      "sourceMethod": "getBinomApi()"
+    },
+    {
+      "name": "resilience4j.retry.instances.payment-api",
+      "type": "com.smmpanel.config.Resilience4jProperties$Retry$Instances$PaymentApi",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Retry$Instances",
+      "sourceMethod": "getPaymentApi()"
+    },
+    {
+      "name": "resilience4j.retry.instances.youtube-api",
+      "type": "com.smmpanel.config.Resilience4jProperties$Retry$Instances$YoutubeApi",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Retry$Instances",
+      "sourceMethod": "getYoutubeApi()"
+    },
+    {
+      "name": "server",
+      "type": "com.smmpanel.config.ServerProperties",
+      "sourceType": "com.smmpanel.config.ServerProperties"
+    },
+    {
+      "name": "server.compression",
+      "type": "com.smmpanel.config.ServerProperties$Compression",
+      "sourceType": "com.smmpanel.config.ServerProperties",
+      "sourceMethod": "getCompression()"
+    },
+    {
+      "name": "server.error",
+      "type": "com.smmpanel.config.ServerProperties$Error",
+      "sourceType": "com.smmpanel.config.ServerProperties",
+      "sourceMethod": "getError()"
+    },
+    {
+      "name": "server.servlet",
+      "type": "com.smmpanel.config.ServerProperties$Servlet",
+      "sourceType": "com.smmpanel.config.ServerProperties",
+      "sourceMethod": "getServlet()"
+    },
+    {
+      "name": "server.tomcat",
+      "type": "com.smmpanel.config.ServerProperties$Tomcat",
+      "sourceType": "com.smmpanel.config.ServerProperties",
+      "sourceMethod": "getTomcat()"
+    },
+    {
+      "name": "spring.data.redis",
+      "type": "com.smmpanel.config.RedisProperties",
+      "sourceType": "com.smmpanel.config.RedisProperties"
+    },
+    {
+      "name": "spring.data.redis.cache",
+      "type": "com.smmpanel.config.RedisProperties$Cache",
+      "sourceType": "com.smmpanel.config.RedisProperties",
+      "sourceMethod": "getCache()"
+    },
+    {
+      "name": "spring.data.redis.jedis",
+      "type": "com.smmpanel.config.RedisProperties$Jedis",
+      "sourceType": "com.smmpanel.config.RedisProperties",
+      "sourceMethod": "getJedis()"
+    },
+    {
+      "name": "spring.data.redis.jedis.pool",
+      "type": "com.smmpanel.config.RedisProperties$Jedis$Pool",
+      "sourceType": "com.smmpanel.config.RedisProperties$Jedis",
+      "sourceMethod": "getPool()"
+    },
+    {
+      "name": "spring.datasource",
+      "type": "com.smmpanel.config.DatabaseProperties",
+      "sourceType": "com.smmpanel.config.DatabaseProperties"
+    },
+    {
+      "name": "spring.datasource.hikari",
+      "type": "com.smmpanel.config.DatabaseProperties$Hikari",
+      "sourceType": "com.smmpanel.config.DatabaseProperties",
+      "sourceMethod": "getHikari()"
+    },
+    {
+      "name": "spring.jpa",
+      "type": "com.smmpanel.config.JpaProperties",
+      "sourceType": "com.smmpanel.config.JpaProperties"
+    },
+    {
+      "name": "spring.jpa.hibernate",
+      "type": "com.smmpanel.config.JpaProperties$Hibernate",
+      "sourceType": "com.smmpanel.config.JpaProperties",
+      "sourceMethod": "getHibernate()"
+    },
+    {
+      "name": "spring.jpa.hibernate.naming",
+      "type": "com.smmpanel.config.JpaProperties$Hibernate$Naming",
+      "sourceType": "com.smmpanel.config.JpaProperties$Hibernate",
+      "sourceMethod": "getNaming()"
+    },
+    {
+      "name": "spring.jpa.properties",
+      "type": "com.smmpanel.config.JpaProperties$Properties",
+      "sourceType": "com.smmpanel.config.JpaProperties",
+      "sourceMethod": "getProperties()"
+    },
+    {
+      "name": "spring.jpa.properties.hibernate",
+      "type": "com.smmpanel.config.JpaProperties$Properties$Hibernate",
+      "sourceType": "com.smmpanel.config.JpaProperties$Properties",
+      "sourceMethod": "getHibernate()"
+    },
+    {
+      "name": "spring.jpa.properties.hibernate.jdbc",
+      "type": "com.smmpanel.config.JpaProperties$Properties$Hibernate$Jdbc",
+      "sourceType": "com.smmpanel.config.JpaProperties$Properties$Hibernate",
+      "sourceMethod": "getJdbc()"
+    },
+    {
+      "name": "spring.kafka",
+      "type": "com.smmpanel.config.KafkaProperties",
+      "sourceType": "com.smmpanel.config.KafkaProperties"
+    },
+    {
+      "name": "spring.kafka.consumer",
+      "type": "com.smmpanel.config.KafkaProperties$Consumer",
+      "sourceType": "com.smmpanel.config.KafkaProperties",
+      "sourceMethod": "getConsumer()"
+    },
+    {
+      "name": "spring.kafka.consumer.properties",
+      "type": "com.smmpanel.config.KafkaProperties$Consumer$Properties",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Consumer",
+      "sourceMethod": "getProperties()"
+    },
+    {
+      "name": "spring.kafka.producer",
+      "type": "com.smmpanel.config.KafkaProperties$Producer",
+      "sourceType": "com.smmpanel.config.KafkaProperties",
+      "sourceMethod": "getProducer()"
+    },
+    {
+      "name": "spring.kafka.producer.properties",
+      "type": "com.smmpanel.config.KafkaProperties$Producer$Properties",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Producer",
+      "sourceMethod": "getProperties()"
+    },
+    {
+      "name": "spring.task",
+      "type": "com.smmpanel.config.TaskProperties",
+      "sourceType": "com.smmpanel.config.TaskProperties"
+    },
+    {
+      "name": "spring.task.execution",
+      "type": "com.smmpanel.config.TaskProperties$Execution",
+      "sourceType": "com.smmpanel.config.TaskProperties",
+      "sourceMethod": "getExecution()"
+    },
+    {
+      "name": "spring.task.execution.pool",
+      "type": "com.smmpanel.config.TaskProperties$Execution$Pool",
+      "sourceType": "com.smmpanel.config.TaskProperties$Execution",
+      "sourceMethod": "getPool()"
+    },
+    {
+      "name": "spring.task.scheduling",
+      "type": "com.smmpanel.config.TaskProperties$Scheduling",
+      "sourceType": "com.smmpanel.config.TaskProperties",
+      "sourceMethod": "getScheduling()"
+    },
+    {
+      "name": "spring.task.scheduling.pool",
+      "type": "com.smmpanel.config.TaskProperties$Scheduling$Pool",
+      "sourceType": "com.smmpanel.config.TaskProperties$Scheduling",
+      "sourceMethod": "getPool()"
+    }
+  ],
+  "properties": [
+    {
+      "name": "app.alerts.admin-email",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.AppProperties$Alerts",
+      "defaultValue": "admin@smmpanel.com"
+    },
+    {
+      "name": "app.alerts.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.AppProperties$Alerts",
+      "defaultValue": true
+    },
+    {
+      "name": "app.balance.maximum-deposit",
+      "type": "java.math.BigDecimal",
+      "sourceType": "com.smmpanel.config.AppProperties$Balance"
+    },
+    {
+      "name": "app.balance.minimum-deposit",
+      "type": "java.math.BigDecimal",
+      "sourceType": "com.smmpanel.config.AppProperties$Balance"
+    },
+    {
+      "name": "app.balance.transaction-timeout",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Balance",
+      "defaultValue": 300000
+    },
+    {
+      "name": "app.binom.api.key",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.AppProperties$Binom$Api",
+      "defaultValue": "your-binom-api-key"
+    },
+    {
+      "name": "app.binom.api.retry-attempts",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Binom$Api",
+      "defaultValue": 3
+    },
+    {
+      "name": "app.binom.api.timeout",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Binom$Api",
+      "defaultValue": 30000
+    },
+    {
+      "name": "app.binom.api.url",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.AppProperties$Binom$Api",
+      "defaultValue": "https:\/\/your-binom-domain.com\/api"
+    },
+    {
+      "name": "app.binom.default-coefficient",
+      "type": "java.lang.Double",
+      "sourceType": "com.smmpanel.config.AppProperties$Binom",
+      "defaultValue": 3
+    },
+    {
+      "name": "app.binom.max-campaigns-per-order",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Binom",
+      "defaultValue": 5
+    },
+    {
+      "name": "app.cache.conversion-coefficients.ttl",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Cache$ConversionCoefficients",
+      "defaultValue": 7200
+    },
+    {
+      "name": "app.cache.services.ttl",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Cache$Services",
+      "defaultValue": 3600
+    },
+    {
+      "name": "app.cache.users.ttl",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Cache$Users",
+      "defaultValue": 1800
+    },
+    {
+      "name": "app.cache.youtube-stats.ttl",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Cache$YoutubeStats",
+      "defaultValue": 300
+    },
+    {
+      "name": "app.cors.allow-credentials",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.AppProperties$Cors",
+      "defaultValue": true
+    },
+    {
+      "name": "app.cors.allowed-headers",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.AppProperties$Cors",
+      "defaultValue": "*"
+    },
+    {
+      "name": "app.cors.allowed-methods",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.AppProperties$Cors",
+      "defaultValue": "GET,POST,PUT,DELETE,OPTIONS"
+    },
+    {
+      "name": "app.cors.allowed-origins",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.AppProperties$Cors",
+      "defaultValue": "http:\/\/localhost:3000,https:\/\/demo.perfectpanel.com"
+    },
+    {
+      "name": "app.cors.max-age",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Cors",
+      "defaultValue": 3600
+    },
+    {
+      "name": "app.cryptomus.api.key",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.AppProperties$Cryptomus$Api",
+      "defaultValue": "your-cryptomus-api-key"
+    },
+    {
+      "name": "app.cryptomus.api.secret",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.AppProperties$Cryptomus$Api",
+      "defaultValue": "your-cryptomus-api-secret"
+    },
+    {
+      "name": "app.cryptomus.api.url",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.AppProperties$Cryptomus$Api",
+      "defaultValue": "https:\/\/api.cryptomus.com\/v1"
+    },
+    {
+      "name": "app.cryptomus.min-deposit",
+      "type": "java.math.BigDecimal",
+      "sourceType": "com.smmpanel.config.AppProperties$Cryptomus"
+    },
+    {
+      "name": "app.cryptomus.timeout",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Cryptomus",
+      "defaultValue": 30000
+    },
+    {
+      "name": "app.cryptomus.webhook.secret",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.AppProperties$Cryptomus$Webhook",
+      "defaultValue": "your-webhook-secret"
+    },
+    {
+      "name": "app.currency.default-currency",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.CurrencyConfig$CurrencyProperties",
+      "defaultValue": "USD"
+    },
+    {
+      "name": "app.currency.exchange-rate-api.base-currency",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.CurrencyConfig$CurrencyProperties$ExchangeRateApiProperties",
+      "defaultValue": "USD"
+    },
+    {
+      "name": "app.currency.exchange-rate-api.refresh-rate",
+      "type": "java.lang.Long",
+      "sourceType": "com.smmpanel.config.CurrencyConfig$CurrencyProperties$ExchangeRateApiProperties",
+      "defaultValue": 3600000
+    },
+    {
+      "name": "app.currency.exchange-rate-api.url",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.CurrencyConfig$CurrencyProperties$ExchangeRateApiProperties",
+      "defaultValue": "https:\/\/api.exchangerate.host\/latest"
+    },
+    {
+      "name": "app.error-recovery.backoff-multiplier",
+      "type": "java.lang.Double",
+      "sourceType": "com.smmpanel.config.ErrorRecoveryProperties",
+      "defaultValue": 2
+    },
+    {
+      "name": "app.error-recovery.cleanup.cron",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.ErrorRecoveryProperties$Cleanup",
+      "defaultValue": "0 *\/30 * * * *"
+    },
+    {
+      "name": "app.error-recovery.cleanup.retry-processing-interval-minutes",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.ErrorRecoveryProperties$Cleanup",
+      "defaultValue": 5
+    },
+    {
+      "name": "app.error-recovery.dead-letter-queue.cleanup-cron",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.ErrorRecoveryProperties$DeadLetterQueue",
+      "defaultValue": "0 2 * * * *"
+    },
+    {
+      "name": "app.error-recovery.dead-letter-queue.max-entries",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.ErrorRecoveryProperties$DeadLetterQueue",
+      "defaultValue": 10000
+    },
+    {
+      "name": "app.error-recovery.dead-letter-queue.retention-days",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.ErrorRecoveryProperties$DeadLetterQueue",
+      "defaultValue": 30
+    },
+    {
+      "name": "app.error-recovery.dead-letter-queue.topic",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.ErrorRecoveryProperties$DeadLetterQueue",
+      "defaultValue": "video.processing.dlq"
+    },
+    {
+      "name": "app.error-recovery.initial-delay-minutes",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.ErrorRecoveryProperties",
+      "defaultValue": 5
+    },
+    {
+      "name": "app.error-recovery.max-delay-hours",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.ErrorRecoveryProperties",
+      "defaultValue": 24
+    },
+    {
+      "name": "app.error-recovery.max-retries",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.ErrorRecoveryProperties",
+      "defaultValue": 3
+    },
+    {
+      "name": "app.error-recovery.thread-pool.core-size",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.ErrorRecoveryProperties$ThreadPool",
+      "defaultValue": 2
+    },
+    {
+      "name": "app.error-recovery.thread-pool.keep-alive-seconds",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.ErrorRecoveryProperties$ThreadPool",
+      "defaultValue": 60
+    },
+    {
+      "name": "app.error-recovery.thread-pool.max-size",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.ErrorRecoveryProperties$ThreadPool",
+      "defaultValue": 4
+    },
+    {
+      "name": "app.error-recovery.thread-pool.queue-capacity",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.ErrorRecoveryProperties$ThreadPool",
+      "defaultValue": 50
+    },
+    {
+      "name": "app.error.include-debug-info",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.AppProperties$Error",
+      "defaultValue": false
+    },
+    {
+      "name": "app.error.include-stack-trace",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.AppProperties$Error",
+      "defaultValue": false
+    },
+    {
+      "name": "app.features.binom-integration",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.AppProperties$Features",
+      "defaultValue": true
+    },
+    {
+      "name": "app.features.email-notifications",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.AppProperties$Features",
+      "defaultValue": true
+    },
+    {
+      "name": "app.features.payment-processing",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.AppProperties$Features",
+      "defaultValue": true
+    },
+    {
+      "name": "app.features.youtube-processing",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.AppProperties$Features",
+      "defaultValue": true
+    },
+    {
+      "name": "app.file.processing.max-concurrent",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$File$Processing",
+      "defaultValue": 3
+    },
+    {
+      "name": "app.file.processing.timeout",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$File$Processing",
+      "defaultValue": 300
+    },
+    {
+      "name": "app.file.upload.path",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.AppProperties$File$Upload",
+      "defaultValue": "\/tmp\/smm-panel\/uploads"
+    },
+    {
+      "name": "app.jwt.expiration-ms",
+      "type": "java.lang.Long",
+      "sourceType": "com.smmpanel.config.AppProperties$Jwt",
+      "defaultValue": 86400000
+    },
+    {
+      "name": "app.jwt.issuer",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.AppProperties$Jwt",
+      "defaultValue": "smmpanel"
+    },
+    {
+      "name": "app.jwt.refresh-expiration-ms",
+      "type": "java.lang.Long",
+      "sourceType": "com.smmpanel.config.AppProperties$Jwt",
+      "defaultValue": 604800000
+    },
+    {
+      "name": "app.jwt.secret",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.AppProperties$Jwt",
+      "defaultValue": "your-super-secret-jwt-key-change-in-production"
+    },
+    {
+      "name": "app.mail.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.AppProperties$Mail",
+      "defaultValue": true
+    },
+    {
+      "name": "app.mail.from",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.AppProperties$Mail",
+      "defaultValue": "noreply@smmpanel.com"
+    },
+    {
+      "name": "app.monitoring.cpu-threshold",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Monitoring",
+      "defaultValue": 80
+    },
+    {
+      "name": "app.monitoring.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.AppProperties$Monitoring",
+      "defaultValue": true
+    },
+    {
+      "name": "app.monitoring.memory-threshold",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Monitoring",
+      "defaultValue": 80
+    },
+    {
+      "name": "app.monitoring.slow-query-threshold",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Monitoring",
+      "defaultValue": 1000
+    },
+    {
+      "name": "app.notifications.kafka.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.AppProperties$Notifications$Kafka",
+      "defaultValue": true
+    },
+    {
+      "name": "app.order.fraud.detection.duplicate-detection.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether duplicate detection is enabled",
+      "sourceType": "com.smmpanel.config.fraud.FraudDetectionProperties$DuplicateDetection",
+      "defaultValue": true
+    },
+    {
+      "name": "app.order.fraud.detection.duplicate-detection.max-duplicate-attempts",
+      "type": "java.lang.Integer",
+      "description": "Maximum number of duplicate order attempts allowed within the time window",
+      "sourceType": "com.smmpanel.config.fraud.FraudDetectionProperties$DuplicateDetection",
+      "defaultValue": 3
+    },
+    {
+      "name": "app.order.fraud.detection.duplicate-detection.time-window-minutes",
+      "type": "java.lang.Integer",
+      "description": "Time window in minutes to check for duplicate orders",
+      "sourceType": "com.smmpanel.config.fraud.FraudDetectionProperties$DuplicateDetection",
+      "defaultValue": 60
+    },
+    {
+      "name": "app.order.fraud.detection.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether fraud detection is enabled",
+      "sourceType": "com.smmpanel.config.fraud.FraudDetectionProperties",
+      "defaultValue": true
+    },
+    {
+      "name": "app.order.fraud.detection.rate-limit.bucket-capacity",
+      "type": "java.lang.Integer",
+      "description": "Maximum capacity of the rate limit bucket",
+      "sourceType": "com.smmpanel.config.fraud.FraudDetectionProperties$RateLimit",
+      "defaultValue": 30
+    },
+    {
+      "name": "app.order.fraud.detection.rate-limit.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether rate limiting is enabled",
+      "sourceType": "com.smmpanel.config.fraud.FraudDetectionProperties$RateLimit",
+      "defaultValue": true
+    },
+    {
+      "name": "app.order.fraud.detection.rate-limit.refill-duration-minutes",
+      "type": "java.lang.Integer",
+      "description": "Duration between refills in minutes",
+      "sourceType": "com.smmpanel.config.fraud.FraudDetectionProperties$RateLimit",
+      "defaultValue": 1
+    },
+    {
+      "name": "app.order.fraud.detection.rate-limit.refill-tokens",
+      "type": "java.lang.Integer",
+      "description": "Number of tokens to refill",
+      "sourceType": "com.smmpanel.config.fraud.FraudDetectionProperties$RateLimit",
+      "defaultValue": 30
+    },
+    {
+      "name": "app.order.fraud.detection.rate-limit.requests-per-minute",
+      "type": "java.lang.Integer",
+      "description": "Maximum number of requests per minute",
+      "sourceType": "com.smmpanel.config.fraud.FraudDetectionProperties$RateLimit",
+      "defaultValue": 30
+    },
+    {
+      "name": "app.order.fraud.detection.suspicious-patterns.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether suspicious pattern detection is enabled",
+      "sourceType": "com.smmpanel.config.fraud.FraudDetectionProperties$SuspiciousPatterns",
+      "defaultValue": true
+    },
+    {
+      "name": "app.order.fraud.detection.suspicious-patterns.high-value-threshold",
+      "type": "java.lang.Double",
+      "description": "Threshold for high-value orders (in the default currency)",
+      "sourceType": "com.smmpanel.config.fraud.FraudDetectionProperties$SuspiciousPatterns",
+      "defaultValue": 100
+    },
+    {
+      "name": "app.order.fraud.detection.suspicious-patterns.max-orders-per-hour",
+      "type": "java.lang.Integer",
+      "description": "Maximum number of orders allowed per hour per user",
+      "sourceType": "com.smmpanel.config.fraud.FraudDetectionProperties$SuspiciousPatterns",
+      "defaultValue": 10
+    },
+    {
+      "name": "app.order.fraud.detection.suspicious-patterns.max-same-quantity-percent",
+      "type": "java.lang.Integer",
+      "description": "Maximum percentage of orders that can have the same quantity before being flagged",
+      "sourceType": "com.smmpanel.config.fraud.FraudDetectionProperties$SuspiciousPatterns",
+      "defaultValue": 60
+    },
+    {
+      "name": "app.order.fraud.detection.user-verification.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether user verification is enabled",
+      "sourceType": "com.smmpanel.config.fraud.FraudDetectionProperties$UserVerification",
+      "defaultValue": true
+    },
+    {
+      "name": "app.order.fraud.detection.user-verification.min-account-age-days",
+      "type": "java.lang.Integer",
+      "description": "Minimum account age in days before placing orders",
+      "sourceType": "com.smmpanel.config.fraud.FraudDetectionProperties$UserVerification",
+      "defaultValue": 1
+    },
+    {
+      "name": "app.order.fraud.detection.user-verification.min-successful-orders",
+      "type": "java.lang.Integer",
+      "description": "Minimum number of successful orders before high-value orders are allowed",
+      "sourceType": "com.smmpanel.config.fraud.FraudDetectionProperties$UserVerification",
+      "defaultValue": 1
+    },
+    {
+      "name": "app.order.processing.batch-size",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Order$Processing",
+      "defaultValue": 100
+    },
+    {
+      "name": "app.order.processing.batch-size",
+      "type": "java.lang.Integer",
+      "description": "Number of orders to process in a single batch",
+      "sourceType": "com.smmpanel.config.order.OrderProcessingProperties",
+      "defaultValue": 100
+    },
+    {
+      "name": "app.order.processing.clip-creation.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.AppProperties$Order$Processing$ClipCreation",
+      "defaultValue": true
+    },
+    {
+      "name": "app.order.processing.clip-creation.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether clip creation is enabled",
+      "sourceType": "com.smmpanel.config.order.OrderProcessingProperties$ClipCreation",
+      "defaultValue": true
+    },
+    {
+      "name": "app.order.processing.clip-creation.retry-attempts",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Order$Processing$ClipCreation",
+      "defaultValue": 2
+    },
+    {
+      "name": "app.order.processing.clip-creation.retry-attempts",
+      "type": "java.lang.Integer",
+      "description": "Number of retry attempts for failed clip creation",
+      "sourceType": "com.smmpanel.config.order.OrderProcessingProperties$ClipCreation",
+      "defaultValue": 2
+    },
+    {
+      "name": "app.order.processing.clip-creation.timeout",
+      "type": "java.time.Duration",
+      "sourceType": "com.smmpanel.config.AppProperties$Order$Processing$ClipCreation",
+      "defaultValue": "5m"
+    },
+    {
+      "name": "app.order.processing.clip-creation.timeout",
+      "type": "java.time.Duration",
+      "description": "Timeout for clip creation",
+      "sourceType": "com.smmpanel.config.order.OrderProcessingProperties$ClipCreation",
+      "defaultValue": "5m"
+    },
+    {
+      "name": "app.order.processing.initial-delay",
+      "type": "java.time.Duration",
+      "description": "Initial delay before first retry",
+      "sourceType": "com.smmpanel.config.order.OrderProcessingProperties",
+      "defaultValue": "5s"
+    },
+    {
+      "name": "app.order.processing.max-delay",
+      "type": "java.time.Duration",
+      "description": "Maximum delay between retry attempts",
+      "sourceType": "com.smmpanel.config.order.OrderProcessingProperties",
+      "defaultValue": "10m"
+    },
+    {
+      "name": "app.order.processing.max-retries",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Order$Processing",
+      "defaultValue": 3
+    },
+    {
+      "name": "app.order.processing.max-retry-attempts",
+      "type": "java.lang.Integer",
+      "description": "Maximum number of retry attempts for failed order processing",
+      "sourceType": "com.smmpanel.config.order.OrderProcessingProperties",
+      "defaultValue": 3
+    },
+    {
+      "name": "app.order.processing.retry-delay",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Order$Processing",
+      "defaultValue": 5000
+    },
+    {
+      "name": "app.order.processing.retry-delay",
+      "type": "java.time.Duration",
+      "description": "Delay between retry attempts",
+      "sourceType": "com.smmpanel.config.order.OrderProcessingProperties",
+      "defaultValue": "1m"
+    },
+    {
+      "name": "app.order.processing.state-transition.max-retries",
+      "type": "java.lang.Integer",
+      "description": "Maximum number of retry attempts for state transitions",
+      "sourceType": "com.smmpanel.config.order.OrderProcessingProperties$StateTransition",
+      "defaultValue": 3
+    },
+    {
+      "name": "app.order.processing.state-transition.timeout",
+      "type": "java.time.Duration",
+      "description": "Timeout for state transitions",
+      "sourceType": "com.smmpanel.config.order.OrderProcessingProperties$StateTransition",
+      "defaultValue": "5m"
+    },
+    {
+      "name": "app.order.processing.thread-pool-size",
+      "type": "java.lang.Integer",
+      "description": "Number of threads in the order processing thread pool",
+      "sourceType": "com.smmpanel.config.order.OrderProcessingProperties",
+      "defaultValue": 10
+    },
+    {
+      "name": "app.order.processing.timeout",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Order$Processing",
+      "defaultValue": 300000
+    },
+    {
+      "name": "app.order.sla.completion.critical",
+      "type": "java.time.Duration",
+      "description": "Critical threshold for order completion time",
+      "sourceType": "com.smmpanel.config.monitoring.SlaMonitoringProperties$CompletionThresholds",
+      "defaultValue": "2d"
+    },
+    {
+      "name": "app.order.sla.completion.warning",
+      "type": "java.time.Duration",
+      "description": "Warning threshold for order completion time",
+      "sourceType": "com.smmpanel.config.monitoring.SlaMonitoringProperties$CompletionThresholds",
+      "defaultValue": "1d"
+    },
+    {
+      "name": "app.order.sla.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether SLA monitoring is enabled",
+      "sourceType": "com.smmpanel.config.monitoring.SlaMonitoringProperties",
+      "defaultValue": true
+    },
+    {
+      "name": "app.order.sla.initial-delay",
+      "type": "java.time.Duration",
+      "description": "Initial delay before starting SLA monitoring",
+      "sourceType": "com.smmpanel.config.monitoring.SlaMonitoringProperties",
+      "defaultValue": "30s"
+    },
+    {
+      "name": "app.order.sla.interval",
+      "type": "java.time.Duration",
+      "description": "Interval between SLA monitoring runs",
+      "sourceType": "com.smmpanel.config.monitoring.SlaMonitoringProperties",
+      "defaultValue": "5m"
+    },
+    {
+      "name": "app.order.sla.processing.critical",
+      "type": "java.time.Duration",
+      "description": "Critical threshold for order processing time",
+      "sourceType": "com.smmpanel.config.monitoring.SlaMonitoringProperties$Thresholds",
+      "defaultValue": "15m"
+    },
+    {
+      "name": "app.order.sla.processing.warning",
+      "type": "java.time.Duration",
+      "description": "Warning threshold for order processing time",
+      "sourceType": "com.smmpanel.config.monitoring.SlaMonitoringProperties$Thresholds",
+      "defaultValue": "5m"
+    },
+    {
+      "name": "app.order.sla.thread-pool-size",
+      "type": "java.lang.Integer",
+      "description": "Number of threads in the SLA monitoring thread pool",
+      "sourceType": "com.smmpanel.config.monitoring.SlaMonitoringProperties",
+      "defaultValue": 3
+    },
+    {
+      "name": "app.perfectpanel.api-version",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.AppProperties$Perfectpanel",
+      "defaultValue": "2.0"
+    },
+    {
+      "name": "app.perfectpanel.compatible",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.AppProperties$Perfectpanel",
+      "defaultValue": true
+    },
+    {
+      "name": "app.perfectpanel.status-mapping.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.AppProperties$Perfectpanel$StatusMapping",
+      "defaultValue": true
+    },
+    {
+      "name": "app.rate-limit.api.per-hour",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$RateLimit$Api",
+      "defaultValue": 1000
+    },
+    {
+      "name": "app.rate-limit.api.per-minute",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$RateLimit$Api",
+      "defaultValue": 60
+    },
+    {
+      "name": "app.rate-limit.auth.per-minute",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$RateLimit$Auth",
+      "defaultValue": 5
+    },
+    {
+      "name": "app.rate-limit.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.AppProperties$RateLimit",
+      "defaultValue": true
+    },
+    {
+      "name": "app.rate-limit.orders.per-hour",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$RateLimit$Orders",
+      "defaultValue": 100
+    },
+    {
+      "name": "app.rate-limit.orders.per-minute",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$RateLimit$Orders",
+      "defaultValue": 10
+    },
+    {
+      "name": "app.security.api-key.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.AppProperties$Security$ApiKey",
+      "defaultValue": true
+    },
+    {
+      "name": "app.security.api-key.hash-algorithm",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.AppProperties$Security$ApiKey",
+      "defaultValue": "SHA-256"
+    },
+    {
+      "name": "app.security.api-key.header",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.AppProperties$Security$ApiKey",
+      "defaultValue": "X-API-Key"
+    },
+    {
+      "name": "app.selenium.browser.headless",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.AppProperties$Selenium$Browser",
+      "defaultValue": true
+    },
+    {
+      "name": "app.selenium.driver.path",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.AppProperties$Selenium$Driver",
+      "defaultValue": "\/usr\/local\/bin\/chromedriver"
+    },
+    {
+      "name": "app.selenium.headless",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.AppProperties$Selenium",
+      "defaultValue": true
+    },
+    {
+      "name": "app.selenium.hub.max-sessions",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Selenium$Hub",
+      "defaultValue": 10
+    },
+    {
+      "name": "app.selenium.hub.timeout",
+      "type": "java.lang.Long",
+      "sourceType": "com.smmpanel.config.AppProperties$Selenium$Hub",
+      "defaultValue": 300000
+    },
+    {
+      "name": "app.selenium.hub.url",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.AppProperties$Selenium$Hub",
+      "defaultValue": "http:\/\/selenium-hub:4444\/wd\/hub"
+    },
+    {
+      "name": "app.selenium.max-concurrent-sessions",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Selenium",
+      "defaultValue": 5
+    },
+    {
+      "name": "app.selenium.retry.attempts",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Selenium$Retry",
+      "defaultValue": 3
+    },
+    {
+      "name": "app.selenium.timeout.implicit",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Selenium$Timeout",
+      "defaultValue": 10
+    },
+    {
+      "name": "app.selenium.timeout.page-load",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Selenium$Timeout",
+      "defaultValue": 30
+    },
+    {
+      "name": "app.slack.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.AppProperties$Slack",
+      "defaultValue": false
+    },
+    {
+      "name": "app.slack.webhook-url",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.AppProperties$Slack",
+      "defaultValue": ""
+    },
+    {
+      "name": "app.video.processing.clip-length",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Video$Processing",
+      "defaultValue": 60
+    },
+    {
+      "name": "app.video.processing.max-concurrent",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Video$Processing",
+      "defaultValue": 5
+    },
+    {
+      "name": "app.video.processing.quality",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.AppProperties$Video$Processing",
+      "defaultValue": "medium"
+    },
+    {
+      "name": "app.video.processing.timeout",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Video$Processing",
+      "defaultValue": 600000
+    },
+    {
+      "name": "app.youtube.api.key",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.AppProperties$Youtube$Api",
+      "defaultValue": "your-youtube-api-key"
+    },
+    {
+      "name": "app.youtube.api.retry-attempts",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Youtube$Api",
+      "defaultValue": 2
+    },
+    {
+      "name": "app.youtube.api.timeout",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Youtube$Api",
+      "defaultValue": 15000
+    },
+    {
+      "name": "app.youtube.clip-creation.coefficient",
+      "type": "java.lang.Double",
+      "sourceType": "com.smmpanel.config.AppProperties$Youtube$ClipCreation",
+      "defaultValue": 3
+    },
+    {
+      "name": "app.youtube.clip-creation.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.AppProperties$Youtube$ClipCreation",
+      "defaultValue": true
+    },
+    {
+      "name": "app.youtube.clip-creation.timeout",
+      "type": "java.lang.Long",
+      "sourceType": "com.smmpanel.config.AppProperties$Youtube$ClipCreation",
+      "defaultValue": 300000
+    },
+    {
+      "name": "app.youtube.quota.daily-limit",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Youtube$Quota",
+      "defaultValue": 10000
+    },
+    {
+      "name": "app.youtube.quota.per100-seconds",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.AppProperties$Youtube$Quota",
+      "defaultValue": 100
+    },
+    {
+      "name": "jwt.jwt-expiration-ms",
+      "type": "java.lang.Long",
+      "sourceType": "com.smmpanel.config.JwtConfig",
+      "defaultValue": 86400000
+    },
+    {
+      "name": "jwt.jwt-issuer",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.JwtConfig",
+      "defaultValue": "SMM-Panel"
+    },
+    {
+      "name": "jwt.refresh-expiration-ms",
+      "type": "java.lang.Long",
+      "sourceType": "com.smmpanel.config.JwtConfig",
+      "defaultValue": 604800000
+    },
+    {
+      "name": "jwt.secret",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.JwtConfig"
+    },
+    {
+      "name": "kafka.consumer.memory.buffer-size",
+      "type": "java.lang.Integer",
+      "description": "Buffer size for consumer records (default: 64MB)",
+      "sourceType": "com.smmpanel.config.KafkaConsumerMemoryConfig",
+      "defaultValue": 67108864
+    },
+    {
+      "name": "kafka.consumer.memory.fetch-max-bytes",
+      "type": "java.lang.Integer",
+      "description": "Maximum fetch request size in bytes (default: 50MB)",
+      "sourceType": "com.smmpanel.config.KafkaConsumerMemoryConfig",
+      "defaultValue": 52428800
+    },
+    {
+      "name": "kafka.consumer.memory.heap.g1-max-new-size-percent",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.KafkaConsumerMemoryConfig$JvmHeapSettings",
+      "defaultValue": 60
+    },
+    {
+      "name": "kafka.consumer.memory.heap.g1-new-size-percent",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.KafkaConsumerMemoryConfig$JvmHeapSettings",
+      "defaultValue": 20
+    },
+    {
+      "name": "kafka.consumer.memory.heap.initial-size",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.KafkaConsumerMemoryConfig$JvmHeapSettings",
+      "defaultValue": "1g"
+    },
+    {
+      "name": "kafka.consumer.memory.heap.initiating-heap-occupancy-percent",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.KafkaConsumerMemoryConfig$JvmHeapSettings",
+      "defaultValue": 45
+    },
+    {
+      "name": "kafka.consumer.memory.heap.max-size",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.KafkaConsumerMemoryConfig$JvmHeapSettings",
+      "defaultValue": "4g"
+    },
+    {
+      "name": "kafka.consumer.memory.heap.use-g1-g-c",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.KafkaConsumerMemoryConfig$JvmHeapSettings",
+      "defaultValue": true
+    },
+    {
+      "name": "kafka.consumer.memory.heap.young-gen-size",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.KafkaConsumerMemoryConfig$JvmHeapSettings",
+      "defaultValue": "256m"
+    },
+    {
+      "name": "kafka.consumer.memory.max-partition-fetch-bytes",
+      "type": "java.lang.Integer",
+      "description": "Maximum partition fetch size in bytes (default: 1MB)",
+      "sourceType": "com.smmpanel.config.KafkaConsumerMemoryConfig",
+      "defaultValue": 1048576
+    },
+    {
+      "name": "kafka.consumer.memory.max-poll-records",
+      "type": "java.lang.Integer",
+      "description": "Maximum poll records per consumer (default: 500)",
+      "sourceType": "com.smmpanel.config.KafkaConsumerMemoryConfig",
+      "defaultValue": 500
+    },
+    {
+      "name": "kafka.consumer.memory.max-request-size",
+      "type": "java.lang.Integer",
+      "description": "Maximum request size in bytes (default: 100MB)",
+      "sourceType": "com.smmpanel.config.KafkaConsumerMemoryConfig",
+      "defaultValue": 104857600
+    },
+    {
+      "name": "kafka.consumer.memory.receive-buffer-bytes",
+      "type": "java.lang.Integer",
+      "description": "Receive buffer size in bytes (default: 256KB)",
+      "sourceType": "com.smmpanel.config.KafkaConsumerMemoryConfig",
+      "defaultValue": 262144
+    },
+    {
+      "name": "kafka.consumer.memory.send-buffer-bytes",
+      "type": "java.lang.Integer",
+      "description": "Send buffer size in bytes (default: 128KB)",
+      "sourceType": "com.smmpanel.config.KafkaConsumerMemoryConfig",
+      "defaultValue": 131072
+    },
+    {
+      "name": "logging.file.name",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.LoggingProperties$File",
+      "defaultValue": "\/var\/log\/smm-panel\/application.log"
+    },
+    {
+      "name": "logging.level.com-smmpanel",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.LoggingProperties$Level",
+      "defaultValue": "DEBUG"
+    },
+    {
+      "name": "logging.level.org-hibernate-s-q-l",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.LoggingProperties$Level",
+      "defaultValue": "WARN"
+    },
+    {
+      "name": "logging.level.org-hibernate-type-descriptor-sql-basic-binder",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.LoggingProperties$Level",
+      "defaultValue": "WARN"
+    },
+    {
+      "name": "logging.level.org-springframework-kafka",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.LoggingProperties$Level",
+      "defaultValue": "INFO"
+    },
+    {
+      "name": "logging.level.org-springframework-security",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.LoggingProperties$Level",
+      "defaultValue": "WARN"
+    },
+    {
+      "name": "logging.level.org-springframework-web",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.LoggingProperties$Level",
+      "defaultValue": "INFO"
+    },
+    {
+      "name": "logging.level.root",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.LoggingProperties$Level",
+      "defaultValue": "INFO"
+    },
+    {
+      "name": "logging.logback.rollingpolicy.max-file-size",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.LoggingProperties$Logback$Rollingpolicy",
+      "defaultValue": "100MB"
+    },
+    {
+      "name": "logging.logback.rollingpolicy.max-history",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.LoggingProperties$Logback$Rollingpolicy",
+      "defaultValue": 30
+    },
+    {
+      "name": "logging.logback.rollingpolicy.total-size-cap",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.LoggingProperties$Logback$Rollingpolicy",
+      "defaultValue": "1GB"
+    },
+    {
+      "name": "logging.pattern.console",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.LoggingProperties$Pattern",
+      "defaultValue": "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    },
+    {
+      "name": "logging.pattern.file",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.LoggingProperties$Pattern",
+      "defaultValue": "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    },
+    {
+      "name": "management.endpoint.health.show-components",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.ManagementProperties$Endpoint$Health",
+      "defaultValue": true
+    },
+    {
+      "name": "management.endpoint.health.show-details",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.ManagementProperties$Endpoint$Health",
+      "defaultValue": "when-authorized"
+    },
+    {
+      "name": "management.endpoint.kafka-errors.cache.time-to-live",
+      "type": "java.time.Duration",
+      "description": "Maximum time that a response can be cached.",
+      "sourceType": "com.smmpanel.controller.KafkaErrorsEndpoint",
+      "defaultValue": "0ms"
+    },
+    {
+      "name": "management.endpoint.kafka-errors.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether to enable the kafka-errors endpoint.",
+      "sourceType": "com.smmpanel.controller.KafkaErrorsEndpoint",
+      "defaultValue": true
+    },
+    {
+      "name": "management.endpoints.web.base-path",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.ManagementProperties$Endpoints$Web",
+      "defaultValue": "\/actuator"
+    },
+    {
+      "name": "management.endpoints.web.exposure.include",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.ManagementProperties$Endpoints$Web$Exposure",
+      "defaultValue": "health,info,metrics,prometheus,loggers"
+    },
+    {
+      "name": "management.health.db",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.ManagementProperties$Health",
+      "defaultValue": true
+    },
+    {
+      "name": "management.health.kafka",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.ManagementProperties$Health",
+      "defaultValue": true
+    },
+    {
+      "name": "management.health.liveness-state",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.ManagementProperties$Health",
+      "defaultValue": true
+    },
+    {
+      "name": "management.health.readiness-state",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.ManagementProperties$Health",
+      "defaultValue": true
+    },
+    {
+      "name": "management.health.redis",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.ManagementProperties$Health",
+      "defaultValue": true
+    },
+    {
+      "name": "management.metrics.export.prometheus.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.ManagementProperties$Metrics$Export$Prometheus",
+      "defaultValue": true
+    },
+    {
+      "name": "resilience4j.circuitbreaker.instances.binom-api.failure-rate-threshold",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Circuitbreaker$Instances$BinomApi",
+      "defaultValue": 50
+    },
+    {
+      "name": "resilience4j.circuitbreaker.instances.binom-api.minimum-number-of-calls",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Circuitbreaker$Instances$BinomApi",
+      "defaultValue": 10
+    },
+    {
+      "name": "resilience4j.circuitbreaker.instances.binom-api.sliding-window-size",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Circuitbreaker$Instances$BinomApi",
+      "defaultValue": 20
+    },
+    {
+      "name": "resilience4j.circuitbreaker.instances.binom-api.slow-call-duration-threshold",
+      "type": "java.time.Duration",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Circuitbreaker$Instances$BinomApi",
+      "defaultValue": "5s"
+    },
+    {
+      "name": "resilience4j.circuitbreaker.instances.binom-api.slow-call-rate-threshold",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Circuitbreaker$Instances$BinomApi",
+      "defaultValue": 50
+    },
+    {
+      "name": "resilience4j.circuitbreaker.instances.binom-api.wait-duration-in-open-state",
+      "type": "java.time.Duration",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Circuitbreaker$Instances$BinomApi",
+      "defaultValue": "30s"
+    },
+    {
+      "name": "resilience4j.circuitbreaker.instances.payment-api.failure-rate-threshold",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Circuitbreaker$Instances$PaymentApi",
+      "defaultValue": 40
+    },
+    {
+      "name": "resilience4j.circuitbreaker.instances.payment-api.slow-call-duration-threshold",
+      "type": "java.time.Duration",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Circuitbreaker$Instances$PaymentApi",
+      "defaultValue": "8s"
+    },
+    {
+      "name": "resilience4j.circuitbreaker.instances.payment-api.wait-duration-in-open-state",
+      "type": "java.time.Duration",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Circuitbreaker$Instances$PaymentApi",
+      "defaultValue": "1m"
+    },
+    {
+      "name": "resilience4j.circuitbreaker.instances.youtube-api.failure-rate-threshold",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Circuitbreaker$Instances$YoutubeApi",
+      "defaultValue": 60
+    },
+    {
+      "name": "resilience4j.circuitbreaker.instances.youtube-api.slow-call-duration-threshold",
+      "type": "java.time.Duration",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Circuitbreaker$Instances$YoutubeApi",
+      "defaultValue": "10s"
+    },
+    {
+      "name": "resilience4j.circuitbreaker.instances.youtube-api.wait-duration-in-open-state",
+      "type": "java.time.Duration",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Circuitbreaker$Instances$YoutubeApi",
+      "defaultValue": "2m"
+    },
+    {
+      "name": "resilience4j.retry.instances.binom-api.exponential-backoff-multiplier",
+      "type": "java.lang.Double",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Retry$Instances$BinomApi",
+      "defaultValue": 2
+    },
+    {
+      "name": "resilience4j.retry.instances.binom-api.max-attempts",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Retry$Instances$BinomApi",
+      "defaultValue": 3
+    },
+    {
+      "name": "resilience4j.retry.instances.binom-api.wait-duration",
+      "type": "java.time.Duration",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Retry$Instances$BinomApi",
+      "defaultValue": "1s"
+    },
+    {
+      "name": "resilience4j.retry.instances.payment-api.max-attempts",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Retry$Instances$PaymentApi",
+      "defaultValue": 2
+    },
+    {
+      "name": "resilience4j.retry.instances.payment-api.wait-duration",
+      "type": "java.time.Duration",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Retry$Instances$PaymentApi",
+      "defaultValue": "3s"
+    },
+    {
+      "name": "resilience4j.retry.instances.youtube-api.max-attempts",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Retry$Instances$YoutubeApi",
+      "defaultValue": 2
+    },
+    {
+      "name": "resilience4j.retry.instances.youtube-api.wait-duration",
+      "type": "java.time.Duration",
+      "sourceType": "com.smmpanel.config.Resilience4jProperties$Retry$Instances$YoutubeApi",
+      "defaultValue": "2s"
+    },
+    {
+      "name": "server.compression.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.ServerProperties$Compression",
+      "defaultValue": true
+    },
+    {
+      "name": "server.compression.mime-types",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.ServerProperties$Compression",
+      "defaultValue": "text\/html,text\/xml,text\/plain,text\/css,text\/javascript,application\/javascript,application\/json"
+    },
+    {
+      "name": "server.compression.min-response-size",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.ServerProperties$Compression",
+      "defaultValue": 1024
+    },
+    {
+      "name": "server.error.include-binding-errors",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.ServerProperties$Error",
+      "defaultValue": "always"
+    },
+    {
+      "name": "server.error.include-message",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.ServerProperties$Error",
+      "defaultValue": "always"
+    },
+    {
+      "name": "server.error.include-stack-trace",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.ServerProperties$Error",
+      "defaultValue": "on_trace_param"
+    },
+    {
+      "name": "server.http2",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.ServerProperties",
+      "defaultValue": true
+    },
+    {
+      "name": "server.port",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.ServerProperties",
+      "defaultValue": 8080
+    },
+    {
+      "name": "server.servlet.context-path",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.ServerProperties$Servlet",
+      "defaultValue": "\/api"
+    },
+    {
+      "name": "server.tomcat.connection-timeout",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.ServerProperties$Tomcat",
+      "defaultValue": 20000
+    },
+    {
+      "name": "server.tomcat.keep-alive-timeout",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.ServerProperties$Tomcat",
+      "defaultValue": 20000
+    },
+    {
+      "name": "server.tomcat.max-connections",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.ServerProperties$Tomcat",
+      "defaultValue": 8192
+    },
+    {
+      "name": "server.tomcat.max-threads",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.ServerProperties$Tomcat",
+      "defaultValue": 200
+    },
+    {
+      "name": "server.tomcat.min-spare-threads",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.ServerProperties$Tomcat",
+      "defaultValue": 10
+    },
+    {
+      "name": "spring.data.redis.cache.cache-null-values",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.RedisProperties$Cache",
+      "defaultValue": false
+    },
+    {
+      "name": "spring.data.redis.cache.key-prefix",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.RedisProperties$Cache",
+      "defaultValue": "smm:cache:"
+    },
+    {
+      "name": "spring.data.redis.cache.time-to-live",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.RedisProperties$Cache",
+      "defaultValue": 300000
+    },
+    {
+      "name": "spring.data.redis.cache.use-key-prefix",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.RedisProperties$Cache",
+      "defaultValue": true
+    },
+    {
+      "name": "spring.data.redis.database",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.RedisProperties",
+      "defaultValue": 0
+    },
+    {
+      "name": "spring.data.redis.host",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.RedisProperties",
+      "defaultValue": "localhost"
+    },
+    {
+      "name": "spring.data.redis.jedis.pool.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.RedisProperties$Jedis$Pool",
+      "defaultValue": true
+    },
+    {
+      "name": "spring.data.redis.jedis.pool.max-active",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.RedisProperties$Jedis$Pool",
+      "defaultValue": 50
+    },
+    {
+      "name": "spring.data.redis.jedis.pool.max-idle",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.RedisProperties$Jedis$Pool",
+      "defaultValue": 20
+    },
+    {
+      "name": "spring.data.redis.jedis.pool.max-wait",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.RedisProperties$Jedis$Pool",
+      "defaultValue": 2000
+    },
+    {
+      "name": "spring.data.redis.jedis.pool.min-idle",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.RedisProperties$Jedis$Pool",
+      "defaultValue": 5
+    },
+    {
+      "name": "spring.data.redis.password",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.RedisProperties"
+    },
+    {
+      "name": "spring.data.redis.port",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.RedisProperties",
+      "defaultValue": 6379
+    },
+    {
+      "name": "spring.data.redis.timeout",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.RedisProperties",
+      "defaultValue": 5000
+    },
+    {
+      "name": "spring.datasource.driver-class-name",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.DatabaseProperties",
+      "defaultValue": "org.postgresql.Driver"
+    },
+    {
+      "name": "spring.datasource.hikari.connection-timeout",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.DatabaseProperties$Hikari",
+      "defaultValue": 20000
+    },
+    {
+      "name": "spring.datasource.hikari.idle-timeout",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.DatabaseProperties$Hikari",
+      "defaultValue": 300000
+    },
+    {
+      "name": "spring.datasource.hikari.leak-detection-threshold",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.DatabaseProperties$Hikari",
+      "defaultValue": 60000
+    },
+    {
+      "name": "spring.datasource.hikari.max-lifetime",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.DatabaseProperties$Hikari",
+      "defaultValue": 1200000
+    },
+    {
+      "name": "spring.datasource.hikari.maximum-pool-size",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.DatabaseProperties$Hikari",
+      "defaultValue": 50
+    },
+    {
+      "name": "spring.datasource.hikari.minimum-idle",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.DatabaseProperties$Hikari",
+      "defaultValue": 10
+    },
+    {
+      "name": "spring.datasource.hikari.pool-name",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.DatabaseProperties$Hikari",
+      "defaultValue": "SmmPanelHikariCP"
+    },
+    {
+      "name": "spring.datasource.password",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.DatabaseProperties",
+      "defaultValue": "password"
+    },
+    {
+      "name": "spring.datasource.url",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.DatabaseProperties",
+      "defaultValue": "jdbc:postgresql:\/\/localhost:5432\/smm_panel"
+    },
+    {
+      "name": "spring.datasource.username",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.DatabaseProperties",
+      "defaultValue": "postgres"
+    },
+    {
+      "name": "spring.jpa.hibernate.ddl-auto",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.JpaProperties$Hibernate",
+      "defaultValue": "validate"
+    },
+    {
+      "name": "spring.jpa.hibernate.naming.physical-strategy",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.JpaProperties$Hibernate$Naming",
+      "defaultValue": "org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl"
+    },
+    {
+      "name": "spring.jpa.open-in-view",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.JpaProperties",
+      "defaultValue": false
+    },
+    {
+      "name": "spring.jpa.properties.hibernate.dialect",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.JpaProperties$Properties$Hibernate",
+      "defaultValue": "org.hibernate.dialect.PostgreSQLDialect"
+    },
+    {
+      "name": "spring.jpa.properties.hibernate.format-sql",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.JpaProperties$Properties$Hibernate",
+      "defaultValue": false
+    },
+    {
+      "name": "spring.jpa.properties.hibernate.generate-statistics",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.JpaProperties$Properties$Hibernate",
+      "defaultValue": true
+    },
+    {
+      "name": "spring.jpa.properties.hibernate.jdbc.batch-size",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.JpaProperties$Properties$Hibernate$Jdbc",
+      "defaultValue": 25
+    },
+    {
+      "name": "spring.jpa.properties.hibernate.jdbc.batch-versioned-data",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.JpaProperties$Properties$Hibernate$Jdbc",
+      "defaultValue": true
+    },
+    {
+      "name": "spring.jpa.properties.hibernate.order-inserts",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.JpaProperties$Properties$Hibernate",
+      "defaultValue": true
+    },
+    {
+      "name": "spring.jpa.properties.hibernate.order-updates",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.JpaProperties$Properties$Hibernate",
+      "defaultValue": true
+    },
+    {
+      "name": "spring.jpa.show-sql",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.JpaProperties",
+      "defaultValue": false
+    },
+    {
+      "name": "spring.kafka.bootstrap-servers",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.KafkaProperties",
+      "defaultValue": "localhost:9092"
+    },
+    {
+      "name": "spring.kafka.consumer.auto-offset-reset",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Consumer",
+      "defaultValue": "earliest"
+    },
+    {
+      "name": "spring.kafka.consumer.enable-auto-commit",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Consumer",
+      "defaultValue": false
+    },
+    {
+      "name": "spring.kafka.consumer.fetch-max-wait-ms",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Consumer",
+      "defaultValue": 500
+    },
+    {
+      "name": "spring.kafka.consumer.fetch-min-bytes",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Consumer",
+      "defaultValue": 1
+    },
+    {
+      "name": "spring.kafka.consumer.group-id",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Consumer",
+      "defaultValue": "smm-panel-group"
+    },
+    {
+      "name": "spring.kafka.consumer.heartbeat-interval-ms",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Consumer",
+      "defaultValue": 3000
+    },
+    {
+      "name": "spring.kafka.consumer.key-deserializer",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Consumer",
+      "defaultValue": "org.apache.kafka.common.serialization.StringDeserializer"
+    },
+    {
+      "name": "spring.kafka.consumer.max-poll-interval-ms",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Consumer",
+      "defaultValue": 300000
+    },
+    {
+      "name": "spring.kafka.consumer.max-poll-records",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Consumer",
+      "defaultValue": 500
+    },
+    {
+      "name": "spring.kafka.consumer.properties.spring-deserializer-value-delegate-class",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Consumer$Properties",
+      "defaultValue": "org.springframework.kafka.support.serializer.JsonDeserializer"
+    },
+    {
+      "name": "spring.kafka.consumer.properties.spring-json-trusted-packages",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Consumer$Properties",
+      "defaultValue": "com.smmpanel.entity,com.smmpanel.dto,com.smmpanel.event,java.util"
+    },
+    {
+      "name": "spring.kafka.consumer.properties.spring-json-type-mapping",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Consumer$Properties",
+      "defaultValue": "order:com.smmpanel.entity.Order,videoProcessing:com.smmpanel.entity.VideoProcessing,offerAssignment:com.smmpanel.dto.binom.OfferAssignmentRequest,offerAssignmentEvent:com.smmpanel.event.OfferAssignmentEvent,notification:java.util.Map,orderStateUpdate:java.util.Map"
+    },
+    {
+      "name": "spring.kafka.consumer.properties.spring-json-use-type-headers",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Consumer$Properties",
+      "defaultValue": false
+    },
+    {
+      "name": "spring.kafka.consumer.properties.spring-json-value-default-type",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Consumer$Properties",
+      "defaultValue": "java.util.Map"
+    },
+    {
+      "name": "spring.kafka.consumer.session-timeout-ms",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Consumer",
+      "defaultValue": 30000
+    },
+    {
+      "name": "spring.kafka.consumer.value-deserializer",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Consumer",
+      "defaultValue": "org.springframework.kafka.support.serializer.ErrorHandlingDeserializer"
+    },
+    {
+      "name": "spring.kafka.producer.acks",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Producer",
+      "defaultValue": "all"
+    },
+    {
+      "name": "spring.kafka.producer.batch-size",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Producer",
+      "defaultValue": 16384
+    },
+    {
+      "name": "spring.kafka.producer.buffer-memory",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Producer",
+      "defaultValue": 33554432
+    },
+    {
+      "name": "spring.kafka.producer.key-serializer",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Producer",
+      "defaultValue": "org.apache.kafka.common.serialization.StringSerializer"
+    },
+    {
+      "name": "spring.kafka.producer.linger-ms",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Producer",
+      "defaultValue": 1
+    },
+    {
+      "name": "spring.kafka.producer.properties.compression-type",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Producer$Properties",
+      "defaultValue": "snappy"
+    },
+    {
+      "name": "spring.kafka.producer.properties.delivery-timeout-ms",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Producer$Properties",
+      "defaultValue": 120000
+    },
+    {
+      "name": "spring.kafka.producer.properties.enable-idempotence",
+      "type": "java.lang.Boolean",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Producer$Properties",
+      "defaultValue": true
+    },
+    {
+      "name": "spring.kafka.producer.properties.max-in-flight-requests-per-connection",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Producer$Properties",
+      "defaultValue": 5
+    },
+    {
+      "name": "spring.kafka.producer.properties.request-timeout-ms",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Producer$Properties",
+      "defaultValue": 30000
+    },
+    {
+      "name": "spring.kafka.producer.properties.spring-json-type-mapping",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Producer$Properties",
+      "defaultValue": "order:com.smmpanel.entity.Order,videoProcessing:com.smmpanel.entity.VideoProcessing,offerAssignment:com.smmpanel.dto.binom.OfferAssignmentRequest,offerAssignmentEvent:com.smmpanel.event.OfferAssignmentEvent,notification:java.util.Map,orderStateUpdate:java.util.Map"
+    },
+    {
+      "name": "spring.kafka.producer.retries",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Producer",
+      "defaultValue": 3
+    },
+    {
+      "name": "spring.kafka.producer.value-serializer",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.KafkaProperties$Producer",
+      "defaultValue": "org.springframework.kafka.support.serializer.JsonSerializer"
+    },
+    {
+      "name": "spring.task.execution.pool.core-size",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.TaskProperties$Execution$Pool",
+      "defaultValue": 8
+    },
+    {
+      "name": "spring.task.execution.pool.max-size",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.TaskProperties$Execution$Pool",
+      "defaultValue": 20
+    },
+    {
+      "name": "spring.task.execution.pool.queue-capacity",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.TaskProperties$Execution$Pool",
+      "defaultValue": 1000
+    },
+    {
+      "name": "spring.task.execution.thread-name-prefix",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.TaskProperties$Execution",
+      "defaultValue": "smm-async-"
+    },
+    {
+      "name": "spring.task.scheduling.pool.size",
+      "type": "java.lang.Integer",
+      "sourceType": "com.smmpanel.config.TaskProperties$Scheduling$Pool",
+      "defaultValue": 5
+    },
+    {
+      "name": "spring.task.scheduling.thread-name-prefix",
+      "type": "java.lang.String",
+      "sourceType": "com.smmpanel.config.TaskProperties$Scheduling",
+      "defaultValue": "smm-scheduled-"
+    }
+  ],
+  "hints": []
+}

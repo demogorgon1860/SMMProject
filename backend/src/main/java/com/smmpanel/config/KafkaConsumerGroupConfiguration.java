@@ -153,8 +153,8 @@ public class KafkaConsumerGroupConfiguration {
         // Set error handler
         factory.setCommonErrorHandler(errorConfiguration.defaultKafkaErrorHandler());
         
-        // Configure consumer task executor for better thread management
-        factory.getContainerProperties().setConsumerTaskExecutor(createConsumerTaskExecutor("high-throughput"));
+        // Configure listener task executor for better thread management
+        factory.getContainerProperties().setListenerTaskExecutor(createConsumerTaskExecutor("high-throughput"));
         
         return factory;
     }
@@ -180,8 +180,8 @@ public class KafkaConsumerGroupConfiguration {
         // Set error handler
         factory.setCommonErrorHandler(errorConfiguration.highPriorityErrorHandler());
         
-        // Configure consumer task executor
-        factory.getContainerProperties().setConsumerTaskExecutor(createConsumerTaskExecutor("low-latency"));
+        // Configure listener task executor
+        factory.getContainerProperties().setListenerTaskExecutor(createConsumerTaskExecutor("low-latency"));
         
         return factory;
     }
@@ -207,12 +207,10 @@ public class KafkaConsumerGroupConfiguration {
         // Set error handler
         factory.setCommonErrorHandler(errorConfiguration.defaultKafkaErrorHandler());
         
-        // Configure consumer task executor
-        factory.getContainerProperties().setConsumerTaskExecutor(createConsumerTaskExecutor("balanced"));
+        // Configure listener task executor
+        factory.getContainerProperties().setListenerTaskExecutor(createConsumerTaskExecutor("balanced"));
         
-        // Add consumer lifecycle monitoring
-        factory.getContainerProperties().setGenericConsumerFactory(
-                this::instrumentConsumer);
+        // Consumer lifecycle monitoring removed (deprecated setGenericConsumerFactory)
         
         return factory;
     }
@@ -232,7 +230,7 @@ public class KafkaConsumerGroupConfiguration {
         factory.getContainerProperties().setPollTimeout(5000L);
         
         // Order processing specific settings
-        factory.getContainerProperties().setIdleBetweenPolls(Duration.ofMillis(100));
+        factory.getContainerProperties().setIdleBetweenPolls(100L);
         factory.getContainerProperties().setMicrometerEnabled(true);
         
         // Add order-specific rebalancing listener

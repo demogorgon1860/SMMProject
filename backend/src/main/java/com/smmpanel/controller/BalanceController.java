@@ -131,7 +131,7 @@ public class BalanceController {
 
         // OPTIMIZED: Map to DTO using optimized method that assumes relations are fetched
         Page<TransactionResponse> response = transactions.map(
-                TransactionResponse::fromEntityWithFetchedRelations
+                TransactionResponse::fromEntity
         );
 
         return ResponseEntity.ok(ApiResponse.success(response));

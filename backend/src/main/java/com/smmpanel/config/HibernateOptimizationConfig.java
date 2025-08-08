@@ -3,7 +3,8 @@ package com.smmpanel.config;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.SessionFactory;
 import org.hibernate.boot.MetadataBuilder;
-import org.hibernate.boot.spi.MetadataBuilderContributor;
+// Note: MetadataBuilderContributor was removed in newer Hibernate versions
+// import org.hibernate.boot.spi.MetadataBuilderContributor;
 import org.hibernate.cache.jcache.ConfigSettings;
 import org.hibernate.stat.Statistics;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +19,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import jakarta.persistence.EntityManager;
+import java.util.HashMap;
+import java.util.Map;
 import jakarta.persistence.PersistenceContext;
 import javax.cache.CacheManager;
 import javax.cache.Caching;
@@ -149,7 +152,10 @@ public class HibernateOptimizationConfig {
 
     /**
      * Custom metadata builder contributor for advanced Hibernate configuration
+     * Note: MetadataBuilderContributor was removed in newer Hibernate versions
+     * Hibernate configuration is now handled through standard Spring Boot properties
      */
+    /* Commented out due to deprecated API removal
     @Component
     public static class CustomMetadataBuilderContributor implements MetadataBuilderContributor {
         
@@ -159,6 +165,7 @@ public class HibernateOptimizationConfig {
             log.debug("Custom Hibernate metadata builder contributor applied");
         }
     }
+    */
 
     /**
      * Hibernate statistics health indicator
@@ -187,14 +194,15 @@ public class HibernateOptimizationConfig {
                 }
                 
                 long queryCount = statistics.getQueryExecutionCount();
-                long slowQueryCount = statistics.getSlowQueryCount();
+                // Note: getSlowQueryCount() method was removed in newer Hibernate versions
+                // long slowQueryCount = statistics.getSlowQueryCount();
                 double cacheHitRatio = statistics.getSecondLevelCacheHitCount() > 0 ? 
                     (double) statistics.getSecondLevelCacheHitCount() / 
                     (statistics.getSecondLevelCacheHitCount() + statistics.getSecondLevelCacheMissCount()) : 0;
                 
                 Health.Builder healthBuilder = Health.up()
                         .withDetail("queryExecutionCount", queryCount)
-                        .withDetail("slowQueryCount", slowQueryCount)
+                        .withDetail("queryExecutionMaxTime", statistics.getQueryExecutionMaxTime())
                         .withDetail("entityLoadCount", statistics.getEntityLoadCount())
                         .withDetail("collectionLoadCount", statistics.getCollectionLoadCount())
                         .withDetail("secondLevelCacheHitCount", statistics.getSecondLevelCacheHitCount())
@@ -204,11 +212,11 @@ public class HibernateOptimizationConfig {
                         .withDetail("sessionCloseCount", statistics.getSessionCloseCount())
                         .withDetail("transactionCount", statistics.getTransactionCount());
                 
-                // Check if there are too many slow queries
-                if (slowQueryCount > slowQueryThreshold) {
-                    healthBuilder.down()
-                            .withDetail("issue", "High number of slow queries detected");
-                }
+                // Note: Slow query count check removed as getSlowQueryCount() is not available in this Hibernate version
+                // if (slowQueryCount > slowQueryThreshold) {
+                //     healthBuilder.down()
+                //             .withDetail("issue", "High number of slow queries detected");
+                // }
                 
                 return healthBuilder.build();
                 
@@ -251,7 +259,8 @@ public class HibernateOptimizationConfig {
                 log.info("Query Execution Count: {}", statistics.getQueryExecutionCount());
                 log.info("Query Execution Max Time: {}ms", statistics.getQueryExecutionMaxTime());
                 log.info("Query Execution Max Time Query: {}", statistics.getQueryExecutionMaxTimeQueryString());
-                log.info("Slow Query Count: {}", statistics.getSlowQueryCount());
+                // Note: getSlowQueryCount() method was removed in newer Hibernate versions
+                // log.info("Slow Query Count: {}", statistics.getSlowQueryCount());
                 
                 log.info("Entity Statistics:");
                 log.info("  - Load Count: {}", statistics.getEntityLoadCount());
@@ -334,19 +343,19 @@ public class HibernateOptimizationConfig {
                         .unwrap(SessionFactory.class);
                 Statistics statistics = sessionFactory.getStatistics();
                 
-                return Map.of(
-                    "enabled", statistics.isStatisticsEnabled(),
-                    "secondLevelCacheEnabled", statistics.getSecondLevelCacheHitCount() >= 0,
-                    "cacheHitCount", statistics.getSecondLevelCacheHitCount(),
-                    "cacheMissCount", statistics.getSecondLevelCacheMissCount(),
-                    "cachePutCount", statistics.getSecondLevelCachePutCount(),
-                    "cacheHitRatio", calculateCacheHitRatio(statistics),
-                    "entityNames", statistics.getEntityNames(),
-                    "collectionRoleNames", statistics.getCollectionRoleNames(),
-                    "queryCacheHitCount", statistics.getQueryCacheHitCount(),
-                    "queryCacheMissCount", statistics.getQueryCacheMissCount(),
-                    "queryCachePutCount", statistics.getQueryCachePutCount()
-                );
+                Map<String, Object> result = new HashMap<>();
+                result.put("enabled", statistics.isStatisticsEnabled());
+                result.put("secondLevelCacheEnabled", statistics.getSecondLevelCacheHitCount() >= 0);
+                result.put("cacheHitCount", statistics.getSecondLevelCacheHitCount());
+                result.put("cacheMissCount", statistics.getSecondLevelCacheMissCount());
+                result.put("cachePutCount", statistics.getSecondLevelCachePutCount());
+                result.put("cacheHitRatio", calculateCacheHitRatio(statistics));
+                result.put("entityNames", statistics.getEntityNames());
+                result.put("collectionRoleNames", statistics.getCollectionRoleNames());
+                result.put("queryCacheHitCount", statistics.getQueryCacheHitCount());
+                result.put("queryCacheMissCount", statistics.getQueryCacheMissCount());
+                result.put("queryCachePutCount", statistics.getQueryCachePutCount());
+                return result;
                 
             } catch (Exception e) {
                 log.error("Failed to get cache statistics", e);

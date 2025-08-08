@@ -1,0 +1,176 @@
+# Async Video Processing Configuration
+# Environment-specific thread pool settings for optimal performance
+
+app:
+  async:
+    video-processing:
+      # === CORE THREAD POOL CONFIGURATION ===
+      # Core pool size: Number of threads to keep alive even when idle
+      # Default: Number of CPU cores (auto-detected)
+      core-pool-size: ${ASYNC_VIDEO_CORE_POOL_SIZE:#{T(java.lang.Runtime).getRuntime().availableProcessors()}}
+      
+      # Maximum pool size: Maximum number of threads allowed
+      # Default: 2x CPU cores (auto-detected)
+      max-pool-size: ${ASYNC_VIDEO_MAX_POOL_SIZE:#{T(java.lang.Runtime).getRuntime().availableProcessors() * 2}}
+      
+      # Queue capacity: Number of tasks to queue when all threads are busy
+      # Higher values = more memory usage, but better burst handling
+      queue-capacity: ${ASYNC_VIDEO_QUEUE_CAPACITY:100}
+      
+      # Keep alive seconds: How long idle threads stay alive
+      keep-alive-seconds: ${ASYNC_VIDEO_KEEP_ALIVE:60}
+      
+      # Thread name prefix for identification in logs and monitoring
+      thread-name-prefix: ${ASYNC_VIDEO_THREAD_PREFIX:VideoProcessing-}
+      
+      # === SHUTDOWN CONFIGURATION ===
+      # How long to wait for tasks to complete during shutdown
+      await-termination-seconds: ${ASYNC_VIDEO_SHUTDOWN_TIMEOUT:60}
+      
+      # Rejection policy when thread pool is full
+      # Options: ABORT, CALLER_RUNS, DISCARD, DISCARD_OLDEST
+      rejection-policy: ${ASYNC_VIDEO_REJECTION_POLICY:CALLER_RUNS}
+      
+      # === HEALTH CHECK CONFIGURATION ===
+      health:
+        # Queue utilization threshold for health warnings (0.0-1.0)
+        queue-threshold: ${ASYNC_VIDEO_HEALTH_QUEUE_THRESHOLD:0.8}
+        
+        # Active thread utilization threshold for health warnings (0.0-1.0)
+        active-threshold: ${ASYNC_VIDEO_HEALTH_ACTIVE_THRESHOLD:0.9}
+
+---
+# === DEVELOPMENT ENVIRONMENT ===
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+app:
+  async:
+    video-processing:
+      # Smaller pools for development
+      core-pool-size: 2
+      max-pool-size: 4
+      queue-capacity: 20
+      keep-alive-seconds: 30
+      thread-name-prefix: "DevVideoProcessing-"
+      rejection-policy: "CALLER_RUNS"
+      
+      health:
+        queue-threshold: 0.7
+        active-threshold: 0.8
+
+---
+# === TEST ENVIRONMENT ===
+spring:
+  config:
+    activate:
+      on-profile: test
+
+app:
+  async:
+    video-processing:
+      # Minimal pools for testing
+      core-pool-size: 1
+      max-pool-size: 2
+      queue-capacity: 5
+      keep-alive-seconds: 10
+      thread-name-prefix: "TestVideoProcessing-"
+      rejection-policy: "ABORT"
+      
+      health:
+        queue-threshold: 0.5
+        active-threshold: 0.5
+
+---
+# === STAGING ENVIRONMENT ===
+spring:
+  config:
+    activate:
+      on-profile: staging
+
+app:
+  async:
+    video-processing:
+      # Production-like settings but smaller scale
+      core-pool-size: 4
+      max-pool-size: 8
+      queue-capacity: 50
+      keep-alive-seconds: 45
+      thread-name-prefix: "StagingVideoProcessing-"
+      rejection-policy: "CALLER_RUNS"
+      
+      health:
+        queue-threshold: 0.75
+        active-threshold: 0.85
+
+---
+# === PRODUCTION ENVIRONMENT ===
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+app:
+  async:
+    video-processing:
+      # High-performance production settings
+      # Use environment variables for fine-tuning
+      core-pool-size: ${ASYNC_VIDEO_CORE_POOL_SIZE:8}
+      max-pool-size: ${ASYNC_VIDEO_MAX_POOL_SIZE:16}
+      queue-capacity: ${ASYNC_VIDEO_QUEUE_CAPACITY:200}
+      keep-alive-seconds: ${ASYNC_VIDEO_KEEP_ALIVE:120}
+      thread-name-prefix: "ProdVideoProcessing-"
+      rejection-policy: "CALLER_RUNS"
+      await-termination-seconds: 120
+      
+      health:
+        queue-threshold: 0.85
+        active-threshold: 0.95
+
+---
+# === HIGH-LOAD PRODUCTION ENVIRONMENT ===
+spring:
+  config:
+    activate:
+      on-profile: prod-high-load
+
+app:
+  async:
+    video-processing:
+      # Maximum performance settings for high-load scenarios
+      core-pool-size: ${ASYNC_VIDEO_CORE_POOL_SIZE:16}
+      max-pool-size: ${ASYNC_VIDEO_MAX_POOL_SIZE:32}
+      queue-capacity: ${ASYNC_VIDEO_QUEUE_CAPACITY:500}
+      keep-alive-seconds: ${ASYNC_VIDEO_KEEP_ALIVE:300}
+      thread-name-prefix: "HighLoadVideoProcessing-"
+      rejection-policy: "CALLER_RUNS"
+      await-termination-seconds: 180
+      
+      health:
+        queue-threshold: 0.9
+        active-threshold: 0.95
+
+# === MONITORING AND LOGGING ===
+logging:
+  level:
+    # Enable detailed logging for async operations in development
+    com.smmpanel.config.AsyncVideoProcessingConfig: ${ASYNC_LOG_LEVEL:INFO}
+    com.smmpanel.service.YouTubeAutomationService: ${ASYNC_LOG_LEVEL:INFO}
+    org.springframework.scheduling: ${ASYNC_LOG_LEVEL:WARN}
+
+# === ACTUATOR HEALTH CHECKS ===
+management:
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,threaddump,info
+  health:
+    # Include custom video processing health indicator
+    video-processing:
+      enabled: true

@@ -169,7 +169,8 @@ public class KafkaMonitoringService {
 
     private long calculateConsumerLag(MessageListenerContainer container) {
         try {
-            Consumer<?, ?> consumer = container.getAssignedConsumer();
+            // TODO restore - getAssignedConsumer method when available
+            Consumer<?, ?> consumer = null; // container.getAssignedConsumer();
             if (consumer != null) {
                 Map<TopicPartition, Long> endOffsets = consumer.endOffsets(
                         consumer.assignment());

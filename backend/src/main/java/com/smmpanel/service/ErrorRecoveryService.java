@@ -170,11 +170,11 @@ public class ErrorRecoveryService {
             order.setLastRetryAt(LocalDateTime.now());
 
             // Reset order to processing state
-            StateTransitionResult transition = orderStateManagementService
+            OrderValidationResult validation = orderStateManagementService
                     .validateAndUpdateOrderForProcessing(orderId, order.getYoutubeVideoId());
 
-            if (!transition.isSuccess()) {
-                return ManualRetryResult.failed(orderId, "Failed to transition order for retry: " + transition.getErrorMessage());
+            if (!validation.isSuccess()) {
+                return ManualRetryResult.failed(orderId, "Failed to transition order for retry: " + validation.getErrorMessage());
             }
 
             orderRepository.save(order);
@@ -257,7 +257,7 @@ public class ErrorRecoveryService {
             long deadLetterQueueCount = orderRepository.countDeadLetterQueueOrders();
             long pendingRetries = orderRepository.countOrdersPendingRetry(LocalDateTime.now());
 
-            List<ErrorTypeStats> errorTypeStats = orderRepository.getErrorTypeStatistics();
+            List<ErrorTypeStats> errorTypeStats = mapToErrorTypeStats(orderRepository.getErrorTypeStatistics());
 
             return ErrorRecoveryStats.builder()
                     .totalFailedOrders(totalFailedOrders)
@@ -325,125 +325,28 @@ public class ErrorRecoveryService {
         exception.printStackTrace(pw);
         return sw.toString();
     }
-}
 
-// Result classes for error recovery operations
-
-/**
- * Error recovery operation result
- */
-@lombok.Builder
-@lombok.Data
-public static class ErrorRecoveryResult {
-    private final Long orderId;
-    private final boolean success;
-    private final String errorMessage;
-    private final ErrorRecoveryAction action;
-    private final LocalDateTime nextRetryTime;
-    private final int retryCount;
-
-    public static ErrorRecoveryResult retryScheduled(Long orderId, LocalDateTime nextRetryTime, int retryCount) {
-        return ErrorRecoveryResult.builder()
-                .orderId(orderId)
-                .success(true)
-                .action(ErrorRecoveryAction.RETRY_SCHEDULED)
-                .nextRetryTime(nextRetryTime)
-                .retryCount(retryCount)
-                .build();
-    }
-
-    public static ErrorRecoveryResult deadLetterQueue(Long orderId, String reason, int retryCount) {
-        return ErrorRecoveryResult.builder()
-                .orderId(orderId)
-                .success(true)
-                .action(ErrorRecoveryAction.DEAD_LETTER_QUEUE)
-                .errorMessage(reason)
-                .retryCount(retryCount)
-                .build();
-    }
-
-    public static ErrorRecoveryResult failed(Long orderId, String errorMessage) {
-        return ErrorRecoveryResult.builder()
-                .orderId(orderId)
-                .success(false)
-                .action(ErrorRecoveryAction.ERROR)
-                .errorMessage(errorMessage)
-                .build();
+    /**
+     * Maps database query result to ErrorTypeStats objects
+     */
+    private List<ErrorTypeStats> mapToErrorTypeStats(List<Object[]> queryResults) {
+        long totalCount = queryResults.stream()
+                .mapToLong(row -> ((Number) row[1]).longValue())
+                .sum();
+        
+        return queryResults.stream()
+                .map(row -> {
+                    String errorType = (String) row[0];
+                    long count = ((Number) row[1]).longValue();
+                    double percentage = totalCount > 0 ? (count * 100.0) / totalCount : 0.0;
+                    
+                    return ErrorTypeStats.builder()
+                            .errorType(errorType)
+                            .count(count)
+                            .percentage(percentage)
+                            .build();
+                })
+                .collect(java.util.stream.Collectors.toList());
     }
 }
 
-/**
- * Manual retry operation result
- */
-@lombok.Builder
-@lombok.Data
-public static class ManualRetryResult {
-    private final Long orderId;
-    private final boolean success;
-    private final String errorMessage;
-    private final String operatorNotes;
-    private final boolean retryCountReset;
-
-    public static ManualRetryResult success(Long orderId, String operatorNotes, boolean retryCountReset) {
-        return ManualRetryResult.builder()
-                .orderId(orderId)
-                .success(true)
-                .operatorNotes(operatorNotes)
-                .retryCountReset(retryCountReset)
-                .build();
-    }
-
-    public static ManualRetryResult failed(Long orderId, String errorMessage) {
-        return ManualRetryResult.builder()
-                .orderId(orderId)
-                .success(false)
-                .errorMessage(errorMessage)
-                .build();
-    }
-}
-
-/**
- * Error recovery statistics
- */
-@lombok.Builder
-@lombok.Data
-public static class ErrorRecoveryStats {
-    private final long totalFailedOrders;
-    private final long failedLast24Hours;
-    private final long failedLastWeek;
-    private final long deadLetterQueueCount;
-    private final long pendingRetries;
-    private final List<ErrorTypeStats> errorTypeBreakdown;
-
-    public static ErrorRecoveryStats empty() {
-        return ErrorRecoveryStats.builder()
-                .totalFailedOrders(0)
-                .failedLast24Hours(0)
-                .failedLastWeek(0)
-                .deadLetterQueueCount(0)
-                .pendingRetries(0)
-                .errorTypeBreakdown(List.of())
-                .build();
-    }
-}
-
-/**
- * Error type statistics
- */
-@lombok.Builder
-@lombok.Data
-public static class ErrorTypeStats {
-    private final String errorType;
-    private final long count;
-    private final double percentage;
-}
-
-/**
- * Error recovery actions
- */
-enum ErrorRecoveryAction {
-    RETRY_SCHEDULED,
-    DEAD_LETTER_QUEUE,
-    MANUAL_RETRY,
-    ERROR
-}

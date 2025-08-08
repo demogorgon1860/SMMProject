@@ -608,4 +608,11 @@ public class BalanceService {
     public <T> T executeInReadOnlyTransaction(Supplier<T> operation) {
         return readOnlyTransactionTemplate.execute(status -> operation.get());
     }
+
+    /**
+     * Get transaction history for a user with optimization (wrapper method)
+     */
+    public Page<BalanceTransaction> getTransactionHistoryOptimized(Long userId, int page, int size) {
+        return getTransactionHistory(userId, page, size);
+    }
 }

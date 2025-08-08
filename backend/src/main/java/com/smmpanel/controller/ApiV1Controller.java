@@ -119,6 +119,8 @@ public class ApiV1Controller {
             case PAUSED -> "In progress";
             case HOLDING -> "In progress";
             case REFILL -> "In progress";
+            case ERROR -> "Error";
+            case SUSPENDED -> "Cancelled";
         };
     }
 

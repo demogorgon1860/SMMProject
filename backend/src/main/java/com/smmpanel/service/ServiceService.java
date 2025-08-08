@@ -26,6 +26,11 @@ public class ServiceService {
                 .toList();
     }
 
+    @Cacheable(value = "services", cacheManager = "redisCacheManager", key = "'active-services-cached'")
+    public List<ServiceResponse> getAllActiveServicesCached() {
+        return getAllActiveServices();
+    }
+
     private ServiceResponse toServiceResponse(Service service) {
         return ServiceResponse.builder()
                 .id(service.getId())

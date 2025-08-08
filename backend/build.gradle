@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.2.0'
+    id 'org.springframework.boot' version '3.1.7'
     id 'io.spring.dependency-management' version '1.1.4'
     id 'org.flywaydb.flyway' version '9.22.3'
 }
@@ -57,14 +57,14 @@ dependencies {
     
     // Database
     implementation 'org.postgresql:postgresql'
+    // Keep hibernate-types-60 but it's compatible with Hibernate 6.x series
     implementation 'com.vladmihalcea:hibernate-types-60:2.21.1'
     implementation 'org.liquibase:liquibase-core'
-    implementation 'org.springframework.data:spring-data-jpa'
+    // Removed redundant spring-data-jpa (already included via spring-boot-starter-data-jpa)
     
-    // Hibernate Second Level Cache (EhCache)
-    implementation 'org.hibernate:hibernate-jcache:6.4.1.Final'
+    // Hibernate Second Level Cache (EhCache) - compatible with Spring Boot 3.1.7
+    implementation 'org.hibernate.orm:hibernate-jcache'
     implementation 'org.ehcache:ehcache:3.10.8'
-    implementation 'org.ehcache:jcache:1.0.1'
     
     // Jakarta EE APIs for Spring Boot 3.x compatibility
     implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
@@ -77,10 +77,9 @@ dependencies {
     
     // Email
     implementation 'org.springframework.boot:spring-boot-starter-mail'
-    implementation 'com.sun.mail:jakarta.mail:2.0.1'
+    // Removed redundant jakarta.mail (already included via starter-mail)
     
-    // Spring Security
-    implementation 'org.springframework.security:spring-security-core'
+    // Removed redundant spring-security-core (already included via starter-security)
     
     // YouTube API
     implementation 'com.google.api-client:google-api-client:2.2.0'
@@ -107,7 +106,8 @@ dependencies {
     
     // JSON Processing
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
-    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-hibernate5-jakarta'
+    // Updated for Hibernate 6.x compatibility
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-hibernate6'
     
     // API Documentation
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'

@@ -10,6 +10,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -55,7 +56,7 @@ public class ApiSecurityConfig {
                 .ignoringRequestMatchers("/api/v*/auth/**")
                 .ignoringRequestMatchers("/api/v*/public/**"))
             .headers(headers -> headers
-                .xssProtection(xss -> xss.enable(true))
+                .xssProtection(xss -> xss.and())
                 .contentSecurityPolicy(csp -> csp
                     .policyDirectives("default-src 'self'; " +
                                     "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
@@ -68,7 +69,7 @@ public class ApiSecurityConfig {
                     .includeSubDomains(true)
                     .maxAgeInSeconds(31536000))
                 .referrerPolicy(referrer -> referrer
-                    .policy("strict-origin-when-cross-origin")))
+                    .policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)))
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .requiresChannel(channel -> channel

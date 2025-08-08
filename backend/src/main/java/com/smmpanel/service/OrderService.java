@@ -328,6 +328,8 @@ public class OrderService {
             case PAUSED -> "Paused";
             case HOLDING -> "In progress";
             case REFILL -> "Refill";
+            case ERROR -> "Error";
+            case SUSPENDED -> "Suspended";
         };
     }
 
@@ -414,7 +416,39 @@ public class OrderService {
             case "canceled" -> OrderStatus.CANCELLED;
             case "paused" -> OrderStatus.PAUSED;
             case "refill" -> OrderStatus.REFILL;
+            case "error" -> OrderStatus.ERROR;
+            case "suspended" -> OrderStatus.SUSPENDED;
             default -> OrderStatus.PENDING;
         };
+    }
+
+    // Optimized delegate methods
+    public Page<OrderResponse> getUserOrdersOptimized(String username, String status, Pageable pageable) {
+        return getUserOrders(username, status, pageable);
+    }
+
+    public OrderResponse getOrderOptimized(Long orderId, String username) {
+        return getOrder(orderId, username);
+    }
+
+    public Map<String, Object> getOrdersBatchOptimized(String apiKey, String[] orderIds) {
+        return getMultipleOrderStatus(apiKey, orderIds);
+    }
+
+    public Map<Long, OrderResponse> getOrdersBatchOptimized(List<Long> orderIds, String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new OrderValidationException("User not found"));
+        
+        // Use existing method to get orders by user then filter by IDs
+        List<Order> allUserOrders = orderRepository.findOrdersWithDetailsByUserId(user.getId());
+        Map<Long, OrderResponse> result = new HashMap<>();
+        
+        for (Order order : allUserOrders) {
+            if (orderIds.contains(order.getId())) {
+                result.put(order.getId(), mapToOrderResponse(order));
+            }
+        }
+        
+        return result;
     }
 }

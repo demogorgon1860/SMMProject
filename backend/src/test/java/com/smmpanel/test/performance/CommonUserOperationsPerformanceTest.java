@@ -1,6 +1,7 @@
 package com.smmpanel.test.performance;
 
 import com.smmpanel.dto.response.OrderResponse;
+import com.smmpanel.dto.ServiceResponse;
 import com.smmpanel.entity.Order;
 import com.smmpanel.entity.Service;
 import com.smmpanel.entity.User;
@@ -80,7 +81,7 @@ public class CommonUserOperationsPerformanceTest extends QueryPerformanceTestBas
     @DisplayName("Service Listing Performance")
     public void testServiceListingPerformance() {
         QueryPerformanceResult result = measureQueryPerformance("Service Listing", () -> {
-            List<Service> services = serviceService.getAllActiveServices();
+            List<ServiceResponse> services = serviceService.getAllActiveServices();
             assert !services.isEmpty();
         });
         

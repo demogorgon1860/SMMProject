@@ -141,7 +141,7 @@ public class OptimisticLockingTest {
                 .service(testService)
                 .link("https://www.youtube.com/watch?v=test123")
                 .quantity(100)
-                .price(BigDecimal.valueOf(50))
+                .charge(BigDecimal.valueOf(50))
                 .charge(BigDecimal.valueOf(50))
                 .status(OrderStatus.PENDING)
                 .build();

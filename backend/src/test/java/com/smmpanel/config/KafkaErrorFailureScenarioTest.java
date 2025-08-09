@@ -104,8 +104,12 @@ class KafkaErrorFailureScenarioTest {
         simulateConsumerError(() -> {
             retryCount.incrementAndGet();
             log.info("Attempting to deserialize malformed JSON (attempt {})", retryCount.get());
+            com.fasterxml.jackson.core.JsonParseException jsonException = 
+                    new com.fasterxml.jackson.core.JsonParseException(null, "Unexpected character");
             throw new DeserializationException("Failed to deserialize JSON", 
-                    new com.fasterxml.jackson.core.JsonParseException(null, "Unexpected character"));
+                    malformedJson.getBytes(), 
+                    false, 
+                    jsonException);
         }, errorLatch);
 
         boolean errorHandled = errorLatch.await(5, TimeUnit.SECONDS);
@@ -280,7 +284,9 @@ class KafkaErrorFailureScenarioTest {
         simulateConsumerError(() -> {
             retryCount.incrementAndGet();
             log.info("Attempting operation with circuit breaker (attempt {})", retryCount.get());
-            throw new io.github.resilience4j.circuitbreaker.CallNotPermittedException("Circuit breaker is OPEN");
+            // CallNotPermittedException requires a CircuitBreaker instance - using RuntimeException instead
+            // to simulate the same scenario since we don't have a real CircuitBreaker in this test context
+            throw new RuntimeException("Circuit breaker is OPEN - simulating CallNotPermittedException");
         }, errorLatch);
 
         boolean errorHandled = errorLatch.await(5, TimeUnit.SECONDS);
@@ -430,7 +436,7 @@ class KafkaErrorFailureScenarioTest {
      * Helper method to simulate consumer error scenarios
      */
     private void simulateConsumerError(ErrorSimulator errorSimulator, CountDownLatch errorLatch) {
-        Thread.ofVirtual().start(() -> {
+        new Thread(() -> {
             try {
                 errorSimulator.simulate();
                 if (errorLatch != null) {
@@ -442,7 +448,7 @@ class KafkaErrorFailureScenarioTest {
                     errorLatch.countDown();
                 }
             }
-        });
+        }).start();
     }
 
     @FunctionalInterface

@@ -97,15 +97,15 @@ class ConcurrentOrderCreationTest {
         }
 
         // Create test services
-        lowCostService = createService("Low Cost Service", new BigDecimal("1.00"), 1L, 1000L);
-        highCostService = createService("High Cost Service", new BigDecimal("50.00"), 1L, 100L);
+        lowCostService = createService("Low Cost Service", new BigDecimal("1.00"), 1, 1000);
+        highCostService = createService("High Cost Service", new BigDecimal("50.00"), 1, 100);
     }
 
     private User createUserWithApiKey(String username, String email, BigDecimal balance, String apiKey) {
         User user = User.builder()
                 .username(username)
                 .email(email)
-                .password("password")
+                .passwordHash("password")
                 .role(UserRole.USER)
                 .balance(balance)
                 .totalSpent(BigDecimal.ZERO)
@@ -117,10 +117,10 @@ class ConcurrentOrderCreationTest {
         return userRepository.save(user);
     }
 
-    private com.smmpanel.entity.Service createService(String name, BigDecimal rate, Long minOrder, Long maxOrder) {
+    private com.smmpanel.entity.Service createService(String name, BigDecimal rate, Integer minOrder, Integer maxOrder) {
         com.smmpanel.entity.Service service = com.smmpanel.entity.Service.builder()
                 .name(name)
-                .rate(rate)
+                .pricePer1000(rate)
                 .minOrder(minOrder)
                 .maxOrder(maxOrder)
                 .active(true)
@@ -171,9 +171,9 @@ class ConcurrentOrderCreationTest {
                     for (int j = 0; j < ordersPerThread; j++) {
                         try {
                             CreateOrderRequest request = CreateOrderRequest.builder()
-                                    .service(lowCostService.getId().intValue())
+                                    .service(lowCostService.getId())
                                     .link("https://test" + threadIndex + "-" + j + ".com/video")
-                                    .quantity(100L)
+                                    .quantity(100)
                                     .build();
                             
                             OrderResponse orderResponse = orderService.createOrderWithApiKey(request, testApiKey);
@@ -201,7 +201,7 @@ class ConcurrentOrderCreationTest {
         User updatedUser = userRepository.findById(testUser.getId()).orElseThrow();
         
         // Calculate expected balance
-        BigDecimal orderCost = lowCostService.getRate().multiply(new BigDecimal("100")); // 1.00 * 100 = 100.00 per order
+        BigDecimal orderCost = lowCostService.getPricePer1000().multiply(new BigDecimal("100")); // 1.00 * 100 = 100.00 per order
         BigDecimal expectedBalance = new BigDecimal("1000.00").subtract(
             orderCost.multiply(new BigDecimal(successfulOrders.get())));
         
@@ -209,7 +209,7 @@ class ConcurrentOrderCreationTest {
             "User balance should reflect only successful order charges");
 
         // Verify order count
-        List<Order> userOrders = orderRepository.findByUserId(testUser.getId());
+        List<Order> userOrders = orderRepository.findOrdersWithDetailsByUserId(testUser.getId());
         assertEquals(successfulOrders.get(), userOrders.size(), 
             "Number of created orders should match successful operations");
 
@@ -259,9 +259,9 @@ class ConcurrentOrderCreationTest {
                     for (int j = 0; j < ordersPerUser; j++) {
                         try {
                             CreateOrderRequest request = CreateOrderRequest.builder()
-                                    .service(lowCostService.getId().intValue())
+                                    .service(lowCostService.getId())
                                     .link("https://user" + userIndex + "-order" + j + ".com/video")
-                                    .quantity(50L)
+                                    .quantity(50)
                                     .build();
                             
                             orderService.createOrderWithApiKey(request, apiKey);
@@ -285,14 +285,14 @@ class ConcurrentOrderCreationTest {
         // Verify each user's orders and balance
         for (User user : multipleUsers) {
             User updatedUser = userRepository.findById(user.getId()).orElseThrow();
-            List<Order> userOrders = orderRepository.findByUserId(user.getId());
+            List<Order> userOrders = orderRepository.findOrdersWithDetailsByUserId(user.getId());
             
             int expectedOrderCount = userOrderCounts.get(user.getUsername()).get();
             assertEquals(expectedOrderCount, userOrders.size(), 
                 "User " + user.getUsername() + " should have correct number of orders");
             
             // Verify balance calculation
-            BigDecimal orderCost = lowCostService.getRate().multiply(new BigDecimal("50")); // 1.00 * 50 = 50.00 per order
+            BigDecimal orderCost = lowCostService.getPricePer1000().multiply(new BigDecimal("50")); // 1.00 * 50 = 50.00 per order
             BigDecimal expectedBalance = new BigDecimal("500.00").subtract(
                 orderCost.multiply(new BigDecimal(expectedOrderCount)));
             
@@ -314,7 +314,7 @@ class ConcurrentOrderCreationTest {
             new BigDecimal("200.00"), "limited-api-key");
         
         int numberOfThreads = 20;
-        BigDecimal orderCost = highCostService.getRate().multiply(new BigDecimal("10")); // 50.00 * 10 = 500.00 per order
+        BigDecimal orderCost = highCostService.getPricePer1000().multiply(new BigDecimal("10")); // 50.00 * 10 = 500.00 per order
         
         ExecutorService executor = Executors.newFixedThreadPool(numberOfThreads);
         CountDownLatch latch = new CountDownLatch(numberOfThreads);
@@ -330,9 +330,9 @@ class ConcurrentOrderCreationTest {
                 long startTime = System.currentTimeMillis();
                 try {
                     CreateOrderRequest request = CreateOrderRequest.builder()
-                            .service(highCostService.getId().intValue())
+                            .service(highCostService.getId())
                             .link("https://expensive" + threadIndex + ".com/video")
-                            .quantity(10L)
+                            .quantity(10)
                             .build();
                     
                     orderService.createOrderWithApiKey(request, "limited-api-key");
@@ -402,9 +402,9 @@ class ConcurrentOrderCreationTest {
                                 lowCostService : highCostService;
                             
                             CreateOrderRequest request = CreateOrderRequest.builder()
-                                    .service(randomService.getId().intValue())
+                                    .service(randomService.getId())
                                     .link("https://stress" + threadIndex + "-" + j + ".com/video")
-                                    .quantity(ThreadLocalRandom.current().nextLong(10, 100))
+                                    .quantity(ThreadLocalRandom.current().nextInt(10, 100))
                                     .build();
                             
                             orderService.createOrderWithApiKey(request, apiKey);
@@ -442,7 +442,7 @@ class ConcurrentOrderCreationTest {
             assertTrue(updatedUser.getBalance().compareTo(BigDecimal.ZERO) >= 0, 
                 "User balance should never go negative: " + updatedUser.getUsername());
             
-            List<Order> userOrders = orderRepository.findByUserId(user.getId());
+            List<Order> userOrders = orderRepository.findOrdersWithDetailsByUserId(user.getId());
             List<BalanceTransaction> userTransactions = transactionRepository.findByUserId(user.getId(), null).getContent();
             
             // Count only ORDER_PAYMENT transactions
@@ -478,9 +478,9 @@ class ConcurrentOrderCreationTest {
             executor.submit(() -> {
                 try {
                     CreateOrderRequest request = CreateOrderRequest.builder()
-                            .service(lowCostService.getId().intValue())
+                            .service(lowCostService.getId())
                             .link(duplicateLink)
-                            .quantity(50L)
+                            .quantity(50)
                             .build();
                     
                     orderService.createOrderWithApiKey(request, testApiKey);
@@ -499,7 +499,7 @@ class ConcurrentOrderCreationTest {
         executor.shutdown();
 
         // Verify no duplicate orders were created (depending on business logic)
-        List<Order> ordersWithDuplicateLink = orderRepository.findByUserId(testUser.getId()).stream()
+        List<Order> ordersWithDuplicateLink = orderRepository.findOrdersWithDetailsByUserId(testUser.getId()).stream()
             .filter(order -> duplicateLink.equals(order.getLink()))
             .toList();
 

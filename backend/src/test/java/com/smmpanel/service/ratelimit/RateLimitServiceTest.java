@@ -7,8 +7,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
-import com.smmpanel.service.user.UserService;
-import com.smmpanel.domain.User;
+import com.smmpanel.service.UserService;
+import com.smmpanel.entity.User;
+import com.smmpanel.entity.UserRole;
 
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
@@ -43,7 +44,7 @@ class RateLimitServiceTest {
     void testAdminUserBypassRateLimit() {
         // Setup
         User adminUser = new User();
-        adminUser.setAdmin(true);
+        adminUser.setRole(UserRole.ADMIN);
         when(userService.findById(TEST_USER_ID)).thenReturn(adminUser);
 
         // Test
@@ -58,7 +59,7 @@ class RateLimitServiceTest {
     void testRateLimitExceeded() {
         // Setup
         User normalUser = new User();
-        normalUser.setAdmin(false);
+        normalUser.setRole(UserRole.USER);
         when(userService.findById(TEST_USER_ID)).thenReturn(normalUser);
         when(valueOperations.get(anyString())).thenReturn(101); // Over limit
 
@@ -73,7 +74,7 @@ class RateLimitServiceTest {
     void testProgressiveRateLimiting() {
         // Setup
         User normalUser = new User();
-        normalUser.setAdmin(false);
+        normalUser.setRole(UserRole.USER);
         when(userService.findById(TEST_USER_ID)).thenReturn(normalUser);
         
         // Simulate multiple violations
@@ -92,7 +93,7 @@ class RateLimitServiceTest {
     void testConcurrentRequests() throws InterruptedException {
         // Setup
         User normalUser = new User();
-        normalUser.setAdmin(false);
+        normalUser.setRole(UserRole.USER);
         when(userService.findById(TEST_USER_ID)).thenReturn(normalUser);
         when(valueOperations.get(anyString())).thenReturn(0);
 

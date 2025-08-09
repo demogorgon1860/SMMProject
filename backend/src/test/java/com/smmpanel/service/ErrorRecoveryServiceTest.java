@@ -137,7 +137,7 @@ class ErrorRecoveryServiceTest {
         when(orderRepository.findById(TEST_ORDER_ID)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenReturn(order);
         when(orderStateManagementService.validateAndUpdateOrderForProcessing(eq(TEST_ORDER_ID), anyString()))
-                .thenReturn(StateTransitionResult.success(TEST_ORDER_ID, OrderStatus.HOLDING, OrderStatus.PROCESSING));
+                .thenReturn(OrderValidationResult.success(TEST_ORDER_ID, order));
 
         String operatorNotes = "Manual retry after fixing external service";
 
@@ -197,7 +197,7 @@ class ErrorRecoveryServiceTest {
                 .thenReturn(retryOrders);
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(orderStateManagementService.validateAndUpdateOrderForProcessing(anyLong(), anyString()))
-                .thenReturn(StateTransitionResult.success(1L, OrderStatus.HOLDING, OrderStatus.PROCESSING));
+                .thenReturn(OrderValidationResult.success(1L, order1));
 
         // Act
         errorRecoveryService.processScheduledRetries();
@@ -338,7 +338,7 @@ class ErrorRecoveryServiceTest {
         when(orderRepository.findById(TEST_ORDER_ID)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenReturn(order);
         when(orderStateManagementService.validateAndUpdateOrderForProcessing(anyLong(), anyString()))
-                .thenReturn(StateTransitionResult.success(TEST_ORDER_ID, OrderStatus.HOLDING, OrderStatus.PROCESSING));
+                .thenReturn(OrderValidationResult.success(TEST_ORDER_ID, order));
 
         String operatorNotes = "Retrying after fixing external API configuration issue";
 

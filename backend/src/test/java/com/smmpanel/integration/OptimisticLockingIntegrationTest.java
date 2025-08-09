@@ -249,7 +249,7 @@ public class OptimisticLockingIntegrationTest {
                 .service(testService)
                 .link("https://www.youtube.com/watch?v=integration123")
                 .quantity(100)
-                .price(BigDecimal.valueOf(100))
+                .charge(BigDecimal.valueOf(100))
                 .charge(BigDecimal.valueOf(100))
                 .status(OrderStatus.PENDING)
                 .build();

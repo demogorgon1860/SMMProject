@@ -146,7 +146,7 @@ class KafkaErrorHandlingIntegrationTest {
         // Create a failing video processing message
         VideoProcessingMessage message = VideoProcessingMessage.builder()
                 .orderId(12345L)
-                .videoUrl("https://youtube.com/watch?v=invalid")
+                .originalUrl("https://youtube.com/watch?v=invalid")
                 .attemptNumber(1)
                 .maxAttempts(5)
                 .createdAt(LocalDateTime.now())
@@ -407,7 +407,7 @@ class KafkaErrorHandlingIntegrationTest {
         for (int i = 0; i < messageCount; i++) {
             VideoProcessingMessage message = VideoProcessingMessage.builder()
                     .orderId((long) (1000 + i))
-                    .videoUrl("https://youtube.com/watch?v=concurrent-test-" + i)
+                    .originalUrl("https://youtube.com/watch?v=concurrent-test-" + i)
                     .attemptNumber(1)
                     .maxAttempts(3)
                     .createdAt(LocalDateTime.now())

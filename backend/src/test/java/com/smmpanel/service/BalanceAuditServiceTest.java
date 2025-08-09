@@ -65,7 +65,7 @@ class BalanceAuditServiceTest {
         testUser = User.builder()
                 .username("audituser")
                 .email("audit@test.com")
-                .password("password")
+                .passwordHash("password")
                 .role(UserRole.USER)
                 .balance(new BigDecimal("1000.00"))
                 .totalSpent(BigDecimal.ZERO)

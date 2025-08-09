@@ -126,14 +126,17 @@ dependencies {
     // Development tools
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     
-    // Testing
+    // Testing - add these lines
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
-    testImplementation 'org.testcontainers:testcontainers'
-    testImplementation 'org.testcontainers:postgresql'
-    testImplementation 'org.testcontainers:kafka'
-    testImplementation 'org.mockito:mockito-core'
-    testImplementation 'com.h2database:h2'
+    testImplementation 'org.testcontainers:junit-jupiter:1.19.3'
+    testImplementation 'org.testcontainers:testcontainers:1.19.3'
+    testImplementation 'org.testcontainers:postgresql:1.19.3'
+    testImplementation 'org.testcontainers:kafka:1.19.3'
+    testImplementation 'org.junit.platform:junit-platform-suite:1.10.1'
+    testImplementation 'org.junit.platform:junit-platform-suite-api:1.10.1'
+    testImplementation 'org.mockito:mockito-core:5.7.0'
+    testImplementation 'com.h2database:h2:2.2.224'
 }
 
 // CRITICAL: Configure annotation processing properly
@@ -145,8 +148,12 @@ compileTestJava {
     options.annotationProcessorPath = configurations.testAnnotationProcessor
 }
 
-tasks.named('test') {
+test {
     useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+        exceptionFormat "full"
+    }
 }
 
 springBoot {

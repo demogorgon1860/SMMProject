@@ -125,7 +125,7 @@ class VideoProcessingProducerServiceTest {
 
         // Assert
         assertNotNull(result);
-        verify(kafkaTemplate, times(1)).send(argThat(message -> {
+        verify(kafkaTemplate, times(1)).send(argThat((Message<VideoProcessingMessage> message) -> {
             VideoProcessingMessage payload = (VideoProcessingMessage) message.getPayload();
             return payload.getOrderId().equals(TEST_ORDER_ID) &&
                    payload.getVideoId().equals(TEST_VIDEO_ID) &&
@@ -148,7 +148,7 @@ class VideoProcessingProducerServiceTest {
 
         // Assert
         assertNotNull(result);
-        verify(kafkaTemplate, times(1)).send(argThat(message -> {
+        verify(kafkaTemplate, times(1)).send(argThat((Message<VideoProcessingMessage> message) -> {
             VideoProcessingMessage payload = (VideoProcessingMessage) message.getPayload();
             return payload.getOrderId().equals(TEST_ORDER_ID) &&
                    payload.getVideoId().equals(TEST_VIDEO_ID) &&
@@ -176,7 +176,7 @@ class VideoProcessingProducerServiceTest {
 
         // Assert
         assertNotNull(result);
-        verify(kafkaTemplate, times(1)).send(argThat(message -> {
+        verify(kafkaTemplate, times(1)).send(argThat((Message<VideoProcessingMessage> message) -> {
             VideoProcessingMessage payload = (VideoProcessingMessage) message.getPayload();
             return payload.getOrderId().equals(TEST_ORDER_ID) &&
                    payload.getAttemptNumber() == 2 && // Incremented
@@ -219,7 +219,7 @@ class VideoProcessingProducerServiceTest {
 
         // Assert
         assertNotNull(result);
-        verify(kafkaTemplate, times(1)).send(argThat(message -> {
+        verify(kafkaTemplate, times(1)).send(argThat((Message<VideoProcessingMessage> message) -> {
             VideoProcessingMessage payload = (VideoProcessingMessage) message.getPayload();
             return payload.getOrderId().equals(TEST_ORDER_ID) &&
                    payload.getScheduleAt().equals(scheduleTime) &&
@@ -287,7 +287,7 @@ class VideoProcessingProducerServiceTest {
 
         // Assert
         assertNotNull(result);
-        verify(kafkaTemplate, times(1)).send(argThat(message -> {
+        verify(kafkaTemplate, times(1)).send(argThat((Message<VideoProcessingMessage> message) -> {
             VideoProcessingMessage payload = (VideoProcessingMessage) message.getPayload();
             return payload.getProcessingConfig().containsKey("custom-setting") &&
                    payload.getProcessingConfig().get("numeric-setting").equals(42) &&

@@ -80,7 +80,7 @@ class TransactionRaceConditionTest {
         testUser = User.builder()
                 .username("racetest")
                 .email("race@test.com")
-                .password("password")
+                .passwordHash("password")
                 .role(UserRole.USER)
                 .balance(new BigDecimal("1000.00"))
                 .totalSpent(BigDecimal.ZERO)
@@ -93,9 +93,9 @@ class TransactionRaceConditionTest {
         // Create test service
         testService = com.smmpanel.entity.Service.builder()
                 .name("Test Service")
-                .rate(new BigDecimal("0.01"))
-                .minOrder(1L)
-                .maxOrder(10000L)
+                .pricePer1000(new BigDecimal("0.01"))
+                .minOrder(1)
+                .maxOrder(10000)
                 .active(true)
                 .description("Test service for race condition tests")
                 .build();
@@ -109,6 +109,10 @@ class TransactionRaceConditionTest {
         int numberOfThreads = 20;
         BigDecimal deductionAmount = new BigDecimal("100.00"); // Total would be 2000, but user only has 1000
         
+        // Extract final variables for lambda usage
+        final User finalTestUser = testUser;
+        final com.smmpanel.entity.Service finalTestService = testService;
+        
         ExecutorService executor = Executors.newFixedThreadPool(numberOfThreads);
         CountDownLatch latch = new CountDownLatch(numberOfThreads);
         AtomicInteger successfulDeductions = new AtomicInteger(0);
@@ -120,17 +124,17 @@ class TransactionRaceConditionTest {
             executor.submit(() -> {
                 try {
                     Order testOrder = Order.builder()
-                            .user(testUser)
-                            .service(testService)
+                            .user(finalTestUser)
+                            .service(finalTestService)
                             .link("https://test" + threadIndex + ".com")
-                            .quantity(100L)
+                            .quantity(100)
                             .charge(deductionAmount)
                             .status(OrderStatus.PENDING)
                             .createdAt(LocalDateTime.now())
                             .build();
                     testOrder = orderRepository.save(testOrder);
 
-                    boolean success = balanceService.checkAndDeductBalance(testUser, deductionAmount, testOrder, 
+                    boolean success = balanceService.checkAndDeductBalance(finalTestUser, deductionAmount, testOrder, 
                         "Race condition test " + threadIndex);
                     
                     if (success) {
@@ -176,7 +180,7 @@ class TransactionRaceConditionTest {
         User user2 = User.builder()
                 .username("racetest2")
                 .email("race2@test.com")
-                .password("password")
+                .passwordHash("password")
                 .role(UserRole.USER)
                 .balance(new BigDecimal("500.00"))
                 .totalSpent(BigDecimal.ZERO)
@@ -187,6 +191,10 @@ class TransactionRaceConditionTest {
 
         int numberOfThreads = 20;
         BigDecimal transferAmount = new BigDecimal("25.00");
+        
+        // Extract final variables for lambda usage
+        final Long testUserId = testUser.getId();
+        final Long user2Id = user2.getId();
         
         ExecutorService executor = Executors.newFixedThreadPool(numberOfThreads);
         CountDownLatch latch = new CountDownLatch(numberOfThreads);
@@ -199,11 +207,11 @@ class TransactionRaceConditionTest {
                 try {
                     if (threadIndex % 2 == 0) {
                         // Transfer from testUser to user2
-                        balanceService.transferBalance(testUser.getId(), user2.getId(), 
+                        balanceService.transferBalance(testUserId, user2Id, 
                             transferAmount, "Race test transfer " + threadIndex);
                     } else {
                         // Transfer from user2 to testUser
-                        balanceService.transferBalance(user2.getId(), testUser.getId(), 
+                        balanceService.transferBalance(user2Id, testUserId, 
                             transferAmount, "Race test transfer " + threadIndex);
                     }
                     successfulTransfers.incrementAndGet();
@@ -243,7 +251,7 @@ class TransactionRaceConditionTest {
             User user = User.builder()
                     .username("deadlocktest" + i)
                     .email("deadlock" + i + "@test.com")
-                    .password("password")
+                    .passwordHash("password")
                     .role(UserRole.USER)
                     .balance(new BigDecimal("200.00"))
                     .totalSpent(BigDecimal.ZERO)
@@ -306,7 +314,7 @@ class TransactionRaceConditionTest {
         User user2 = User.builder()
                 .username("mixedtest")
                 .email("mixed@test.com")
-                .password("password")
+                .passwordHash("password")
                 .role(UserRole.USER)
                 .balance(new BigDecimal("300.00"))
                 .totalSpent(BigDecimal.ZERO)
@@ -316,6 +324,13 @@ class TransactionRaceConditionTest {
         user2 = userRepository.save(user2);
 
         int numberOfThreads = 100;
+        
+        // Extract final variables for lambda usage
+        final Long testUserId = testUser.getId();
+        final Long user2Id = user2.getId();
+        final User finalTestUser = testUser;
+        final com.smmpanel.entity.Service finalTestService = testService;
+        
         ExecutorService executor = Executors.newFixedThreadPool(numberOfThreads);
         CountDownLatch latch = new CountDownLatch(numberOfThreads);
         
@@ -328,36 +343,36 @@ class TransactionRaceConditionTest {
                 try {
                     switch (threadIndex % 6) {
                         case 0: // Add balance
-                            balanceService.addBalance(testUser, new BigDecimal("5.00"), null, "Mixed test add");
+                            balanceService.addBalance(finalTestUser, new BigDecimal("5.00"), null, "Mixed test add");
                             break;
                         case 1: // Check and deduct
                             Order order = Order.builder()
-                                    .user(testUser)
-                                    .service(testService)
+                                    .user(finalTestUser)
+                                    .service(finalTestService)
                                     .link("https://mixed" + threadIndex + ".com")
-                                    .quantity(50L)
+                                    .quantity(50)
                                     .charge(new BigDecimal("10.00"))
                                     .status(OrderStatus.PENDING)
                                     .createdAt(LocalDateTime.now())
                                     .build();
                             order = orderRepository.save(order);
-                            balanceService.checkAndDeductBalance(testUser, new BigDecimal("10.00"), order, "Mixed test deduct");
+                            balanceService.checkAndDeductBalance(finalTestUser, new BigDecimal("10.00"), order, "Mixed test deduct");
                             break;
                         case 2: // Transfer
                             try {
-                                balanceService.transferBalance(testUser.getId(), user2.getId(), 
+                                balanceService.transferBalance(testUserId, user2Id, 
                                     new BigDecimal("15.00"), "Mixed test transfer");
                             } catch (InsufficientBalanceException ignored) {}
                             break;
                         case 3: // Adjust balance
-                            balanceService.adjustBalance(testUser.getId(), new BigDecimal("3.00"), 
+                            balanceService.adjustBalance(testUserId, new BigDecimal("3.00"), 
                                 TransactionType.ADJUSTMENT, "Mixed test adjustment", null);
                             break;
                         case 4: // Check balance
-                            balanceService.checkAndReserveBalance(testUser.getId(), new BigDecimal("20.00"));
+                            balanceService.checkAndReserveBalance(testUserId, new BigDecimal("20.00"));
                             break;
                         case 5: // Refund
-                            balanceService.refund(testUser, new BigDecimal("2.00"), null, "Mixed test refund");
+                            balanceService.refund(finalTestUser, new BigDecimal("2.00"), null, "Mixed test refund");
                             break;
                     }
                     operationCounts.incrementAndGet();
@@ -404,6 +419,10 @@ class TransactionRaceConditionTest {
     void testTransactionTimeouts() throws InterruptedException {
         // This test simulates scenarios where transactions might timeout
         int numberOfThreads = 30;
+        
+        // Extract final variable for lambda usage
+        final Long testUserId = testUser.getId();
+        
         ExecutorService executor = Executors.newFixedThreadPool(numberOfThreads);
         CountDownLatch latch = new CountDownLatch(numberOfThreads);
         
@@ -417,7 +436,7 @@ class TransactionRaceConditionTest {
                     // Perform a complex operation that might stress the transaction system
                     for (int j = 0; j < 10; j++) {
                         try {
-                            balanceService.adjustBalance(testUser.getId(), 
+                            balanceService.adjustBalance(testUserId, 
                                 new BigDecimal("0.01"), TransactionType.ADJUSTMENT, 
                                 "Timeout test " + threadIndex + "-" + j, null);
                             Thread.sleep(10); // Small delay to increase contention

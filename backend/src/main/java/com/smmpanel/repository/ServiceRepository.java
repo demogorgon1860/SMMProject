@@ -14,6 +14,7 @@ import java.util.Optional;
 @Repository
 public interface ServiceRepository extends JpaRepository<Service, Long> {
     List<Service> findByActiveOrderByIdAsc(Boolean active);
+    List<Service> findByActiveTrue();
     List<Service> findByCategoryAndActiveOrderByIdAsc(String category, Boolean active);
     @Query("SELECT s FROM Service s WHERE s.active = true AND s.name LIKE CONCAT('%', :searchTerm, '%')")
     Page<Service> searchActiveServices(@Param("searchTerm") String searchTerm, Pageable pageable);

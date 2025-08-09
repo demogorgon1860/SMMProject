@@ -4,6 +4,7 @@ import com.smmpanel.entity.*;
 import com.smmpanel.exception.InsufficientBalanceException;
 import com.smmpanel.exception.ResourceNotFoundException;
 import com.smmpanel.repository.BalanceTransactionRepository;
+import com.smmpanel.repository.ServiceRepository;
 import com.smmpanel.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -56,21 +57,26 @@ class BalanceServiceConcurrencyTest {
     @Autowired
     private BalanceTransactionRepository transactionRepository;
 
+    @Autowired
+    private ServiceRepository serviceRepository;
+
     private User testUser;
     private User testUser2;
+    private com.smmpanel.entity.Service testService;
 
     @BeforeEach
     @Transactional
     void setUp() {
         // Clean up previous test data
         transactionRepository.deleteAll();
+        serviceRepository.deleteAll();
         userRepository.deleteAll();
 
         // Create test users
         testUser = User.builder()
                 .username("testuser1")
                 .email("test1@example.com")
-                .password("password")
+                .passwordHash("password")
                 .role(UserRole.USER)
                 .balance(new BigDecimal("1000.00"))
                 .totalSpent(BigDecimal.ZERO)
@@ -81,7 +87,7 @@ class BalanceServiceConcurrencyTest {
         testUser2 = User.builder()
                 .username("testuser2")
                 .email("test2@example.com")
-                .password("password")
+                .passwordHash("password")
                 .role(UserRole.USER)
                 .balance(new BigDecimal("500.00"))
                 .totalSpent(BigDecimal.ZERO)
@@ -91,6 +97,17 @@ class BalanceServiceConcurrencyTest {
 
         testUser = userRepository.save(testUser);
         testUser2 = userRepository.save(testUser2);
+
+        // Create test service
+        testService = com.smmpanel.entity.Service.builder()
+                .name("Test Service")
+                .pricePer1000(new BigDecimal("1.00"))
+                .minOrder(1)
+                .maxOrder(10000)
+                .active(true)
+                .description("Service for testing")
+                .build();
+        testService = serviceRepository.save(testService);
     }
 
     @Test
@@ -107,9 +124,9 @@ class BalanceServiceConcurrencyTest {
         // Create test order
         Order testOrder = Order.builder()
                 .user(testUser)
-                .serviceId(1L)
+                .service(testService)
                 .link("https://example.com")
-                .quantity(100L)
+                .quantity(100)
                 .charge(deductionAmount)
                 .status(OrderStatus.PENDING)
                 .createdAt(LocalDateTime.now())
@@ -202,9 +219,9 @@ class BalanceServiceConcurrencyTest {
         // Create test order
         Order testOrder = Order.builder()
                 .user(testUser)
-                .serviceId(1L)
+                .service(testService)
                 .link("https://example.com")
-                .quantity(50L)
+                .quantity(50)
                 .charge(new BigDecimal("10.00"))
                 .status(OrderStatus.PENDING)
                 .createdAt(LocalDateTime.now())

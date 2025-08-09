@@ -155,6 +155,18 @@ public class UserService {
     }
 
     /**
+     * Find user by ID
+     * 
+     * @param userId User ID
+     * @return User entity
+     */
+    @Transactional(readOnly = true)
+    public User findById(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+    }
+
+    /**
      * Check if user has sufficient balance (thread-safe read)
      * 
      * @param userId User ID

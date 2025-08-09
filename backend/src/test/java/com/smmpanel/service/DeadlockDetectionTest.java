@@ -91,7 +91,7 @@ class DeadlockDetectionTest {
             User user = User.builder()
                     .username("deadlockuser" + i)
                     .email("deadlock" + i + "@test.com")
-                    .password("password")
+                    .passwordHash("password")
                     .role(UserRole.USER)
                     .balance(new BigDecimal("1000.00"))
                     .totalSpent(BigDecimal.ZERO)
@@ -104,9 +104,9 @@ class DeadlockDetectionTest {
         // Create test service
         testService = com.smmpanel.entity.Service.builder()
                 .name("Deadlock Test Service")
-                .rate(new BigDecimal("1.00"))
-                .minOrder(1L)
-                .maxOrder(1000L)
+                .pricePer1000(new BigDecimal("1.00"))
+                .minOrder(1)
+                .maxOrder(1000)
                 .active(true)
                 .description("Service for deadlock testing")
                 .build();
@@ -243,8 +243,6 @@ class DeadlockDetectionTest {
                             
                         } catch (DeadlockLoserDataAccessException | CannotAcquireLockException e) {
                             deadlockExceptions.incrementAndGet();
-                        } catch (java.util.concurrent.TimeoutException e) {
-                            timeoutExceptions.incrementAndGet();
                         } catch (Exception e) {
                             otherExceptions.incrementAndGet();
                             if (!(e instanceof InsufficientBalanceException)) {
@@ -522,7 +520,7 @@ class DeadlockDetectionTest {
                 .user(user)
                 .service(testService)
                 .link("https://deadlock-test.com/" + System.currentTimeMillis())
-                .quantity(100L)
+                .quantity(100)
                 .charge(new BigDecimal("3.00"))
                 .status(OrderStatus.PENDING)
                 .createdAt(LocalDateTime.now())

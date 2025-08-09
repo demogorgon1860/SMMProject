@@ -1,7 +1,8 @@
 package com.smmpanel.service.security;
 
-import com.smmpanel.domain.User;
+import com.smmpanel.entity.User;
 import com.smmpanel.repository.UserRepository;
+import com.smmpanel.service.monitoring.SecurityMetricsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,7 +63,7 @@ class LoginAttemptServiceTest {
         when(userRepository.findByUsername(TEST_USERNAME)).thenReturn(Optional.of(user));
 
         // When
-        loginAttemptService.loginFailed(TEST_USERNAME);
+        loginAttemptService.loginFailed(TEST_USERNAME, TEST_IP);
 
         // Then
         verify(valueOperations).increment(anyString());
@@ -80,7 +81,7 @@ class LoginAttemptServiceTest {
         when(userRepository.findByUsername(TEST_USERNAME)).thenReturn(Optional.of(user));
 
         // When
-        loginAttemptService.loginSucceeded(TEST_USERNAME);
+        loginAttemptService.loginSucceeded(TEST_USERNAME, TEST_IP);
 
         // Then
         verify(redisTemplate).delete(anyString());
@@ -99,7 +100,7 @@ class LoginAttemptServiceTest {
         when(valueOperations.get(anyString())).thenReturn("5");
 
         // When
-        loginAttemptService.loginFailed(TEST_USERNAME);
+        loginAttemptService.loginFailed(TEST_USERNAME, TEST_IP);
 
         // Then
         verify(userRepository).save(argThat(u -> u.isAccountLocked()));
@@ -143,7 +144,7 @@ class LoginAttemptServiceTest {
         when(userRepository.findByUsername(TEST_USERNAME)).thenReturn(Optional.of(user));
 
         // When
-        loginAttemptService.unlockUser(TEST_USERNAME, "admin");
+        loginAttemptService.unlockAccount(TEST_USERNAME, "admin");
 
         // Then
         verify(redisTemplate).delete(anyString());

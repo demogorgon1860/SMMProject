@@ -68,7 +68,7 @@ class KafkaVideoProcessingIntegrationTest {
     @Test
     @DisplayName("KAFKA: Send and receive video processing message successfully")
     @Timeout(value = 30, unit = TimeUnit.SECONDS)
-    void testSendAndReceiveMessage() throws InterruptedException {
+    void testSendAndReceiveMessage() throws InterruptedException, java.util.concurrent.ExecutionException, java.util.concurrent.TimeoutException {
         // Arrange
         Long orderId = 12345L;
         Long userId = 67890L;
@@ -119,7 +119,7 @@ class KafkaVideoProcessingIntegrationTest {
     @Test
     @DisplayName("KAFKA: Send high priority message with correct routing")
     @Timeout(value = 30, unit = TimeUnit.SECONDS)
-    void testHighPriorityMessageRouting() throws InterruptedException {
+    void testHighPriorityMessageRouting() throws InterruptedException, java.util.concurrent.ExecutionException, java.util.concurrent.TimeoutException {
         // Arrange
         Long orderId = 54321L;
         Long userId = 98765L;
@@ -149,7 +149,7 @@ class KafkaVideoProcessingIntegrationTest {
     @Test
     @DisplayName("KAFKA: Batch message processing performance")
     @Timeout(value = 60, unit = TimeUnit.SECONDS)
-    void testBatchMessageProcessing() throws InterruptedException {
+    void testBatchMessageProcessing() throws InterruptedException, java.util.concurrent.ExecutionException, java.util.concurrent.TimeoutException {
         // Arrange
         int batchSize = 10;
         java.util.List<VideoProcessingMessage> messages = new java.util.ArrayList<>();
@@ -197,7 +197,7 @@ class KafkaVideoProcessingIntegrationTest {
     @Test
     @DisplayName("KAFKA: Message serialization and deserialization")
     @Timeout(value = 30, unit = TimeUnit.SECONDS)
-    void testMessageSerialization() throws InterruptedException {
+    void testMessageSerialization() throws InterruptedException, java.util.concurrent.ExecutionException, java.util.concurrent.TimeoutException {
         // Arrange - Create complex message with all fields
         VideoProcessingMessage originalMessage = VideoProcessingMessage.builder()
                 .orderId(99999L)
@@ -290,7 +290,7 @@ class KafkaVideoProcessingIntegrationTest {
     @Test
     @DisplayName("KAFKA: Message retry logic validation")
     @Timeout(value = 30, unit = TimeUnit.SECONDS)
-    void testMessageRetryLogic() throws InterruptedException {
+    void testMessageRetryLogic() throws InterruptedException, java.util.concurrent.ExecutionException, java.util.concurrent.TimeoutException {
         // Arrange - Create message for retry testing
         VideoProcessingMessage originalMessage = VideoProcessingMessage.createStandardMessage(
                 77777L, "retryTest123", "https://www.youtube.com/watch?v=retryTest123", 2000, 88888L);

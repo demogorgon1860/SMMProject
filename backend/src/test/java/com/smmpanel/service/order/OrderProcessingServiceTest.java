@@ -90,6 +90,9 @@ class OrderProcessingServiceTest {
         testOrder.setStatus(OrderStatus.PENDING);
         testOrder.setQuantity(1000);
         testOrder.setLink(createRequest.getLink());
+        testOrder.setCharge(new BigDecimal("2.50")); // Set the charge for the order
+        testOrder.setStartCount(0);
+        testOrder.setRemains(1000);
         
         // Set up security context
         UserPrincipal userPrincipal = UserPrincipal.builder()

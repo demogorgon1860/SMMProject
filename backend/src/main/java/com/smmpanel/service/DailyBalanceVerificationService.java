@@ -3,6 +3,7 @@ package com.smmpanel.service;
 import com.smmpanel.service.BalanceAuditService.DailyBalanceReport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -17,6 +18,7 @@ import java.util.concurrent.CompletableFuture;
 public class DailyBalanceVerificationService {
 
     private final BalanceAuditService balanceAuditService;
+    @Qualifier("generalAlertService")
     private final AlertService alertService;
 
     /**

@@ -28,7 +28,7 @@ import java.util.Optional;
  * PRODUCTION-READY Order Processing Service with complete workflow
  */
 @Slf4j
-@Service
+@Service("productionOrderProcessingService")
 @RequiredArgsConstructor
 public class OrderProcessingService {
     

@@ -6,6 +6,7 @@ import com.smmpanel.dto.binom.OfferAssignmentResponse;
 import com.smmpanel.service.OfferAssignmentService;
 import com.smmpanel.service.OfferEventProducer;
 import io.swagger.v3.oas.annotations.Operation;
+import org.springframework.beans.factory.annotation.Qualifier;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -29,6 +30,7 @@ import java.util.List;
 public class OfferAssignmentController {
 
     private final OfferAssignmentService offerAssignmentService;
+    @Qualifier("kafkaOfferEventProducer")
     private final OfferEventProducer offerEventProducer;
 
     /**

@@ -8,6 +8,7 @@ import com.smmpanel.service.monitoring.AlertService;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 public class SLAMonitoringService {
     
     private final OrderRepository orderRepository;
+    @Qualifier("monitoringAlertService")
     private final AlertService alertService;
     private final MeterRegistry meterRegistry;
     

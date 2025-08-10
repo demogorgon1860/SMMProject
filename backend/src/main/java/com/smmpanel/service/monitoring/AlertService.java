@@ -13,7 +13,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
-@Service
+@Service("monitoringAlertService")
 @RequiredArgsConstructor
 public class AlertService {
     

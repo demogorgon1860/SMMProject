@@ -14,7 +14,7 @@ import java.util.Map;
  * Service for managing system alerts and notifications
  */
 @Slf4j
-@Service
+@Service("generalAlertService")
 @RequiredArgsConstructor
 public class AlertService {
 

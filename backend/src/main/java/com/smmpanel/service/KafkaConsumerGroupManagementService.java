@@ -8,6 +8,7 @@ import org.apache.kafka.clients.admin.ConsumerGroupListing;
 import org.apache.kafka.clients.admin.MemberDescription;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.config.KafkaListenerEndpointRegistry;
 import org.springframework.kafka.listener.MessageListenerContainer;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -40,6 +41,7 @@ public class KafkaConsumerGroupManagementService {
 
     private final AdminClient adminClient;
     private final KafkaListenerEndpointRegistry endpointRegistry;
+    @Qualifier("generalAlertService")
     private final AlertService alertService;
 
     // Consumer group monitoring state

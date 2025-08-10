@@ -190,7 +190,7 @@ class VideoProcessingProducerServiceTest {
         // Arrange
         VideoProcessingMessage originalMessage = VideoProcessingMessage.createStandardMessage(
                 TEST_ORDER_ID, TEST_VIDEO_ID, TEST_URL, TEST_QUANTITY, TEST_USER_ID);
-        originalMessage.setAttemptNumber(3);
+        originalMessage.setAttemptNumber(4);  // 4 > 3, so max attempts exceeded
         originalMessage.setMaxAttempts(3);
 
         // Act

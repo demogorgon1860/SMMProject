@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -35,6 +36,7 @@ import java.util.function.Function;
 public class MessageProcessingService {
 
     private final TransactionTemplate transactionTemplate;
+    @Qualifier("generalAlertService")
     private final AlertService alertService;
 
     // Message processing state tracking

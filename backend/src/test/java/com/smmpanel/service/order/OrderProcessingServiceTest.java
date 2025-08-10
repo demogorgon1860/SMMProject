@@ -66,9 +66,12 @@ class OrderProcessingServiceTest {
         testUser = new User();
         testUser.setId(1L);
         testUser.setUsername("testuser");
+        testUser.setEmail("testuser@example.com");
+        testUser.setPasswordHash("hashed-password");
         testUser.setBalance(new BigDecimal("1000.00"));
         testUser.setActive(true);
         testUser.setApiKey("test-api-key-123");
+        testUser.setRole(com.smmpanel.entity.UserRole.USER);
         
         testService = new Service();
         testService.setId(1L);
@@ -110,10 +113,15 @@ class OrderProcessingServiceTest {
     
     @Test
     void createOrder_WithValidRequest_ShouldCreateOrder() {
-        // Mock the hashed API key lookup that OrderService actually uses
+        // Mock the dependencies in the correct order that OrderService uses:
+        // 1. First it looks up user by username
+        when(userRepository.findByUsername(testUser.getUsername())).thenReturn(Optional.of(testUser));
+        
+        // 2. Then it calls createOrderWithApiKey which looks up user by hashed API key
         String hashedApiKey = hashApiKey(testUser.getApiKey());
         when(userRepository.findByApiKeyHashAndIsActiveTrue(hashedApiKey)).thenReturn(Optional.of(testUser));
-        when(userRepository.findByUsername(anyString())).thenReturn(Optional.of(testUser));
+        
+        // 3. Other dependencies
         when(serviceRepository.findById(anyLong())).thenReturn(Optional.of(testService));
         when(orderRepository.save(any(Order.class))).thenReturn(testOrder);
         when(balanceService.checkAndDeductBalance(any(User.class), any(BigDecimal.class), any(Order.class), anyString())).thenReturn(true);
@@ -128,10 +136,15 @@ class OrderProcessingServiceTest {
     
     @Test
     void createOrder_WithValidationErrors_ShouldThrowException() {
-        // Mock the hashed API key lookup
+        // Mock the dependencies in the correct order that OrderService uses:
+        // 1. First it looks up user by username
+        when(userRepository.findByUsername(testUser.getUsername())).thenReturn(Optional.of(testUser));
+        
+        // 2. Then it calls createOrderWithApiKey which looks up user by hashed API key
         String hashedApiKey = hashApiKey(testUser.getApiKey());
         when(userRepository.findByApiKeyHashAndIsActiveTrue(hashedApiKey)).thenReturn(Optional.of(testUser));
-        when(userRepository.findByUsername(anyString())).thenReturn(Optional.of(testUser));
+        
+        // 3. Other dependencies
         when(serviceRepository.findById(anyLong())).thenReturn(Optional.of(testService));
         
         // Set invalid quantity to trigger validation error

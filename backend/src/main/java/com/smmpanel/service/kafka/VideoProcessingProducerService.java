@@ -51,8 +51,6 @@ public class VideoProcessingProducerService {
             VideoProcessingMessage message) {
         
         try {
-            messagesSent.incrementAndGet();
-            
             // Create message with headers for better tracking
             Message<VideoProcessingMessage> kafkaMessage = MessageBuilder
                     .withPayload(message)
@@ -66,6 +64,9 @@ public class VideoProcessingProducerService {
                     .build();
 
             log.info("Sending video processing message to Kafka: {}", message.getSummary());
+
+            // Only increment messagesSent after successfully creating the message and before sending
+            messagesSent.incrementAndGet();
 
             CompletableFuture<SendResult<String, VideoProcessingMessage>> future = 
                     kafkaTemplate.send(kafkaMessage);
@@ -88,12 +89,19 @@ public class VideoProcessingProducerService {
             return future;
 
         } catch (Exception e) {
-            messagesFailed.incrementAndGet();
             log.error("Error creating Kafka message for order {}: {}", message.getOrderId(), e.getMessage(), e);
             
-            // Return failed future
+            // Return failed future - failure will be counted in the callback
             CompletableFuture<SendResult<String, VideoProcessingMessage>> failedFuture = new CompletableFuture<>();
             failedFuture.completeExceptionally(e);
+            
+            // Add the same callback for consistency
+            failedFuture.whenComplete((result, ex) -> {
+                if (ex != null) {
+                    messagesFailed.incrementAndGet();
+                }
+            });
+            
             return failedFuture;
         }
     }

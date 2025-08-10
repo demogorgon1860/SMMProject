@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
  * Producer for offer assignment events
  */
 @Slf4j
-@Component
+@Component("binomOfferEventProducer")
 @RequiredArgsConstructor
 public class OfferEventProducer {
 

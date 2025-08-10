@@ -110,34 +110,53 @@ public class CurrencyUtils {
      * @return The parsed BigDecimal, or null if the input is null/empty
      * @throws NumberFormatException if the string cannot be parsed to a number
      */
-    public static BigDecimal parseMonetaryValue(String value) {
-        if (value == null || value.trim().isEmpty()) {
-            return null;
+    public static BigDecimal parseMonetaryValue(String raw) {
+        if (raw == null || raw.trim().isEmpty()) {
+            throw new IllegalArgumentException("Input monetary string is null or empty");
         }
-        
-        // Remove any currency symbols, thousands separators, etc.
-        String cleanValue = value.replaceAll("[^\\d.,-]+", "");
-        
-        // Handle different decimal separators
-        if (cleanValue.matches(".*[.,]\\d{3}(?:[.,]|$)")) {
-            // If there are 3 digits after the decimal point, it's probably using . as thousands separator
-            cleanValue = cleanValue.replace(".", "").replace(",", ".");
-        } else {
-            // Count decimal separators to determine format
-            long commaCount = cleanValue.chars().filter(ch -> ch == ',').count();
-            long dotCount = cleanValue.chars().filter(ch -> ch == '.').count();
-            
-            if (commaCount > 0 && dotCount > 0) {
-                // European format: 1.234,56 -> 1234.56
-                cleanValue = cleanValue.replace(".", "").replace(",", ".");
-            } else if (commaCount > 0) {
-                // Comma as decimal separator: 1234,56 -> 1234.56
-                cleanValue = cleanValue.replace(",", ".");
-            }
-            // If only dots, assume it's already in correct format
+
+        String s = raw.trim();
+
+        // Keep leading minus
+        boolean negative = s.startsWith("-");
+        if (negative) s = s.substring(1).trim();
+
+        // Remove currency symbols, spaces and letters, keep digits, dot and comma and minus if any
+        s = s.replaceAll("[^0-9,\\.]", "");
+
+        if (s.isEmpty()) {
+            throw new IllegalArgumentException("No numeric content after cleaning: " + raw);
         }
-        
-        return new BigDecimal(cleanValue);
+
+        int lastDot = s.lastIndexOf('.');
+        int lastComma = s.lastIndexOf(',');
+
+        if (lastDot == -1 && lastComma == -1) {
+            // pure integer digits
+            String digits = s.replaceAll("[^0-9]", "");
+            BigDecimal bd = new BigDecimal(digits);
+            return negative ? bd.negate() : bd;
+        }
+
+        // Determine which separator is the decimal separator:
+        int lastSepIndex = Math.max(lastDot, lastComma);
+        char decimalSep = lastSepIndex == lastDot ? '.' : ',';
+
+        // Mark the last occurrence of the decimal separator with placeholder 'D'
+        StringBuilder sb = new StringBuilder(s);
+        sb.setCharAt(lastSepIndex, 'D');
+
+        // Remove all other separators (both '.' and ',') which are grouping separators
+        String cleaned = sb.toString().replaceAll("[.,]", "");
+
+        // Replace placeholder with '.' to create a standard decimal point
+        cleaned = cleaned.replace('D', '.');
+
+        // Prepend minus if negative
+        if (negative) cleaned = "-" + cleaned;
+
+        // Use BigDecimal to preserve precision
+        return new BigDecimal(cleaned);
     }
     
     /**

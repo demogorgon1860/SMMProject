@@ -130,6 +130,42 @@ class CurrencyUtilsTest {
     }
 
     @Test
+    void parseMonetaryValue_WithNegativeValue() {
+        BigDecimal result = CurrencyUtils.parseMonetaryValue("-$1,234.56");
+        assertEquals(0, new BigDecimal("-1234.56").compareTo(result));
+    }
+
+    @Test
+    void parseMonetaryValue_WithSpaceSeparators() {
+        BigDecimal result = CurrencyUtils.parseMonetaryValue("1 234 567,89");
+        assertEquals(0, new BigDecimal("1234567.89").compareTo(result));
+    }
+
+    @Test
+    void parseMonetaryValue_PureInteger() {
+        BigDecimal result = CurrencyUtils.parseMonetaryValue("1234567");
+        assertEquals(0, new BigDecimal("1234567").compareTo(result));
+    }
+
+    @Test
+    void parseMonetaryValue_NullInput_ThrowsException() {
+        assertThrows(IllegalArgumentException.class, 
+                () -> CurrencyUtils.parseMonetaryValue(null));
+    }
+
+    @Test
+    void parseMonetaryValue_EmptyInput_ThrowsException() {
+        assertThrows(IllegalArgumentException.class, 
+                () -> CurrencyUtils.parseMonetaryValue(""));
+    }
+
+    @Test
+    void parseMonetaryValue_OnlyCurrencySymbol_ThrowsException() {
+        assertThrows(IllegalArgumentException.class, 
+                () -> CurrencyUtils.parseMonetaryValue("€"));
+    }
+
+    @Test
     void roundMonetaryValue_RoundsCorrectly() {
         BigDecimal amount = new BigDecimal("123.4567");
         BigDecimal result = CurrencyUtils.roundMonetaryValue(amount, "USD", currencyService);

@@ -107,20 +107,27 @@ class OrderProcessingServiceTest {
     
     @Test
     void createOrder_WithValidRequest_ShouldCreateOrder() {
+        // Mock the hashed API key lookup that OrderService actually uses
+        String hashedApiKey = hashApiKey(testUser.getApiKey());
+        when(userRepository.findByApiKeyHashAndIsActiveTrue(hashedApiKey)).thenReturn(Optional.of(testUser));
         when(userRepository.findByUsername(anyString())).thenReturn(Optional.of(testUser));
         when(serviceRepository.findById(anyLong())).thenReturn(Optional.of(testService));
         when(orderRepository.save(any(Order.class))).thenReturn(testOrder);
+        when(balanceService.checkAndDeductBalance(any(User.class), any(BigDecimal.class), any(Order.class), anyString())).thenReturn(true);
         
         OrderResponse result = orderService.createOrder(createRequest, testUser.getUsername());
         
         assertNotNull(result);
         verify(orderRepository).save(any(Order.class));
-        verify(balanceService).deductBalance(any(User.class), any(BigDecimal.class), any(Order.class), anyString());
+        verify(balanceService).checkAndDeductBalance(any(User.class), any(BigDecimal.class), any(Order.class), anyString());
         verify(kafkaTemplate).send(eq("smm.youtube.processing"), any(Long.class));
     }
     
     @Test
     void createOrder_WithValidationErrors_ShouldThrowException() {
+        // Mock the hashed API key lookup
+        String hashedApiKey = hashApiKey(testUser.getApiKey());
+        when(userRepository.findByApiKeyHashAndIsActiveTrue(hashedApiKey)).thenReturn(Optional.of(testUser));
         when(userRepository.findByUsername(anyString())).thenReturn(Optional.of(testUser));
         when(serviceRepository.findById(anyLong())).thenReturn(Optional.of(testService));
         
@@ -133,5 +140,29 @@ class OrderProcessingServiceTest {
         );
         
         verify(orderRepository, never()).save(any(Order.class));
+    }
+    
+    // Helper method to hash API key (matching OrderService implementation)
+    private String hashApiKey(String apiKey) {
+        if (apiKey == null) {
+            throw new IllegalArgumentException("API key cannot be null");
+        }
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(apiKey.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder hexString = new StringBuilder();
+            
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) {
+                    hexString.append('0');
+                }
+                hexString.append(hex);
+            }
+            
+            return hexString.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 algorithm not available", e);
+        }
     }
 }

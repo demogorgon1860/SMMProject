@@ -26,15 +26,13 @@ public class KafkaMemoryMonitoringAspect {
         
         try {
             // Check memory before processing
-            MemoryMonitoringService.MemoryUsageSummary beforeMemory = 
-                memoryMonitoringService.getMemoryUsageSummary();
+            var beforeMemory = memoryMonitoringService.getMemoryUsageSummary();
             
             // Execute the Kafka consumer method
             Object result = joinPoint.proceed();
             
             // Check memory after processing
-            MemoryMonitoringService.MemoryUsageSummary afterMemory = 
-                memoryMonitoringService.getMemoryUsageSummary();
+            var afterMemory = memoryMonitoringService.getMemoryUsageSummary();
             
             // Log memory usage if there's significant change
             long memoryDelta = afterMemory.getHeapUsed() - beforeMemory.getHeapUsed();

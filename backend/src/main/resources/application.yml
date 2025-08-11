@@ -15,8 +15,8 @@ server:
   http2:
     enabled: true
   tomcat:
-    connection-timeout: 20s
-    keep-alive-timeout: 20s
+    connection-timeout: PT20S
+    keep-alive-timeout: PT20S
     max-connections: 8192
     threads:
       max: 200
@@ -139,14 +139,13 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
       database: 0
-      timeout: 5000ms
+      timeout: 5000
       jedis:
         pool:
-          enabled: true
           max-active: 50
           max-idle: 20
           min-idle: 5
-          max-wait: 2000ms
+          max-wait: 2000
   cache:
     type: redis
     redis:
@@ -171,7 +170,7 @@ spring:
       linger-ms: 1
       buffer-memory: 33554432
       properties:
-        enable.idempotence: true
+        enable.idempotence: "true"
         compression.type: snappy
         delivery.timeout.ms: 120000
         request.timeout.ms: 30000
@@ -191,6 +190,7 @@ spring:
       group-id: smm-panel-group
       auto-offset-reset: earliest
       enable-auto-commit: false
+      isolation-level: read-committed
       max-poll-records: 500
       fetch-min-bytes: 1
       fetch-max-wait-ms: 500
@@ -306,7 +306,7 @@ app:
   selenium:
     driver:
       path: ${SELENIUM_DRIVER_PATH:/usr/local/bin/chromedriver}
-    headless: true
+    headless: "true"
     timeout:
       page-load: 30
       implicit: 10
@@ -385,10 +385,10 @@ app:
       read-operations: 15
       default: 30
   perfectpanel:
-    compatible: true
-    api-version: 2.0
+    compatible: "true"
+    api-version: "2.0"
     status-mapping:
-      enabled: true
+      enabled: "true"
 
   # ===============================
   # DEVELOPMENT/DEBUG SETTINGS
@@ -421,30 +421,30 @@ resilience4j:
       binom-api:
         failure-rate-threshold: 50
         slow-call-rate-threshold: 50
-        slow-call-duration-threshold: 5s
-        wait-duration-in-open-state: 30s
+        slow-call-duration-threshold: PT5S
+        wait-duration-in-open-state: PT30S
         minimum-number-of-calls: 10
         sliding-window-size: 20
       youtube-api:
         failure-rate-threshold: 60
-        slow-call-duration-threshold: 10s
-        wait-duration-in-open-state: 2m
+        slow-call-duration-threshold: PT10S
+        wait-duration-in-open-state: PT2M
       payment-api:
         failure-rate-threshold: 40
-        slow-call-duration-threshold: 8s
-        wait-duration-in-open-state: 1m
+        slow-call-duration-threshold: PT8S
+        wait-duration-in-open-state: PT1M
   retry:
     instances:
       binom-api:
         max-attempts: 3
-        wait-duration: 1s
+        wait-duration: PT1S
         exponential-backoff-multiplier: 2
       youtube-api:
         max-attempts: 2
-        wait-duration: 2s
+        wait-duration: PT2S
       payment-api:
         max-attempts: 2
-        wait-duration: 3s
+        wait-duration: PT3S
 
 # ===============================
 # MONITORING & OBSERVABILITY
@@ -459,21 +459,21 @@ management:
     health:
       show-details: when-authorized
       show-components: always
-  metrics:
-    export:
-      prometheus:
+  prometheus:
+    metrics:
+      export:
         enabled: true
   health:
     livenessstate:
-      enabled: true
+      enabled: "true"
     readinessstate:
-      enabled: true
+      enabled: "true"
     db:
-      enabled: true
+      enabled: "true"
     redis:
-      enabled: true
+      enabled: "true"
     kafka:
-      enabled: true
+      enabled: "true"
 
 # ===============================
 # APPLICATION INFO

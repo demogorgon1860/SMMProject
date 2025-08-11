@@ -344,7 +344,7 @@ public class KafkaConsumerErrorConfiguration {
         try {
             String dlqTopic = getDlqTopicName(consumerRecord.topic());
             
-            Message<Object> dlqMessage = MessageBuilder
+            Message<?> dlqMessage = MessageBuilder
                     .withPayload(consumerRecord.value())
                     .setHeader(KafkaHeaders.TOPIC, dlqTopic)
                     .setHeader("dlt-original-topic", consumerRecord.topic())

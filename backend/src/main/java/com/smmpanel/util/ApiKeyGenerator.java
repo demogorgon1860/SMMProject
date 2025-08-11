@@ -1,6 +1,5 @@
 package com.smmpanel.util;
 
-import org.apache.commons.lang3.RandomStringUtils;
 import org.springframework.security.crypto.codec.Hex;
 import org.springframework.stereotype.Component;
 
@@ -26,7 +25,15 @@ public class ApiKeyGenerator {
      * @return A securely generated API key string
      */
     public String generateApiKey() {
-        return RandomStringUtils.random(API_KEY_LENGTH, 0, 0, true, true, null, SECURE_RANDOM);
+        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        StringBuilder apiKey = new StringBuilder(API_KEY_LENGTH);
+        
+        for (int i = 0; i < API_KEY_LENGTH; i++) {
+            int index = SECURE_RANDOM.nextInt(chars.length());
+            apiKey.append(chars.charAt(index));
+        }
+        
+        return apiKey.toString();
     }
     
     /**

@@ -737,43 +737,6 @@ public class YouTubeAutomationService {
 
 // Supporting classes
 
-/**
- * Context object for passing data between async operations
- */
-@lombok.Builder
-@lombok.Data
-class OrderProcessingContext {
-    private Long orderId;
-    private String videoId;
-    private String orderLink;
-    private Integer targetQuantity;
-    private Long videoProcessingId;
-}
-
-/**
- * Result object for clip creation operations
- */
-@lombok.Builder
-@lombok.Data
-class ClipCreationResult {
-    private boolean success;
-    private String clipUrl;
-    private String errorMessage;
-    
-    public static ClipCreationResult success(String clipUrl) {
-        return ClipCreationResult.builder()
-                .success(true)
-                .clipUrl(clipUrl)
-                .build();
-    }
-    
-    public static ClipCreationResult failed(String errorMessage) {
-        return ClipCreationResult.builder()
-                .success(false)
-                .errorMessage(errorMessage)
-                .build();
-    }
-}
 
 /**
  * DTO for video processing status

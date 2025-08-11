@@ -1,0 +1,78 @@
+# HIBERNATE PERFORMANCE OPTIMIZATION CONFIGURATION
+# Use this profile in development: --spring.profiles.active=dev,dev-hibernate
+
+spring:
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        # ENABLE STATISTICS FOR N+1 DETECTION
+        generate_statistics: true
+        stats.format_stats: true
+        
+        # SECOND LEVEL CACHE CONFIGURATION
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region.factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+          
+        # QUERY OPTIMIZATION
+        jdbc:
+          batch_size: 25
+          batch_versioned_data: true
+        order_inserts: true
+        order_updates: true
+        
+        # LOGGING CONFIGURATION
+        show_sql: true
+        format_sql: true
+        use_sql_comments: true
+        type: trace
+        
+        # PERFORMANCE SETTINGS
+        connection:
+          provider_disables_autocommit: true
+        query:
+          in_clause_parameter_padding: true
+          fail_on_pagination_over_collection_fetch: true
+          
+  # DATABASE OPTIMIZATION
+  datasource:
+    hikari:
+      # OPTIMIZED FOR N+1 PREVENTION
+      maximum-pool-size: 50
+      minimum-idle: 10
+      connection-test-query: SELECT 1
+      leak-detection-threshold: 60000
+
+# ENABLE HIBERNATE CONFIGURATION BEAN
+hibernate:
+  generate_statistics: true
+
+# LOGGING CONFIGURATION FOR DATABASE PERFORMANCE
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.hibernate.cache: DEBUG
+    org.hibernate.stat: DEBUG
+    com.smmpanel.config.HibernateConfig: INFO
+    
+    # LOG SLOW QUERIES
+    org.hibernate.engine.jdbc.spi.SqlExceptionHelper: WARN
+    
+    # BATCH PROCESSING LOGS
+    org.hibernate.engine.jdbc.batch: DEBUG
+    
+    # ENTITY GRAPH LOGGING
+    org.hibernate.graph: DEBUG
+
+# PERFORMANCE MONITORING
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,hibernate-stats
+  endpoint:
+    hibernate-stats:
+      enabled: true

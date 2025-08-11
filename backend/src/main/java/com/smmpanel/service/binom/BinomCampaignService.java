@@ -3,32 +3,29 @@ package com.smmpanel.service.binom;
 import com.smmpanel.client.BinomClient;
 import com.smmpanel.dto.binom.*;
 import com.smmpanel.entity.*;
-import com.smmpanel.repository.*;
 import com.smmpanel.exception.BinomApiException;
+import com.smmpanel.repository.jpa.*;
 import com.smmpanel.service.AuditService;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-
 /**
  * DECOMPOSED: Binom Campaign Service with Circuit Breaker Pattern
- * 
- * ARCHITECTURAL IMPROVEMENTS:
- * 1. Single Responsibility - Only handles Binom campaign operations
- * 2. Circuit Breaker pattern for external API reliability
- * 3. Retry logic with exponential backoff
- * 4. Proper error handling and fallback mechanisms
- * 5. Performance optimizations and async processing
+ *
+ * <p>ARCHITECTURAL IMPROVEMENTS: 1. Single Responsibility - Only handles Binom campaign operations
+ * 2. Circuit Breaker pattern for external API reliability 3. Retry logic with exponential backoff
+ * 4. Proper error handling and fallback mechanisms 5. Performance optimizations and async
+ * processing
  */
 @Slf4j
 @Service
@@ -47,9 +44,7 @@ public class BinomCampaignService {
     @Value("${app.binom.max-campaigns-per-order:5}")
     private int maxCampaignsPerOrder;
 
-    /**
-     * Create Binom campaign for order with circuit breaker protection
-     */
+    /** Create Binom campaign for order with circuit breaker protection */
     @Transactional
     @CircuitBreaker(name = "binom-api", fallbackMethod = "createCampaignFallback")
     @Retry(name = "binom-api")
@@ -59,25 +54,30 @@ public class BinomCampaignService {
 
             // Validate order exists and is in correct state
             Order order = validateOrderForCampaign(request.getOrderId());
-            
+
             // Get conversion coefficient
-            BigDecimal coefficient = getConversionCoefficient(order.getService().getId(), request.isClipCreated());
-            
+            BigDecimal coefficient =
+                    getConversionCoefficient(order.getService().getId(), request.isClipCreated());
+
             // Calculate required clicks
             int clicksRequired = calculateRequiredClicks(request.getTargetViews(), coefficient);
-            
+
             // Create offer in Binom
             String offerId = createOrGetOffer(order, request);
-            
+
             // Create campaign in Binom
             String campaignId = createBinomCampaign(order, offerId, request);
-            
+
             // Save campaign record
-            BinomCampaign campaign = saveCampaignRecord(order, campaignId, offerId, clicksRequired, request);
-            
+            BinomCampaign campaign =
+                    saveCampaignRecord(order, campaignId, offerId, clicksRequired, request);
+
             auditService.logBinomCampaignCreation(campaign);
-            log.info("Successfully created Binom campaign {} for order {}", campaignId, request.getOrderId());
-            
+            log.info(
+                    "Successfully created Binom campaign {} for order {}",
+                    campaignId,
+                    request.getOrderId());
+
             return BinomCampaignResponse.builder()
                     .campaignId(campaignId)
                     .offerId(offerId)
@@ -85,31 +85,36 @@ public class BinomCampaignService {
                     .coefficient(coefficient)
                     .success(true)
                     .build();
-                    
+
         } catch (Exception e) {
-            log.error("Failed to create Binom campaign for order {}: {}", request.getOrderId(), e.getMessage());
+            log.error(
+                    "Failed to create Binom campaign for order {}: {}",
+                    request.getOrderId(),
+                    e.getMessage());
             throw new BinomApiException("Campaign creation failed: " + e.getMessage(), e);
         }
     }
 
-    /**
-     * Fallback method for circuit breaker
-     */
-    public BinomCampaignResponse createCampaignFallback(BinomCampaignRequest request, Exception ex) {
-        log.warn("Binom API unavailable, using fallback for order {}: {}", request.getOrderId(), ex.getMessage());
-        
+    /** Fallback method for circuit breaker */
+    public BinomCampaignResponse createCampaignFallback(
+            BinomCampaignRequest request, Exception ex) {
+        log.warn(
+                "Binom API unavailable, using fallback for order {}: {}",
+                request.getOrderId(),
+                ex.getMessage());
+
         // Store request for retry later
         storeFailedCampaignRequest(request, ex.getMessage());
-        
+
         return BinomCampaignResponse.builder()
                 .success(false)
-                .errorMessage("Binom API temporarily unavailable. Campaign will be created automatically when service is restored.")
+                .errorMessage(
+                        "Binom API temporarily unavailable. Campaign will be created automatically"
+                                + " when service is restored.")
                 .build();
     }
 
-    /**
-     * Get campaign statistics with circuit breaker
-     */
+    /** Get campaign statistics with circuit breaker */
     @CircuitBreaker(name = "binom-api", fallbackMethod = "getCampaignStatsFallback")
     @Retry(name = "binom-api")
     public CampaignStatsResponse getCampaignStats(String campaignId) {
@@ -121,27 +126,28 @@ public class BinomCampaignService {
         }
     }
 
-    /**
-     * Fallback for campaign stats
-     */
+    /** Fallback for campaign stats */
     public CampaignStatsResponse getCampaignStatsFallback(String campaignId, Exception ex) {
         log.warn("Using cached stats for campaign {}: {}", campaignId, ex.getMessage());
-        
+
         // Return cached stats from database
         Optional<BinomCampaign> campaign = binomCampaignRepository.findByCampaignId(campaignId);
-        
+
         if (campaign.isPresent()) {
             BinomCampaign binomCampaign = campaign.get();
             return CampaignStatsResponse.builder()
                     .campaignId(campaignId)
-                    .clicks(binomCampaign.getClicksDelivered() != null ? binomCampaign.getClicksDelivered().longValue() : 0L)
-                    .conversions(0L)  // Default value when API is unavailable
+                    .clicks(
+                            binomCampaign.getClicksDelivered() != null
+                                    ? binomCampaign.getClicksDelivered().longValue()
+                                    : 0L)
+                    .conversions(0L) // Default value when API is unavailable
                     .cost(BigDecimal.ZERO)
                     .revenue(BigDecimal.ZERO)
                     .status("CACHED")
                     .build();
         }
-        
+
         return CampaignStatsResponse.builder()
                 .campaignId(campaignId)
                 .clicks(0L)
@@ -152,98 +158,103 @@ public class BinomCampaignService {
                 .build();
     }
 
-    /**
-     * Stop all campaigns for an order
-     */
+    /** Stop all campaigns for an order */
     @Transactional
     public void stopAllCampaignsForOrder(Long orderId) {
         List<BinomCampaign> campaigns = binomCampaignRepository.findByOrderIdAndActiveTrue(orderId);
-        
+
         for (BinomCampaign campaign : campaigns) {
             try {
                 stopCampaign(campaign.getCampaignId());
                 campaign.setActive(false);
                 campaign.setUpdatedAt(LocalDateTime.now());
                 binomCampaignRepository.save(campaign);
-                
+
                 auditService.logBinomCampaignStop(campaign);
             } catch (Exception e) {
-                log.error("Failed to stop campaign {} for order {}: {}", 
-                    campaign.getCampaignId(), orderId, e.getMessage());
+                log.error(
+                        "Failed to stop campaign {} for order {}: {}",
+                        campaign.getCampaignId(),
+                        orderId,
+                        e.getMessage());
                 // Continue with other campaigns
             }
         }
-        
+
         log.info("Stopped {} campaigns for order {}", campaigns.size(), orderId);
     }
 
-    /**
-     * Pause all campaigns for an order
-     */
+    /** Pause all campaigns for an order */
     @Transactional
     public void pauseAllCampaignsForOrder(Long orderId) {
         List<BinomCampaign> campaigns = binomCampaignRepository.findByOrderIdAndActiveTrue(orderId);
-        
+
         for (BinomCampaign campaign : campaigns) {
             try {
                 pauseCampaign(campaign.getCampaignId());
                 auditService.logBinomCampaignPause(campaign);
             } catch (Exception e) {
-                log.error("Failed to pause campaign {} for order {}: {}", 
-                    campaign.getCampaignId(), orderId, e.getMessage());
+                log.error(
+                        "Failed to pause campaign {} for order {}: {}",
+                        campaign.getCampaignId(),
+                        orderId,
+                        e.getMessage());
             }
         }
-        
+
         log.info("Paused {} campaigns for order {}", campaigns.size(), orderId);
     }
 
-    /**
-     * Resume all campaigns for an order
-     */
+    /** Resume all campaigns for an order */
     @Transactional
     public void resumeAllCampaignsForOrder(Long orderId) {
         List<BinomCampaign> campaigns = binomCampaignRepository.findByOrderIdAndActiveTrue(orderId);
-        
+
         for (BinomCampaign campaign : campaigns) {
             try {
                 resumeCampaign(campaign.getCampaignId());
                 auditService.logBinomCampaignResume(campaign);
             } catch (Exception e) {
-                log.error("Failed to resume campaign {} for order {}: {}", 
-                    campaign.getCampaignId(), orderId, e.getMessage());
+                log.error(
+                        "Failed to resume campaign {} for order {}: {}",
+                        campaign.getCampaignId(),
+                        orderId,
+                        e.getMessage());
             }
         }
-        
+
         log.info("Resumed {} campaigns for order {}", campaigns.size(), orderId);
     }
 
-    /**
-     * Update campaign performance metrics
-     */
+    /** Update campaign performance metrics */
     @Transactional
     public void updateCampaignMetrics(String campaignId) {
         Optional<BinomCampaign> campaignOpt = binomCampaignRepository.findByCampaignId(campaignId);
-        
+
         if (campaignOpt.isPresent()) {
             BinomCampaign campaign = campaignOpt.get();
-            
+
             try {
                 CampaignStatsResponse stats = getCampaignStats(campaignId);
-                
+
                 campaign.setClicksDelivered(stats.getClicks().intValue());
                 campaign.setConversions(stats.getConversions().intValue());
                 campaign.setCost(stats.getCost());
                 campaign.setRevenue(stats.getRevenue());
                 campaign.setLastStatsUpdate(LocalDateTime.now());
                 campaign.setUpdatedAt(LocalDateTime.now());
-                
+
                 binomCampaignRepository.save(campaign);
-                
-                log.debug("Updated metrics for campaign {}: {} clicks, {} conversions", 
-                    campaignId, stats.getClicks(), stats.getConversions());
-                    
+
+                log.debug(
+                        "Updated metrics for campaign {}: {} clicks, {} conversions",
+                        campaignId,
+                        stats.getClicks(),
+                        stats.getConversions());
+
             } catch (Exception e) {
-                log.error("Failed to update metrics for campaign {}: {}", campaignId, e.getMessage());
+                log.error(
+                        "Failed to update metrics for campaign {}: {}", campaignId, e.getMessage());
             }
         }
     }
@@ -251,7 +262,8 @@ public class BinomCampaignService {
     // Private helper methods
 
     private Order validateOrderForCampaign(Long orderId) {
-        return orderRepository.findById(orderId)
+        return orderRepository
+                .findById(orderId)
                 .orElseThrow(() -> new BinomApiException("Order not found: " + orderId));
     }
 
@@ -273,21 +285,22 @@ public class BinomCampaignService {
     @Retry(name = "binom-api")
     private String createOrGetOffer(Order order, BinomCampaignRequest request) {
         String offerName = generateOfferName(order.getId(), request.isClipCreated());
-        
+
         // Check if offer already exists
         CheckOfferResponse existingOffer = binomClient.checkOffer(offerName);
         if (existingOffer.isExists()) {
             return existingOffer.getOfferId();
         }
-        
+
         // Create new offer
-        CreateOfferRequest offerRequest = CreateOfferRequest.builder()
-                .name(offerName)
-                .url(request.getTargetUrl())
-                .geoTargeting(request.getGeoTargeting())
-                .description("Auto-generated offer for order " + order.getId())
-                .build();
-                
+        CreateOfferRequest offerRequest =
+                CreateOfferRequest.builder()
+                        .name(offerName)
+                        .url(request.getTargetUrl())
+                        .geoTargeting(request.getGeoTargeting())
+                        .description("Auto-generated offer for order " + order.getId())
+                        .build();
+
         CreateOfferResponse response = binomClient.createOffer(offerRequest);
         return response.getOfferId();
     }
@@ -296,14 +309,15 @@ public class BinomCampaignService {
     @Retry(name = "binom-api")
     private String createBinomCampaign(Order order, String offerId, BinomCampaignRequest request) {
         String campaignName = generateCampaignName(order.getId(), request.isClipCreated());
-        
-        CreateCampaignRequest campaignRequest = CreateCampaignRequest.builder()
-                .name(campaignName)
-                .offerId(offerId)
-                .geoTargeting(request.getGeoTargeting())
-                .status("ACTIVE")
-                .build();
-                
+
+        CreateCampaignRequest campaignRequest =
+                CreateCampaignRequest.builder()
+                        .name(campaignName)
+                        .offerId(offerId)
+                        .geoTargeting(request.getGeoTargeting())
+                        .status("ACTIVE")
+                        .build();
+
         CreateCampaignResponse response = binomClient.createCampaign(campaignRequest);
         return response.getCampaignId();
     }
@@ -326,8 +340,12 @@ public class BinomCampaignService {
         binomClient.resumeCampaign(campaignId);
     }
 
-    private BinomCampaign saveCampaignRecord(Order order, String campaignId, String offerId, 
-                                           int clicksRequired, BinomCampaignRequest request) {
+    private BinomCampaign saveCampaignRecord(
+            Order order,
+            String campaignId,
+            String offerId,
+            int clicksRequired,
+            BinomCampaignRequest request) {
         BinomCampaign campaign = new BinomCampaign();
         campaign.setOrder(order);
         campaign.setCampaignId(campaignId);
@@ -340,14 +358,16 @@ public class BinomCampaignService {
         campaign.setActive(true);
         campaign.setCreatedAt(LocalDateTime.now());
         campaign.setUpdatedAt(LocalDateTime.now());
-        
+
         return binomCampaignRepository.save(campaign);
     }
 
     private void storeFailedCampaignRequest(BinomCampaignRequest request, String errorMessage) {
         // Store in database for retry processing
         // This would be handled by a separate retry service
-        log.info("Stored failed campaign request for order {} for later retry", request.getOrderId());
+        log.info(
+                "Stored failed campaign request for order {} for later retry",
+                request.getOrderId());
     }
 
     private String generateOfferName(Long orderId, boolean clipCreated) {
@@ -355,7 +375,8 @@ public class BinomCampaignService {
     }
 
     private String generateCampaignName(Long orderId, boolean clipCreated) {
-        return String.format("SMM-Campaign-%d-%s-%d", orderId, 
-                clipCreated ? "CLIP" : "DIRECT", System.currentTimeMillis());
+        return String.format(
+                "SMM-Campaign-%d-%s-%d",
+                orderId, clipCreated ? "CLIP" : "DIRECT", System.currentTimeMillis());
     }
-} 
+}

@@ -1,11 +1,10 @@
 package com.smmpanel.event;
 
-import lombok.Data;
-import lombok.Builder;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
-
 import java.time.LocalDateTime;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
@@ -20,4 +19,4 @@ public class OfferAssignmentEvent {
     private String geoTargeting;
     private String source;
     private LocalDateTime timestamp;
-} 
+}

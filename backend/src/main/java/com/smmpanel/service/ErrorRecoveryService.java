@@ -2,8 +2,11 @@ package com.smmpanel.service;
 
 import com.smmpanel.entity.Order;
 import com.smmpanel.entity.OrderStatus;
-import com.smmpanel.repository.OrderRepository;
 import com.smmpanel.exception.VideoProcessingException;
+import com.smmpanel.repository.jpa.OrderRepository;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,24 +16,15 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Propagation;
-
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * ERROR RECOVERY SERVICE
- * 
- * Provides comprehensive error recovery mechanisms:
- * 1. Automatic retry logic with exponential backoff
- * 2. Dead letter queue management for permanently failed orders
- * 3. Error status tracking and classification
- * 4. Manual retry functionality for operators
- * 5. Failure analysis and reporting
+ *
+ * <p>Provides comprehensive error recovery mechanisms: 1. Automatic retry logic with exponential
+ * backoff 2. Dead letter queue management for permanently failed orders 3. Error status tracking
+ * and classification 4. Manual retry functionality for operators 5. Failure analysis and reporting
  */
 @Slf4j
 @Service
@@ -52,19 +46,28 @@ public class ErrorRecoveryService {
     @Value("${app.error-recovery.backoff-multiplier:2.0}")
     private double backoffMultiplier;
 
-    /**
-     * RECORD ERROR WITH RETRY LOGIC
-     * Records error and determines if retry should be attempted
-     */
+    /** RECORD ERROR WITH RETRY LOGIC Records error and determines if retry should be attempted */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public ErrorRecoveryResult recordErrorAndScheduleRetry(Long orderId, String errorType, 
-                                                          String errorMessage, String failedPhase, 
-                                                          Throwable exception) {
+    public ErrorRecoveryResult recordErrorAndScheduleRetry(
+            Long orderId,
+            String errorType,
+            String errorMessage,
+            String failedPhase,
+            Throwable exception) {
         try {
-            log.info("Recording error for order {}: type={}, phase={}", orderId, errorType, failedPhase);
+            log.info(
+                    "Recording error for order {}: type={}, phase={}",
+                    orderId,
+                    errorType,
+                    failedPhase);
 
-            Order order = orderRepository.findById(orderId)
-                    .orElseThrow(() -> new VideoProcessingException("Order not found: " + orderId));
+            Order order =
+                    orderRepository
+                            .findById(orderId)
+                            .orElseThrow(
+                                    () ->
+                                            new VideoProcessingException(
+                                                    "Order not found: " + orderId));
 
             // Update error tracking fields
             order.setRetryCount(order.getRetryCount() + 1);
@@ -72,7 +75,7 @@ public class ErrorRecoveryService {
             order.setFailureReason(errorMessage);
             order.setFailedPhase(failedPhase);
             order.setLastRetryAt(LocalDateTime.now());
-            
+
             // Store stack trace for debugging
             if (exception != null) {
                 order.setErrorStackTrace(getStackTraceString(exception));
@@ -80,19 +83,25 @@ public class ErrorRecoveryService {
 
             // Determine if retry should be attempted
             boolean shouldRetry = shouldRetryOrder(order);
-            
+
             if (shouldRetry) {
                 // Calculate next retry time with exponential backoff
                 LocalDateTime nextRetryTime = calculateNextRetryTime(order.getRetryCount());
                 order.setNextRetryAt(nextRetryTime);
-                order.setErrorMessage("Retry scheduled for: " + nextRetryTime + ". " + errorMessage);
-                
-                log.info("Scheduled retry for order {} at {} (attempt {}/{})", 
-                        orderId, nextRetryTime, order.getRetryCount(), order.getMaxRetries());
-                
+                order.setErrorMessage(
+                        "Retry scheduled for: " + nextRetryTime + ". " + errorMessage);
+
+                log.info(
+                        "Scheduled retry for order {} at {} (attempt {}/{})",
+                        orderId,
+                        nextRetryTime,
+                        order.getRetryCount(),
+                        order.getMaxRetries());
+
                 orderRepository.save(order);
-                return ErrorRecoveryResult.retryScheduled(orderId, nextRetryTime, order.getRetryCount());
-                
+                return ErrorRecoveryResult.retryScheduled(
+                        orderId, nextRetryTime, order.getRetryCount());
+
             } else {
                 // Max retries exceeded - move to dead letter queue
                 return moveToDeadLetterQueue(order, "Max retry attempts exceeded");
@@ -104,10 +113,7 @@ public class ErrorRecoveryService {
         }
     }
 
-    /**
-     * MOVE TO DEAD LETTER QUEUE
-     * Permanently fails order and marks for manual review
-     */
+    /** MOVE TO DEAD LETTER QUEUE Permanently fails order and marks for manual review */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ErrorRecoveryResult moveToDeadLetterQueue(Order order, String reason) {
         try {
@@ -117,42 +123,61 @@ public class ErrorRecoveryService {
             order.setStatus(OrderStatus.HOLDING);
             order.setIsManuallyFailed(true);
             order.setFailureReason(reason);
-            order.setErrorMessage("DEAD LETTER QUEUE: " + reason + 
-                    " (Retries: " + order.getRetryCount() + "/" + order.getMaxRetries() + ")");
+            order.setErrorMessage(
+                    "DEAD LETTER QUEUE: "
+                            + reason
+                            + " (Retries: "
+                            + order.getRetryCount()
+                            + "/"
+                            + order.getMaxRetries()
+                            + ")");
             order.setNextRetryAt(null); // No more automatic retries
 
             orderRepository.save(order);
 
             // Remove from active processing
-            orderStateManagementService.transitionToHolding(order.getId(), 
-                    "Moved to dead letter queue: " + reason);
+            orderStateManagementService.transitionToHolding(
+                    order.getId(), "Moved to dead letter queue: " + reason);
 
-            log.warn("Order {} moved to dead letter queue after {} failed attempts", 
-                    order.getId(), order.getRetryCount());
+            log.warn(
+                    "Order {} moved to dead letter queue after {} failed attempts",
+                    order.getId(),
+                    order.getRetryCount());
 
-            return ErrorRecoveryResult.deadLetterQueue(order.getId(), reason, order.getRetryCount());
+            return ErrorRecoveryResult.deadLetterQueue(
+                    order.getId(), reason, order.getRetryCount());
 
         } catch (Exception e) {
-            log.error("Failed to move order {} to dead letter queue: {}", order.getId(), e.getMessage(), e);
-            return ErrorRecoveryResult.failed(order.getId(), "Dead letter queue move failed: " + e.getMessage());
+            log.error(
+                    "Failed to move order {} to dead letter queue: {}",
+                    order.getId(),
+                    e.getMessage(),
+                    e);
+            return ErrorRecoveryResult.failed(
+                    order.getId(), "Dead letter queue move failed: " + e.getMessage());
         }
     }
 
-    /**
-     * MANUAL RETRY FOR OPERATORS
-     * Allows operators to manually retry failed orders
-     */
+    /** MANUAL RETRY FOR OPERATORS Allows operators to manually retry failed orders */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public ManualRetryResult manualRetry(Long orderId, String operatorNotes, boolean resetRetryCount) {
+    public ManualRetryResult manualRetry(
+            Long orderId, String operatorNotes, boolean resetRetryCount) {
         try {
             log.info("Manual retry initiated for order {} by operator", orderId);
 
-            Order order = orderRepository.findById(orderId)
-                    .orElseThrow(() -> new VideoProcessingException("Order not found: " + orderId));
+            Order order =
+                    orderRepository
+                            .findById(orderId)
+                            .orElseThrow(
+                                    () ->
+                                            new VideoProcessingException(
+                                                    "Order not found: " + orderId));
 
             // Validate order can be retried
             if (!canManuallyRetry(order)) {
-                return ManualRetryResult.failed(orderId, "Order cannot be manually retried in current state: " + order.getStatus());
+                return ManualRetryResult.failed(
+                        orderId,
+                        "Order cannot be manually retried in current state: " + order.getStatus());
             }
 
             // Reset retry tracking if requested
@@ -170,16 +195,22 @@ public class ErrorRecoveryService {
             order.setLastRetryAt(LocalDateTime.now());
 
             // Reset order to processing state
-            OrderValidationResult validation = orderStateManagementService
-                    .validateAndUpdateOrderForProcessing(orderId, order.getYoutubeVideoId());
+            OrderValidationResult validation =
+                    orderStateManagementService.validateAndUpdateOrderForProcessing(
+                            orderId, order.getYoutubeVideoId());
 
             if (!validation.isSuccess()) {
-                return ManualRetryResult.failed(orderId, "Failed to transition order for retry: " + validation.getErrorMessage());
+                return ManualRetryResult.failed(
+                        orderId,
+                        "Failed to transition order for retry: " + validation.getErrorMessage());
             }
 
             orderRepository.save(order);
 
-            log.info("Manual retry scheduled for order {} with operator notes: {}", orderId, operatorNotes);
+            log.info(
+                    "Manual retry scheduled for order {} with operator notes: {}",
+                    orderId,
+                    operatorNotes);
             return ManualRetryResult.success(orderId, operatorNotes, resetRetryCount);
 
         } catch (Exception e) {
@@ -188,19 +219,15 @@ public class ErrorRecoveryService {
         }
     }
 
-    /**
-     * SCHEDULED RETRY PROCESSING
-     * Automatically processes orders scheduled for retry
-     */
-    @Scheduled(fixedDelayString = "${app.error-recovery.retry-processing-interval:300000}") // 5 minutes
+    /** SCHEDULED RETRY PROCESSING Automatically processes orders scheduled for retry */
+    @Scheduled(
+            fixedDelayString =
+                    "${app.error-recovery.retry-processing-interval:300000}") // 5 minutes
     public void processScheduledRetriesScheduled() {
         processScheduledRetries();
     }
 
-    /**
-     * AUTOMATIC RETRY PROCESSING
-     * Processes orders scheduled for retry
-     */
+    /** AUTOMATIC RETRY PROCESSING Processes orders scheduled for retry */
     @Async("errorRecoveryExecutor")
     public CompletableFuture<Void> processScheduledRetries() {
         try {
@@ -208,20 +235,28 @@ public class ErrorRecoveryService {
 
             LocalDateTime now = LocalDateTime.now();
             Pageable pageable = PageRequest.of(0, 100); // Process in batches
-            
+
             Page<Order> retryOrders = orderRepository.findOrdersReadyForRetry(now, pageable);
-            
+
             if (retryOrders.hasContent()) {
                 log.info("Found {} orders ready for retry", retryOrders.getNumberOfElements());
-                
+
                 for (Order order : retryOrders.getContent()) {
                     try {
                         processRetryOrder(order);
                     } catch (Exception e) {
-                        log.error("Failed to process retry for order {}: {}", order.getId(), e.getMessage(), e);
+                        log.error(
+                                "Failed to process retry for order {}: {}",
+                                order.getId(),
+                                e.getMessage(),
+                                e);
                         // Record this retry failure
-                        recordErrorAndScheduleRetry(order.getId(), "RETRY_PROCESSING_ERROR", 
-                                e.getMessage(), "RETRY_EXECUTION", e);
+                        recordErrorAndScheduleRetry(
+                                order.getId(),
+                                "RETRY_PROCESSING_ERROR",
+                                e.getMessage(),
+                                "RETRY_EXECUTION",
+                                e);
                     }
                 }
             }
@@ -234,18 +269,12 @@ public class ErrorRecoveryService {
         }
     }
 
-    /**
-     * GET DEAD LETTER QUEUE ORDERS
-     * Returns orders in dead letter queue for operator review
-     */
+    /** GET DEAD LETTER QUEUE ORDERS Returns orders in dead letter queue for operator review */
     public Page<Order> getDeadLetterQueueOrders(Pageable pageable) {
         return orderRepository.findDeadLetterQueueOrders(pageable);
     }
 
-    /**
-     * GET ERROR STATISTICS
-     * Returns error recovery statistics for monitoring
-     */
+    /** GET ERROR STATISTICS Returns error recovery statistics for monitoring */
     public ErrorRecoveryStats getErrorStatistics() {
         try {
             LocalDateTime past24Hours = LocalDateTime.now().minusHours(24);
@@ -257,7 +286,8 @@ public class ErrorRecoveryService {
             long deadLetterQueueCount = orderRepository.countDeadLetterQueueOrders();
             long pendingRetries = orderRepository.countOrdersPendingRetry(LocalDateTime.now());
 
-            List<ErrorTypeStats> errorTypeStats = mapToErrorTypeStats(orderRepository.getErrorTypeStatistics());
+            List<ErrorTypeStats> errorTypeStats =
+                    mapToErrorTypeStats(orderRepository.getErrorTypeStatistics());
 
             return ErrorRecoveryStats.builder()
                     .totalFailedOrders(totalFailedOrders)
@@ -277,29 +307,33 @@ public class ErrorRecoveryService {
     // Private helper methods
 
     private boolean shouldRetryOrder(Order order) {
-        return order.getRetryCount() < order.getMaxRetries() && 
-               !order.getIsManuallyFailed() &&
-               order.getStatus() != OrderStatus.CANCELLED;
+        return order.getRetryCount() < order.getMaxRetries()
+                && !order.getIsManuallyFailed()
+                && order.getStatus() != OrderStatus.CANCELLED;
     }
 
     private boolean canManuallyRetry(Order order) {
-        return order.getStatus() == OrderStatus.HOLDING || 
-               order.getStatus() == OrderStatus.PROCESSING ||
-               order.getIsManuallyFailed();
+        return order.getStatus() == OrderStatus.HOLDING
+                || order.getStatus() == OrderStatus.PROCESSING
+                || order.getIsManuallyFailed();
     }
 
     private LocalDateTime calculateNextRetryTime(int retryCount) {
         // Exponential backoff: 5min, 10min, 20min, 40min, etc. (capped at max delay)
-        long delayMinutes = (long) (initialDelayMinutes * Math.pow(backoffMultiplier, retryCount - 1));
+        long delayMinutes =
+                (long) (initialDelayMinutes * Math.pow(backoffMultiplier, retryCount - 1));
         long maxDelayMinutes = maxDelayHours * 60L;
         delayMinutes = Math.min(delayMinutes, maxDelayMinutes);
-        
+
         return LocalDateTime.now().plusMinutes(delayMinutes);
     }
 
     private void processRetryOrder(Order order) {
-        log.info("Processing retry for order {} (attempt {}/{})", 
-                order.getId(), order.getRetryCount(), order.getMaxRetries());
+        log.info(
+                "Processing retry for order {} (attempt {}/{})",
+                order.getId(),
+                order.getRetryCount(),
+                order.getMaxRetries());
 
         // Clear retry scheduling
         order.setNextRetryAt(null);
@@ -308,10 +342,11 @@ public class ErrorRecoveryService {
 
         // Delegate to appropriate processing service based on failed phase
         String failedPhase = order.getFailedPhase();
-        
+
         if ("VALIDATION".equals(failedPhase) || "VIDEO_ANALYSIS".equals(failedPhase)) {
             // Restart from beginning - queue for processing
-            orderStateManagementService.validateAndUpdateOrderForProcessing(order.getId(), order.getYoutubeVideoId());
+            orderStateManagementService.validateAndUpdateOrderForProcessing(
+                    order.getId(), order.getYoutubeVideoId());
         } else {
             // Resume from failed phase - this would need integration with YouTubeAutomationService
             log.info("Resuming order {} from failed phase: {}", order.getId(), failedPhase);
@@ -326,27 +361,24 @@ public class ErrorRecoveryService {
         return sw.toString();
     }
 
-    /**
-     * Maps database query result to ErrorTypeStats objects
-     */
+    /** Maps database query result to ErrorTypeStats objects */
     private List<ErrorTypeStats> mapToErrorTypeStats(List<Object[]> queryResults) {
-        long totalCount = queryResults.stream()
-                .mapToLong(row -> ((Number) row[1]).longValue())
-                .sum();
-        
+        long totalCount =
+                queryResults.stream().mapToLong(row -> ((Number) row[1]).longValue()).sum();
+
         return queryResults.stream()
-                .map(row -> {
-                    String errorType = (String) row[0];
-                    long count = ((Number) row[1]).longValue();
-                    double percentage = totalCount > 0 ? (count * 100.0) / totalCount : 0.0;
-                    
-                    return ErrorTypeStats.builder()
-                            .errorType(errorType)
-                            .count(count)
-                            .percentage(percentage)
-                            .build();
-                })
+                .map(
+                        row -> {
+                            String errorType = (String) row[0];
+                            long count = ((Number) row[1]).longValue();
+                            double percentage = totalCount > 0 ? (count * 100.0) / totalCount : 0.0;
+
+                            return ErrorTypeStats.builder()
+                                    .errorType(errorType)
+                                    .count(count)
+                                    .percentage(percentage)
+                                    .build();
+                        })
                 .collect(java.util.stream.Collectors.toList());
     }
 }
-

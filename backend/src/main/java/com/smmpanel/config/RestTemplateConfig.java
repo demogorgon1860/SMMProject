@@ -10,9 +10,10 @@ public class RestTemplateConfig {
 
     @Bean
     public RestTemplate restTemplate() {
-        HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory();
+        HttpComponentsClientHttpRequestFactory factory =
+                new HttpComponentsClientHttpRequestFactory();
         factory.setConnectTimeout(30000);
-        
+
         RestTemplate restTemplate = new RestTemplate(factory);
         return restTemplate;
     }

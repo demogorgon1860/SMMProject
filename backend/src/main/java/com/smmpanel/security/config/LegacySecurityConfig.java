@@ -3,7 +3,8 @@ package com.smmpanel.security.config;
 import com.smmpanel.security.ApiKeyAuthenticationFilter;
 import com.smmpanel.security.JwtAuthenticationFilter;
 import com.smmpanel.security.RateLimitFilter;
-import com.smmpanel.service.ApiKeyService;
+import java.util.Arrays;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,14 +26,15 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
-import java.util.List;
-
 @Slf4j
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 @RequiredArgsConstructor
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+        name = "app.security.legacy.enabled",
+        havingValue = "true",
+        matchIfMissing = false)
 public class LegacySecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
@@ -51,40 +53,45 @@ public class LegacySecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-            .csrf(AbstractHttpConfigurer::disable)
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .authorizeHttpRequests(auth -> auth
-                // Public endpoints
-                .requestMatchers(
-                    "/actuator/health",
-                    "/actuator/info",
-                    "/api/v1/auth/**",
-                    "/api/v2/auth/**",
-                    "/swagger-ui/**",
-                    "/v3/api-docs/**",
-                    "/error"
-                ).permitAll()
-                
-                // Perfect Panel API endpoints (API key based)
-                .requestMatchers("/api/v2").permitAll() // Handled by ApiKeyAuthenticationFilter
-                .requestMatchers("/api/v2/status").permitAll()
-                .requestMatchers("/api/v2/refill").permitAll()
-                .requestMatchers("/api/v2/cancel").permitAll()
-                
-                // Admin endpoints
-                .requestMatchers("/api/v2/admin/**").hasAnyRole("ADMIN", "OPERATOR")
-                
-                // All other endpoints require authentication
-                .anyRequest().authenticated()
-            )
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            )
-            .authenticationProvider(authenticationProvider)
-            .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+        http.csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .authorizeHttpRequests(
+                        auth ->
+                                auth
+                                        // Public endpoints
+                                        .requestMatchers(
+                                                "/actuator/health",
+                                                "/actuator/info",
+                                                "/api/v1/auth/**",
+                                                "/api/v2/auth/**",
+                                                "/swagger-ui/**",
+                                                "/v3/api-docs/**",
+                                                "/error")
+                                        .permitAll()
+
+                                        // Perfect Panel API endpoints (API key based)
+                                        .requestMatchers("/api/v2")
+                                        .permitAll() // Handled by ApiKeyAuthenticationFilter
+                                        .requestMatchers("/api/v2/status")
+                                        .permitAll()
+                                        .requestMatchers("/api/v2/refill")
+                                        .permitAll()
+                                        .requestMatchers("/api/v2/cancel")
+                                        .permitAll()
+
+                                        // Admin endpoints
+                                        .requestMatchers("/api/v2/admin/**")
+                                        .hasAnyRole("ADMIN", "OPERATOR")
+
+                                        // All other endpoints require authentication
+                                        .anyRequest()
+                                        .authenticated())
+                .sessionManagement(
+                        session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authenticationProvider(authenticationProvider)
+                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -92,15 +99,15 @@ public class LegacySecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        
+
         // Parse allowed origins
         List<String> origins = Arrays.asList(allowedOrigins.split(","));
         configuration.setAllowedOriginPatterns(origins);
-        
+
         // Parse allowed methods
         List<String> methods = Arrays.asList(allowedMethods.split(","));
         configuration.setAllowedMethods(methods);
-        
+
         // Parse allowed headers
         if ("*".equals(allowedHeaders)) {
             configuration.setAllowedHeaders(Arrays.asList("*"));
@@ -108,7 +115,7 @@ public class LegacySecurityConfig {
             List<String> headers = Arrays.asList(allowedHeaders.split(","));
             configuration.setAllowedHeaders(headers);
         }
-        
+
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
@@ -123,7 +130,8 @@ public class LegacySecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config)
+            throws Exception {
         return config.getAuthenticationManager();
     }
 }

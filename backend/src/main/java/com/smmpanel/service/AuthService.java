@@ -5,8 +5,9 @@ import com.smmpanel.dto.auth.*;
 import com.smmpanel.entity.User;
 import com.smmpanel.entity.UserRole;
 import com.smmpanel.exception.UserNotFoundException;
-import com.smmpanel.repository.UserRepository;
+import com.smmpanel.repository.jpa.UserRepository;
 import com.smmpanel.security.JwtService;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -16,8 +17,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.UUID;
 
 @Slf4j
 @Service
@@ -35,7 +34,7 @@ public class AuthService {
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new RuntimeException("Username already exists");
         }
-        
+
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new RuntimeException("Email already registered");
         }
@@ -47,9 +46,9 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setRole(UserRole.USER);
         user.setApiKey(generateApiKey());
-        
+
         user = userRepository.save(user);
-        
+
         log.info("New user registered: {}", user.getUsername());
 
         // Generate tokens
@@ -65,14 +64,13 @@ public class AuthService {
 
     public AuthResponse login(LoginRequest request) {
         authenticationManager.authenticate(
-            new UsernamePasswordAuthenticationToken(
-                request.getUsername(),
-                request.getPassword()
-            )
-        );
+                new UsernamePasswordAuthenticationToken(
+                        request.getUsername(), request.getPassword()));
 
-        User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new UserNotFoundException("User not found"));
+        User user =
+                userRepository
+                        .findByUsername(request.getUsername())
+                        .orElseThrow(() -> new UserNotFoundException("User not found"));
 
         String accessToken = jwtService.generateToken(user.getUsername());
         String refreshToken = jwtService.generateRefreshToken(user.getUsername());
@@ -87,25 +85,27 @@ public class AuthService {
     public UserDto getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String username = auth.getName();
-        
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UserNotFoundException("User not found"));
-                
+
+        User user =
+                userRepository
+                        .findByUsername(username)
+                        .orElseThrow(() -> new UserNotFoundException("User not found"));
+
         return mapToDto(user);
     }
 
     public TokenResponse refreshToken(RefreshTokenRequest request) {
         String username = jwtService.extractUsername(request.getRefreshToken());
-        
+
         if (username != null && jwtService.isTokenValid(request.getRefreshToken())) {
             String newAccessToken = jwtService.generateToken(username);
-            
+
             return TokenResponse.builder()
                     .accessToken(newAccessToken)
                     .refreshToken(request.getRefreshToken())
                     .build();
         }
-        
+
         throw new RuntimeException("Invalid refresh token");
     }
 

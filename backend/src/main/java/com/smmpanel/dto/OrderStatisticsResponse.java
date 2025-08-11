@@ -1,8 +1,8 @@
 package com.smmpanel.dto;
 
-import lombok.Data;
-import lombok.Builder;
 import java.math.BigDecimal;
+import lombok.Builder;
+import lombok.Data;
 
 @Data
 @Builder
@@ -13,4 +13,4 @@ public class OrderStatisticsResponse {
     private Long completedOrders;
     private BigDecimal totalRevenue;
     private BigDecimal todayRevenue;
-} 
+}

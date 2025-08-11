@@ -11,4 +11,4 @@ public class BinomCampaignRequest {
     private boolean clipCreated;
     private String targetUrl;
     private String geoTargeting;
-} 
+}

@@ -1,24 +1,23 @@
 package com.smmpanel.service.security;
 
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
-import java.util.concurrent.TimeUnit;
-
 /**
- * Rate limiting service for authentication attempts to prevent brute force attacks
- * Uses Redis for distributed rate limiting across multiple application instances
+ * Rate limiting service for authentication attempts to prevent brute force attacks Uses Redis for
+ * distributed rate limiting across multiple application instances
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthenticationRateLimitService {
 
-    private final RedisTemplate<String, String> redisTemplate;
+    private final StringRedisTemplate redisTemplate;
 
     @Value("${app.security.rate-limit.max-attempts:5}")
     private int maxAttempts;
@@ -34,41 +33,50 @@ public class AuthenticationRateLimitService {
 
     /**
      * Check if authentication attempts are rate limited for the given identifier
+     *
      * @param identifier The identifier to check (IP address, API key hash prefix, etc.)
      * @return true if rate limited, false if attempts are allowed
      */
     public boolean isRateLimited(String identifier) {
         try {
             String lockoutKey = LOCKOUT_PREFIX + identifier;
-            
+
             // Check if currently locked out
             if (Boolean.TRUE.equals(redisTemplate.hasKey(lockoutKey))) {
                 Long ttl = redisTemplate.getExpire(lockoutKey, TimeUnit.SECONDS);
-                log.warn("Authentication attempts blocked for identifier: {} (lockout expires in {}s)", 
-                    maskIdentifier(identifier), ttl);
+                log.warn(
+                        "Authentication attempts blocked for identifier: {} (lockout expires in"
+                                + " {}s)",
+                        maskIdentifier(identifier),
+                        ttl);
                 return true;
             }
 
             String rateLimitKey = RATE_LIMIT_PREFIX + identifier;
             String attempts = redisTemplate.opsForValue().get(rateLimitKey);
-            
+
             if (attempts != null) {
                 int attemptCount = Integer.parseInt(attempts);
                 if (attemptCount >= maxAttempts) {
                     // Lock out the identifier
-                    redisTemplate.opsForValue().set(lockoutKey, "locked", 
-                        Duration.ofMinutes(lockoutMinutes));
+                    redisTemplate
+                            .opsForValue()
+                            .set(lockoutKey, "locked", Duration.ofMinutes(lockoutMinutes));
                     redisTemplate.delete(rateLimitKey); // Clear attempt counter
-                    
-                    log.warn("Maximum authentication attempts exceeded for identifier: {} - Locked out for {} minutes", 
-                        maskIdentifier(identifier), lockoutMinutes);
+
+                    log.warn(
+                            "Maximum authentication attempts exceeded for identifier: {} - Locked"
+                                    + " out for {} minutes",
+                            maskIdentifier(identifier),
+                            lockoutMinutes);
                     return true;
                 }
             }
-            
+
             return false;
         } catch (Exception e) {
-            log.error("Error checking rate limit for identifier: {}", maskIdentifier(identifier), e);
+            log.error(
+                    "Error checking rate limit for identifier: {}", maskIdentifier(identifier), e);
             // Fail open - don't block legitimate users due to Redis issues
             return false;
         }
@@ -76,50 +84,63 @@ public class AuthenticationRateLimitService {
 
     /**
      * Record a failed authentication attempt
+     *
      * @param identifier The identifier for the failed attempt
      */
     public void recordFailedAttempt(String identifier) {
         try {
             String rateLimitKey = RATE_LIMIT_PREFIX + identifier;
-            
+
             // Increment attempt counter with expiry
             Long attempts = redisTemplate.opsForValue().increment(rateLimitKey);
             if (attempts == 1) {
                 // Set expiry only on first attempt
                 redisTemplate.expire(rateLimitKey, Duration.ofMinutes(windowMinutes));
             }
-            
-            log.info("Failed authentication attempt #{} recorded for identifier: {} (window: {}min)", 
-                attempts, maskIdentifier(identifier), windowMinutes);
-                
+
+            log.info(
+                    "Failed authentication attempt #{} recorded for identifier: {} (window: {}min)",
+                    attempts,
+                    maskIdentifier(identifier),
+                    windowMinutes);
+
         } catch (Exception e) {
-            log.error("Error recording failed attempt for identifier: {}", maskIdentifier(identifier), e);
+            log.error(
+                    "Error recording failed attempt for identifier: {}",
+                    maskIdentifier(identifier),
+                    e);
         }
     }
 
     /**
      * Record a successful authentication (clears failed attempts)
+     *
      * @param identifier The identifier for the successful attempt
      */
     public void recordSuccessfulAttempt(String identifier) {
         try {
             String rateLimitKey = RATE_LIMIT_PREFIX + identifier;
             String lockoutKey = LOCKOUT_PREFIX + identifier;
-            
+
             // Clear both failed attempts and any lockout
             redisTemplate.delete(rateLimitKey);
             redisTemplate.delete(lockoutKey);
-            
-            log.debug("Successful authentication - cleared rate limit data for identifier: {}", 
-                maskIdentifier(identifier));
-                
+
+            log.debug(
+                    "Successful authentication - cleared rate limit data for identifier: {}",
+                    maskIdentifier(identifier));
+
         } catch (Exception e) {
-            log.error("Error clearing rate limit data for identifier: {}", maskIdentifier(identifier), e);
+            log.error(
+                    "Error clearing rate limit data for identifier: {}",
+                    maskIdentifier(identifier),
+                    e);
         }
     }
 
     /**
      * Get current failed attempt count for identifier
+     *
      * @param identifier The identifier to check
      * @return Current failed attempt count
      */
@@ -129,13 +150,17 @@ public class AuthenticationRateLimitService {
             String attempts = redisTemplate.opsForValue().get(rateLimitKey);
             return attempts != null ? Integer.parseInt(attempts) : 0;
         } catch (Exception e) {
-            log.error("Error getting failed attempt count for identifier: {}", maskIdentifier(identifier), e);
+            log.error(
+                    "Error getting failed attempt count for identifier: {}",
+                    maskIdentifier(identifier),
+                    e);
             return 0;
         }
     }
 
     /**
      * Get remaining lockout time in seconds
+     *
      * @param identifier The identifier to check
      * @return Remaining lockout time in seconds, 0 if not locked out
      */
@@ -147,31 +172,39 @@ public class AuthenticationRateLimitService {
             }
             return 0;
         } catch (Exception e) {
-            log.error("Error getting lockout time for identifier: {}", maskIdentifier(identifier), e);
+            log.error(
+                    "Error getting lockout time for identifier: {}", maskIdentifier(identifier), e);
             return 0;
         }
     }
 
     /**
      * Manually clear rate limit data for an identifier (admin function)
+     *
      * @param identifier The identifier to clear
      */
     public void clearRateLimit(String identifier) {
         try {
             String rateLimitKey = RATE_LIMIT_PREFIX + identifier;
             String lockoutKey = LOCKOUT_PREFIX + identifier;
-            
+
             redisTemplate.delete(rateLimitKey);
             redisTemplate.delete(lockoutKey);
-            
-            log.info("Manually cleared rate limit data for identifier: {}", maskIdentifier(identifier));
+
+            log.info(
+                    "Manually cleared rate limit data for identifier: {}",
+                    maskIdentifier(identifier));
         } catch (Exception e) {
-            log.error("Error clearing rate limit data for identifier: {}", maskIdentifier(identifier), e);
+            log.error(
+                    "Error clearing rate limit data for identifier: {}",
+                    maskIdentifier(identifier),
+                    e);
         }
     }
 
     /**
      * Create a safe identifier from IP address for rate limiting
+     *
      * @param ipAddress The IP address
      * @return Safe identifier for rate limiting
      */
@@ -179,7 +212,8 @@ public class AuthenticationRateLimitService {
         if (ipAddress == null) {
             return "unknown";
         }
-        // For IPv4, use full address. For IPv6, use first 64 bits to avoid tracking individual devices
+        // For IPv4, use full address. For IPv6, use first 64 bits to avoid tracking individual
+        // devices
         if (ipAddress.contains(":")) {
             // IPv6 - use network prefix
             String[] parts = ipAddress.split(":");
@@ -192,6 +226,7 @@ public class AuthenticationRateLimitService {
 
     /**
      * Create a safe identifier from API key hash for rate limiting
+     *
      * @param apiKeyHash The API key hash
      * @return Safe identifier for rate limiting (first 8 characters)
      */
@@ -203,9 +238,7 @@ public class AuthenticationRateLimitService {
         return "api:" + apiKeyHash.substring(0, 8);
     }
 
-    /**
-     * Mask identifier for safe logging
-     */
+    /** Mask identifier for safe logging */
     private String maskIdentifier(String identifier) {
         if (identifier == null || identifier.length() <= 4) {
             return "[masked]";

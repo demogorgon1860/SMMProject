@@ -5,9 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-/**
- * Service for sending email notifications
- */
+/** Service for sending email notifications */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -19,9 +17,7 @@ public class EmailService {
     @Value("${app.email.from:noreply@smmpanel.com}")
     private String fromEmail;
 
-    /**
-     * Send a simple email
-     */
+    /** Send a simple email */
     public void sendEmail(String to, String subject, String body) {
         if (!enabled) {
             log.debug("Email notifications disabled");
@@ -37,32 +33,28 @@ public class EmailService {
         }
     }
 
-    /**
-     * Send an alert email
-     */
+    /** Send an alert email */
     public void sendAlert(String to, String alertTitle, String alertMessage, String level) {
         if (!enabled) {
             return;
         }
 
         String subject = String.format("[%s] %s", level.toUpperCase(), alertTitle);
-        String body = String.format(
-            "Alert Level: %s\n\nTitle: %s\n\nMessage:\n%s\n\nGenerated at: %s",
-            level, alertTitle, alertMessage, java.time.LocalDateTime.now()
-        );
+        String body =
+                String.format(
+                        "Alert Level: %s\n\nTitle: %s\n\nMessage:\n%s\n\nGenerated at: %s",
+                        level, alertTitle, alertMessage, java.time.LocalDateTime.now());
 
         sendEmail(to, subject, body);
     }
 
-    /**
-     * Send a notification email
-     */
+    /** Send a notification email */
     public void sendNotification(String to, String title, String message) {
         sendEmail(to, title, message);
     }
-    
+
     public void sendToTeam(String subject, String body) {
         log.info("Sending email to team: {}", subject);
         // Implementation
     }
-} 
+}

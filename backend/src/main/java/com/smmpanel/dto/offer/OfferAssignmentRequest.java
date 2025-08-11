@@ -10,4 +10,4 @@ public class OfferAssignmentRequest {
     private Long orderId;
     private String offerId;
     private String source; // Add this field
-} 
+}

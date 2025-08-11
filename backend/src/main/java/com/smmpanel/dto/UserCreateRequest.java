@@ -16,4 +16,4 @@ public class UserCreateRequest {
     private String password;
     private UserRole role;
     private String timezone;
-} 
+}

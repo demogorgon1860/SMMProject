@@ -1,5 +1,6 @@
 package com.smmpanel.config;
 
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -9,11 +10,7 @@ import org.springframework.kafka.listener.MessageListenerContainer;
 import org.springframework.stereotype.Component;
 import org.springframework.util.backoff.FixedBackOff;
 
-import java.util.Map;
-
-/**
- * Comprehensive Kafka Error Handler with DLQ support
- */
+/** Comprehensive Kafka Error Handler with DLQ support */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -21,56 +18,61 @@ public class KafkaErrorHandlerConfig {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    /**
-     * Create a production-ready error handler with DLQ support
-     */
+    /** Create a production-ready error handler with DLQ support */
     public DefaultErrorHandler createErrorHandler() {
-        DefaultErrorHandler errorHandler = new DefaultErrorHandler(
-            (consumerRecord, exception) -> {
-                log.error("Message processing failed after all retries. Topic: {}, Partition: {}, Offset: {}, Key: {}, Error: {}", 
-                    consumerRecord.topic(), consumerRecord.partition(), consumerRecord.offset(), 
-                    consumerRecord.key(), exception.getMessage());
-                
-                // Send to DLQ
-                sendToDlq(consumerRecord, exception);
-            },
-            new FixedBackOff(1000L, 3L) // 1 second delay, 3 retries
-        );
-        
+        DefaultErrorHandler errorHandler =
+                new DefaultErrorHandler(
+                        (consumerRecord, exception) -> {
+                            log.error(
+                                    "Message processing failed after all retries. Topic: {},"
+                                            + " Partition: {}, Offset: {}, Key: {}, Error: {}",
+                                    consumerRecord.topic(),
+                                    consumerRecord.partition(),
+                                    consumerRecord.offset(),
+                                    consumerRecord.key(),
+                                    exception.getMessage());
+
+                            // Send to DLQ
+                            sendToDlq(consumerRecord, exception);
+                        },
+                        new FixedBackOff(1000L, 3L) // 1 second delay, 3 retries
+                        );
+
         // Configure which exceptions should not be retried
         errorHandler.addNotRetryableExceptions(
-            IllegalArgumentException.class,
-            java.lang.NumberFormatException.class,
-            java.lang.ClassCastException.class,
-            org.springframework.kafka.support.serializer.DeserializationException.class
-        );
-        
+                IllegalArgumentException.class,
+                java.lang.NumberFormatException.class,
+                java.lang.ClassCastException.class,
+                org.springframework.kafka.support.serializer.DeserializationException.class);
+
         return errorHandler;
     }
 
-    /**
-     * Send failed message to appropriate DLQ topic
-     */
+    /** Send failed message to appropriate DLQ topic */
     private void sendToDlq(ConsumerRecord<?, ?> consumerRecord, Exception exception) {
         try {
             String dlqTopic = getDlqTopic(consumerRecord.topic());
             if (dlqTopic != null) {
                 // Create DLQ message with metadata
-                Map<String, Object> dlqMessage = Map.of(
-                    "originalTopic", consumerRecord.topic(),
-                    "originalPartition", consumerRecord.partition(),
-                    "originalOffset", consumerRecord.offset(),
-                    "originalKey", consumerRecord.key() != null ? consumerRecord.key().toString() : "unknown",
-                    "originalValue", consumerRecord.value(),
-                    "errorMessage", exception.getMessage(),
-                    "errorClass", exception.getClass().getSimpleName(),
-                    "timestamp", java.time.LocalDateTime.now().toString()
-                );
+                Map<String, Object> dlqMessage =
+                        Map.of(
+                                "originalTopic", consumerRecord.topic(),
+                                "originalPartition", consumerRecord.partition(),
+                                "originalOffset", consumerRecord.offset(),
+                                "originalKey",
+                                        consumerRecord.key() != null
+                                                ? consumerRecord.key().toString()
+                                                : "unknown",
+                                "originalValue", consumerRecord.value(),
+                                "errorMessage", exception.getMessage(),
+                                "errorClass", exception.getClass().getSimpleName(),
+                                "timestamp", java.time.LocalDateTime.now().toString());
 
-                kafkaTemplate.send(dlqTopic, 
-                    consumerRecord.key() != null ? consumerRecord.key().toString() : "unknown", 
-                    dlqMessage);
-                
+                kafkaTemplate.send(
+                        dlqTopic,
+                        consumerRecord.key() != null ? consumerRecord.key().toString() : "unknown",
+                        dlqMessage);
+
                 log.info("Message sent to DLQ: {} for topic: {}", dlqTopic, consumerRecord.topic());
             } else {
                 log.warn("No DLQ topic configured for: {}", consumerRecord.topic());
@@ -80,9 +82,7 @@ public class KafkaErrorHandlerConfig {
         }
     }
 
-    /**
-     * Map original topic to DLQ topic
-     */
+    /** Map original topic to DLQ topic */
     private String getDlqTopic(String originalTopic) {
         return switch (originalTopic) {
             case "smm.order.processing" -> "smm.order.processing.dlq";
@@ -99,15 +99,17 @@ public class KafkaErrorHandlerConfig {
         };
     }
 
-    /**
-     * Handle container errors
-     */
+    /** Handle container errors */
     public void handleContainerError(Exception exception, MessageListenerContainer container) {
-        log.error("Container error for group {}: {}", container.getGroupId(), exception.getMessage(), exception);
-        
+        log.error(
+                "Container error for group {}: {}",
+                container.getGroupId(),
+                exception.getMessage(),
+                exception);
+
         // In production, you might want to:
         // 1. Send alerts to monitoring system
         // 2. Restart the container
         // 3. Log to external monitoring service
     }
-} 
+}

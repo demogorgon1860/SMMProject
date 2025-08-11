@@ -3,9 +3,7 @@ package com.smmpanel.service;
 import lombok.Builder;
 import lombok.Data;
 
-/**
- * Error type statistics
- */
+/** Error type statistics */
 @Builder
 @Data
 public class ErrorTypeStats {

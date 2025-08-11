@@ -1,7 +1,9 @@
 package com.smmpanel.service;
 
 import com.smmpanel.entity.*;
-import com.smmpanel.repository.*;
+import com.smmpanel.repository.jpa.*;
+import java.math.BigDecimal;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
@@ -9,10 +11,6 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.UUID;
 
 @Slf4j
 @Service
@@ -55,42 +53,45 @@ public class StartupService implements ApplicationRunner {
     private void createDefaultServices() {
         if (serviceRepository.count() == 0) {
             // Service 1: YouTube Views (Standard)
-            com.smmpanel.entity.Service service1 = com.smmpanel.entity.Service.builder()
-                    .id(1L)
-                    .name("YouTube Views (Standard)")
-                    .category("YouTube")
-                    .minOrder(100)
-                    .maxOrder(1000000)
-                    .pricePer1000(new BigDecimal("1.0000"))
-                    .description("Standard YouTube views delivery")
-                    .active(true)
-                    .build();
+            com.smmpanel.entity.Service service1 =
+                    com.smmpanel.entity.Service.builder()
+                            .id(1L)
+                            .name("YouTube Views (Standard)")
+                            .category("YouTube")
+                            .minOrder(100)
+                            .maxOrder(1000000)
+                            .pricePer1000(new BigDecimal("1.0000"))
+                            .description("Standard YouTube views delivery")
+                            .active(true)
+                            .build();
             serviceRepository.save(service1);
 
             // Service 2: YouTube Views (Premium)
-            com.smmpanel.entity.Service service2 = com.smmpanel.entity.Service.builder()
-                    .id(2L)
-                    .name("YouTube Views (Premium)")
-                    .category("YouTube")
-                    .minOrder(100)
-                    .maxOrder(1000000)
-                    .pricePer1000(new BigDecimal("2.0000"))
-                    .description("Premium YouTube views with higher quality")
-                    .active(true)
-                    .build();
+            com.smmpanel.entity.Service service2 =
+                    com.smmpanel.entity.Service.builder()
+                            .id(2L)
+                            .name("YouTube Views (Premium)")
+                            .category("YouTube")
+                            .minOrder(100)
+                            .maxOrder(1000000)
+                            .pricePer1000(new BigDecimal("2.0000"))
+                            .description("Premium YouTube views with higher quality")
+                            .active(true)
+                            .build();
             serviceRepository.save(service2);
 
             // Service 3: YouTube Views (High Quality)
-            com.smmpanel.entity.Service service3 = com.smmpanel.entity.Service.builder()
-                    .id(3L)
-                    .name("YouTube Views (High Quality)")
-                    .category("YouTube")
-                    .minOrder(100)
-                    .maxOrder(1000000)
-                    .pricePer1000(new BigDecimal("3.0000"))
-                    .description("High quality YouTube views with best retention")
-                    .active(true)
-                    .build();
+            com.smmpanel.entity.Service service3 =
+                    com.smmpanel.entity.Service.builder()
+                            .id(3L)
+                            .name("YouTube Views (High Quality)")
+                            .category("YouTube")
+                            .minOrder(100)
+                            .maxOrder(1000000)
+                            .pricePer1000(new BigDecimal("3.0000"))
+                            .description("High quality YouTube views with best retention")
+                            .active(true)
+                            .build();
             serviceRepository.save(service3);
 
             log.info("Created default services");
@@ -109,6 +110,4 @@ public class StartupService implements ApplicationRunner {
         }
         log.info("Created default conversion coefficients");
     }
-
-
 }

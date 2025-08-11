@@ -24,26 +24,26 @@ public class OpenApiConfig {
                 .addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEME_NAME))
                 .components(
                         new Components()
-                                .addSecuritySchemes(SECURITY_SCHEME_NAME,
+                                .addSecuritySchemes(
+                                        SECURITY_SCHEME_NAME,
                                         new SecurityScheme()
                                                 .name(SECURITY_SCHEME_NAME)
                                                 .type(SecurityScheme.Type.HTTP)
                                                 .scheme("bearer")
-                                                .bearerFormat("JWT")
-                                )
-                )
-                .info(new Info()
-                        .title(API_TITLE)
-                        .description(API_DESCRIPTION)
-                        .version(API_VERSION)
-                        .contact(new Contact()
-                                .name("SMM Panel Support")
-                                .email("support@smmpanel.com")
-                        )
-                        .license(new License()
-                                .name("Apache 2.0")
-                                .url("https://www.apache.org/licenses/LICENSE-2.0.html")
-                        )
-                );
+                                                .bearerFormat("JWT")))
+                .info(
+                        new Info()
+                                .title(API_TITLE)
+                                .description(API_DESCRIPTION)
+                                .version(API_VERSION)
+                                .contact(
+                                        new Contact()
+                                                .name("SMM Panel Support")
+                                                .email("support@smmpanel.com"))
+                                .license(
+                                        new License()
+                                                .name("Apache 2.0")
+                                                .url(
+                                                        "https://www.apache.org/licenses/LICENSE-2.0.html")));
     }
 }

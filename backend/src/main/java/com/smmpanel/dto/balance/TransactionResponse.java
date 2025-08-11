@@ -2,17 +2,14 @@ package com.smmpanel.dto.balance;
 
 import com.smmpanel.entity.BalanceTransaction;
 import com.smmpanel.entity.TransactionType;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-
-/**
- * Response DTO for transaction history
- */
+/** Response DTO for transaction history */
 @Data
 @Builder
 @NoArgsConstructor
@@ -29,14 +26,12 @@ public class TransactionResponse {
     private LocalDateTime createdAt;
     private OrderReference order;
     private DepositReference deposit;
-    
-    /**
-     * Maps a BalanceTransaction entity to TransactionResponse DTO
-     */
+
+    /** Maps a BalanceTransaction entity to TransactionResponse DTO */
     public static TransactionResponse fromEntity(BalanceTransaction transaction) {
         return fromEntity(transaction, transaction.getUser().getPreferredCurrency());
     }
-    
+
     public static TransactionResponse fromEntity(BalanceTransaction transaction, String currency) {
         return TransactionResponse.builder()
                 .id(transaction.getId())
@@ -48,19 +43,21 @@ public class TransactionResponse {
                 .type(transaction.getTransactionType())
                 .description(transaction.getDescription())
                 .createdAt(transaction.getCreatedAt())
-                .order(transaction.getOrder() != null ? 
-                        new OrderReference(
-                            transaction.getOrder().getId(),
-                            transaction.getOrder().getOrderId()
-                        ) : null)
-                .deposit(transaction.getDeposit() != null ? 
-                        new DepositReference(
-                            transaction.getDeposit().getId(),
-                            transaction.getDeposit().getOrderId()
-                        ) : null)
+                .order(
+                        transaction.getOrder() != null
+                                ? new OrderReference(
+                                        transaction.getOrder().getId(),
+                                        transaction.getOrder().getOrderId())
+                                : null)
+                .deposit(
+                        transaction.getDeposit() != null
+                                ? new DepositReference(
+                                        transaction.getDeposit().getId(),
+                                        transaction.getDeposit().getOrderId())
+                                : null)
                 .build();
     }
-    
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -69,7 +66,7 @@ public class TransactionResponse {
         private Long id;
         private String orderId;
     }
-    
+
     @Data
     @Builder
     @NoArgsConstructor

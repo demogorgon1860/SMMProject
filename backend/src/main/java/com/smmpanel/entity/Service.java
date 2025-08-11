@@ -1,6 +1,8 @@
 package com.smmpanel.entity;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.Cache;
@@ -8,17 +10,16 @@ import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-
 @Data
 @Entity
-@Table(name = "services", indexes = {
-    @Index(name = "idx_services_active", columnList = "active"),
-    @Index(name = "idx_services_category", columnList = "category"),
-    @Index(name = "idx_services_geo_targeting", columnList = "geo_targeting"),
-    @Index(name = "idx_services_created_at", columnList = "created_at")
-})
+@Table(
+        name = "services",
+        indexes = {
+            @Index(name = "idx_services_active", columnList = "active"),
+            @Index(name = "idx_services_category", columnList = "category"),
+            @Index(name = "idx_services_geo_targeting", columnList = "geo_targeting"),
+            @Index(name = "idx_services_created_at", columnList = "created_at")
+        })
 @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
 @Builder
 @NoArgsConstructor
@@ -50,8 +51,7 @@ public class Service {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Builder.Default
-    private Boolean active = true;
+    @Builder.Default private Boolean active = true;
 
     @Column(name = "geo_targeting", length = 50)
     @Builder.Default

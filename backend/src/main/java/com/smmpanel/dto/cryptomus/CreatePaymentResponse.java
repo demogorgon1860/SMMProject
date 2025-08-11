@@ -1,7 +1,7 @@
 package com.smmpanel.dto.cryptomus;
 
-import lombok.*;
 import java.math.BigDecimal;
+import lombok.*;
 
 @Data
 @Builder
@@ -17,4 +17,4 @@ public class CreatePaymentResponse {
     private String address;
     private String txid;
     private String status;
-} 
+}

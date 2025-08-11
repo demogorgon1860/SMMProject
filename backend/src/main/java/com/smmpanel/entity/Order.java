@@ -1,30 +1,31 @@
 package com.smmpanel.entity;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import lombok.Builder;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-
 @Data
 @Entity
-@Table(name = "orders", indexes = {
-    @Index(name = "idx_orders_user_id", columnList = "user_id"),
-    @Index(name = "idx_orders_service_id", columnList = "service_id"),
-    @Index(name = "idx_orders_status", columnList = "status"),
-    @Index(name = "idx_orders_created_at", columnList = "created_at"),
-    @Index(name = "idx_orders_youtube_video_id", columnList = "youtube_video_id"),
-    @Index(name = "idx_orders_order_id", columnList = "order_id")
-})
+@Table(
+        name = "orders",
+        indexes = {
+            @Index(name = "idx_orders_user_id", columnList = "user_id"),
+            @Index(name = "idx_orders_service_id", columnList = "service_id"),
+            @Index(name = "idx_orders_status", columnList = "status"),
+            @Index(name = "idx_orders_created_at", columnList = "created_at"),
+            @Index(name = "idx_orders_youtube_video_id", columnList = "youtube_video_id"),
+            @Index(name = "idx_orders_order_id", columnList = "order_id")
+        })
 @EqualsAndHashCode(callSuper = false)
 @Builder
 @NoArgsConstructor
@@ -126,8 +127,8 @@ public class Order {
     private String operatorNotes;
 
     /**
-     * Optimistic locking version counter - incremented on each update
-     * Prevents concurrent modification issues during order processing
+     * Optimistic locking version counter - incremented on each update Prevents concurrent
+     * modification issues during order processing
      */
     @Version
     @Column(name = "version")
@@ -150,20 +151,20 @@ public class Order {
     }
 
     /**
-     * Convenience method to add a BinomCampaign to the order
-     * This method adds the campaign to the binomCampaigns list and sets the bidirectional relationship
+     * Convenience method to add a BinomCampaign to the order This method adds the campaign to the
+     * binomCampaigns list and sets the bidirectional relationship
      */
     public void setBinomCampaign(BinomCampaign campaign) {
         if (this.binomCampaigns == null) {
             this.binomCampaigns = new java.util.ArrayList<>();
         }
-        
+
         // Remove any existing campaign first (if we want single campaign per order)
         this.binomCampaigns.clear();
-        
+
         // Add the new campaign
         this.binomCampaigns.add(campaign);
-        
+
         // Set bidirectional relationship
         if (campaign != null) {
             campaign.setOrder(this);

@@ -1,6 +1,8 @@
 package com.smmpanel.config;
 
 import com.smmpanel.dto.kafka.VideoProcessingMessage;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -18,18 +20,12 @@ import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * KAFKA CONFIGURATION: Video Processing Message Queue
- * 
- * Features:
- * 1. Dedicated topic for video processing messages
- * 2. JSON serialization for complex message objects
- * 3. Producer configuration optimized for throughput
- * 4. Consumer configuration with proper error handling
- * 5. Auto-topic creation with appropriate partitions
+ *
+ * <p>Features: 1. Dedicated topic for video processing messages 2. JSON serialization for complex
+ * message objects 3. Producer configuration optimized for throughput 4. Consumer configuration with
+ * proper error handling 5. Auto-topic creation with appropriate partitions
  */
 @Slf4j
 @Configuration
@@ -64,13 +60,13 @@ public class KafkaVideoProcessingConfig {
     private int lingerMs;
 
     /**
-     * TOPIC CREATION: video.processing.queue
-     * Auto-creates topic with optimal configuration for video processing workload
+     * TOPIC CREATION: video.processing.queue Auto-creates topic with optimal configuration for
+     * video processing workload
      */
-    @Bean
+    @Bean("videoProcessingQueueTopic")
     public NewTopic videoProcessingTopic() {
         NewTopic topic = new NewTopic(videoProcessingTopic, topicPartitions, replicationFactor);
-        
+
         // Configure topic properties for video processing workload
         Map<String, String> configs = new HashMap<>();
         configs.put("cleanup.policy", "delete");
@@ -78,173 +74,197 @@ public class KafkaVideoProcessingConfig {
         configs.put("segment.ms", "86400000"); // 1 day segments
         configs.put("compression.type", "snappy"); // Efficient compression
         configs.put("message.max.bytes", "1048576"); // 1MB max message size
-        
+
         topic.configs(configs);
-        
-        log.info("Creating Kafka topic: {} with {} partitions, replication factor: {}", 
-                videoProcessingTopic, topicPartitions, replicationFactor);
-        
+
+        log.info(
+                "Creating Kafka topic: {} with {} partitions, replication factor: {}",
+                videoProcessingTopic,
+                topicPartitions,
+                replicationFactor);
+
         return topic;
     }
 
-    /**
-     * KAFKA ADMIN CLIENT: For topic management
-     */
+    /** KAFKA ADMIN CLIENT: For topic management */
     @Bean
     public KafkaAdmin kafkaAdmin() {
         Map<String, Object> configs = new HashMap<>();
         configs.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         configs.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, 30000);
         configs.put(AdminClientConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG, 300000);
-        
+
         return new KafkaAdmin(configs);
     }
 
     /**
-     * PRODUCER FACTORY: Optimized for video processing messages
-     * High throughput configuration with JSON serialization
+     * PRODUCER FACTORY: Optimized for video processing messages High throughput configuration with
+     * JSON serialization
      */
     @Bean
     public ProducerFactory<String, VideoProcessingMessage> videoProcessingProducerFactory() {
         Map<String, Object> configProps = new HashMap<>();
-        
+
         // Basic configuration
         configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-        
+
         // Performance optimization
         configProps.put(ProducerConfig.BATCH_SIZE_CONFIG, batchSize);
         configProps.put(ProducerConfig.LINGER_MS_CONFIG, lingerMs);
         configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "snappy");
         configProps.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 33554432); // 32MB buffer
-        
+
         // Reliability configuration
         configProps.put(ProducerConfig.ACKS_CONFIG, "all"); // Wait for all replicas
         configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
         configProps.put(ProducerConfig.RETRY_BACKOFF_MS_CONFIG, 1000);
         configProps.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 120000); // 2 minutes
         configProps.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 30000);
-        
+
         // Idempotence for exactly-once semantics
         configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
         configProps.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
-        
+
         // JSON serializer configuration
         configProps.put(JsonSerializer.ADD_TYPE_INFO_HEADERS, false);
-        
-        log.info("Configured Kafka producer for video processing: batch={}, linger={}ms, compression=snappy", 
-                batchSize, lingerMs);
-        
+
+        log.info(
+                "Configured Kafka producer for video processing: batch={}, linger={}ms,"
+                        + " compression=snappy",
+                batchSize,
+                lingerMs);
+
         return new DefaultKafkaProducerFactory<>(configProps);
     }
 
-    /**
-     * KAFKA TEMPLATE: For sending video processing messages
-     */
+    /** KAFKA TEMPLATE: For sending video processing messages */
     @Bean
     public KafkaTemplate<String, VideoProcessingMessage> videoProcessingKafkaTemplate() {
-        KafkaTemplate<String, VideoProcessingMessage> template = new KafkaTemplate<>(videoProcessingProducerFactory());
+        KafkaTemplate<String, VideoProcessingMessage> template =
+                new KafkaTemplate<>(videoProcessingProducerFactory());
         template.setDefaultTopic(videoProcessingTopic);
-        
+
         // Set producer properties
-        template.getProducerFactory().getConfigurationProperties().put("client.id", "video-processing-producer");
-        
-        log.info("Configured KafkaTemplate for video processing with default topic: {}", videoProcessingTopic);
+        template.getProducerFactory()
+                .getConfigurationProperties()
+                .put("client.id", "video-processing-producer");
+
+        log.info(
+                "Configured KafkaTemplate for video processing with default topic: {}",
+                videoProcessingTopic);
         return template;
     }
 
     /**
-     * CONSUMER FACTORY: Optimized for video processing message consumption
-     * Configured for reliable processing with proper error handling
+     * CONSUMER FACTORY: Optimized for video processing message consumption Configured for reliable
+     * processing with proper error handling
      */
     @Bean
     public ConsumerFactory<String, VideoProcessingMessage> videoProcessingConsumerFactory() {
         Map<String, Object> configProps = new HashMap<>();
-        
+
         // Basic configuration
         configProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         configProps.put(ConsumerConfig.GROUP_ID_CONFIG, consumerGroupId);
         configProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         configProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
-        
+
         // Consumer behavior
         configProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-        configProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false); // Manual commit for reliability
+        configProps.put(
+                ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false); // Manual commit for reliability
         configProps.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, maxPollRecords);
         configProps.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, sessionTimeoutMs);
         configProps.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, sessionTimeoutMs / 3);
-        
+
         // Processing timeouts
-        configProps.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 300000); // 5 minutes for processing
+        configProps.put(
+                ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 300000); // 5 minutes for processing
         configProps.put(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, 40000);
         configProps.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, 1);
         configProps.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
-        
+
         // JSON deserializer configuration
         configProps.put(JsonDeserializer.TRUSTED_PACKAGES, "com.smmpanel.dto.kafka");
-        configProps.put(JsonDeserializer.VALUE_DEFAULT_TYPE, VideoProcessingMessage.class.getName());
+        configProps.put(
+                JsonDeserializer.VALUE_DEFAULT_TYPE, VideoProcessingMessage.class.getName());
         configProps.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
-        
-        log.info("Configured Kafka consumer for video processing: group={}, max-poll={}, session-timeout={}ms", 
-                consumerGroupId, maxPollRecords, sessionTimeoutMs);
-        
+
+        log.info(
+                "Configured Kafka consumer for video processing: group={}, max-poll={},"
+                        + " session-timeout={}ms",
+                consumerGroupId,
+                maxPollRecords,
+                sessionTimeoutMs);
+
         return new DefaultKafkaConsumerFactory<>(configProps);
     }
 
     /**
-     * LISTENER CONTAINER FACTORY: For @KafkaListener configuration
-     * Optimized for video processing workload with proper error handling
+     * LISTENER CONTAINER FACTORY: For @KafkaListener configuration Optimized for video processing
+     * workload with proper error handling
      */
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, VideoProcessingMessage> videoProcessingKafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, VideoProcessingMessage> factory = 
+    public ConcurrentKafkaListenerContainerFactory<String, VideoProcessingMessage>
+            videoProcessingKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, VideoProcessingMessage> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
-        
+
         factory.setConsumerFactory(videoProcessingConsumerFactory());
-        
+
         // Concurrency configuration (number of consumer threads)
         factory.setConcurrency(Math.min(topicPartitions, 3)); // Max 3 concurrent consumers
-        
+
         // Container properties
         ContainerProperties containerProps = factory.getContainerProperties();
         containerProps.setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE); // Manual commit
         containerProps.setSyncCommits(true); // Synchronous commits for reliability
         containerProps.setCommitRetries(3);
-        
+
         // Error handling
-        factory.setCommonErrorHandler(new org.springframework.kafka.listener.DefaultErrorHandler(
-            (record, exception) -> {
-                log.error("Failed to process video processing message: key={}, partition={}, offset={}, error={}", 
-                    record.key(), record.partition(), record.offset(), exception.getMessage(), exception);
-            },
-            new org.springframework.util.backoff.FixedBackOff(1000L, 3L) // 1 second interval, 3 retry attempts
-        ));
-        
-        log.info("Configured Kafka listener container factory with concurrency: {}, manual ack mode", 
+        factory.setCommonErrorHandler(
+                new org.springframework.kafka.listener.DefaultErrorHandler(
+                        (record, exception) -> {
+                            log.error(
+                                    "Failed to process video processing message: key={},"
+                                            + " partition={}, offset={}, error={}",
+                                    record.key(),
+                                    record.partition(),
+                                    record.offset(),
+                                    exception.getMessage(),
+                                    exception);
+                        },
+                        new org.springframework.util.backoff.FixedBackOff(
+                                1000L, 3L) // 1 second interval, 3 retry attempts
+                        ));
+
+        log.info(
+                "Configured Kafka listener container factory with concurrency: {}, manual ack mode",
                 Math.min(topicPartitions, 3));
-        
+
         return factory;
     }
 
-    /**
-     * HEALTH INDICATOR: Monitor Kafka connectivity for video processing
-     */
+    /** HEALTH INDICATOR: Monitor Kafka connectivity for video processing */
     @Bean
-    public org.springframework.boot.actuate.health.HealthIndicator videoProcessingKafkaHealthIndicator() {
+    public org.springframework.boot.actuate.health.HealthIndicator
+            videoProcessingKafkaHealthIndicator() {
         return () -> {
             try {
                 // Simple health check by attempting to get metadata
-                KafkaTemplate<String, VideoProcessingMessage> template = videoProcessingKafkaTemplate();
+                KafkaTemplate<String, VideoProcessingMessage> template =
+                        videoProcessingKafkaTemplate();
                 template.partitionsFor(videoProcessingTopic);
-                
+
                 return org.springframework.boot.actuate.health.Health.up()
                         .withDetail("topic", videoProcessingTopic)
                         .withDetail("partitions", topicPartitions)
                         .withDetail("bootstrap-servers", bootstrapServers)
                         .withDetail("consumer-group", consumerGroupId)
                         .build();
-                        
+
             } catch (Exception e) {
                 return org.springframework.boot.actuate.health.Health.down()
                         .withDetail("error", e.getMessage())

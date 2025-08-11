@@ -2,13 +2,12 @@ package com.smmpanel.service;
 
 import com.smmpanel.dto.ServiceResponse;
 import com.smmpanel.entity.Service;
-import com.smmpanel.repository.ServiceRepository;
+import com.smmpanel.repository.jpa.ServiceRepository;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Slf4j
 @org.springframework.stereotype.Service
@@ -21,12 +20,13 @@ public class ServiceService {
     @Cacheable(value = "services", cacheManager = "redisCacheManager", key = "'active-services'")
     public List<ServiceResponse> getAllActiveServices() {
         List<Service> services = serviceRepository.findByActiveOrderByIdAsc(true);
-        return services.stream()
-                .map(this::toServiceResponse)
-                .toList();
+        return services.stream().map(this::toServiceResponse).toList();
     }
 
-    @Cacheable(value = "services", cacheManager = "redisCacheManager", key = "'active-services-cached'")
+    @Cacheable(
+            value = "services",
+            cacheManager = "redisCacheManager",
+            key = "'active-services-cached'")
     public List<ServiceResponse> getAllActiveServicesCached() {
         return getAllActiveServices();
     }
@@ -45,4 +45,4 @@ public class ServiceService {
                 .updatedAt(service.getUpdatedAt())
                 .build();
     }
-} 
+}

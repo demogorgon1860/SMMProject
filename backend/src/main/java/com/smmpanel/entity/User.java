@@ -1,6 +1,10 @@
 package com.smmpanel.entity;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.BatchSize;
@@ -12,42 +16,41 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.Collection;
-import java.util.List;
-
 /**
  * OPTIMIZED User Entity with security and performance improvements
- * 
- * IMPROVEMENTS:
- * 1. Added proper database indexes for performance
- * 2. Separated API key and its hash for security
- * 3. Implemented UserDetails for Spring Security integration
- * 4. Added optimistic locking for concurrent balance updates
- * 5. Lazy loading relationships to prevent N+1 queries
- * 6. Added audit fields and soft delete capability
+ *
+ * <p>IMPROVEMENTS: 1. Added proper database indexes for performance 2. Separated API key and its
+ * hash for security 3. Implemented UserDetails for Spring Security integration 4. Added optimistic
+ * locking for concurrent balance updates 5. Lazy loading relationships to prevent N+1 queries 6.
+ * Added audit fields and soft delete capability
  */
 @Entity
-@Table(name = "users", indexes = {
-    @Index(name = "idx_users_username", columnList = "username"),
-    @Index(name = "idx_users_email", columnList = "email"),
-    @Index(name = "idx_users_api_key_hash", columnList = "api_key_hash"),
-    @Index(name = "idx_users_active", columnList = "is_active"),
-    @Index(name = "idx_users_role", columnList = "role"),
-    @Index(name = "idx_users_balance", columnList = "balance"),
-    @Index(name = "idx_users_created_at", columnList = "created_at"),
-    @Index(name = "idx_users_api_key_salt", columnList = "api_key_salt"),
-    @Index(name = "idx_users_last_login", columnList = "last_login_at"),
-    @Index(name = "idx_users_last_api_access", columnList = "last_api_access_at")
-})
+@Table(
+        name = "users",
+        indexes = {
+            @Index(name = "idx_users_username", columnList = "username"),
+            @Index(name = "idx_users_email", columnList = "email"),
+            @Index(name = "idx_users_api_key_hash", columnList = "api_key_hash"),
+            @Index(name = "idx_users_active", columnList = "is_active"),
+            @Index(name = "idx_users_role", columnList = "role"),
+            @Index(name = "idx_users_balance", columnList = "balance"),
+            @Index(name = "idx_users_created_at", columnList = "created_at"),
+            @Index(name = "idx_users_api_key_salt", columnList = "api_key_salt"),
+            @Index(name = "idx_users_last_login", columnList = "last_login_at"),
+            @Index(name = "idx_users_last_api_access", columnList = "last_api_access_at")
+        })
 @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = {"passwordHash", "apiKey", "apiKeyHash"}) // Exclude sensitive fields from toString
+@ToString(
+        exclude = {
+            "passwordHash",
+            "apiKey",
+            "apiKeyHash"
+        }) // Exclude sensitive fields from toString
 @Slf4j
 public class User implements UserDetails {
 
@@ -65,15 +68,14 @@ public class User implements UserDetails {
     private String passwordHash;
 
     /**
-     * SECURITY IMPROVEMENT: Store raw API key temporarily for response
-     * This is only set when generating new keys and should be nulled after response
+     * SECURITY IMPROVEMENT: Store raw API key temporarily for response This is only set when
+     * generating new keys and should be nulled after response
      */
-    @Transient
-    private String apiKey;
+    @Transient private String apiKey;
 
     /**
-     * SECURITY IMPROVEMENT: Store hashed API key for lookup
-     * This is what's actually stored in database and used for authentication
+     * SECURITY IMPROVEMENT: Store hashed API key for lookup This is what's actually stored in
+     * database and used for authentication
      */
     @Column(name = "api_key_hash", unique = true, length = 64)
     private String apiKeyHash;
@@ -145,8 +147,8 @@ public class User implements UserDetails {
     private LocalDateTime passwordChangedAt;
 
     /**
-     * PERFORMANCE IMPROVEMENT: Optimistic locking for balance updates
-     * Prevents concurrent modification issues during balance transactions
+     * PERFORMANCE IMPROVEMENT: Optimistic locking for balance updates Prevents concurrent
+     * modification issues during balance transactions
      */
     @Version
     @Column(name = "version")
@@ -161,9 +163,8 @@ public class User implements UserDetails {
     private LocalDateTime updatedAt;
 
     /**
-     * PERFORMANCE IMPROVEMENT: Lazy loading relationships to prevent N+1 queries
-     * Orders will only be loaded when explicitly accessed
-     * BatchSize optimization for efficient collection loading
+     * PERFORMANCE IMPROVEMENT: Lazy loading relationships to prevent N+1 queries Orders will only
+     * be loaded when explicitly accessed BatchSize optimization for efficient collection loading
      */
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @BatchSize(size = 25)
@@ -218,67 +219,51 @@ public class User implements UserDetails {
 
     // Business logic methods
 
-    /**
-     * Check if user has sufficient balance for a transaction
-     */
+    /** Check if user has sufficient balance for a transaction */
     public boolean hasSufficientBalance(BigDecimal amount) {
         return balance.compareTo(amount) >= 0;
     }
 
-    /**
-     * Check if user account is locked due to failed login attempts
-     */
+    /** Check if user account is locked due to failed login attempts */
     public boolean isTemporarilyLocked() {
         return lockedUntil != null && lockedUntil.isAfter(LocalDateTime.now());
     }
 
-    /**
-     * Check if user has administrative privileges
-     */
+    /** Check if user has administrative privileges */
     public boolean isAdmin() {
         return role == UserRole.ADMIN;
     }
 
-    /**
-     * Check if user has operator privileges or higher
-     */
+    /** Check if user has operator privileges or higher */
     public boolean isOperatorOrHigher() {
         return role == UserRole.OPERATOR || role == UserRole.ADMIN;
     }
 
-    /**
-     * Update last login time and reset failed attempts
-     */
+    /** Update last login time and reset failed attempts */
     public void recordSuccessfulLogin() {
         this.lastLoginAt = LocalDateTime.now();
         this.failedLoginAttempts = 0;
         this.lockedUntil = null;
     }
 
-    /**
-     * Record failed login attempt and potentially lock account
-     */
+    /** Record failed login attempt and potentially lock account */
     public void recordFailedLogin() {
         this.failedLoginAttempts++;
-        
+
         // Lock account after 5 failed attempts for 30 minutes
         if (this.failedLoginAttempts >= 5) {
             this.lockedUntil = LocalDateTime.now().plusMinutes(30);
         }
     }
 
-    /**
-     * Update API access time (called asynchronously to avoid performance impact)
-     */
+    /** Update API access time (called asynchronously to avoid performance impact) */
     public void recordApiAccess() {
         this.lastApiAccessAt = LocalDateTime.now();
     }
 
     // Helper methods for balance operations (should be used within transactions)
 
-    /**
-     * Add amount to balance (use within transaction)
-     */
+    /** Add amount to balance (use within transaction) */
     public void addBalance(BigDecimal amount) {
         if (amount.compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("Cannot add negative amount");
@@ -286,9 +271,7 @@ public class User implements UserDetails {
         this.balance = this.balance.add(amount);
     }
 
-    /**
-     * Subtract amount from balance (use within transaction)
-     */
+    /** Subtract amount from balance (use within transaction) */
     public void subtractBalance(BigDecimal amount) {
         if (amount.compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("Cannot subtract negative amount");
@@ -299,9 +282,7 @@ public class User implements UserDetails {
         this.balance = this.balance.subtract(amount);
     }
 
-    /**
-     * Set new balance (use within transaction)
-     */
+    /** Set new balance (use within transaction) */
     public void setBalance(BigDecimal newBalance) {
         if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("Balance cannot be negative");
@@ -311,9 +292,7 @@ public class User implements UserDetails {
 
     // Validation methods
 
-    /**
-     * Validate user data before persistence
-     */
+    /** Validate user data before persistence */
     @PrePersist
     @PreUpdate
     private void validateUser() {

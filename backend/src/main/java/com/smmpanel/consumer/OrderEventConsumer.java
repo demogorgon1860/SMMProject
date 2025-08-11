@@ -5,7 +5,7 @@ import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.event.OrderCreatedEvent;
 import com.smmpanel.event.OrderStatusChangedEvent;
 import com.smmpanel.producer.OrderEventProducer;
-import com.smmpanel.repository.OrderRepository;
+import com.smmpanel.repository.jpa.OrderRepository;
 import com.smmpanel.service.BinomService;
 import com.smmpanel.service.MessageProcessingService;
 import com.smmpanel.service.MessageProcessingService.ProcessingResult;
@@ -20,14 +20,7 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.Optional;
-import java.util.UUID;
-
-/**
- * Order Event Consumer
- * Processes order events from Kafka asynchronously
- */
+/** Order Event Consumer Processes order events from Kafka asynchronously */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -39,65 +32,79 @@ public class OrderEventConsumer {
     private final OrderEventProducer orderEventProducer;
     private final MessageProcessingService messageProcessingService;
 
-    /**
-     * Process order created events with comprehensive error handling and idempotency
-     */
+    /** Process order created events with comprehensive error handling and idempotency */
     @KafkaListener(
-        topics = "smm.order.processing", 
-        groupId = "smm-order-processing-group",
-        containerFactory = "orderProcessingConsumerGroupFactory"
-    )
+            topics = "smm.order.processing",
+            groupId = "smm-order-processing-group",
+            containerFactory = "orderProcessingConsumerGroupFactory")
     public void processOrderCreatedEvent(
             @Payload OrderCreatedEvent event,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
             @Header(KafkaHeaders.OFFSET) long offset,
             Acknowledgment acknowledgment) {
-        
+
         // Generate unique message ID for idempotency
-        String messageId = generateMessageId("order-created", event.getOrderId(), event.getTimestamp());
-        
-        log.info("Processing order created event: orderId={}, userId={}, messageId={}, topic={}, partition={}, offset={}", 
-                event.getOrderId(), event.getUserId(), messageId, topic, partition, offset);
-        
+        String messageId =
+                generateMessageId("order-created", event.getOrderId(), event.getTimestamp());
+
+        log.info(
+                "Processing order created event: orderId={}, userId={}, messageId={}, topic={},"
+                        + " partition={}, offset={}",
+                event.getOrderId(),
+                event.getUserId(),
+                messageId,
+                topic,
+                partition,
+                offset);
+
         // Process with comprehensive error handling and idempotency
-        ProcessingResult result = messageProcessingService.processMessageWithRetry(
-                event, 
-                messageId, 
-                topic, 
-                partition, 
-                offset, 
-                acknowledgment,
-                this::processOrderCreatedEventInternal
-        );
-        
+        ProcessingResult result =
+                messageProcessingService.processMessageWithRetry(
+                        event,
+                        messageId,
+                        topic,
+                        partition,
+                        offset,
+                        acknowledgment,
+                        this::processOrderCreatedEventInternal);
+
         if (result.isSuccess()) {
-            log.info("Successfully processed order created event: orderId={}, messageId={}", 
-                    event.getOrderId(), messageId);
+            log.info(
+                    "Successfully processed order created event: orderId={}, messageId={}",
+                    event.getOrderId(),
+                    messageId);
         } else if (!result.isDuplicate()) {
-            log.error("Failed to process order created event: orderId={}, messageId={}, error={}", 
-                    event.getOrderId(), messageId, result.getErrorMessage());
+            log.error(
+                    "Failed to process order created event: orderId={}, messageId={}, error={}",
+                    event.getOrderId(),
+                    messageId,
+                    result.getErrorMessage());
         }
     }
 
-    /**
-     * Process order status changed events
-     */
+    /** Process order status changed events */
     @KafkaListener(
-        topics = "smm.order.state.updates",
-        groupId = "order-status-group",
-        containerFactory = "kafkaListenerContainerFactory"
-    )
+            topics = "smm.order.state.updates",
+            groupId = "order-status-group",
+            containerFactory = "kafkaListenerContainerFactory")
     @Transactional
     public void processOrderStatusChangedEvent(
             @Payload OrderStatusChangedEvent event,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
             @Header(KafkaHeaders.OFFSET) long offset) {
-        
-        log.info("Processing order status changed event: orderId={}, oldStatus={}, newStatus={}, topic={}, partition={}, offset={}", 
-                event.getOrder().getId(), event.getOldStatus(), event.getNewStatus(), topic, partition, offset);
-        
+
+        log.info(
+                "Processing order status changed event: orderId={}, oldStatus={}, newStatus={},"
+                        + " topic={}, partition={}, offset={}",
+                event.getOrder().getId(),
+                event.getOldStatus(),
+                event.getNewStatus(),
+                topic,
+                partition,
+                offset);
+
         try {
             // Handle status-specific logic
             switch (event.getNewStatus()) {
@@ -113,28 +120,32 @@ public class OrderEventConsumer {
                 default:
                     log.debug("No specific handling for status: {}", event.getNewStatus());
             }
-            
+
         } catch (Exception e) {
-            log.error("Failed to process order status changed event: orderId={}", event.getOrder().getId(), e);
+            log.error(
+                    "Failed to process order status changed event: orderId={}",
+                    event.getOrder().getId(),
+                    e);
             throw e; // Let Kafka retry or send to DLQ
         }
     }
 
-    /**
-     * Process YouTube verification
-     */
+    /** Process YouTube verification */
     private void processYouTubeVerification(Order order) {
         try {
             if (order.getLink() != null && order.getLink().contains("youtube")) {
                 String videoId = youTubeService.extractVideoId(order.getLink());
                 Long viewCount = youTubeService.getViewCount(videoId);
-                
+
                 order.setYoutubeVideoId(videoId);
                 order.setStartCount(viewCount.intValue());
                 orderRepository.save(order);
-                
-                log.info("YouTube verification completed: orderId={}, videoId={}, startCount={}", 
-                        order.getId(), videoId, viewCount);
+
+                log.info(
+                        "YouTube verification completed: orderId={}, videoId={}, startCount={}",
+                        order.getId(),
+                        videoId,
+                        viewCount);
             }
         } catch (Exception e) {
             log.error("YouTube verification failed: orderId={}", order.getId(), e);
@@ -142,9 +153,7 @@ public class OrderEventConsumer {
         }
     }
 
-    /**
-     * Process Binom campaign creation
-     */
+    /** Process Binom campaign creation */
     private void processBinomCampaignCreation(Order order) {
         try {
             // Create Binom campaign
@@ -159,56 +168,52 @@ public class OrderEventConsumer {
         }
     }
 
-    /**
-     * Update order status
-     */
+    /** Update order status */
     private void updateOrderStatus(Order order, OrderStatus newStatus) {
         OrderStatus oldStatus = order.getStatus();
         order.setStatus(newStatus);
         orderRepository.save(order);
-        
-        log.info("Order status updated: orderId={}, oldStatus={}, newStatus={}", 
-                order.getId(), oldStatus, newStatus);
+
+        log.info(
+                "Order status updated: orderId={}, oldStatus={}, newStatus={}",
+                order.getId(),
+                oldStatus,
+                newStatus);
     }
 
-    /**
-     * Handle order activated
-     */
+    /** Handle order activated */
     private void handleOrderActivated(Order order) {
         log.info("Order activated: orderId={}", order.getId());
         // Additional logic for activated orders
     }
 
-    /**
-     * Handle order completed
-     */
+    /** Handle order completed */
     private void handleOrderCompleted(Order order) {
         log.info("Order completed: orderId={}", order.getId());
         // Additional logic for completed orders
     }
 
-    /**
-     * Handle order cancelled
-     */
+    /** Handle order cancelled */
     private void handleOrderCancelled(Order order) {
         log.info("Order cancelled: orderId={}", order.getId());
         // Additional logic for cancelled orders
     }
 
-    /**
-     * Generate unique message ID for idempotency
-     */
+    /** Generate unique message ID for idempotency */
     private String generateMessageId(String eventType, Long orderId, long timestamp) {
         return String.format("%s-%d-%d", eventType, orderId, timestamp);
     }
 
-    /**
-     * Internal processing method for order created events
-     */
+    /** Internal processing method for order created events */
     private ProcessingResult processOrderCreatedEventInternal(OrderCreatedEvent event) {
         try {
-            Order order = orderRepository.findById(event.getOrderId())
-                    .orElseThrow(() -> new RuntimeException("Order not found: " + event.getOrderId()));
+            Order order =
+                    orderRepository
+                            .findById(event.getOrderId())
+                            .orElseThrow(
+                                    () ->
+                                            new RuntimeException(
+                                                    "Order not found: " + event.getOrderId()));
 
             // Process YouTube verification
             processYouTubeVerification(order);
@@ -223,8 +228,11 @@ public class OrderEventConsumer {
             return ProcessingResult.success("order-created-" + event.getOrderId());
 
         } catch (Exception e) {
-            log.error("Failed to process order created event internally: orderId={}", event.getOrderId(), e);
+            log.error(
+                    "Failed to process order created event internally: orderId={}",
+                    event.getOrderId(),
+                    e);
             return ProcessingResult.error("order-created-" + event.getOrderId(), e.getMessage(), e);
         }
     }
-} 
+}

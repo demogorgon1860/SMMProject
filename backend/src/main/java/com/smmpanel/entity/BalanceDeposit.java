@@ -1,23 +1,26 @@
 package com.smmpanel.entity;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.CreationTimestamp;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-
 @Data
 @Entity
-@Table(name = "balance_deposits", indexes = {
-    @Index(name = "idx_balance_deposits_user_id", columnList = "user_id"),
-    @Index(name = "idx_balance_deposits_order_id", columnList = "order_id"),
-    @Index(name = "idx_balance_deposits_status", columnList = "status"),
-    @Index(name = "idx_balance_deposits_created_at", columnList = "created_at"),
-    @Index(name = "idx_balance_deposits_cryptomus_payment_id", columnList = "cryptomus_payment_id")
-})
+@Table(
+        name = "balance_deposits",
+        indexes = {
+            @Index(name = "idx_balance_deposits_user_id", columnList = "user_id"),
+            @Index(name = "idx_balance_deposits_order_id", columnList = "order_id"),
+            @Index(name = "idx_balance_deposits_status", columnList = "status"),
+            @Index(name = "idx_balance_deposits_created_at", columnList = "created_at"),
+            @Index(
+                    name = "idx_balance_deposits_cryptomus_payment_id",
+                    columnList = "cryptomus_payment_id")
+        })
 @EqualsAndHashCode(callSuper = false)
 @Slf4j
 public class BalanceDeposit {

@@ -1,9 +1,15 @@
 package com.smmpanel.service;
 
-import com.smmpanel.service.BinomService;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
 import com.smmpanel.dto.binom.*;
 import com.smmpanel.entity.*;
-import com.smmpanel.repository.*;
+import com.smmpanel.repository.jpa.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,28 +17,16 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
-
 @ExtendWith(MockitoExtension.class)
 class OfferAssignmentServiceTest {
 
-    @Mock
-    private BinomService binomService;
-    
-    @Mock
-    private FixedBinomCampaignRepository fixedCampaignRepository;
-    
-    @Mock
-    private OrderRepository orderRepository;
+    @Mock private BinomService binomService;
 
-    @InjectMocks
-    private OfferAssignmentService offerAssignmentService;
+    @Mock private FixedBinomCampaignRepository fixedCampaignRepository;
+
+    @Mock private OrderRepository orderRepository;
+
+    @InjectMocks private OfferAssignmentService offerAssignmentService;
 
     private List<FixedBinomCampaign> fixedCampaigns;
     private OfferAssignmentRequest request;
@@ -40,29 +34,30 @@ class OfferAssignmentServiceTest {
     @BeforeEach
     void setUp() {
         // Setup fixed campaigns
-        fixedCampaigns = Arrays.asList(
-                FixedBinomCampaign.builder()
-                        .id(1L)
-                        .campaignId("CAMPAIGN_001")
-                        .campaignName("Campaign 1")
-                        .active(true)
-                        .build(),
-                FixedBinomCampaign.builder()
-                        .id(2L)
-                        .campaignId("CAMPAIGN_002")
-                        .campaignName("Campaign 2")
-                        .active(true)
-                        .build()
-        );
+        fixedCampaigns =
+                Arrays.asList(
+                        FixedBinomCampaign.builder()
+                                .id(1L)
+                                .campaignId("CAMPAIGN_001")
+                                .campaignName("Campaign 1")
+                                .active(true)
+                                .build(),
+                        FixedBinomCampaign.builder()
+                                .id(2L)
+                                .campaignId("CAMPAIGN_002")
+                                .campaignName("Campaign 2")
+                                .active(true)
+                                .build());
 
         // Setup request
-        request = OfferAssignmentRequest.builder()
-                .offerName("Test Offer")
-                .targetUrl("https://youtube.com/watch?v=clip123")
-                .orderId(1L)
-                .description("Test offer description")
-                .geoTargeting("US")
-                .build();
+        request =
+                OfferAssignmentRequest.builder()
+                        .offerName("Test Offer")
+                        .targetUrl("https://youtube.com/watch?v=clip123")
+                        .orderId(1L)
+                        .description("Test offer description")
+                        .geoTargeting("US")
+                        .build();
     }
 
     @Test
@@ -70,11 +65,16 @@ class OfferAssignmentServiceTest {
         // Given
         when(orderRepository.existsById(1L)).thenReturn(true);
         when(fixedCampaignRepository.findByActiveTrue()).thenReturn(fixedCampaigns);
-        when(binomService.createOffer("Test Offer", "https://youtube.com/watch?v=clip123", "Test offer description")).thenReturn("OFFER_123");
+        when(binomService.createOffer(
+                        "Test Offer",
+                        "https://youtube.com/watch?v=clip123",
+                        "Test offer description"))
+                .thenReturn("OFFER_123");
         when(binomService.assignOfferToCampaign("OFFER_123", anyString(), eq(1))).thenReturn(true);
 
         // When
-        OfferAssignmentResponse response = offerAssignmentService.assignOfferToFixedCampaigns(request);
+        OfferAssignmentResponse response =
+                offerAssignmentService.assignOfferToFixedCampaigns(request);
 
         // Then
         assertNotNull(response);
@@ -86,7 +86,11 @@ class OfferAssignmentServiceTest {
         assertTrue(response.getCampaignIds().contains("CAMPAIGN_002"));
 
         // Verify interactions
-        verify(binomService, times(1)).createOffer("Test Offer", "https://youtube.com/watch?v=clip123", "Test offer description");
+        verify(binomService, times(1))
+                .createOffer(
+                        "Test Offer",
+                        "https://youtube.com/watch?v=clip123",
+                        "Test offer description");
         verify(binomService, times(2)).assignOfferToCampaign(eq("OFFER_123"), anyString(), eq(1));
     }
 
@@ -94,15 +98,17 @@ class OfferAssignmentServiceTest {
     void testOfferAssignmentWithInvalidOrder() {
         // Given
         when(orderRepository.existsById(999L)).thenReturn(false);
-        
-        OfferAssignmentRequest invalidRequest = OfferAssignmentRequest.builder()
-                .offerName("Test Offer")
-                .targetUrl("https://youtube.com/watch?v=test")
-                .orderId(999L)
-                .build();
+
+        OfferAssignmentRequest invalidRequest =
+                OfferAssignmentRequest.builder()
+                        .offerName("Test Offer")
+                        .targetUrl("https://youtube.com/watch?v=test")
+                        .orderId(999L)
+                        .build();
 
         // When
-        OfferAssignmentResponse response = offerAssignmentService.assignOfferToFixedCampaigns(invalidRequest);
+        OfferAssignmentResponse response =
+                offerAssignmentService.assignOfferToFixedCampaigns(invalidRequest);
 
         // Then
         assertEquals("ERROR", response.getStatus());
@@ -117,7 +123,8 @@ class OfferAssignmentServiceTest {
         when(fixedCampaignRepository.findByActiveTrue()).thenReturn(Arrays.asList());
 
         // When
-        OfferAssignmentResponse response = offerAssignmentService.assignOfferToFixedCampaigns(request);
+        OfferAssignmentResponse response =
+                offerAssignmentService.assignOfferToFixedCampaigns(request);
 
         // Then
         assertEquals("ERROR", response.getStatus());
@@ -149,11 +156,12 @@ class OfferAssignmentServiceTest {
         assertFalse(offerAssignmentService.validateAssignment(null));
 
         // Test empty offer name
-        OfferAssignmentRequest invalidRequest = OfferAssignmentRequest.builder()
-                .offerName("")
-                .targetUrl("https://youtube.com/watch?v=test")
-                .orderId(1L)
-                .build();
+        OfferAssignmentRequest invalidRequest =
+                OfferAssignmentRequest.builder()
+                        .offerName("")
+                        .targetUrl("https://youtube.com/watch?v=test")
+                        .orderId(1L)
+                        .build();
         assertFalse(offerAssignmentService.validateAssignment(invalidRequest));
     }
 

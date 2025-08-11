@@ -3,9 +3,7 @@ package com.smmpanel.exception;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
-/**
- * Generic API exception for application-level errors
- */
+/** Generic API exception for application-level errors */
 @Getter
 public class ApiException extends RuntimeException {
     private final HttpStatus status;
@@ -46,4 +44,4 @@ public class ApiException extends RuntimeException {
         this.status = status;
         this.errorCode = errorCode;
     }
-} 
+}

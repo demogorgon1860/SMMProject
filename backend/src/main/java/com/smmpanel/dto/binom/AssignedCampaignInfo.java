@@ -1,22 +1,18 @@
 package com.smmpanel.dto.binom;
 
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
-/**
- * DTO for assigned campaign information
- * Compatible with Perfect Panel response format
- */
+/** DTO for assigned campaign information Compatible with Perfect Panel response format */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class AssignedCampaignInfo {
-    
+
     private String campaignId;
     private String offerId;
     private String campaignName;

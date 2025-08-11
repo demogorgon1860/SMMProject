@@ -1,13 +1,12 @@
 package com.smmpanel.dto.admin;
 
 import com.smmpanel.entity.UserRole;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -25,4 +24,4 @@ public class UserDto {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime lastLoginAt;
-} 
+}

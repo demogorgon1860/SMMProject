@@ -1,7 +1,7 @@
 package com.smmpanel.dto.order;
 
-import lombok.*;
 import java.util.List;
+import lombok.*;
 
 @Data
 @Builder
@@ -13,4 +13,4 @@ public class BulkOperationResult {
     private int failedOrders;
     private List<String> errors;
     private String operation;
-} 
+}

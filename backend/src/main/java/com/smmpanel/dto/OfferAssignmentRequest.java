@@ -15,4 +15,4 @@ public class OfferAssignmentRequest {
     private String offerType;
     private Integer dailyLimit;
     private boolean active;
-} 
+}

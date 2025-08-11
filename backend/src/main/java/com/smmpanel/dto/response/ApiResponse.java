@@ -1,16 +1,13 @@
 package com.smmpanel.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
-/**
- * Generic API response wrapper
- */
+/** Generic API response wrapper */
 @Data
 @Builder
 @NoArgsConstructor
@@ -56,4 +53,4 @@ public class ApiResponse<T> {
                 .timestamp(LocalDateTime.now())
                 .build();
     }
-} 
+}

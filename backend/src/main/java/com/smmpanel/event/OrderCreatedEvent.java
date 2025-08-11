@@ -1,14 +1,10 @@
 package com.smmpanel.event;
 
+import java.time.LocalDateTime;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEvent;
 
-import java.time.LocalDateTime;
-
-/**
- * Event published when a new order is created
- */
+/** Event published when a new order is created */
 @Getter
 public class OrderCreatedEvent extends ApplicationEvent {
     private final Long orderId;
@@ -21,4 +17,4 @@ public class OrderCreatedEvent extends ApplicationEvent {
         this.userId = userId;
         this.createdAt = LocalDateTime.now();
     }
-} 
+}

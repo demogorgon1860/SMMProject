@@ -1,12 +1,10 @@
 package com.smmpanel.service;
 
+import java.util.List;
 import lombok.Builder;
 import lombok.Data;
-import java.util.List;
 
-/**
- * Dead letter queue statistics
- */
+/** Dead letter queue statistics */
 @Builder
 @Data
 public class DeadLetterQueueStats {

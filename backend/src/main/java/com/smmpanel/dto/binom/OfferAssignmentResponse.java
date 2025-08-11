@@ -1,10 +1,10 @@
 package com.smmpanel.dto.binom;
 
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.util.List;
 
 @Data
 @Builder
@@ -19,4 +19,4 @@ public class OfferAssignmentResponse {
     private String message;
     private Integer campaignsCreated;
     private List<String> campaignIds;
-} 
+}

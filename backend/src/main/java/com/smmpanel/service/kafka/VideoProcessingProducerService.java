@@ -1,6 +1,9 @@
 package com.smmpanel.service.kafka;
 
 import com.smmpanel.dto.kafka.VideoProcessingMessage;
+import java.time.LocalDateTime;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,20 +13,13 @@ import org.springframework.kafka.support.SendResult;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
-import org.springframework.util.concurrent.ListenableFutureCallback;
-
-import java.time.LocalDateTime;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * KAFKA PRODUCER SERVICE: Video Processing Message Queue
- * 
- * Handles sending video processing messages to Kafka queue with:
- * 1. Reliable message delivery with callbacks
- * 2. Message routing and partitioning
- * 3. Error handling and retry logic
- * 4. Performance monitoring and metrics
+ *
+ * <p>Handles sending video processing messages to Kafka queue with: 1. Reliable message delivery
+ * with callbacks 2. Message routing and partitioning 3. Error handling and retry logic 4.
+ * Performance monitoring and metrics
  */
 @Slf4j
 @Service
@@ -44,182 +40,212 @@ public class VideoProcessingProducerService {
     private final AtomicLong messagesFailed = new AtomicLong(0);
 
     /**
-     * SEND MESSAGE: Send video processing message to queue
-     * Uses order ID as routing key for consistent partitioning
+     * SEND MESSAGE: Send video processing message to queue Uses order ID as routing key for
+     * consistent partitioning
      */
     public CompletableFuture<SendResult<String, VideoProcessingMessage>> sendVideoProcessingMessage(
             VideoProcessingMessage message) {
-        
+
         try {
             // Create message with headers for better tracking
-            Message<VideoProcessingMessage> kafkaMessage = MessageBuilder
-                    .withPayload(message)
-                    .setHeader(KafkaHeaders.TOPIC, videoProcessingTopic)
-                    .setHeader(KafkaHeaders.KEY, message.getRoutingKey())
-                    .setHeader("message-type", "video-processing")
-                    .setHeader("priority", message.getPriority().name())
-                    .setHeader("attempt", message.getAttemptNumber())
-                    .setHeader("created-at", message.getCreatedAt().toString())
-                    .setHeader("order-id", message.getOrderId().toString())
-                    .build();
+            Message<VideoProcessingMessage> kafkaMessage =
+                    MessageBuilder.withPayload(message)
+                            .setHeader(KafkaHeaders.TOPIC, videoProcessingTopic)
+                            .setHeader(KafkaHeaders.KEY, message.getRoutingKey())
+                            .setHeader("message-type", "video-processing")
+                            .setHeader("priority", message.getPriority().name())
+                            .setHeader("attempt", message.getAttemptNumber())
+                            .setHeader("created-at", message.getCreatedAt().toString())
+                            .setHeader("order-id", message.getOrderId().toString())
+                            .build();
 
             log.info("Sending video processing message to Kafka: {}", message.getSummary());
 
-            // Only increment messagesSent after successfully creating the message and before sending
+            // Only increment messagesSent after successfully creating the message and before
+            // sending
             messagesSent.incrementAndGet();
 
-            CompletableFuture<SendResult<String, VideoProcessingMessage>> future = 
+            CompletableFuture<SendResult<String, VideoProcessingMessage>> future =
                     kafkaTemplate.send(kafkaMessage);
 
             // Add success/failure callbacks
-            future.whenComplete((result, ex) -> {
-                if (ex == null) {
-                    messagesSucceeded.incrementAndGet();
-                    log.info("Video processing message sent successfully: orderId={}, partition={}, offset={}", 
-                            message.getOrderId(), 
-                            result.getRecordMetadata().partition(),
-                            result.getRecordMetadata().offset());
-                } else {
-                    messagesFailed.incrementAndGet();
-                    log.error("Failed to send video processing message: orderId={}, error={}", 
-                            message.getOrderId(), ex.getMessage(), ex);
-                }
-            });
+            future.whenComplete(
+                    (result, ex) -> {
+                        if (ex == null) {
+                            messagesSucceeded.incrementAndGet();
+                            log.info(
+                                    "Video processing message sent successfully: orderId={},"
+                                            + " partition={}, offset={}",
+                                    message.getOrderId(),
+                                    result.getRecordMetadata().partition(),
+                                    result.getRecordMetadata().offset());
+                        } else {
+                            messagesFailed.incrementAndGet();
+                            log.error(
+                                    "Failed to send video processing message: orderId={}, error={}",
+                                    message.getOrderId(),
+                                    ex.getMessage(),
+                                    ex);
+                        }
+                    });
 
             return future;
 
         } catch (Exception e) {
-            log.error("Error creating Kafka message for order {}: {}", message.getOrderId(), e.getMessage(), e);
-            
+            log.error(
+                    "Error creating Kafka message for order {}: {}",
+                    message.getOrderId(),
+                    e.getMessage(),
+                    e);
+
             // Return failed future - failure will be counted in the callback
-            CompletableFuture<SendResult<String, VideoProcessingMessage>> failedFuture = new CompletableFuture<>();
+            CompletableFuture<SendResult<String, VideoProcessingMessage>> failedFuture =
+                    new CompletableFuture<>();
             failedFuture.completeExceptionally(e);
-            
+
             // Add the same callback for consistency
-            failedFuture.whenComplete((result, ex) -> {
-                if (ex != null) {
-                    messagesFailed.incrementAndGet();
-                }
-            });
-            
+            failedFuture.whenComplete(
+                    (result, ex) -> {
+                        if (ex != null) {
+                            messagesFailed.incrementAndGet();
+                        }
+                    });
+
             return failedFuture;
         }
     }
 
-    /**
-     * SEND STANDARD MESSAGE: Convenience method for standard processing
-     */
-    public CompletableFuture<SendResult<String, VideoProcessingMessage>> sendStandardProcessingMessage(
-            Long orderId, String videoId, String originalUrl, Integer targetQuantity, Long userId) {
-        
-        VideoProcessingMessage message = VideoProcessingMessage.createStandardMessage(
-                orderId, videoId, originalUrl, targetQuantity, userId);
-        
+    /** SEND STANDARD MESSAGE: Convenience method for standard processing */
+    public CompletableFuture<SendResult<String, VideoProcessingMessage>>
+            sendStandardProcessingMessage(
+                    Long orderId,
+                    String videoId,
+                    String originalUrl,
+                    Integer targetQuantity,
+                    Long userId) {
+
+        VideoProcessingMessage message =
+                VideoProcessingMessage.createStandardMessage(
+                        orderId, videoId, originalUrl, targetQuantity, userId);
+
         return sendVideoProcessingMessage(message);
     }
 
-    /**
-     * SEND HIGH PRIORITY MESSAGE: For premium orders requiring immediate processing
-     */
+    /** SEND HIGH PRIORITY MESSAGE: For premium orders requiring immediate processing */
     public CompletableFuture<SendResult<String, VideoProcessingMessage>> sendHighPriorityMessage(
             Long orderId, String videoId, String originalUrl, Integer targetQuantity, Long userId) {
-        
-        VideoProcessingMessage message = VideoProcessingMessage.createHighPriorityMessage(
-                orderId, videoId, originalUrl, targetQuantity, userId);
-        
+
+        VideoProcessingMessage message =
+                VideoProcessingMessage.createHighPriorityMessage(
+                        orderId, videoId, originalUrl, targetQuantity, userId);
+
         return sendVideoProcessingMessage(message);
     }
 
-    /**
-     * SEND RETRY MESSAGE: For failed processing attempts
-     */
+    /** SEND RETRY MESSAGE: For failed processing attempts */
     public CompletableFuture<SendResult<String, VideoProcessingMessage>> sendRetryMessage(
             VideoProcessingMessage originalMessage) {
-        
+
         if (originalMessage.hasExceededMaxAttempts()) {
-            log.warn("Message has exceeded max attempts, not retrying: {}", originalMessage.getSummary());
-            CompletableFuture<SendResult<String, VideoProcessingMessage>> failedFuture = new CompletableFuture<>();
+            log.warn(
+                    "Message has exceeded max attempts, not retrying: {}",
+                    originalMessage.getSummary());
+            CompletableFuture<SendResult<String, VideoProcessingMessage>> failedFuture =
+                    new CompletableFuture<>();
             failedFuture.completeExceptionally(
-                    new IllegalStateException("Max retry attempts exceeded for order: " + originalMessage.getOrderId()));
+                    new IllegalStateException(
+                            "Max retry attempts exceeded for order: "
+                                    + originalMessage.getOrderId()));
             return failedFuture;
         }
 
         VideoProcessingMessage retryMessage = originalMessage.createRetryMessage();
         retryMessage.addMetadata("retry-reason", "processing-failed");
         retryMessage.addMetadata("original-attempt", originalMessage.getAttemptNumber().toString());
-        
-        log.info("Sending retry message for order {}: attempt {}/{}", 
-                retryMessage.getOrderId(), retryMessage.getAttemptNumber(), retryMessage.getMaxAttempts());
-        
+
+        log.info(
+                "Sending retry message for order {}: attempt {}/{}",
+                retryMessage.getOrderId(),
+                retryMessage.getAttemptNumber(),
+                retryMessage.getMaxAttempts());
+
         return sendVideoProcessingMessage(retryMessage);
     }
 
-    /**
-     * SEND DELAYED MESSAGE: For scheduled processing
-     */
+    /** SEND DELAYED MESSAGE: For scheduled processing */
     public CompletableFuture<SendResult<String, VideoProcessingMessage>> sendDelayedMessage(
-            Long orderId, String videoId, String originalUrl, Integer targetQuantity, 
-            Long userId, LocalDateTime scheduleAt) {
-        
-        VideoProcessingMessage message = VideoProcessingMessage.createStandardMessage(
-                orderId, videoId, originalUrl, targetQuantity, userId);
+            Long orderId,
+            String videoId,
+            String originalUrl,
+            Integer targetQuantity,
+            Long userId,
+            LocalDateTime scheduleAt) {
+
+        VideoProcessingMessage message =
+                VideoProcessingMessage.createStandardMessage(
+                        orderId, videoId, originalUrl, targetQuantity, userId);
         message.setScheduleAt(scheduleAt);
         message.addMetadata("scheduled", "true");
         message.addMetadata("schedule-time", scheduleAt.toString());
-        
-        log.info("Sending delayed processing message for order {}: scheduled for {}", 
-                orderId, scheduleAt);
-        
+
+        log.info(
+                "Sending delayed processing message for order {}: scheduled for {}",
+                orderId,
+                scheduleAt);
+
         return sendVideoProcessingMessage(message);
     }
 
-    /**
-     * SEND BATCH MESSAGES: Send multiple messages efficiently
-     */
-    public CompletableFuture<Void> sendBatchMessages(java.util.List<VideoProcessingMessage> messages) {
+    /** SEND BATCH MESSAGES: Send multiple messages efficiently */
+    public CompletableFuture<Void> sendBatchMessages(
+            java.util.List<VideoProcessingMessage> messages) {
         if (messages == null || messages.isEmpty()) {
             return CompletableFuture.completedFuture(null);
         }
 
         log.info("Sending batch of {} video processing messages", messages.size());
-        
+
         // Send all messages and collect futures
-        java.util.List<CompletableFuture<SendResult<String, VideoProcessingMessage>>> futures = 
+        java.util.List<CompletableFuture<SendResult<String, VideoProcessingMessage>>> futures =
                 messages.stream()
                         .map(this::sendVideoProcessingMessage)
                         .collect(java.util.stream.Collectors.toList());
 
         // Return when all are complete
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                .whenComplete((result, ex) -> {
-                    if (ex == null) {
-                        log.info("Batch send completed successfully: {} messages", messages.size());
-                    } else {
-                        log.error("Batch send failed: {}", ex.getMessage(), ex);
-                    }
-                });
+                .whenComplete(
+                        (result, ex) -> {
+                            if (ex == null) {
+                                log.info(
+                                        "Batch send completed successfully: {} messages",
+                                        messages.size());
+                            } else {
+                                log.error("Batch send failed: {}", ex.getMessage(), ex);
+                            }
+                        });
     }
 
-    /**
-     * SEND WITH CUSTOM CONFIG: Send message with additional processing configuration
-     */
+    /** SEND WITH CUSTOM CONFIG: Send message with additional processing configuration */
     public CompletableFuture<SendResult<String, VideoProcessingMessage>> sendWithConfig(
-            Long orderId, String videoId, String originalUrl, Integer targetQuantity, Long userId,
+            Long orderId,
+            String videoId,
+            String originalUrl,
+            Integer targetQuantity,
+            Long userId,
             java.util.Map<String, Object> processingConfig) {
-        
-        VideoProcessingMessage message = VideoProcessingMessage.createStandardMessage(
-                orderId, videoId, originalUrl, targetQuantity, userId);
-        
+
+        VideoProcessingMessage message =
+                VideoProcessingMessage.createStandardMessage(
+                        orderId, videoId, originalUrl, targetQuantity, userId);
+
         if (processingConfig != null) {
             processingConfig.forEach(message::addProcessingConfig);
         }
-        
+
         return sendVideoProcessingMessage(message);
     }
 
-    /**
-     * GET METRICS: Return producer performance metrics
-     */
+    /** GET METRICS: Return producer performance metrics */
     public ProducerMetrics getMetrics() {
         return ProducerMetrics.builder()
                 .messagesSent(messagesSent.get())
@@ -230,9 +256,7 @@ public class VideoProcessingProducerService {
                 .build();
     }
 
-    /**
-     * RESET METRICS: Reset all counters (useful for testing)
-     */
+    /** RESET METRICS: Reset all counters (useful for testing) */
     public void resetMetrics() {
         messagesSent.set(0);
         messagesSucceeded.set(0);
@@ -240,9 +264,7 @@ public class VideoProcessingProducerService {
         log.info("Producer metrics reset");
     }
 
-    /**
-     * HEALTH CHECK: Verify Kafka connectivity
-     */
+    /** HEALTH CHECK: Verify Kafka connectivity */
     public boolean isHealthy() {
         try {
             // Test connectivity by getting partition metadata
@@ -262,9 +284,7 @@ public class VideoProcessingProducerService {
         return (double) messagesSucceeded.get() / sent * 100.0;
     }
 
-    /**
-     * Producer metrics data structure
-     */
+    /** Producer metrics data structure */
     @lombok.Builder
     @lombok.Data
     public static class ProducerMetrics {
@@ -273,9 +293,10 @@ public class VideoProcessingProducerService {
         private long messagesFailed;
         private double successRate;
         private String topic;
-        
+
         public String getSummary() {
-            return String.format("Producer[sent=%d, success=%d, failed=%d, rate=%.2f%%, topic=%s]",
+            return String.format(
+                    "Producer[sent=%d, success=%d, failed=%d, rate=%.2f%%, topic=%s]",
                     messagesSent, messagesSucceeded, messagesFailed, successRate, topic);
         }
     }

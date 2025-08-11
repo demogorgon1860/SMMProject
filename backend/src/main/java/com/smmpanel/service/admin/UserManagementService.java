@@ -1,13 +1,16 @@
 package com.smmpanel.service.admin;
 
-import com.smmpanel.dto.admin.UserDto;
 import com.smmpanel.dto.admin.UserCreationRequest;
+import com.smmpanel.dto.admin.UserDto;
 import com.smmpanel.dto.admin.UserUpdateRequest;
 import com.smmpanel.entity.User;
 import com.smmpanel.entity.UserRole;
-import com.smmpanel.repository.UserRepository;
-// import com.smmpanel.service.AuditService; // TODO: Re-enable when AuditService is implemented
 import com.smmpanel.exception.UserValidationException;
+import com.smmpanel.repository.jpa.UserRepository;
+// import com.smmpanel.service.AuditService; // TODO: Re-enable when AuditService is implemented
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -16,19 +19,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.UUID;
-
 /**
  * DECOMPOSED: User Management Service
- * 
- * ARCHITECTURAL IMPROVEMENTS:
- * 1. Single Responsibility - Only handles user management
- * 2. Clear separation of concerns
- * 3. Proper validation and error handling
- * 4. Audit logging for all operations
- * 5. Performance optimizations
+ *
+ * <p>ARCHITECTURAL IMPROVEMENTS: 1. Single Responsibility - Only handles user management 2. Clear
+ * separation of concerns 3. Proper validation and error handling 4. Audit logging for all
+ * operations 5. Performance optimizations
  */
 @Slf4j
 @Service
@@ -38,158 +34,167 @@ public class UserManagementService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+
     // private final AuditService auditService; // TODO: Re-enable when AuditService is implemented
 
-    /**
-     * Get paginated users with optional filters
-     */
-    public Page<UserDto> getUsers(UserRole role, Boolean active, BigDecimal minBalance, Pageable pageable) {
-        Page<User> users = userRepository.findUsersByRoleActiveBalance(role, active, minBalance, pageable);
+    /** Get paginated users with optional filters */
+    public Page<UserDto> getUsers(
+            UserRole role, Boolean active, BigDecimal minBalance, Pageable pageable) {
+        Page<User> users =
+                userRepository.findUsersByRoleActiveBalance(role, active, minBalance, pageable);
         return users.map(this::mapToUserDto);
     }
 
-    /**
-     * Get user by ID
-     */
+    /** Get user by ID */
     public UserDto getUser(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserValidationException("User not found: " + userId));
-        
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(
+                                () -> new UserValidationException("User not found: " + userId));
+
         return mapToUserDto(user);
     }
 
-    /**
-     * Create new user with validation
-     */
+    /** Create new user with validation */
     @Transactional
     public UserDto createUser(UserCreationRequest request) {
         validateUserCreation(request);
-        
+
         User user = new User();
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setRole(request.getRole());
-        user.setBalance(request.getInitialBalance() != null ? request.getInitialBalance() : BigDecimal.ZERO);
+        user.setBalance(
+                request.getInitialBalance() != null
+                        ? request.getInitialBalance()
+                        : BigDecimal.ZERO);
         user.setTimezone(request.getTimezone() != null ? request.getTimezone() : "UTC");
         user.setActive(true);
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
-        
+
         // Generate API key if requested
         if (request.isGenerateApiKey()) {
             generateApiKey(user);
         }
-        
+
         user = userRepository.save(user);
-        
+
         // auditService.logUserCreation(user); // TODO: Re-enable when AuditService is implemented
         log.info("Created user: {} with role: {}", user.getUsername(), user.getRole());
-        
+
         return mapToUserDto(user);
     }
 
-    /**
-     * Update existing user
-     */
+    /** Update existing user */
     @Transactional
     public UserDto updateUser(Long userId, UserUpdateRequest request) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserValidationException("User not found: " + userId));
-        
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(
+                                () -> new UserValidationException("User not found: " + userId));
+
         validateUserUpdate(user, request);
-        
+
         // Update fields if provided
         if (request.getEmail() != null) {
             user.setEmail(request.getEmail());
         }
-        
+
         if (request.getRole() != null) {
             UserRole oldRole = user.getRole();
             user.setRole(request.getRole());
-            // auditService.logRoleChange(user, oldRole, request.getRole()); // TODO: Re-enable when AuditService is implemented
+            // auditService.logRoleChange(user, oldRole, request.getRole()); // TODO: Re-enable when
+            // AuditService is implemented
         }
-        
+
         if (request.getTimezone() != null) {
             user.setTimezone(request.getTimezone());
         }
-        
+
         if (request.getActive() != null) {
             boolean oldActive = user.isActive();
             user.setActive(request.getActive());
             if (oldActive != request.getActive()) {
-                // auditService.logUserStatusChange(user, oldActive, request.getActive()); // TODO: Re-enable when AuditService is implemented
+                // auditService.logUserStatusChange(user, oldActive, request.getActive()); // TODO:
+                // Re-enable when AuditService is implemented
             }
         }
-        
+
         user.setUpdatedAt(LocalDateTime.now());
         user = userRepository.save(user);
-        
+
         log.info("Updated user: {}", user.getUsername());
         return mapToUserDto(user);
     }
 
-    /**
-     * Delete user (soft delete by deactivation)
-     */
+    /** Delete user (soft delete by deactivation) */
     @Transactional
     public void deleteUser(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserValidationException("User not found: " + userId));
-        
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(
+                                () -> new UserValidationException("User not found: " + userId));
+
         if (user.getRole() == UserRole.ADMIN) {
             long adminCount = userRepository.countByRoleAndIsActiveTrue(UserRole.ADMIN);
             if (adminCount <= 1) {
                 throw new UserValidationException("Cannot delete the last admin user");
             }
         }
-        
+
         user.setActive(false);
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
-        
+
         // auditService.logUserDeletion(user); // TODO: Re-enable when AuditService is implemented
         log.info("Deleted (deactivated) user: {}", user.getUsername());
     }
 
-    /**
-     * Generate new API key for user
-     */
+    /** Generate new API key for user */
     @Transactional
     public String generateApiKey(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserValidationException("User not found: " + userId));
-        
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(
+                                () -> new UserValidationException("User not found: " + userId));
+
         generateApiKey(user);
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
-        
-        // auditService.logApiKeyGeneration(user); // TODO: Re-enable when AuditService is implemented
+
+        // auditService.logApiKeyGeneration(user); // TODO: Re-enable when AuditService is
+        // implemented
         log.info("Generated new API key for user: {}", user.getUsername());
-        
+
         return user.getApiKey();
     }
 
-    /**
-     * Revoke API key for user
-     */
+    /** Revoke API key for user */
     @Transactional
     public void revokeApiKey(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserValidationException("User not found: " + userId));
-        
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(
+                                () -> new UserValidationException("User not found: " + userId));
+
         user.setApiKey(null);
         user.setApiKeyHash(null);
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
-        
-        // auditService.logApiKeyRevocation(user); // TODO: Re-enable when AuditService is implemented
+
+        // auditService.logApiKeyRevocation(user); // TODO: Re-enable when AuditService is
+        // implemented
         log.info("Revoked API key for user: {}", user.getUsername());
     }
 
-    /**
-     * Search users
-     */
+    /** Search users */
     public Page<UserDto> searchUsers(String search, Pageable pageable) {
         Page<User> users = userRepository.searchActiveUsers(search, pageable);
         return users.map(this::mapToUserDto);
@@ -201,26 +206,28 @@ public class UserManagementService {
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new UserValidationException("Username already exists: " + request.getUsername());
         }
-        
+
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             throw new UserValidationException("Email already exists: " + request.getEmail());
         }
-        
-        if (request.getInitialBalance() != null && request.getInitialBalance().compareTo(BigDecimal.ZERO) < 0) {
+
+        if (request.getInitialBalance() != null
+                && request.getInitialBalance().compareTo(BigDecimal.ZERO) < 0) {
             throw new UserValidationException("Initial balance cannot be negative");
         }
     }
 
     private void validateUserUpdate(User user, UserUpdateRequest request) {
-        if (request.getEmail() != null && 
-            userRepository.existsByEmailAndIdNot(request.getEmail(), user.getId())) {
+        if (request.getEmail() != null
+                && userRepository.existsByEmailAndIdNot(request.getEmail(), user.getId())) {
             throw new UserValidationException("Email already exists: " + request.getEmail());
         }
-        
+
         // Prevent last admin from being demoted or deactivated
-        if (user.getRole() == UserRole.ADMIN && 
-            (request.getRole() != UserRole.ADMIN || Boolean.FALSE.equals(request.getActive()))) {
-            
+        if (user.getRole() == UserRole.ADMIN
+                && (request.getRole() != UserRole.ADMIN
+                        || Boolean.FALSE.equals(request.getActive()))) {
+
             long adminCount = userRepository.countByRoleAndIsActiveTrue(UserRole.ADMIN);
             if (adminCount <= 1) {
                 throw new UserValidationException("Cannot modify the last admin user");
@@ -240,7 +247,7 @@ public class UserManagementService {
             java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(apiKey.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             StringBuilder hexString = new StringBuilder();
-            
+
             for (byte b : hash) {
                 String hex = Integer.toHexString(0xff & b);
                 if (hex.length() == 1) {
@@ -248,7 +255,7 @@ public class UserManagementService {
                 }
                 hexString.append(hex);
             }
-            
+
             return hexString.toString();
         } catch (java.security.NoSuchAlgorithmException e) {
             throw new RuntimeException("SHA-256 algorithm not available", e);
@@ -270,4 +277,4 @@ public class UserManagementService {
                 .lastLoginAt(user.getLastLoginAt())
                 .build();
     }
-} 
+}

@@ -5,14 +5,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.stream.Collectors;
-import java.util.Map;
 
-/**
- * Service for managing system alerts and notifications
- */
+/** Service for managing system alerts and notifications */
 @Slf4j
 @Service("generalAlertService")
 @RequiredArgsConstructor
@@ -27,9 +21,7 @@ public class AlertService {
     @Value("${app.alerts.enabled:true}")
     private boolean alertsEnabled;
 
-    /**
-     * Send an alert through all configured channels
-     */
+    /** Send an alert through all configured channels */
     public void sendAlert(String title, String message, String level) {
         if (!alertsEnabled) {
             log.debug("Alerts are disabled");
@@ -55,58 +47,44 @@ public class AlertService {
         }
     }
 
-    /**
-     * Send an alert with default WARNING level
-     */
+    /** Send an alert with default WARNING level */
     public void sendAlert(String title, String message) {
         sendAlert(title, message, "WARNING");
     }
 
-    /**
-     * Send an informational alert
-     */
+    /** Send an informational alert */
     public void sendInfo(String title, String message) {
         sendAlert(title, message, "INFO");
     }
 
-    /**
-     * Send a warning alert
-     */
+    /** Send a warning alert */
     public void sendWarning(String title, String message) {
         sendAlert(title, message, "WARNING");
     }
 
-    /**
-     * Send an error alert
-     */
+    /** Send an error alert */
     public void sendError(String title, String message) {
         sendAlert(title, message, "ERROR");
     }
 
-    /**
-     * Send a critical alert
-     */
+    /** Send a critical alert */
     public void sendCritical(String title, String message) {
         sendAlert(title, message, "CRITICAL");
     }
 
-    /**
-     * Send a critical alert (alternative method signature)
-     */
+    /** Send a critical alert (alternative method signature) */
     public void sendCriticalAlert(String title, String message) {
         sendAlert(title, message, "CRITICAL");
     }
 
-    /**
-     * Send a system notification
-     */
+    /** Send a system notification */
     public void sendSystemNotification(String title, String message) {
         log.info("System notification - {}: {}", title, message);
-        
+
         try {
             slackService.sendMessage(String.format("System: %s - %s", title, message));
         } catch (Exception e) {
             log.error("Failed to send system notification: {}", e.getMessage());
         }
     }
-} 
+}

@@ -1,7 +1,7 @@
 package com.smmpanel.dto.binom;
 
-import lombok.*;
 import java.util.List;
+import lombok.*;
 
 @Data
 @Builder
@@ -15,4 +15,4 @@ public class AssignOfferResponse {
     private Integer campaignsCreated;
     private List<String> campaignIds;
     private String offerId;
-} 
+}

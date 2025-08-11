@@ -1,18 +1,19 @@
 package com.smmpanel.entity;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.LocalDateTime;
-
 @Data
 @Entity
-@Table(name = "categories", indexes = {
-    @Index(name = "idx_categories_display_order", columnList = "display_order"),
-    @Index(name = "idx_categories_name", columnList = "name")
-})
+@Table(
+        name = "categories",
+        indexes = {
+            @Index(name = "idx_categories_display_order", columnList = "display_order"),
+            @Index(name = "idx_categories_name", columnList = "name")
+        })
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -37,4 +38,4 @@ public class Category {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-} 
+}

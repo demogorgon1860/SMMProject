@@ -1,22 +1,16 @@
 package com.smmpanel.util;
 
-import com.smmpanel.entity.*;
-import com.smmpanel.dto.request.CreateOrderRequest;
 import com.smmpanel.dto.balance.CurrencyConversionRequest;
-
+import com.smmpanel.dto.request.CreateOrderRequest;
+import com.smmpanel.entity.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * Test Data Builder for SMM Panel Tests
- * Provides utility methods to create consistent test data
- */
+/** Test Data Builder for SMM Panel Tests Provides utility methods to create consistent test data */
 public class TestDataBuilder {
 
-    /**
-     * Creates a test user with default values
-     */
+    /** Creates a test user with default values */
     public static User.UserBuilder createTestUser() {
         return User.builder()
                 .username("testuser")
@@ -29,9 +23,7 @@ public class TestDataBuilder {
                 .updatedAt(LocalDateTime.now());
     }
 
-    /**
-     * Creates a test service with default values
-     */
+    /** Creates a test service with default values */
     public static Service.ServiceBuilder createTestService() {
         return Service.builder()
                 .name("YouTube Views")
@@ -45,9 +37,7 @@ public class TestDataBuilder {
                 .updatedAt(LocalDateTime.now());
     }
 
-    /**
-     * Creates a test order with default values
-     */
+    /** Creates a test order with default values */
     public static Order.OrderBuilder createTestOrder() {
         return Order.builder()
                 .user(createTestUser().build())
@@ -60,9 +50,7 @@ public class TestDataBuilder {
                 .updatedAt(LocalDateTime.now());
     }
 
-    /**
-     * Creates a test order request
-     */
+    /** Creates a test order request */
     public static CreateOrderRequest createTestOrderRequest() {
         return CreateOrderRequest.builder()
                 .service(1L)
@@ -71,9 +59,7 @@ public class TestDataBuilder {
                 .build();
     }
 
-    /**
-     * Creates a test currency conversion request
-     */
+    /** Creates a test currency conversion request */
     public static CurrencyConversionRequest createTestCurrencyConversionRequest() {
         return CurrencyConversionRequest.builder()
                 .amount(new BigDecimal("100.00"))
@@ -82,9 +68,7 @@ public class TestDataBuilder {
                 .build();
     }
 
-    /**
-     * Creates a test balance deposit
-     */
+    /** Creates a test balance deposit */
     public static BalanceDeposit createTestBalanceDeposit() {
         BalanceDeposit deposit = new BalanceDeposit();
         deposit.setUser(createTestUser().build());
@@ -97,9 +81,7 @@ public class TestDataBuilder {
         return deposit;
     }
 
-    /**
-     * Creates a test campaign
-     */
+    /** Creates a test campaign */
     public static BinomCampaign.BinomCampaignBuilder createTestCampaign() {
         return BinomCampaign.builder()
                 .campaignId("12345")
@@ -110,23 +92,18 @@ public class TestDataBuilder {
                 .updatedAt(LocalDateTime.now());
     }
 
-    /**
-     * Creates a list of test currencies
-     */
+    /** Creates a list of test currencies */
     public static List<String> createTestCurrencies() {
         return List.of("USD", "EUR", "GBP", "CAD", "AUD");
     }
 
-    /**
-     * Creates test exchange rates
-     */
+    /** Creates test exchange rates */
     public static java.util.Map<String, BigDecimal> createTestExchangeRates() {
         return java.util.Map.of(
                 "USD", BigDecimal.ONE,
                 "EUR", new BigDecimal("0.85"),
                 "GBP", new BigDecimal("0.73"),
                 "CAD", new BigDecimal("1.25"),
-                "AUD", new BigDecimal("1.35")
-        );
+                "AUD", new BigDecimal("1.35"));
     }
-} 
+}

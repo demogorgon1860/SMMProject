@@ -1,6 +1,5 @@
 package com.smmpanel.security.validation;
 
-import lombok.extern.slf4j.Slf4j;
 import jakarta.validation.Constraint;
 import jakarta.validation.Payload;
 import java.lang.annotation.*;
@@ -11,7 +10,8 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface SqlInjectionSafe {
     String message() default "Potentially malicious SQL content detected";
+
     Class<?>[] groups() default {};
+
     Class<? extends Payload>[] payload() default {};
 }
-

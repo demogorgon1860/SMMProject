@@ -1,12 +1,11 @@
 package com.smmpanel.entity;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.CreationTimestamp;
-
-import java.time.LocalDateTime;
 
 @Data
 @Entity

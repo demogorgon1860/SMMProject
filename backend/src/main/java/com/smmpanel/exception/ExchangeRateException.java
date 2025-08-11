@@ -1,8 +1,6 @@
 package com.smmpanel.exception;
 
-/**
- * Exception thrown when there is an issue with exchange rate operations
- */
+/** Exception thrown when there is an issue with exchange rate operations */
 public class ExchangeRateException extends RuntimeException {
 
     public ExchangeRateException() {
@@ -21,9 +19,11 @@ public class ExchangeRateException extends RuntimeException {
         super(cause);
     }
 
-    protected ExchangeRateException(String message, Throwable cause, 
-                                  boolean enableSuppression, 
-                                  boolean writableStackTrace) {
+    protected ExchangeRateException(
+            String message,
+            Throwable cause,
+            boolean enableSuppression,
+            boolean writableStackTrace) {
         super(message, cause, enableSuppression, writableStackTrace);
     }
 }

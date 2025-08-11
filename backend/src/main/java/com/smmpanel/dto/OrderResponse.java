@@ -1,12 +1,12 @@
 package com.smmpanel.dto;
 
 import com.smmpanel.entity.OrderStatus;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -26,4 +26,4 @@ public class OrderResponse {
     private String errorMessage;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-} 
+}

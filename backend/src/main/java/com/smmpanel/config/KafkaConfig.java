@@ -3,6 +3,8 @@ package com.smmpanel.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.admin.AdminClient;
@@ -11,7 +13,6 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
@@ -23,12 +24,7 @@ import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 
-import java.util.HashMap;
-import java.util.Map;
-
-/**
- * PRODUCTION-READY Kafka Configuration with proper serializers, error handling, and DLQ
- */
+/** PRODUCTION-READY Kafka Configuration with proper serializers, error handling, and DLQ */
 @Slf4j
 @Configuration
 @EnableKafka
@@ -50,11 +46,11 @@ public class KafkaConfig {
         return TopicBuilder.name("smm.order.processing")
                 .partitions(3)
                 .replicas(1)
-                .configs(Map.of(
-                    "retention.ms", "604800000", // 7 days
-                    "cleanup.policy", "delete",
-                    "compression.type", "snappy"
-                ))
+                .configs(
+                        Map.of(
+                                "retention.ms", "604800000", // 7 days
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy"))
                 .build();
     }
 
@@ -63,11 +59,11 @@ public class KafkaConfig {
         return TopicBuilder.name("smm.video.processing")
                 .partitions(3)
                 .replicas(1)
-                .configs(Map.of(
-                    "retention.ms", "2592000000", // 30 days
-                    "cleanup.policy", "delete",
-                    "compression.type", "snappy"
-                ))
+                .configs(
+                        Map.of(
+                                "retention.ms", "2592000000", // 30 days
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy"))
                 .build();
     }
 
@@ -76,11 +72,11 @@ public class KafkaConfig {
         return TopicBuilder.name("smm.youtube.processing")
                 .partitions(3)
                 .replicas(1)
-                .configs(Map.of(
-                    "retention.ms", "2592000000", // 30 days
-                    "cleanup.policy", "delete",
-                    "compression.type", "snappy"
-                ))
+                .configs(
+                        Map.of(
+                                "retention.ms", "2592000000", // 30 days
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy"))
                 .build();
     }
 
@@ -89,11 +85,11 @@ public class KafkaConfig {
         return TopicBuilder.name("smm.binom.campaign.creation")
                 .partitions(3)
                 .replicas(1)
-                .configs(Map.of(
-                    "retention.ms", "2592000000", // 30 days
-                    "cleanup.policy", "delete",
-                    "compression.type", "snappy"
-                ))
+                .configs(
+                        Map.of(
+                                "retention.ms", "2592000000", // 30 days
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy"))
                 .build();
     }
 
@@ -102,11 +98,11 @@ public class KafkaConfig {
         return TopicBuilder.name("smm.video.processing.retry")
                 .partitions(1)
                 .replicas(1)
-                .configs(Map.of(
-                    "retention.ms", "86400000", // 1 day
-                    "cleanup.policy", "delete",
-                    "compression.type", "snappy"
-                ))
+                .configs(
+                        Map.of(
+                                "retention.ms", "86400000", // 1 day
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy"))
                 .build();
     }
 
@@ -115,11 +111,11 @@ public class KafkaConfig {
         return TopicBuilder.name("smm.order.refund")
                 .partitions(1)
                 .replicas(1)
-                .configs(Map.of(
-                    "retention.ms", "2592000000", // 30 days
-                    "cleanup.policy", "delete",
-                    "compression.type", "snappy"
-                ))
+                .configs(
+                        Map.of(
+                                "retention.ms", "2592000000", // 30 days
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy"))
                 .build();
     }
 
@@ -128,11 +124,11 @@ public class KafkaConfig {
         return TopicBuilder.name("smm.offer.assignments")
                 .partitions(3)
                 .replicas(1)
-                .configs(Map.of(
-                    "retention.ms", "2592000000", // 30 days
-                    "cleanup.policy", "delete",
-                    "compression.type", "snappy"
-                ))
+                .configs(
+                        Map.of(
+                                "retention.ms", "2592000000", // 30 days
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy"))
                 .build();
     }
 
@@ -141,11 +137,11 @@ public class KafkaConfig {
         return TopicBuilder.name("smm.offer.assignment.events")
                 .partitions(3)
                 .replicas(1)
-                .configs(Map.of(
-                    "retention.ms", "2592000000", // 30 days
-                    "cleanup.policy", "delete",
-                    "compression.type", "snappy"
-                ))
+                .configs(
+                        Map.of(
+                                "retention.ms", "2592000000", // 30 days
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy"))
                 .build();
     }
 
@@ -154,11 +150,11 @@ public class KafkaConfig {
         return TopicBuilder.name("smm.order.state.updates")
                 .partitions(3)
                 .replicas(1)
-                .configs(Map.of(
-                    "retention.ms", "604800000", // 7 days
-                    "cleanup.policy", "delete",
-                    "compression.type", "snappy"
-                ))
+                .configs(
+                        Map.of(
+                                "retention.ms", "604800000", // 7 days
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy"))
                 .build();
     }
 
@@ -167,11 +163,11 @@ public class KafkaConfig {
         return TopicBuilder.name("smm.notifications")
                 .partitions(3)
                 .replicas(1)
-                .configs(Map.of(
-                    "retention.ms", "604800000", // 7 days
-                    "cleanup.policy", "delete",
-                    "compression.type", "snappy"
-                ))
+                .configs(
+                        Map.of(
+                                "retention.ms", "604800000", // 7 days
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy"))
                 .build();
     }
 
@@ -184,11 +180,11 @@ public class KafkaConfig {
         return TopicBuilder.name("smm.order.processing.dlq")
                 .partitions(1)
                 .replicas(1)
-                .configs(Map.of(
-                    "retention.ms", "2592000000", // 30 days
-                    "cleanup.policy", "delete",
-                    "compression.type", "snappy"
-                ))
+                .configs(
+                        Map.of(
+                                "retention.ms", "2592000000", // 30 days
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy"))
                 .build();
     }
 
@@ -197,11 +193,11 @@ public class KafkaConfig {
         return TopicBuilder.name("smm.video.processing.dlq")
                 .partitions(1)
                 .replicas(1)
-                .configs(Map.of(
-                    "retention.ms", "2592000000", // 30 days
-                    "cleanup.policy", "delete",
-                    "compression.type", "snappy"
-                ))
+                .configs(
+                        Map.of(
+                                "retention.ms", "2592000000", // 30 days
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy"))
                 .build();
     }
 
@@ -210,11 +206,11 @@ public class KafkaConfig {
         return TopicBuilder.name("smm.youtube.processing.dlq")
                 .partitions(1)
                 .replicas(1)
-                .configs(Map.of(
-                    "retention.ms", "2592000000", // 30 days
-                    "cleanup.policy", "delete",
-                    "compression.type", "snappy"
-                ))
+                .configs(
+                        Map.of(
+                                "retention.ms", "2592000000", // 30 days
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy"))
                 .build();
     }
 
@@ -223,11 +219,11 @@ public class KafkaConfig {
         return TopicBuilder.name("smm.offer.assignments.dlq")
                 .partitions(1)
                 .replicas(1)
-                .configs(Map.of(
-                    "retention.ms", "2592000000", // 30 days
-                    "cleanup.policy", "delete",
-                    "compression.type", "snappy"
-                ))
+                .configs(
+                        Map.of(
+                                "retention.ms", "2592000000", // 30 days
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy"))
                 .build();
     }
 
@@ -236,11 +232,11 @@ public class KafkaConfig {
         return TopicBuilder.name("smm.order.refund.dlq")
                 .partitions(1)
                 .replicas(1)
-                .configs(Map.of(
-                    "retention.ms", "2592000000", // 30 days
-                    "cleanup.policy", "delete",
-                    "compression.type", "snappy"
-                ))
+                .configs(
+                        Map.of(
+                                "retention.ms", "2592000000", // 30 days
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy"))
                 .build();
     }
 
@@ -249,11 +245,11 @@ public class KafkaConfig {
         return TopicBuilder.name("smm.binom.campaign.creation.dlq")
                 .partitions(1)
                 .replicas(1)
-                .configs(Map.of(
-                    "retention.ms", "2592000000", // 30 days
-                    "cleanup.policy", "delete",
-                    "compression.type", "snappy"
-                ))
+                .configs(
+                        Map.of(
+                                "retention.ms", "2592000000", // 30 days
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy"))
                 .build();
     }
 
@@ -262,11 +258,11 @@ public class KafkaConfig {
         return TopicBuilder.name("smm.video.processing.retry.dlq")
                 .partitions(1)
                 .replicas(1)
-                .configs(Map.of(
-                    "retention.ms", "2592000000", // 30 days
-                    "cleanup.policy", "delete",
-                    "compression.type", "snappy"
-                ))
+                .configs(
+                        Map.of(
+                                "retention.ms", "2592000000", // 30 days
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy"))
                 .build();
     }
 
@@ -275,11 +271,11 @@ public class KafkaConfig {
         return TopicBuilder.name("smm.order.state.updates.dlq")
                 .partitions(1)
                 .replicas(1)
-                .configs(Map.of(
-                    "retention.ms", "2592000000", // 30 days
-                    "cleanup.policy", "delete",
-                    "compression.type", "snappy"
-                ))
+                .configs(
+                        Map.of(
+                                "retention.ms", "2592000000", // 30 days
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy"))
                 .build();
     }
 
@@ -288,11 +284,11 @@ public class KafkaConfig {
         return TopicBuilder.name("smm.notifications.dlq")
                 .partitions(1)
                 .replicas(1)
-                .configs(Map.of(
-                    "retention.ms", "2592000000", // 30 days
-                    "cleanup.policy", "delete",
-                    "compression.type", "snappy"
-                ))
+                .configs(
+                        Map.of(
+                                "retention.ms", "2592000000", // 30 days
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy"))
                 .build();
     }
 
@@ -303,7 +299,8 @@ public class KafkaConfig {
     @Bean
     public ProducerFactory<String, Object> producerFactory() {
         Map<String, Object> configProps = new HashMap<>();
-        configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaProperties.getBootstrapServers());
+        configProps.put(
+                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaProperties.getBootstrapServers());
         configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
         configProps.put(ProducerConfig.ACKS_CONFIG, "all");
@@ -316,16 +313,17 @@ public class KafkaConfig {
         configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "snappy");
         configProps.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 120000);
         configProps.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 30000);
-        
+
         // JSON Serializer specific configs
-        configProps.put(JsonSerializer.TYPE_MAPPINGS, 
-            "order:com.smmpanel.entity.Order," +
-            "videoProcessing:com.smmpanel.entity.VideoProcessing," +
-            "offerAssignment:com.smmpanel.dto.binom.OfferAssignmentRequest," +
-            "offerAssignmentEvent:com.smmpanel.event.OfferAssignmentEvent," +
-            "notification:java.util.Map," +
-            "orderStateUpdate:java.util.Map");
-        
+        configProps.put(
+                JsonSerializer.TYPE_MAPPINGS,
+                "order:com.smmpanel.entity.Order,"
+                        + "videoProcessing:com.smmpanel.entity.VideoProcessing,"
+                        + "offerAssignment:com.smmpanel.dto.binom.OfferAssignmentRequest,"
+                        + "offerAssignmentEvent:com.smmpanel.event.OfferAssignmentEvent,"
+                        + "notification:java.util.Map,"
+                        + "orderStateUpdate:java.util.Map");
+
         return new DefaultKafkaProducerFactory<>(configProps);
     }
 
@@ -337,9 +335,14 @@ public class KafkaConfig {
     @Bean
     public AdminClient adminClient() {
         Map<String, Object> config = new HashMap<>();
-        config.put(org.apache.kafka.clients.admin.AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaProperties.getBootstrapServers());
-        config.put(org.apache.kafka.clients.admin.AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, 10000);
-        config.put(org.apache.kafka.clients.admin.AdminClientConfig.DEFAULT_API_TIMEOUT_MS_CONFIG, 10000);
+        config.put(
+                org.apache.kafka.clients.admin.AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG,
+                kafkaProperties.getBootstrapServers());
+        config.put(
+                org.apache.kafka.clients.admin.AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, 10000);
+        config.put(
+                org.apache.kafka.clients.admin.AdminClientConfig.DEFAULT_API_TIMEOUT_MS_CONFIG,
+                10000);
         return AdminClient.create(config);
     }
 
@@ -350,10 +353,12 @@ public class KafkaConfig {
     @Bean
     public ConsumerFactory<String, Object> consumerFactory() {
         Map<String, Object> configProps = new HashMap<>();
-        configProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaProperties.getBootstrapServers());
+        configProps.put(
+                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaProperties.getBootstrapServers());
         configProps.put(ConsumerConfig.GROUP_ID_CONFIG, kafkaProperties.getConsumer().getGroupId());
         configProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        configProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+        configProps.put(
+                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
         configProps.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class);
         configProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         configProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
@@ -363,87 +368,86 @@ public class KafkaConfig {
         configProps.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 30000);
         configProps.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 3000);
         configProps.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 300000);
-        
+
         // JSON Deserializer specific configs
-        configProps.put(JsonDeserializer.TRUSTED_PACKAGES, 
-            "com.smmpanel.entity,com.smmpanel.dto,com.smmpanel.event,java.util");
-        configProps.put(JsonDeserializer.TYPE_MAPPINGS, 
-            "order:com.smmpanel.entity.Order," +
-            "videoProcessing:com.smmpanel.entity.VideoProcessing," +
-            "offerAssignment:com.smmpanel.dto.binom.OfferAssignmentRequest," +
-            "offerAssignmentEvent:com.smmpanel.event.OfferAssignmentEvent," +
-            "notification:java.util.Map," +
-            "orderStateUpdate:java.util.Map");
+        configProps.put(
+                JsonDeserializer.TRUSTED_PACKAGES,
+                "com.smmpanel.entity,com.smmpanel.dto,com.smmpanel.event,java.util");
+        configProps.put(
+                JsonDeserializer.TYPE_MAPPINGS,
+                "order:com.smmpanel.entity.Order,"
+                        + "videoProcessing:com.smmpanel.entity.VideoProcessing,"
+                        + "offerAssignment:com.smmpanel.dto.binom.OfferAssignmentRequest,"
+                        + "offerAssignmentEvent:com.smmpanel.event.OfferAssignmentEvent,"
+                        + "notification:java.util.Map,"
+                        + "orderStateUpdate:java.util.Map");
         configProps.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
         configProps.put(JsonDeserializer.VALUE_DEFAULT_TYPE, "java.util.Map");
-        
+
         return new DefaultKafkaConsumerFactory<>(configProps);
     }
 
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, Object> factory = 
-            new ConcurrentKafkaListenerContainerFactory<>();
+        ConcurrentKafkaListenerContainerFactory<String, Object> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
         factory.setConcurrency(3);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
         factory.getContainerProperties().setSyncCommits(true);
         factory.getContainerProperties().setPollTimeout(3000L);
-        
+
         // Configure enhanced error handler with comprehensive retry and DLQ support
         factory.setCommonErrorHandler(consumerErrorConfiguration.defaultKafkaErrorHandler());
         return factory;
     }
 
-    /**
-     * Specialized container factory for dead letter queue processing
-     */
+    /** Specialized container factory for dead letter queue processing */
     @Bean("deadLetterQueueKafkaListenerContainerFactory")
-    public ConcurrentKafkaListenerContainerFactory<String, Object> deadLetterQueueKafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, Object> factory = 
-            new ConcurrentKafkaListenerContainerFactory<>();
+    public ConcurrentKafkaListenerContainerFactory<String, Object>
+            deadLetterQueueKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, Object> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
         factory.setConcurrency(1); // DLQ processing should be single-threaded
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
         factory.getContainerProperties().setSyncCommits(true);
         factory.getContainerProperties().setPollTimeout(5000L);
-        
+
         // Use specialized DLQ error handler
         factory.setCommonErrorHandler(consumerErrorConfiguration.deadLetterQueueErrorHandler());
         return factory;
     }
 
-    /**
-     * High priority container factory for critical processing
-     */
+    /** High priority container factory for critical processing */
     @Bean("highPriorityKafkaListenerContainerFactory")
-    public ConcurrentKafkaListenerContainerFactory<String, Object> highPriorityKafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, Object> factory = 
-            new ConcurrentKafkaListenerContainerFactory<>();
+    public ConcurrentKafkaListenerContainerFactory<String, Object>
+            highPriorityKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, Object> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
         factory.setConcurrency(5); // More threads for high priority
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
         factory.getContainerProperties().setSyncCommits(true);
         factory.getContainerProperties().setPollTimeout(1000L); // Faster polling
-        
+
         // Use high priority error handler
         factory.setCommonErrorHandler(consumerErrorConfiguration.highPriorityErrorHandler());
         return factory;
     }
 
-    /**
-     * Order processing container factory with business logic error handling
-     */
-    @Bean("orderProcessingKafkaListenerContainerFactory") 
-    public ConcurrentKafkaListenerContainerFactory<String, Object> orderProcessingKafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, Object> factory = 
-            new ConcurrentKafkaListenerContainerFactory<>();
+    /** Order processing container factory with business logic error handling */
+    @Bean("orderProcessingKafkaListenerContainerFactory")
+    public ConcurrentKafkaListenerContainerFactory<String, Object>
+            orderProcessingKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, Object> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
         factory.setConcurrency(3);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
         factory.getContainerProperties().setSyncCommits(true);
         factory.getContainerProperties().setPollTimeout(3000L);
-        
+
         // Use order-specific error handler
         factory.setCommonErrorHandler(consumerErrorConfiguration.orderProcessingErrorHandler());
         return factory;

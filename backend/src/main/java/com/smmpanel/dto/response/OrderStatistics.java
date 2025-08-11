@@ -17,4 +17,4 @@ public class OrderStatistics {
     private long cancelledOrders;
     private double averageCompletionTime;
     private double successRate;
-} 
+}

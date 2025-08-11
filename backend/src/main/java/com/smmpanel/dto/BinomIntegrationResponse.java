@@ -1,10 +1,10 @@
 package com.smmpanel.dto;
 
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -16,4 +16,4 @@ public class BinomIntegrationResponse {
     private String message;
     private String errorCode;
     private LocalDateTime createdAt;
-} 
+}

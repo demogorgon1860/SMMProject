@@ -1,10 +1,9 @@
 package com.smmpanel.service.monitoring;
 
-import lombok.Builder;
-import lombok.Data;
-
 import java.time.LocalDateTime;
 import java.util.Map;
+import lombok.Builder;
+import lombok.Data;
 
 @Data
 @Builder

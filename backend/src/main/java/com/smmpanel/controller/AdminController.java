@@ -4,15 +4,14 @@ import com.smmpanel.dto.admin.*;
 import com.smmpanel.dto.response.PerfectPanelResponse;
 import com.smmpanel.service.AdminService;
 import com.smmpanel.service.OrderProcessingService;
+import jakarta.validation.Valid;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import jakarta.validation.Valid;
-import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v2/admin")
@@ -36,16 +35,16 @@ public class AdminController {
             @RequestParam(required = false) String dateFrom,
             @RequestParam(required = false) String dateTo,
             Pageable pageable) {
-        
-        Map<String, Object> orders = adminService.getAllOrders(status, username, dateFrom, dateTo, pageable);
+
+        Map<String, Object> orders =
+                adminService.getAllOrders(status, username, dateFrom, dateTo, pageable);
         return ResponseEntity.ok(orders);
     }
 
     @PostMapping("/orders/{orderId}/actions")
     public ResponseEntity<PerfectPanelResponse> performOrderAction(
-            @PathVariable Long orderId,
-            @Valid @RequestBody OrderActionRequest request) {
-        
+            @PathVariable Long orderId, @Valid @RequestBody OrderActionRequest request) {
+
         switch (request.getAction().toLowerCase()) {
             case "stop":
                 orderProcessingService.stopOrder(orderId, request.getReason());
@@ -68,28 +67,29 @@ public class AdminController {
                 break;
             default:
                 return ResponseEntity.badRequest()
-                        .body(PerfectPanelResponse.error("Unknown action: " + request.getAction(), 400));
+                        .body(
+                                PerfectPanelResponse.error(
+                                        "Unknown action: " + request.getAction(), 400));
         }
 
-        return ResponseEntity.ok(PerfectPanelResponse.builder()
-                .data(Map.of("message", "Action completed successfully"))
-                .success(true)
-                .build());
+        return ResponseEntity.ok(
+                PerfectPanelResponse.builder()
+                        .data(Map.of("message", "Action completed successfully"))
+                        .success(true)
+                        .build());
     }
 
     @PostMapping("/orders/bulk-actions")
     public ResponseEntity<PerfectPanelResponse> performBulkAction(
             @Valid @RequestBody BulkActionRequest request) {
-        
+
         int processed = adminService.performBulkAction(request);
-        
-        return ResponseEntity.ok(PerfectPanelResponse.builder()
-                .data(Map.of(
-                        "message", "Bulk action completed",
-                        "processed", processed
-                ))
-                .success(true)
-                .build());
+
+        return ResponseEntity.ok(
+                PerfectPanelResponse.builder()
+                        .data(Map.of("message", "Bulk action completed", "processed", processed))
+                        .success(true)
+                        .build());
     }
 
     @GetMapping("/conversion-coefficients")
@@ -101,8 +101,7 @@ public class AdminController {
     @PutMapping("/conversion-coefficients/{serviceId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CoefficientDto> updateConversionCoefficient(
-            @PathVariable Long serviceId,
-            @Valid @RequestBody CoefficientUpdateRequest request) {
+            @PathVariable Long serviceId, @Valid @RequestBody CoefficientUpdateRequest request) {
         CoefficientDto updated = adminService.updateConversionCoefficient(serviceId, request);
         return ResponseEntity.ok(updated);
     }
@@ -123,8 +122,7 @@ public class AdminController {
     @PutMapping("/youtube-accounts/{id}/status")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> updateYouTubeAccountStatus(
-            @PathVariable Long id,
-            @RequestBody Map<String, String> request) {
+            @PathVariable Long id, @RequestBody Map<String, String> request) {
         adminService.updateYouTubeAccountStatus(id, request.get("status"));
         return ResponseEntity.noContent().build();
     }
@@ -142,9 +140,9 @@ public class AdminController {
             @RequestParam(required = false) String dateFrom,
             @RequestParam(required = false) String dateTo,
             Pageable pageable) {
-        
-        Map<String, Object> logs = adminService.getOperatorLogs(
-                operatorUsername, action, dateFrom, dateTo, pageable);
+
+        Map<String, Object> logs =
+                adminService.getOperatorLogs(operatorUsername, action, dateFrom, dateTo, pageable);
         return ResponseEntity.ok(logs);
     }
 
@@ -175,21 +173,16 @@ public class AdminController {
     @PutMapping("/users/{userId}/balance")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> adjustUserBalance(
-            @PathVariable Long userId,
-            @RequestBody Map<String, Object> request) {
+            @PathVariable Long userId, @RequestBody Map<String, Object> request) {
         adminService.adjustUserBalance(
-                userId, 
-                (Double) request.get("amount"),
-                (String) request.get("reason")
-        );
+                userId, (Double) request.get("amount"), (String) request.get("reason"));
         return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/users/{userId}/role")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> updateUserRole(
-            @PathVariable Long userId,
-            @RequestBody Map<String, String> request) {
+            @PathVariable Long userId, @RequestBody Map<String, String> request) {
         adminService.updateUserRole(userId, request.get("role"));
         return ResponseEntity.noContent().build();
     }

@@ -1,11 +1,11 @@
 package com.smmpanel.dto;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -22,4 +22,4 @@ public class ServiceResponse {
     private Boolean active;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-} 
+}

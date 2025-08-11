@@ -1,20 +1,21 @@
 package com.smmpanel.entity;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-
 @Data
 @Entity
-@Table(name = "service_entities", indexes = {
-    @Index(name = "idx_service_entities_active", columnList = "active"),
-    @Index(name = "idx_service_entities_category_id", columnList = "category_id"),
-    @Index(name = "idx_service_entities_service_type", columnList = "service_type")
-})
+@Table(
+        name = "service_entities",
+        indexes = {
+            @Index(name = "idx_service_entities_active", columnList = "active"),
+            @Index(name = "idx_service_entities_category_id", columnList = "category_id"),
+            @Index(name = "idx_service_entities_service_type", columnList = "service_type")
+        })
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -41,8 +42,7 @@ public class ServiceEntity {
     @Column(name = "max_order")
     private Integer maxOrder;
 
-    @Builder.Default
-    private Boolean active = true;
+    @Builder.Default private Boolean active = true;
 
     @Column(name = "conversion_coefficient", precision = 5, scale = 2)
     private BigDecimal conversionCoefficient;
@@ -58,4 +58,4 @@ public class ServiceEntity {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-} 
+}

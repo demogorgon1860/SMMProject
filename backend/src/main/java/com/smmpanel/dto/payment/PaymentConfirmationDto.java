@@ -1,23 +1,21 @@
 package com.smmpanel.dto.payment;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-
 /**
- * Payment Confirmation DTO for Kafka messaging
- * Used in real-time payment confirmation processing
+ * Payment Confirmation DTO for Kafka messaging Used in real-time payment confirmation processing
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class PaymentConfirmationDto {
-    
+
     private String transactionId;
     private String paymentMethod;
     private BigDecimal amount;
@@ -29,7 +27,7 @@ public class PaymentConfirmationDto {
     private LocalDateTime confirmedAt;
     private String confirmationCode;
     private java.util.Map<String, Object> metadata;
-    
+
     // Payment processor specific fields
     private String externalTransactionId;
     private String paymentGatewayResponse;

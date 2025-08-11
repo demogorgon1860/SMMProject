@@ -13,4 +13,4 @@ public class CreateOfferResponse {
     private String url;
     private String status;
     private String message;
-} 
+}

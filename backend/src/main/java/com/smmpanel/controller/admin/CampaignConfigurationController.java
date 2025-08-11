@@ -4,11 +4,10 @@ import com.smmpanel.dto.admin.CampaignConfigurationRequest;
 import com.smmpanel.dto.admin.CampaignStatusResponse;
 import com.smmpanel.dto.admin.ValidationResult;
 import com.smmpanel.service.admin.CampaignConfigurationService;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/admin/campaigns")
@@ -28,7 +27,8 @@ public class CampaignConfigurationController {
     }
 
     @PutMapping("/{id}")
-    public CampaignStatusResponse updateCampaign(@PathVariable Long id, @RequestBody CampaignConfigurationRequest request) {
+    public CampaignStatusResponse updateCampaign(
+            @PathVariable Long id, @RequestBody CampaignConfigurationRequest request) {
         return campaignConfigurationService.updateCampaignConfiguration(id, request);
     }
 
@@ -42,4 +42,4 @@ public class CampaignConfigurationController {
     public ValidationResult validateCampaigns() {
         return campaignConfigurationService.validateCampaignConfiguration();
     }
-} 
+}

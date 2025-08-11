@@ -1,18 +1,18 @@
 package com.smmpanel.entity;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-
 @Data
 @Entity
-@Table(name = "conversion_coefficients", 
-       uniqueConstraints = @UniqueConstraint(columnNames = {"service_id", "without_clip"}))
+@Table(
+        name = "conversion_coefficients",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"service_id", "without_clip"}))
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

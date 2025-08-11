@@ -15,4 +15,4 @@ public class UserUpdateRequest {
     private UserRole role;
     private String timezone;
     private Boolean active;
-} 
+}

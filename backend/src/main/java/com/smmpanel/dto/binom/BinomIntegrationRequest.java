@@ -5,9 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * CRITICAL: Binom Integration Request DTO
- */
+/** CRITICAL: Binom Integration Request DTO */
 @Data
 @Builder
 @NoArgsConstructor

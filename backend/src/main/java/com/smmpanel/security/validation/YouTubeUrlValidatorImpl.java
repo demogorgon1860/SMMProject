@@ -1,21 +1,22 @@
 package com.smmpanel.security.validation;
 
-import org.apache.commons.validator.routines.UrlValidator;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 import java.util.regex.Pattern;
+import org.apache.commons.validator.routines.UrlValidator;
 
 public class YouTubeUrlValidatorImpl implements ConstraintValidator<YouTubeUrl, String> {
-    
-    private static final String YOUTUBE_PATTERN = 
-        "^(https?://)?((www\\.)?youtube\\.com/watch\\?v=[\\w-]{11}|" +
-        "(www\\.)?youtube\\.com/embed/[\\w-]{11}|" +
-        "(www\\.)?youtube\\.com/v/[\\w-]{11}|" +
-        "youtu\\.be/[\\w-]{11})$";
-    
+
+    private static final String YOUTUBE_PATTERN =
+            "^(https?://)?((www\\.)?youtube\\.com/watch\\?v=[\\w-]{11}|"
+                    + "(www\\.)?youtube\\.com/embed/[\\w-]{11}|"
+                    + "(www\\.)?youtube\\.com/v/[\\w-]{11}|"
+                    + "youtu\\.be/[\\w-]{11})$";
+
     private static final Pattern YOUTUBE_URL_PATTERN = Pattern.compile(YOUTUBE_PATTERN);
-    private static final UrlValidator URL_VALIDATOR = new UrlValidator(new String[]{"http", "https"});
-    
+    private static final UrlValidator URL_VALIDATOR =
+            new UrlValidator(new String[] {"http", "https"});
+
     private boolean allowShortLinks;
 
     @Override
@@ -52,8 +53,6 @@ public class YouTubeUrlValidatorImpl implements ConstraintValidator<YouTubeUrl, 
 
     private void addConstraintViolation(ConstraintValidatorContext context, String message) {
         context.disableDefaultConstraintViolation();
-        context.buildConstraintViolationWithTemplate(message)
-               .addConstraintViolation();
+        context.buildConstraintViolationWithTemplate(message).addConstraintViolation();
     }
 }
-

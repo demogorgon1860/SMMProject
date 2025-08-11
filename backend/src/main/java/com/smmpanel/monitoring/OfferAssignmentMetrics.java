@@ -3,14 +3,10 @@ package com.smmpanel.monitoring;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/**
- * Метрики для мониторинга назначения офферов
- */
+/** Метрики для мониторинга назначения офферов */
 @Component
-@RequiredArgsConstructor
 public class OfferAssignmentMetrics {
 
     private final MeterRegistry meterRegistry;
@@ -27,33 +23,39 @@ public class OfferAssignmentMetrics {
 
     public OfferAssignmentMetrics(MeterRegistry meterRegistry) {
         this.meterRegistry = meterRegistry;
-        
+
         // Initialize counters
-        this.offerAssignmentSuccessCounter = Counter.builder("offer.assignment.success")
-                .description("Number of successful offer assignments")
-                .register(meterRegistry);
-                
-        this.offerAssignmentErrorCounter = Counter.builder("offer.assignment.error")
-                .description("Number of failed offer assignments")
-                .tag("error_type", "unknown")
-                .register(meterRegistry);
-                
-        this.offerCreationCounter = Counter.builder("offer.creation")
-                .description("Number of offers created in Binom")
-                .register(meterRegistry);
-                
-        this.campaignAssignmentCounter = Counter.builder("campaign.assignment")
-                .description("Number of campaign assignments")
-                .register(meterRegistry);
+        this.offerAssignmentSuccessCounter =
+                Counter.builder("offer.assignment.success")
+                        .description("Number of successful offer assignments")
+                        .register(meterRegistry);
+
+        this.offerAssignmentErrorCounter =
+                Counter.builder("offer.assignment.error")
+                        .description("Number of failed offer assignments")
+                        .tag("error_type", "unknown")
+                        .register(meterRegistry);
+
+        this.offerCreationCounter =
+                Counter.builder("offer.creation")
+                        .description("Number of offers created in Binom")
+                        .register(meterRegistry);
+
+        this.campaignAssignmentCounter =
+                Counter.builder("campaign.assignment")
+                        .description("Number of campaign assignments")
+                        .register(meterRegistry);
 
         // Initialize timers
-        this.offerAssignmentTimer = Timer.builder("offer.assignment.duration")
-                .description("Time taken for offer assignment")
-                .register(meterRegistry);
-                
-        this.binomApiCallTimer = Timer.builder("binom.api.call.duration")
-                .description("Time taken for Binom API calls")
-                .register(meterRegistry);
+        this.offerAssignmentTimer =
+                Timer.builder("offer.assignment.duration")
+                        .description("Time taken for offer assignment")
+                        .register(meterRegistry);
+
+        this.binomApiCallTimer =
+                Timer.builder("binom.api.call.duration")
+                        .description("Time taken for Binom API calls")
+                        .register(meterRegistry);
     }
 
     public void incrementSuccessfulAssignment() {

@@ -3,20 +3,19 @@ package com.smmpanel.client;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smmpanel.dto.cryptomus.CreatePaymentRequest;
 import com.smmpanel.dto.cryptomus.CreatePaymentResponse;
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.Base64;
+import java.util.Map;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
-
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.util.Base64;
-import java.util.Map;
 
 @Slf4j
 @Component
@@ -26,13 +25,13 @@ public class CryptomusClient {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
-    @Value("${app.cryptomus.api.url}")
+    @Value("${app.cryptomus.api.url:https://api.cryptomus.com/v1}")
     private String apiUrl;
 
-    @Value("${app.cryptomus.api.key}")
+    @Value("${app.cryptomus.api.key:your-cryptomus-api-key}")
     private String apiKey;
 
-    @Value("${app.cryptomus.merchant-id}")
+    @Value("${app.cryptomus.merchant-id:your-merchant-id}")
     private String merchantId;
 
     public CreatePaymentResponse createPayment(CreatePaymentRequest request) {
@@ -55,15 +54,15 @@ public class CryptomusClient {
 
             log.debug("Creating Cryptomus payment: {}", jsonPayload);
 
-            ResponseEntity<Map> response = restTemplate.exchange(
-                    url, HttpMethod.POST, entity, Map.class);
+            ResponseEntity<Map> response =
+                    restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
 
             if (response.getStatusCode() == HttpStatus.OK) {
                 Map<String, Object> responseBody = response.getBody();
-                
+
                 if (responseBody != null && responseBody.containsKey("result")) {
                     Map<String, Object> result = (Map<String, Object>) responseBody.get("result");
-                    
+
                     return CreatePaymentResponse.builder()
                             .uuid((String) result.get("uuid"))
                             .orderId((String) result.get("order_id"))
@@ -88,10 +87,11 @@ public class CryptomusClient {
             String endpoint = "/payment/info";
             String url = apiUrl + endpoint;
 
-            String jsonPayload = objectMapper.writeValueAsString(Map.of(
-                    "merchant", merchantId,
-                    "uuid", uuid
-            ));
+            String jsonPayload =
+                    objectMapper.writeValueAsString(
+                            Map.of(
+                                    "merchant", merchantId,
+                                    "uuid", uuid));
 
             String sign = generateSignature(jsonPayload);
 
@@ -102,8 +102,8 @@ public class CryptomusClient {
 
             HttpEntity<String> entity = new HttpEntity<>(jsonPayload, headers);
 
-            ResponseEntity<Map> response = restTemplate.exchange(
-                    url, HttpMethod.POST, entity, Map.class);
+            ResponseEntity<Map> response =
+                    restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
 
             if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                 return response.getBody();
@@ -123,18 +123,19 @@ public class CryptomusClient {
             MessageDigest md5 = MessageDigest.getInstance("MD5");
             byte[] dataBytes = data.getBytes(StandardCharsets.UTF_8);
             byte[] hashBytes = md5.digest(dataBytes);
-            
+
             // Convert to base64
             String base64Hash = Base64.getEncoder().encodeToString(hashBytes);
-            
+
             // Create HMAC-SHA256 signature
             Mac sha256Hmac = Mac.getInstance("HmacSHA256");
-            SecretKeySpec secretKey = new SecretKeySpec(apiKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+            SecretKeySpec secretKey =
+                    new SecretKeySpec(apiKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
             sha256Hmac.init(secretKey);
-            
+
             byte[] signatureBytes = sha256Hmac.doFinal(base64Hash.getBytes(StandardCharsets.UTF_8));
             return Base64.getEncoder().encodeToString(signatureBytes);
-            
+
         } catch (Exception e) {
             log.error("Failed to generate signature: {}", e.getMessage());
             throw new RuntimeException("Signature generation failed", e);

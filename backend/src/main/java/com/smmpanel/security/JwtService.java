@@ -2,19 +2,16 @@ package com.smmpanel.security;
 
 import com.smmpanel.config.JwtConfig;
 import io.jsonwebtoken.*;
-import io.jsonwebtoken.security.Keys;
-import io.jsonwebtoken.security.SignatureException;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.stereotype.Service;
-
 import java.security.Key;
-import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
+import javax.crypto.SecretKey;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
@@ -23,8 +20,9 @@ public class JwtService {
 
     private final JwtConfig jwtConfig;
     private final Key jwtSecretKey;
-    
-    @org.springframework.beans.factory.annotation.Value("${app.jwt.refresh-expiration:604800000}") // 7 days default
+
+    @org.springframework.beans.factory.annotation.Value(
+            "${app.jwt.refresh-expiration:604800000}") // 7 days default
     private long refreshExpiration;
 
     public String extractUsername(String token) {
@@ -48,14 +46,10 @@ public class JwtService {
         return buildToken(new HashMap<>(), username, refreshExpiration);
     }
 
-    private String buildToken(
-            Map<String, Object> extraClaims,
-            String subject,
-            long expiration
-    ) {
+    private String buildToken(Map<String, Object> extraClaims, String subject, long expiration) {
         final Date now = new Date();
         final Date expiryDate = new Date(now.getTime() + expiration);
-        
+
         return Jwts.builder()
                 .setClaims(extraClaims)
                 .setSubject(subject)
@@ -109,7 +103,7 @@ public class JwtService {
         public JwtAuthenticationException(String message) {
             super(message);
         }
-        
+
         public JwtAuthenticationException(String message, Throwable cause) {
             super(message, cause);
         }

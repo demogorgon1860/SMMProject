@@ -2,27 +2,26 @@ package com.smmpanel.service;
 
 import com.smmpanel.entity.YouTubeAccount;
 import com.smmpanel.exception.VideoProcessingException;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.openqa.selenium.*;
-import org.openqa.selenium.chrome.ChromeOptions;
-import org.openqa.selenium.interactions.Actions;
-import org.openqa.selenium.remote.RemoteWebDriver;
-import org.openqa.selenium.support.ui.WebDriverWait;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-
 import java.net.URL;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.openqa.selenium.*;
+import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.remote.RemoteWebDriver;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 
 /**
- * PRODUCTION-READY Selenium Service for YouTube clip automation
- * Fully tested and optimized for reliability with Perfect Panel compatibility
+ * PRODUCTION-READY Selenium Service for YouTube clip automation Fully tested and optimized for
+ * reliability with Perfect Panel compatibility
  */
 @Slf4j
 @Service
@@ -41,27 +40,31 @@ public class SeleniumService {
     @Value("${app.selenium.retry.attempts:3}")
     private int retryAttempts;
 
-    private static final Pattern CLIP_URL_PATTERN = Pattern.compile("https://www\\.youtube\\.com/clip/[A-Za-z0-9_-]+");
-    private static final Pattern SHORTS_URL_PATTERN = Pattern.compile("https://www\\.youtube\\.com/shorts/[A-Za-z0-9_-]+");
-    
+    private static final Pattern CLIP_URL_PATTERN =
+            Pattern.compile("https://www\\.youtube\\.com/clip/[A-Za-z0-9_-]+");
+    private static final Pattern SHORTS_URL_PATTERN =
+            Pattern.compile("https://www\\.youtube\\.com/shorts/[A-Za-z0-9_-]+");
+
     private static final int MAX_WAIT_TIME_SECONDS = 60;
     private static final int CLIP_CREATION_TIMEOUT_SECONDS = 120;
 
-    /**
-     * Create YouTube clip with full error handling and retry logic
-     */
+    /** Create YouTube clip with full error handling and retry logic */
     public String createClip(String videoUrl, YouTubeAccount account, String clipTitle) {
         WebDriver driver = null;
         int attempt = 0;
-        
+
         while (attempt < retryAttempts) {
             try {
                 attempt++;
-                log.info("Creating clip for video {} using account {} (attempt {})", 
-                        videoUrl, account.getUsername(), attempt);
+                log.info(
+                        "Creating clip for video {} using account {} (attempt {})",
+                        videoUrl,
+                        account.getUsername(),
+                        attempt);
 
                 driver = createWebDriver();
-                WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(MAX_WAIT_TIME_SECONDS));
+                WebDriverWait wait =
+                        new WebDriverWait(driver, Duration.ofSeconds(MAX_WAIT_TIME_SECONDS));
 
                 // Step 1: Navigate to video
                 navigateToVideo(driver, wait, videoUrl);
@@ -92,14 +95,18 @@ public class SeleniumService {
                 }
 
             } catch (Exception e) {
-                log.error("Clip creation attempt {} failed for video {}: {}", 
-                        attempt, videoUrl, e.getMessage());
-                
+                log.error(
+                        "Clip creation attempt {} failed for video {}: {}",
+                        attempt,
+                        videoUrl,
+                        e.getMessage());
+
                 if (attempt >= retryAttempts) {
                     log.error("All clip creation attempts failed for video: {}", videoUrl);
-                    throw new VideoProcessingException("Clip creation failed after " + retryAttempts + " attempts", e);
+                    throw new VideoProcessingException(
+                            "Clip creation failed after " + retryAttempts + " attempts", e);
                 }
-                
+
                 // Wait before retry
                 try {
                     Thread.sleep(2000 * attempt);
@@ -107,7 +114,7 @@ public class SeleniumService {
                     Thread.currentThread().interrupt();
                     throw new VideoProcessingException("Clip creation interrupted", ie);
                 }
-                
+
             } finally {
                 if (driver != null) {
                     try {
@@ -118,7 +125,7 @@ public class SeleniumService {
                 }
             }
         }
-        
+
         throw new VideoProcessingException("Clip creation failed after all attempts");
     }
 
@@ -126,7 +133,7 @@ public class SeleniumService {
         try {
             log.debug("Creating new WebDriver instance");
             ChromeOptions options = new ChromeOptions();
-            
+
             // Basic Chrome options
             options.addArguments("--no-sandbox");
             options.addArguments("--disable-dev-shm-usage");
@@ -134,7 +141,7 @@ public class SeleniumService {
             options.addArguments("--window-size=1920,1080");
             options.addArguments("--disable-extensions");
             options.addArguments("--disable-plugins");
-            
+
             if (headless) {
                 options.addArguments("--headless");
             }
@@ -144,7 +151,7 @@ public class SeleniumService {
             options.addArguments("--disable-renderer-backgrounding");
             options.addArguments("--disable-backgrounding-occluded-windows");
             options.addArguments("--disable-features=TranslateUI");
-            
+
             // YouTube-specific optimizations
             Map<String, Object> prefs = new HashMap<>();
             prefs.put("profile.default_content_setting_values.notifications", 2);
@@ -152,7 +159,7 @@ public class SeleniumService {
             options.setExperimentalOption("prefs", prefs);
 
             return new RemoteWebDriver(new URL(seleniumHubUrl), options);
-            
+
         } catch (Exception e) {
             log.error("Failed to create WebDriver: {}", e.getMessage(), e);
             throw new VideoProcessingException("WebDriver creation failed", e);
@@ -163,16 +170,16 @@ public class SeleniumService {
         try {
             log.debug("Navigating to video: {}", videoUrl);
             driver.get(videoUrl);
-            
+
             // Wait for page to load
             wait.until(ExpectedConditions.titleContains("YouTube"));
-            
+
             // Check for age restriction or other blocks
-            if (driver.getPageSource().contains("age-restricted") || 
-                driver.getPageSource().contains("Sign in to confirm your age")) {
+            if (driver.getPageSource().contains("age-restricted")
+                    || driver.getPageSource().contains("Sign in to confirm your age")) {
                 throw new VideoProcessingException("Video is age-restricted");
             }
-            
+
         } catch (Exception e) {
             log.error("Failed to navigate to video {}: {}", videoUrl, e.getMessage());
             throw new VideoProcessingException("Navigation failed", e);
@@ -182,17 +189,18 @@ public class SeleniumService {
     private void waitForVideoPlayerLoad(WebDriver driver, WebDriverWait wait) {
         try {
             log.debug("Waiting for video player to load");
-            
+
             // Wait for video element
             wait.until(ExpectedConditions.presenceOfElementLocated(By.tagName("video")));
-            
+
             // Wait for player controls
-            wait.until(ExpectedConditions.presenceOfElementLocated(
-                    By.cssSelector(".ytp-chrome-controls, .html5-video-player")));
-            
+            wait.until(
+                    ExpectedConditions.presenceOfElementLocated(
+                            By.cssSelector(".ytp-chrome-controls, .html5-video-player")));
+
             // Additional wait for player to be interactive
             Thread.sleep(3000);
-            
+
         } catch (Exception e) {
             log.error("Video player failed to load: {}", e.getMessage());
             throw new VideoProcessingException("Video player not ready", e);
@@ -202,20 +210,22 @@ public class SeleniumService {
     private void prepareVideoForClipping(WebDriver driver, WebDriverWait wait) {
         try {
             log.debug("Preparing video for clipping");
-            
+
             // Play video briefly to ensure it's ready
-            WebElement playButton = wait.until(ExpectedConditions.elementToBeClickable(
-                    By.cssSelector(".ytp-play-button, .ytp-large-play-button")));
+            WebElement playButton =
+                    wait.until(
+                            ExpectedConditions.elementToBeClickable(
+                                    By.cssSelector(".ytp-play-button, .ytp-large-play-button")));
             playButton.click();
-            
+
             Thread.sleep(2000);
-            
+
             // Pause video
             WebElement pauseButton = driver.findElement(By.cssSelector(".ytp-play-button"));
             if (pauseButton.getAttribute("aria-label").contains("Pause")) {
                 pauseButton.click();
             }
-            
+
         } catch (Exception e) {
             log.debug("Video preparation completed with minor issues: {}", e.getMessage());
             // Not critical, continue
@@ -225,7 +235,7 @@ public class SeleniumService {
     private WebElement findAndClickClipButton(WebDriver driver, WebDriverWait wait) {
         try {
             log.debug("Looking for clip button");
-            
+
             String[] clipButtonSelectors = {
                 "button[aria-label*='Clip']",
                 "button[aria-label*='clip']",
@@ -234,26 +244,29 @@ public class SeleniumService {
                 ".ytp-clip-button",
                 "button:contains('Clip')"
             };
-            
+
             for (String selector : clipButtonSelectors) {
                 try {
-                    WebElement clipButton = wait.until(ExpectedConditions.elementToBeClickable(
-                            By.cssSelector(selector)));
-                    
+                    WebElement clipButton =
+                            wait.until(
+                                    ExpectedConditions.elementToBeClickable(
+                                            By.cssSelector(selector)));
+
                     if (clipButton.isDisplayed() && clipButton.isEnabled()) {
                         log.debug("Found clip button with selector: {}", selector);
                         clipButton.click();
                         return clipButton;
                     }
                 } catch (Exception e) {
-                    log.debug("Clip button not found with selector {}: {}", selector, e.getMessage());
+                    log.debug(
+                            "Clip button not found with selector {}: {}", selector, e.getMessage());
                     continue;
                 }
             }
-            
+
             // If direct selectors fail, try right-click method
             return tryRightClickClipMethod(driver, wait);
-            
+
         } catch (Exception e) {
             log.error("Failed to find clip button: {}", e.getMessage());
             return null;
@@ -263,21 +276,25 @@ public class SeleniumService {
     private WebElement tryRightClickClipMethod(WebDriver driver, WebDriverWait wait) {
         try {
             log.debug("Trying right-click method for clip access");
-            
+
             // Right-click on video player
             WebElement videoPlayer = driver.findElement(By.tagName("video"));
             Actions actions = new Actions(driver);
             actions.contextClick(videoPlayer).perform();
-            
+
             Thread.sleep(1000);
-            
+
             // Look for clip option in context menu
-            WebElement clipOption = wait.until(ExpectedConditions.elementToBeClickable(
-                    By.xpath("//div[contains(text(), 'Clip') or contains(text(), 'clip')]")));
-            
+            WebElement clipOption =
+                    wait.until(
+                            ExpectedConditions.elementToBeClickable(
+                                    By.xpath(
+                                            "//div[contains(text(), 'Clip') or contains(text(),"
+                                                    + " 'clip')]")));
+
             clipOption.click();
             return clipOption;
-            
+
         } catch (Exception e) {
             log.debug("Right-click clip method failed: {}", e.getMessage());
             return null;
@@ -287,16 +304,20 @@ public class SeleniumService {
     private void configureClipSettings(WebDriver driver, WebDriverWait wait, String clipTitle) {
         try {
             log.debug("Configuring clip settings");
-            
+
             // Wait for clip creation dialog
-            wait.until(ExpectedConditions.presenceOfElementLocated(
-                    By.cssSelector("ytd-clip-creation-renderer, .clip-creation-dialog")));
-            
+            wait.until(
+                    ExpectedConditions.presenceOfElementLocated(
+                            By.cssSelector("ytd-clip-creation-renderer, .clip-creation-dialog")));
+
             // Set clip title if provided
             if (clipTitle != null && !clipTitle.trim().isEmpty()) {
                 try {
-                    WebElement titleInput = driver.findElement(
-                            By.cssSelector("input[placeholder*='title'], input[aria-label*='title']"));
+                    WebElement titleInput =
+                            driver.findElement(
+                                    By.cssSelector(
+                                            "input[placeholder*='title'],"
+                                                    + " input[aria-label*='title']"));
                     titleInput.clear();
                     titleInput.sendKeys(clipTitle);
                     log.debug("Set clip title: {}", clipTitle);
@@ -304,10 +325,10 @@ public class SeleniumService {
                     log.debug("Could not set clip title: {}", e.getMessage());
                 }
             }
-            
+
             // Optional: Set clip start/end times (if needed)
             configureClipTiming(driver);
-            
+
         } catch (Exception e) {
             log.debug("Clip configuration completed with default settings: {}", e.getMessage());
             // Not critical, continue with defaults
@@ -319,12 +340,12 @@ public class SeleniumService {
             // This method can be expanded to set specific clip timing
             // For now, we'll use YouTube's default clip duration
             log.debug("Using default clip timing");
-            
+
             // You could add logic here to:
             // 1. Set specific start time
             // 2. Set specific end time
             // 3. Adjust clip duration
-            
+
         } catch (Exception e) {
             log.debug("Clip timing configuration skipped: {}", e.getMessage());
         }
@@ -333,16 +354,21 @@ public class SeleniumService {
     private String createClipAndGetUrl(WebDriver driver, WebDriverWait wait) {
         try {
             log.debug("Creating clip and waiting for URL");
-            
+
             // Find and click create/share button
-            WebElement createButton = wait.until(ExpectedConditions.elementToBeClickable(
-                    By.cssSelector("button[aria-label*='Create'], button[aria-label*='Share'], " +
-                                 "button:contains('Create'), button:contains('Share')")));
+            WebElement createButton =
+                    wait.until(
+                            ExpectedConditions.elementToBeClickable(
+                                    By.cssSelector(
+                                            "button[aria-label*='Create'],"
+                                                    + " button[aria-label*='Share'],"
+                                                    + " button:contains('Create'),"
+                                                    + " button:contains('Share')")));
             createButton.click();
-            
+
             // Wait for clip creation to complete
             return waitForClipCreation(driver, wait);
-            
+
         } catch (Exception e) {
             log.error("Failed to create clip: {}", e.getMessage());
             return null;
@@ -352,7 +378,7 @@ public class SeleniumService {
     private String waitForClipCreation(WebDriver driver, WebDriverWait wait) {
         try {
             log.debug("Waiting for clip creation to complete");
-            
+
             // Wait for success message or URL
             long startTime = System.currentTimeMillis();
             long timeout = CLIP_CREATION_TIMEOUT_SECONDS * 1000;
@@ -362,7 +388,7 @@ public class SeleniumService {
                     // Check if clip URL appears in the page
                     String pageSource = driver.getPageSource();
                     Matcher matcher = CLIP_URL_PATTERN.matcher(pageSource);
-                    
+
                     if (matcher.find()) {
                         String clipUrl = matcher.group();
                         log.debug("Found clip URL in page source: {}", clipUrl);
@@ -388,7 +414,7 @@ public class SeleniumService {
                     }
 
                     Thread.sleep(2000);
-                    
+
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                     throw new VideoProcessingException("Clip creation interrupted", ie);
@@ -398,7 +424,9 @@ public class SeleniumService {
                 }
             }
 
-            log.warn("Timeout waiting for clip creation after {} seconds", CLIP_CREATION_TIMEOUT_SECONDS);
+            log.warn(
+                    "Timeout waiting for clip creation after {} seconds",
+                    CLIP_CREATION_TIMEOUT_SECONDS);
             return null;
 
         } catch (Exception e) {
@@ -418,15 +446,16 @@ public class SeleniumService {
                 ".clip-url-input",
                 ".share-url input"
             };
-            
+
             for (String selector : urlSelectors) {
                 try {
                     WebElement element = driver.findElement(By.cssSelector(selector));
                     String url = null;
-                    
+
                     if (element.getTagName().equals("a")) {
                         url = element.getAttribute("href");
-                    } else if (element.getTagName().equals("input") || element.getTagName().equals("textarea")) {
+                    } else if (element.getTagName().equals("input")
+                            || element.getTagName().equals("textarea")) {
                         url = element.getAttribute("value");
                         if (url == null || url.isEmpty()) {
                             url = element.getText();
@@ -437,7 +466,7 @@ public class SeleniumService {
                             url = element.getText();
                         }
                     }
-                    
+
                     if (url != null && isValidClipUrl(url)) {
                         log.debug("Extracted clip URL from element: {}", url);
                         return url;
@@ -447,7 +476,7 @@ public class SeleniumService {
                     continue;
                 }
             }
-            
+
             // Fallback: search all text content for clip URLs
             String pageText = driver.findElement(By.tagName("body")).getText();
             Matcher matcher = CLIP_URL_PATTERN.matcher(pageText);
@@ -458,11 +487,11 @@ public class SeleniumService {
                     return url;
                 }
             }
-            
+
         } catch (Exception e) {
             log.debug("Failed to extract clip URL from elements: {}", e.getMessage());
         }
-        
+
         return null;
     }
 
@@ -476,7 +505,7 @@ public class SeleniumService {
             "[aria-label*='error']",
             ".error-text"
         };
-        
+
         for (String selector : errorSelectors) {
             try {
                 if (driver.findElements(By.cssSelector(selector)).stream()
@@ -496,32 +525,30 @@ public class SeleniumService {
         if (url == null || url.trim().isEmpty()) {
             return false;
         }
-        
+
         // Check if URL matches expected patterns
-        return CLIP_URL_PATTERN.matcher(url).matches() || 
-               SHORTS_URL_PATTERN.matcher(url).matches() ||
-               (url.contains("youtube.com") && url.contains("/clip/"));
+        return CLIP_URL_PATTERN.matcher(url).matches()
+                || SHORTS_URL_PATTERN.matcher(url).matches()
+                || (url.contains("youtube.com") && url.contains("/clip/"));
     }
 
-    /**
-     * Test Selenium connection and basic functionality
-     */
+    /** Test Selenium connection and basic functionality */
     public boolean testConnection() {
         WebDriver driver = null;
         try {
             log.info("Testing Selenium connection to hub: {}", seleniumHubUrl);
             driver = createWebDriver();
-            
+
             // Test basic navigation
             driver.get("https://www.youtube.com");
-            
+
             // Verify page loaded
             WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
             wait.until(ExpectedConditions.titleContains("YouTube"));
-            
+
             log.info("Selenium connection test successful");
             return true;
-            
+
         } catch (Exception e) {
             log.error("Selenium connection test failed: {}", e.getMessage(), e);
             return false;
@@ -536,9 +563,7 @@ public class SeleniumService {
         }
     }
 
-    /**
-     * Get browser capabilities for monitoring
-     */
+    /** Get browser capabilities for monitoring */
     public Map<String, Object> getBrowserCapabilities() {
         WebDriver driver = null;
         try {
@@ -561,9 +586,7 @@ public class SeleniumService {
         return new HashMap<>();
     }
 
-    /**
-     * Health check method for monitoring
-     */
+    /** Health check method for monitoring */
     public boolean isHealthy() {
         try {
             // Quick connection test with minimal resources

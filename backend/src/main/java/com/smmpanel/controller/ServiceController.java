@@ -17,6 +17,7 @@ public class ServiceController {
 
     @GetMapping("/services")
     public ResponseEntity<PerfectPanelResponse> getServices() {
-        return ResponseEntity.ok(PerfectPanelResponse.success(serviceService.getAllActiveServices()));
+        return ResponseEntity.ok(
+                PerfectPanelResponse.success(serviceService.getAllActiveServices()));
     }
 }

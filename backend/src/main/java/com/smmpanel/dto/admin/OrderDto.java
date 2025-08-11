@@ -1,12 +1,11 @@
 package com.smmpanel.dto.admin;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -31,4 +30,4 @@ public class OrderDto {
     private LocalDateTime updatedAt;
     private boolean hasVideoProcessing;
     private boolean hasBinomCampaign;
-} 
+}

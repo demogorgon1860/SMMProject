@@ -1,8 +1,13 @@
 package com.smmpanel.service;
 
 import com.smmpanel.entity.*;
-import com.smmpanel.repository.OrderRepository;
-import com.smmpanel.repository.ViewStatsRepository;
+import com.smmpanel.repository.jpa.OrderRepository;
+import com.smmpanel.repository.jpa.ViewStatsRepository;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -10,12 +15,6 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.Map;
 
 @Slf4j
 @Service("legacyOrderProcessingService")
@@ -33,8 +32,13 @@ public class OrderProcessingService {
     @Transactional
     public void processNewOrder(Long orderId) {
         try {
-            Order order = orderRepository.findById(orderId)
-                    .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
+            Order order =
+                    orderRepository
+                            .findById(orderId)
+                            .orElseThrow(
+                                    () ->
+                                            new IllegalArgumentException(
+                                                    "Order not found: " + orderId));
 
             if (order.getStatus() != OrderStatus.PENDING) {
                 log.info("Order {} already processed, skipping", orderId);
@@ -51,7 +55,7 @@ public class OrderProcessingService {
             try {
                 String videoId = youTubeService.extractVideoId(order.getLink());
                 Long startCount = youTubeService.getViewCount(videoId);
-                
+
                 order.setStartCount(startCount.intValue());
                 order.setRemains(order.getQuantity());
                 orderRepository.save(order);
@@ -63,7 +67,7 @@ public class OrderProcessingService {
                 order.setStatus(OrderStatus.CANCELLED);
                 order.setErrorMessage("Failed to get video start count: " + e.getMessage());
                 orderRepository.save(order);
-                
+
                 // Refund the user
                 kafkaTemplate.send("smm.order.refund", orderId);
                 return;
@@ -78,13 +82,13 @@ public class OrderProcessingService {
 
         } catch (Exception e) {
             log.error("Failed to process order {}: {}", orderId, e.getMessage(), e);
-            
+
             Order order = orderRepository.findById(orderId).orElse(null);
             if (order != null) {
                 order.setStatus(OrderStatus.CANCELLED);
                 order.setErrorMessage("Processing failed: " + e.getMessage());
                 orderRepository.save(order);
-                
+
                 kafkaTemplate.send("smm.order.refund", orderId);
             }
         }
@@ -98,8 +102,13 @@ public class OrderProcessingService {
             String targetUrl = data.get("targetUrl").toString();
             Boolean hasClip = (Boolean) data.get("hasClip");
 
-            Order order = orderRepository.findById(orderId)
-                    .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
+            Order order =
+                    orderRepository
+                            .findById(orderId)
+                            .orElseThrow(
+                                    () ->
+                                            new IllegalArgumentException(
+                                                    "Order not found: " + orderId));
 
             log.info("Creating Binom campaign for order {} with URL: {}", orderId, targetUrl);
 
@@ -113,18 +122,21 @@ public class OrderProcessingService {
             // Create view stats record for monitoring
             createViewStatsRecord(order, campaign);
 
-            log.info("Order {} is now ACTIVE with Binom campaign {}", orderId, campaign.getCampaignId());
+            log.info(
+                    "Order {} is now ACTIVE with Binom campaign {}",
+                    orderId,
+                    campaign.getCampaignId());
 
         } catch (Exception e) {
             log.error("Failed to create Binom campaign: {}", e.getMessage(), e);
-            
+
             Long orderId = Long.valueOf(data.get("orderId").toString());
             Order order = orderRepository.findById(orderId).orElse(null);
             if (order != null) {
                 order.setStatus(OrderStatus.CANCELLED);
                 order.setErrorMessage("Failed to create campaign: " + e.getMessage());
                 orderRepository.save(order);
-                
+
                 kafkaTemplate.send("smm.order.refund", orderId);
             }
         }
@@ -136,9 +148,9 @@ public class OrderProcessingService {
         try {
             // Add delay before retry
             Thread.sleep(30000); // 30 seconds delay
-            
+
             videoProcessingService.retryProcessing(processingId);
-            
+
         } catch (Exception e) {
             log.error("Failed to retry video processing {}: {}", processingId, e.getMessage(), e);
         }
@@ -148,14 +160,19 @@ public class OrderProcessingService {
     @Transactional
     public void processRefund(Long orderId) {
         try {
-            Order order = orderRepository.findById(orderId)
-                    .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
+            Order order =
+                    orderRepository
+                            .findById(orderId)
+                            .orElseThrow(
+                                    () ->
+                                            new IllegalArgumentException(
+                                                    "Order not found: " + orderId));
 
             // Refund logic will be handled by BalanceService
             log.info("Processing refund for cancelled order {}", orderId);
-            
+
             // Additional refund processing can be added here
-            
+
         } catch (Exception e) {
             log.error("Failed to process refund for order {}: {}", orderId, e.getMessage(), e);
         }
@@ -165,10 +182,9 @@ public class OrderProcessingService {
     @Transactional
     public void monitorActiveOrders() {
         try {
-            List<Order> activeOrders = orderRepository.findByStatusIn(List.of(
-                    OrderStatus.ACTIVE, 
-                    OrderStatus.HOLDING
-            ));
+            List<Order> activeOrders =
+                    orderRepository.findByStatusIn(
+                            List.of(OrderStatus.ACTIVE, OrderStatus.HOLDING));
 
             log.debug("Monitoring {} active orders", activeOrders.size());
 
@@ -190,10 +206,10 @@ public class OrderProcessingService {
             // Get current view count
             String videoId = youTubeService.extractVideoId(order.getLink());
             Long currentViews = youTubeService.getViewCount(videoId);
-            
+
             int viewsGained = currentViews.intValue() - order.getStartCount();
             int remainingViews = order.getQuantity() - viewsGained;
-            
+
             // Update remains
             order.setRemains(Math.max(0, remainingViews));
             order.setUpdatedAt(LocalDateTime.now());
@@ -214,38 +230,43 @@ public class OrderProcessingService {
                     // Move to HOLDING status for monitoring
                     order.setStatus(OrderStatus.HOLDING);
                     orderRepository.save(order);
-                    
+
                     // Stop Binom campaigns
                     for (BinomCampaign campaign : campaigns) {
                         binomService.stopCampaign(campaign.getCampaignId());
                     }
-                    
+
                     log.info("Order {} reached target, moved to HOLDING", order.getId());
                 }
             } else if (order.getStatus() == OrderStatus.HOLDING) {
                 // Check if views dropped significantly
                 double dropPercentage = (double) remainingViews / order.getQuantity();
-                
+
                 if (dropPercentage > 0.1) { // More than 10% drop
-                    log.warn("Order {} views dropped by {}%, may need refill", 
-                            order.getId(), (int)(dropPercentage * 100));
-                    
+                    log.warn(
+                            "Order {} views dropped by {}%, may need refill",
+                            order.getId(), (int) (dropPercentage * 100));
+
                     // Operator will decide on refill action
                 }
             }
 
-            log.debug("Monitored order {}: {} views gained, {} remaining", 
-                    order.getId(), viewsGained, remainingViews);
+            log.debug(
+                    "Monitored order {}: {} views gained, {} remaining",
+                    order.getId(),
+                    viewsGained,
+                    remainingViews);
 
         } catch (Exception e) {
             log.error("Failed to monitor order {}: {}", order.getId(), e.getMessage(), e);
-            
-            if (e.getMessage().contains("Video unavailable") || e.getMessage().contains("deleted")) {
+
+            if (e.getMessage().contains("Video unavailable")
+                    || e.getMessage().contains("deleted")) {
                 // Video was deleted or made private - complete the order
                 order.setStatus(OrderStatus.COMPLETED);
                 order.setRemains(0);
                 orderRepository.save(order);
-                
+
                 log.info("Order {} completed due to video unavailability", order.getId());
             }
         }
@@ -259,27 +280,35 @@ public class OrderProcessingService {
         stats.setLastChecked(LocalDateTime.now());
         stats.setCheckInterval(1800); // 30 minutes
         stats.setCheckCount(0);
-        
+
         viewStatsRepository.save(stats);
     }
 
     private void updateViewStats(Order order, int currentViews) {
-        viewStatsRepository.findByOrderId(order.getId()).ifPresent(stats -> {
-            stats.setCurrentViews(currentViews);
-            stats.setLastChecked(LocalDateTime.now());
-            stats.setCheckCount(stats.getCheckCount() + 1);
-            
-            // Calculate velocity (views per hour)
-            if (stats.getCheckCount() > 1) {
-                long hoursSinceCreation = java.time.Duration.between(stats.getCreatedAt(), LocalDateTime.now()).toHours();
-                if (hoursSinceCreation > 0) {
-                    int viewsGained = currentViews - order.getStartCount();
-                    stats.setViewsVelocity(java.math.BigDecimal.valueOf((double) viewsGained / hoursSinceCreation));
-                }
-            }
-            
-            viewStatsRepository.save(stats);
-        });
+        viewStatsRepository
+                .findByOrderId(order.getId())
+                .ifPresent(
+                        stats -> {
+                            stats.setCurrentViews(currentViews);
+                            stats.setLastChecked(LocalDateTime.now());
+                            stats.setCheckCount(stats.getCheckCount() + 1);
+
+                            // Calculate velocity (views per hour)
+                            if (stats.getCheckCount() > 1) {
+                                long hoursSinceCreation =
+                                        java.time.Duration.between(
+                                                        stats.getCreatedAt(), LocalDateTime.now())
+                                                .toHours();
+                                if (hoursSinceCreation > 0) {
+                                    int viewsGained = currentViews - order.getStartCount();
+                                    stats.setViewsVelocity(
+                                            java.math.BigDecimal.valueOf(
+                                                    (double) viewsGained / hoursSinceCreation));
+                                }
+                            }
+
+                            viewStatsRepository.save(stats);
+                        });
     }
 
     private BigDecimal calculateViews(Order order, ConversionCoefficient coefficient) {
@@ -289,8 +318,11 @@ public class OrderProcessingService {
     // Manual operator actions
     @Transactional
     public void stopOrder(Long orderId, String reason) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
+        Order order =
+                orderRepository
+                        .findById(orderId)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("Order not found: " + orderId));
 
         // Stop all Binom campaigns
         List<BinomCampaign> campaigns = binomService.getActiveCampaignsForOrder(orderId);
@@ -307,8 +339,11 @@ public class OrderProcessingService {
 
     @Transactional
     public void resumeOrder(Long orderId) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
+        Order order =
+                orderRepository
+                        .findById(orderId)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("Order not found: " + orderId));
 
         // Resume all campaigns
         List<BinomCampaign> campaigns = binomService.getActiveCampaignsForOrder(orderId);
@@ -325,8 +360,11 @@ public class OrderProcessingService {
 
     @Transactional
     public void refillOrder(Long orderId) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
+        Order order =
+                orderRepository
+                        .findById(orderId)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("Order not found: " + orderId));
 
         // Calculate remaining views needed
         String videoId = youTubeService.extractVideoId(order.getLink());
@@ -342,7 +380,7 @@ public class OrderProcessingService {
         // Get target URL (check if we have a clip)
         String targetUrl = order.getLink();
         boolean hasClip = false;
-        
+
         Optional<VideoProcessing> processingOpt = videoProcessingService.findByOrderId(orderId);
         if (processingOpt.isPresent()) {
             VideoProcessing processing = processingOpt.get();
@@ -358,6 +396,9 @@ public class OrderProcessingService {
         order.setStatus(OrderStatus.REFILL);
         orderRepository.save(order);
 
-        log.info("Created refill campaign for order {} with {} remaining views", orderId, remainingViews);
+        log.info(
+                "Created refill campaign for order {} with {} remaining views",
+                orderId,
+                remainingViews);
     }
 }

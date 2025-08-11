@@ -8,4 +8,4 @@ public enum VideoProcessingStatus {
     FAILED,
     CANCELLED,
     RETRYING
-} 
+}

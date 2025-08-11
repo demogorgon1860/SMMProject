@@ -1,55 +1,48 @@
 package com.smmpanel.security;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
+
 import com.smmpanel.entity.User;
 import com.smmpanel.entity.UserRole;
-import com.smmpanel.repository.UserRepository;
+import com.smmpanel.repository.jpa.UserRepository;
 import com.smmpanel.service.ApiKeyService;
 import com.smmpanel.service.security.AuthenticationRateLimitService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.io.IOException;
-import java.math.BigDecimal;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
-
 /**
- * Test class for ApiKeyAuthenticationFilter performance optimizations
- * Verifies that the filter uses optimized database queries and performance logging
+ * Test class for ApiKeyAuthenticationFilter performance optimizations Verifies that the filter uses
+ * optimized database queries and performance logging
  */
 @ExtendWith(MockitoExtension.class)
 class ApiKeyAuthenticationFilterTest {
 
-    @Mock
-    private UserRepository userRepository;
+    @Mock private UserRepository userRepository;
 
-    @Mock
-    private ApiKeyService apiKeyService;
+    @Mock private ApiKeyService apiKeyService;
 
-    @Mock
-    private AuthenticationRateLimitService rateLimitService;
+    @Mock private AuthenticationRateLimitService rateLimitService;
 
-    @Mock
-    private HttpServletRequest request;
+    @Mock private HttpServletRequest request;
 
-    @Mock
-    private HttpServletResponse response;
+    @Mock private HttpServletResponse response;
 
-    @Mock
-    private FilterChain filterChain;
+    @Mock private FilterChain filterChain;
 
     private ApiKeyAuthenticationFilter filter;
 
@@ -74,7 +67,8 @@ class ApiKeyAuthenticationFilterTest {
         when(apiKeyService.hashApiKeyForLookup(TEST_API_KEY)).thenReturn(TEST_API_KEY_HASH);
         when(userRepository.findByApiKeyHashAndIsActiveTrue(TEST_API_KEY_HASH))
                 .thenReturn(Optional.of(testUser));
-        when(apiKeyService.verifyApiKeyOnly(TEST_API_KEY, testUser.getApiKeyHash(), testUser.getApiKeySalt()))
+        when(apiKeyService.verifyApiKeyOnly(
+                        TEST_API_KEY, testUser.getApiKeyHash(), testUser.getApiKeySalt()))
                 .thenReturn(true);
 
         // Act
@@ -82,13 +76,17 @@ class ApiKeyAuthenticationFilterTest {
 
         // Assert
         verify(userRepository, times(1)).findByApiKeyHashAndIsActiveTrue(TEST_API_KEY_HASH);
-        verify(userRepository, never()).findByApiKeyHash(anyString()); // Should not use deprecated method
+        verify(userRepository, never())
+                .findByApiKeyHash(anyString()); // Should not use deprecated method
         verify(apiKeyService, times(1)).verifyApiKeyOnly(anyString(), anyString(), anyString());
-        verify(apiKeyService, never()).validateApiKey(anyString(), any(User.class)); // Should not use method with DB write
+        verify(apiKeyService, never())
+                .validateApiKey(
+                        anyString(), any(User.class)); // Should not use method with DB write
         verify(filterChain, times(1)).doFilter(request, response);
-        
+
         assertNotNull(SecurityContextHolder.getContext().getAuthentication());
-        assertEquals(testUser, SecurityContextHolder.getContext().getAuthentication().getPrincipal());
+        assertEquals(
+                testUser, SecurityContextHolder.getContext().getAuthentication().getPrincipal());
     }
 
     @Test
@@ -98,12 +96,15 @@ class ApiKeyAuthenticationFilterTest {
         when(request.getHeader("X-API-Key")).thenReturn(TEST_API_KEY);
         when(apiKeyService.hashApiKeyForLookup(TEST_API_KEY)).thenReturn(TEST_API_KEY_HASH);
         when(userRepository.findByApiKeyHashAndIsActiveTrue(TEST_API_KEY_HASH))
-                .thenThrow(new org.springframework.dao.DataAccessResourceFailureException("Database connection failed"));
+                .thenThrow(
+                        new org.springframework.dao.DataAccessResourceFailureException(
+                                "Database connection failed"));
 
         // Act & Assert
         assertDoesNotThrow(() -> filter.doFilterInternal(request, response, filterChain));
-        
-        verify(response, times(1)).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid API key");
+
+        verify(response, times(1))
+                .sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid API key");
         verify(filterChain, never()).doFilter(request, response);
         assertNull(SecurityContextHolder.getContext().getAuthentication());
     }
@@ -117,14 +118,16 @@ class ApiKeyAuthenticationFilterTest {
         when(apiKeyService.hashApiKeyForLookup(TEST_API_KEY)).thenReturn(TEST_API_KEY_HASH);
         when(userRepository.findByApiKeyHashAndIsActiveTrue(TEST_API_KEY_HASH))
                 .thenReturn(Optional.of(testUser));
-        when(apiKeyService.verifyApiKeyOnly(TEST_API_KEY, testUser.getApiKeyHash(), testUser.getApiKeySalt()))
+        when(apiKeyService.verifyApiKeyOnly(
+                        TEST_API_KEY, testUser.getApiKeyHash(), testUser.getApiKeySalt()))
                 .thenReturn(true);
 
         // Act
         filter.doFilterInternal(request, response, filterChain);
 
         // Assert
-        verify(userRepository, times(1)).findByApiKeyHashAndIsActiveTrue(anyString()); // Only read operation
+        verify(userRepository, times(1))
+                .findByApiKeyHashAndIsActiveTrue(anyString()); // Only read operation
         verify(userRepository, never()).save(any()); // No write operations
         verify(userRepository, never()).saveAndFlush(any()); // No write operations
         verify(filterChain, times(1)).doFilter(request, response);
@@ -140,7 +143,8 @@ class ApiKeyAuthenticationFilterTest {
         when(apiKeyService.hashApiKeyForLookup(TEST_API_KEY)).thenReturn(TEST_API_KEY_HASH);
         when(userRepository.findByApiKeyHashAndIsActiveTrue(TEST_API_KEY_HASH))
                 .thenReturn(Optional.of(testUser));
-        when(apiKeyService.verifyApiKeyOnly(TEST_API_KEY, testUser.getApiKeyHash(), testUser.getApiKeySalt()))
+        when(apiKeyService.verifyApiKeyOnly(
+                        TEST_API_KEY, testUser.getApiKeyHash(), testUser.getApiKeySalt()))
                 .thenReturn(true);
 
         // Act
@@ -165,7 +169,8 @@ class ApiKeyAuthenticationFilterTest {
         assertDoesNotThrow(() -> filter.doFilterInternal(request, response, filterChain));
 
         // Assert
-        verify(response, times(1)).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid API key");
+        verify(response, times(1))
+                .sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid API key");
         verify(filterChain, never()).doFilter(request, response);
         assertNull(SecurityContextHolder.getContext().getAuthentication());
     }
@@ -175,8 +180,8 @@ class ApiKeyAuthenticationFilterTest {
     void testSkipWhenAlreadyAuthenticated() throws ServletException, IOException {
         // Arrange
         User testUser = createTestUser();
-        SecurityContextHolder.getContext().setAuthentication(
-                mock(org.springframework.security.core.Authentication.class));
+        SecurityContextHolder.getContext()
+                .setAuthentication(mock(org.springframework.security.core.Authentication.class));
         when(request.getHeader("X-API-Key")).thenReturn(TEST_API_KEY);
 
         // Act
@@ -197,7 +202,8 @@ class ApiKeyAuthenticationFilterTest {
         when(apiKeyService.hashApiKeyForLookup(TEST_API_KEY)).thenReturn(TEST_API_KEY_HASH);
         when(userRepository.findByApiKeyHashAndIsActiveTrue(TEST_API_KEY_HASH))
                 .thenReturn(Optional.of(testUser));
-        when(apiKeyService.verifyApiKeyOnly(TEST_API_KEY, testUser.getApiKeyHash(), testUser.getApiKeySalt()))
+        when(apiKeyService.verifyApiKeyOnly(
+                        TEST_API_KEY, testUser.getApiKeyHash(), testUser.getApiKeySalt()))
                 .thenReturn(true);
 
         // Act

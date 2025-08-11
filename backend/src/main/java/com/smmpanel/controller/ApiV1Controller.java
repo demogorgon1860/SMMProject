@@ -4,19 +4,18 @@ import com.smmpanel.dto.*;
 import com.smmpanel.dto.response.OrderResponse;
 import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.service.*;
+import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 /**
- * CRITICAL: Perfect Panel Compatible API Controller
- * MUST maintain exact API response formats for existing client compatibility
+ * CRITICAL: Perfect Panel Compatible API Controller MUST maintain exact API response formats for
+ * existing client compatibility
  */
 @Slf4j
 @RestController
@@ -37,11 +36,12 @@ public class ApiV1Controller {
             @RequestParam("api_key") String apiKey) {
         try {
             String username = userService.getUsernameByApiKey(apiKey);
-            OrderCreateRequest request = OrderCreateRequest.builder()
-                    .serviceId(serviceId)
-                    .link(link)
-                    .quantity(quantity)
-                    .build();
+            OrderCreateRequest request =
+                    OrderCreateRequest.builder()
+                            .serviceId(serviceId)
+                            .link(link)
+                            .quantity(quantity)
+                            .build();
             OrderResponse order = orderService.createOrder(request, username);
             Map<String, Object> response = new HashMap<>();
             response.put("order", order.getId());
@@ -58,8 +58,7 @@ public class ApiV1Controller {
 
     @GetMapping("/status")
     public ResponseEntity<Map<String, Object>> getOrderStatus(
-            @RequestParam("order_id") Long orderId,
-            @RequestParam("api_key") String apiKey) {
+            @RequestParam("order_id") Long orderId, @RequestParam("api_key") String apiKey) {
         try {
             String username = userService.getUsernameByApiKey(apiKey);
             OrderResponse order = orderService.getOrder(orderId, username);
@@ -78,13 +77,13 @@ public class ApiV1Controller {
     }
 
     @GetMapping("/services")
-    public ResponseEntity<List<Map<String, Object>>> getServices(@RequestParam("api_key") String apiKey) {
+    public ResponseEntity<List<Map<String, Object>>> getServices(
+            @RequestParam("api_key") String apiKey) {
         try {
             userService.validateApiKey(apiKey);
             List<ServiceResponse> services = serviceService.getAllActiveServices();
-            List<Map<String, Object>> response = services.stream()
-                    .map(this::transformServiceToPerfectPanel)
-                    .toList();
+            List<Map<String, Object>> response =
+                    services.stream().map(this::transformServiceToPerfectPanel).toList();
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
@@ -135,4 +134,4 @@ public class ApiV1Controller {
         transformed.put("category", service.getCategory());
         return transformed;
     }
-} 
+}

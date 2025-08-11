@@ -1,22 +1,23 @@
 package com.smmpanel.entity;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.CreationTimestamp;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-
 @Data
 @Entity
-@Table(name = "view_stats", indexes = {
-    @Index(name = "idx_view_stats_order_id", columnList = "order_id"),
-    @Index(name = "idx_view_stats_video_processing_id", columnList = "video_processing_id"),
-    @Index(name = "idx_view_stats_created_at", columnList = "created_at"),
-    @Index(name = "idx_view_stats_last_checked", columnList = "last_checked")
-})
+@Table(
+        name = "view_stats",
+        indexes = {
+            @Index(name = "idx_view_stats_order_id", columnList = "order_id"),
+            @Index(name = "idx_view_stats_video_processing_id", columnList = "video_processing_id"),
+            @Index(name = "idx_view_stats_created_at", columnList = "created_at"),
+            @Index(name = "idx_view_stats_last_checked", columnList = "last_checked")
+        })
 @EqualsAndHashCode(callSuper = false)
 @Slf4j
 public class ViewStats {

@@ -5,9 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Response for creating a campaign in Binom
- */
+/** Response for creating a campaign in Binom */
 @Data
 @Builder
 @NoArgsConstructor

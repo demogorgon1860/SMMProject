@@ -1,12 +1,18 @@
 package com.smmpanel.service;
 
-import com.smmpanel.dto.request.CreateOrderRequest;
 import com.smmpanel.dto.OrderCreateRequest;
+import com.smmpanel.dto.request.CreateOrderRequest;
 import com.smmpanel.dto.response.OrderResponse;
 import com.smmpanel.entity.*;
-import com.smmpanel.repository.*;
 import com.smmpanel.exception.InsufficientBalanceException;
 import com.smmpanel.exception.OrderValidationException;
+import com.smmpanel.repository.jpa.*;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -17,16 +23,9 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.stream.Collectors;
-
 /**
- * CRITICAL: Order Service with Perfect Panel compatibility methods
- * MUST maintain exact compatibility with Perfect Panel API
+ * CRITICAL: Order Service with Perfect Panel compatibility methods MUST maintain exact
+ * compatibility with Perfect Panel API
  */
 @Slf4j
 @Service
@@ -40,33 +39,45 @@ public class OrderService {
     private final YouTubeProcessingService youTubeProcessingService;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    /**
-     * CRITICAL: Create order with API key (Perfect Panel compatibility)
-     */
-    @Transactional(isolation = Isolation.REPEATABLE_READ, 
-                   propagation = Propagation.REQUIRED,
-                   timeout = 30,
-                   rollbackFor = Exception.class)
+    /** CRITICAL: Create order with API key (Perfect Panel compatibility) */
+    @Transactional(
+            isolation = Isolation.REPEATABLE_READ,
+            propagation = Propagation.REQUIRED,
+            timeout = 30,
+            rollbackFor = Exception.class)
     public OrderResponse createOrderWithApiKey(CreateOrderRequest request, String apiKey) {
         try {
-            log.info("Creating order with API key for service: {}, quantity: {}", request.getService(), request.getQuantity());
+            log.info(
+                    "Creating order with API key for service: {}, quantity: {}",
+                    request.getService(),
+                    request.getQuantity());
 
             // 1. Find user by API key
-            User user = userRepository.findByApiKeyHashAndIsActiveTrue(hashApiKey(apiKey))
-                    .orElseThrow(() -> new OrderValidationException("Invalid API key"));
+            User user =
+                    userRepository
+                            .findByApiKeyHashAndIsActiveTrue(hashApiKey(apiKey))
+                            .orElseThrow(() -> new OrderValidationException("Invalid API key"));
 
             // 2. Validate service
-            com.smmpanel.entity.Service service = serviceRepository.findById(request.getService().longValue())
-                    .orElseThrow(() -> new OrderValidationException("Service not found: " + request.getService()));
+            com.smmpanel.entity.Service service =
+                    serviceRepository
+                            .findById(request.getService().longValue())
+                            .orElseThrow(
+                                    () ->
+                                            new OrderValidationException(
+                                                    "Service not found: " + request.getService()));
 
             if (!service.getActive()) {
                 throw new OrderValidationException("Service is not active");
             }
 
             // 3. Validate quantity
-            if (request.getQuantity() < service.getMinOrder() || request.getQuantity() > service.getMaxOrder()) {
+            if (request.getQuantity() < service.getMinOrder()
+                    || request.getQuantity() > service.getMaxOrder()) {
                 throw new OrderValidationException(
-                    String.format("Quantity must be between %d and %d", service.getMinOrder(), service.getMaxOrder()));
+                        String.format(
+                                "Quantity must be between %d and %d",
+                                service.getMinOrder(), service.getMaxOrder()));
             }
 
             // 4. Calculate charge
@@ -89,9 +100,10 @@ public class OrderService {
             order = orderRepository.save(order);
 
             // 6. Atomically check and deduct balance (prevents race conditions)
-            boolean balanceDeducted = balanceService.checkAndDeductBalance(user, charge, order, 
-                "Order payment for service " + service.getName());
-            
+            boolean balanceDeducted =
+                    balanceService.checkAndDeductBalance(
+                            user, charge, order, "Order payment for service " + service.getName());
+
             if (!balanceDeducted) {
                 // Clean up the order if balance deduction failed
                 orderRepository.delete(order);
@@ -101,7 +113,8 @@ public class OrderService {
             // 8. Send to processing queue
             kafkaTemplate.send("smm.youtube.processing", order.getId());
 
-            log.info("Order {} created successfully for user {}", order.getId(), user.getUsername());
+            log.info(
+                    "Order {} created successfully for user {}", order.getId(), user.getUsername());
 
             return mapToOrderResponse(order);
 
@@ -111,58 +124,59 @@ public class OrderService {
         }
     }
 
-    /**
-     * CRITICAL: Get order with API key (Perfect Panel compatibility)
-     */
+    /** CRITICAL: Get order with API key (Perfect Panel compatibility) */
     @Transactional(readOnly = true)
     public OrderResponse getOrderWithApiKey(Long orderId, String apiKey) {
         // Find user by API key
-        User user = userRepository.findByApiKeyHashAndIsActiveTrue(hashApiKey(apiKey))
-                .orElseThrow(() -> new OrderValidationException("Invalid API key"));
+        User user =
+                userRepository
+                        .findByApiKeyHashAndIsActiveTrue(hashApiKey(apiKey))
+                        .orElseThrow(() -> new OrderValidationException("Invalid API key"));
 
         // Find order belonging to user
-        Order order = orderRepository.findByIdAndUser(orderId, user)
-                .orElseThrow(() -> new OrderValidationException("Order not found"));
+        Order order =
+                orderRepository
+                        .findByIdAndUser(orderId, user)
+                        .orElseThrow(() -> new OrderValidationException("Order not found"));
 
         return mapToOrderResponse(order);
     }
 
-    /**
-     * CRITICAL: Get services for API key (Perfect Panel format)
-     */
+    /** CRITICAL: Get services for API key (Perfect Panel format) */
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getServicesForApiKey(String apiKey) {
         // Validate API key
-        User user = userRepository.findByApiKeyHashAndIsActiveTrue(hashApiKey(apiKey))
-                .orElseThrow(() -> new OrderValidationException("Invalid API key"));
+        User user =
+                userRepository
+                        .findByApiKeyHashAndIsActiveTrue(hashApiKey(apiKey))
+                        .orElseThrow(() -> new OrderValidationException("Invalid API key"));
 
         // Get active services
-        List<com.smmpanel.entity.Service> services = serviceRepository.findByActiveOrderByIdAsc(true);
+        List<com.smmpanel.entity.Service> services =
+                serviceRepository.findByActiveOrderByIdAsc(true);
 
         // Convert to Perfect Panel format
-        return services.stream()
-                .map(this::mapToServiceMap)
-                .collect(Collectors.toList());
+        return services.stream().map(this::mapToServiceMap).collect(Collectors.toList());
     }
 
-    /**
-     * CRITICAL: Get balance for API key (Perfect Panel format)
-     */
+    /** CRITICAL: Get balance for API key (Perfect Panel format) */
     @Transactional(readOnly = true)
     public String getBalanceForApiKey(String apiKey) {
-        User user = userRepository.findByApiKeyHashAndIsActiveTrue(hashApiKey(apiKey))
-                .orElseThrow(() -> new OrderValidationException("Invalid API key"));
+        User user =
+                userRepository
+                        .findByApiKeyHashAndIsActiveTrue(hashApiKey(apiKey))
+                        .orElseThrow(() -> new OrderValidationException("Invalid API key"));
 
         return user.getBalance().toString();
     }
 
-    /**
-     * CRITICAL: Get multiple order status (Perfect Panel batch)
-     */
+    /** CRITICAL: Get multiple order status (Perfect Panel batch) */
     @Transactional(readOnly = true)
     public Map<String, Object> getMultipleOrderStatus(String apiKey, String[] orderIds) {
-        User user = userRepository.findByApiKeyHashAndIsActiveTrue(hashApiKey(apiKey))
-                .orElseThrow(() -> new OrderValidationException("Invalid API key"));
+        User user =
+                userRepository
+                        .findByApiKeyHashAndIsActiveTrue(hashApiKey(apiKey))
+                        .orElseThrow(() -> new OrderValidationException("Invalid API key"));
 
         Map<String, Object> results = new HashMap<>();
 
@@ -170,7 +184,7 @@ public class OrderService {
             try {
                 Long orderId = Long.parseLong(orderIdStr.trim());
                 Order order = orderRepository.findByIdAndUser(orderId, user).orElse(null);
-                
+
                 if (order != null) {
                     Map<String, Object> orderStatus = new HashMap<>();
                     orderStatus.put("charge", order.getCharge().toString());
@@ -178,7 +192,7 @@ public class OrderService {
                     orderStatus.put("status", mapToPerfectPanelStatus(order.getStatus()));
                     orderStatus.put("remains", order.getRemains());
                     orderStatus.put("currency", "USD");
-                    
+
                     results.put(orderIdStr, orderStatus);
                 } else {
                     results.put(orderIdStr, Map.of("error", "Order not found"));
@@ -191,16 +205,18 @@ public class OrderService {
         return results;
     }
 
-    /**
-     * CRITICAL: Refill order with API key
-     */
+    /** CRITICAL: Refill order with API key */
     @Transactional
     public void refillOrderWithApiKey(Long orderId, String apiKey) {
-        User user = userRepository.findByApiKeyHashAndIsActiveTrue(hashApiKey(apiKey))
-                .orElseThrow(() -> new OrderValidationException("Invalid API key"));
+        User user =
+                userRepository
+                        .findByApiKeyHashAndIsActiveTrue(hashApiKey(apiKey))
+                        .orElseThrow(() -> new OrderValidationException("Invalid API key"));
 
-        Order order = orderRepository.findByIdAndUser(orderId, user)
-                .orElseThrow(() -> new OrderValidationException("Order not found"));
+        Order order =
+                orderRepository
+                        .findByIdAndUser(orderId, user)
+                        .orElseThrow(() -> new OrderValidationException("Order not found"));
 
         if (!order.getStatus().equals(OrderStatus.COMPLETED)) {
             throw new OrderValidationException("Order must be completed to refill");
@@ -216,33 +232,41 @@ public class OrderService {
         log.info("Order {} refill initiated by user {}", orderId, user.getUsername());
     }
 
-    /**
-     * CRITICAL: Cancel order with API key
-     */
+    /** CRITICAL: Cancel order with API key */
     @Transactional
     public void cancelOrderWithApiKey(Long orderId, String apiKey) {
-        User user = userRepository.findByApiKeyHashAndIsActiveTrue(hashApiKey(apiKey))
-                .orElseThrow(() -> new OrderValidationException("Invalid API key"));
+        User user =
+                userRepository
+                        .findByApiKeyHashAndIsActiveTrue(hashApiKey(apiKey))
+                        .orElseThrow(() -> new OrderValidationException("Invalid API key"));
 
-        Order order = orderRepository.findByIdAndUser(orderId, user)
-                .orElseThrow(() -> new OrderValidationException("Order not found"));
+        Order order =
+                orderRepository
+                        .findByIdAndUser(orderId, user)
+                        .orElseThrow(() -> new OrderValidationException("Order not found"));
 
-        if (order.getStatus().equals(OrderStatus.COMPLETED) || 
-            order.getStatus().equals(OrderStatus.CANCELLED)) {
-            throw new OrderValidationException("Cannot cancel order in " + order.getStatus() + " status");
+        if (order.getStatus().equals(OrderStatus.COMPLETED)
+                || order.getStatus().equals(OrderStatus.CANCELLED)) {
+            throw new OrderValidationException(
+                    "Cannot cancel order in " + order.getStatus() + " status");
         }
 
         // Cancel order and refund balance
         BigDecimal refundAmount = calculateRefund(order);
         if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
-            balanceService.refund(user, refundAmount, order, "Refund for cancelled order " + orderId);
+            balanceService.refund(
+                    user, refundAmount, order, "Refund for cancelled order " + orderId);
         }
 
         order.setStatus(OrderStatus.CANCELLED);
         order.setUpdatedAt(LocalDateTime.now());
         orderRepository.save(order);
 
-        log.info("Order {} cancelled by user {}, refund: {}", orderId, user.getUsername(), refundAmount);
+        log.info(
+                "Order {} cancelled by user {}, refund: {}",
+                orderId,
+                user.getUsername(),
+                refundAmount);
     }
 
     // Private helper methods
@@ -255,7 +279,7 @@ public class OrderService {
             java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(apiKey.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             StringBuilder hexString = new StringBuilder();
-            
+
             for (byte b : hash) {
                 String hex = Integer.toHexString(0xff & b);
                 if (hex.length() == 1) {
@@ -263,7 +287,7 @@ public class OrderService {
                 }
                 hexString.append(hex);
             }
-            
+
             return hexString.toString();
         } catch (java.security.NoSuchAlgorithmException e) {
             throw new RuntimeException("SHA-256 algorithm not available", e);
@@ -280,12 +304,16 @@ public class OrderService {
         if (order.getRemains() <= 0) {
             return BigDecimal.ZERO;
         }
-        
+
         // Refund proportional to remaining quantity
         BigDecimal totalCharge = order.getCharge();
-        BigDecimal completedRatio = BigDecimal.valueOf(order.getQuantity() - order.getRemains())
-                .divide(BigDecimal.valueOf(order.getQuantity()), 4, java.math.RoundingMode.HALF_UP);
-        
+        BigDecimal completedRatio =
+                BigDecimal.valueOf(order.getQuantity() - order.getRemains())
+                        .divide(
+                                BigDecimal.valueOf(order.getQuantity()),
+                                4,
+                                java.math.RoundingMode.HALF_UP);
+
         return totalCharge.subtract(totalCharge.multiply(completedRatio));
     }
 
@@ -314,9 +342,7 @@ public class OrderService {
         return serviceMap;
     }
 
-    /**
-     * CRITICAL: Status mapping MUST match Perfect Panel exactly
-     */
+    /** CRITICAL: Status mapping MUST match Perfect Panel exactly */
     private String mapToPerfectPanelStatus(OrderStatus status) {
         return switch (status) {
             case PENDING -> "Pending";
@@ -324,7 +350,7 @@ public class OrderService {
             case ACTIVE -> "In progress";
             case PARTIAL -> "Partial";
             case COMPLETED -> "Completed";
-            case CANCELLED -> "Canceled";  // Note: Perfect Panel uses "Canceled"
+            case CANCELLED -> "Canceled"; // Note: Perfect Panel uses "Canceled"
             case PAUSED -> "Paused";
             case HOLDING -> "In progress";
             case REFILL -> "Refill";
@@ -335,31 +361,38 @@ public class OrderService {
 
     // Additional methods required by the interface
     public OrderResponse createOrder(CreateOrderRequest request, String username) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new OrderValidationException("User not found"));
+        User user =
+                userRepository
+                        .findByUsername(username)
+                        .orElseThrow(() -> new OrderValidationException("User not found"));
         return createOrderWithApiKey(request, user.getApiKey());
     }
 
     public OrderResponse createOrder(OrderCreateRequest request, String username) {
         // Convert OrderCreateRequest to CreateOrderRequest
-        CreateOrderRequest createRequest = CreateOrderRequest.builder()
-                .service(request.getServiceId())
-                .link(request.getLink())
-                .quantity(request.getQuantity())
-                .build();
+        CreateOrderRequest createRequest =
+                CreateOrderRequest.builder()
+                        .service(request.getServiceId())
+                        .link(request.getLink())
+                        .quantity(request.getQuantity())
+                        .build();
         return createOrder(createRequest, username);
     }
 
     public OrderResponse getOrder(Long orderId, String username) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new OrderValidationException("User not found"));
+        User user =
+                userRepository
+                        .findByUsername(username)
+                        .orElseThrow(() -> new OrderValidationException("User not found"));
         return getOrderWithApiKey(orderId, user.getApiKey());
     }
 
     public Page<OrderResponse> getUserOrders(String username, String status, Pageable pageable) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new OrderValidationException("User not found"));
-        
+        User user =
+                userRepository
+                        .findByUsername(username)
+                        .orElseThrow(() -> new OrderValidationException("User not found"));
+
         Page<Order> orders;
         if (status != null && !status.isEmpty()) {
             OrderStatus orderStatus = mapFromPerfectPanelStatus(status);
@@ -367,23 +400,26 @@ public class OrderService {
         } else {
             orders = orderRepository.findByUser(user, pageable);
         }
-        
+
         return orders.map(this::mapToOrderResponse);
     }
 
     public void cancelOrder(Long orderId, String username) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new OrderValidationException("User not found"));
+        User user =
+                userRepository
+                        .findByUsername(username)
+                        .orElseThrow(() -> new OrderValidationException("User not found"));
         cancelOrderWithApiKey(orderId, user.getApiKey());
     }
 
     public com.smmpanel.dto.response.OrderStatistics getOrderStatistics(int days) {
         LocalDateTime startDate = LocalDateTime.now().minusDays(days);
         List<Order> orders = orderRepository.findOrdersCreatedAfter(startDate);
-        
-        Map<OrderStatus, Long> statusCounts = orders.stream()
-                .collect(Collectors.groupingBy(Order::getStatus, Collectors.counting()));
-        
+
+        Map<OrderStatus, Long> statusCounts =
+                orders.stream()
+                        .collect(Collectors.groupingBy(Order::getStatus, Collectors.counting()));
+
         return com.smmpanel.dto.response.OrderStatistics.builder()
                 .totalOrders((long) orders.size())
                 .pendingOrders(statusCounts.getOrDefault(OrderStatus.PENDING, 0L))
@@ -392,7 +428,8 @@ public class OrderService {
                 .build();
     }
 
-    public com.smmpanel.dto.response.BulkOperationResult performBulkOperation(com.smmpanel.dto.request.BulkOrderRequest request) {
+    public com.smmpanel.dto.response.BulkOperationResult performBulkOperation(
+            com.smmpanel.dto.request.BulkOrderRequest request) {
         // Implementation for bulk operations
         return com.smmpanel.dto.response.BulkOperationResult.builder()
                 .success(true)
@@ -423,7 +460,8 @@ public class OrderService {
     }
 
     // Optimized delegate methods
-    public Page<OrderResponse> getUserOrdersOptimized(String username, String status, Pageable pageable) {
+    public Page<OrderResponse> getUserOrdersOptimized(
+            String username, String status, Pageable pageable) {
         return getUserOrders(username, status, pageable);
     }
 
@@ -436,19 +474,21 @@ public class OrderService {
     }
 
     public Map<Long, OrderResponse> getOrdersBatchOptimized(List<Long> orderIds, String username) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new OrderValidationException("User not found"));
-        
+        User user =
+                userRepository
+                        .findByUsername(username)
+                        .orElseThrow(() -> new OrderValidationException("User not found"));
+
         // Use existing method to get orders by user then filter by IDs
         List<Order> allUserOrders = orderRepository.findOrdersWithDetailsByUserId(user.getId());
         Map<Long, OrderResponse> result = new HashMap<>();
-        
+
         for (Order order : allUserOrders) {
             if (orderIds.contains(order.getId())) {
                 result.put(order.getId(), mapToOrderResponse(order));
             }
         }
-        
+
         return result;
     }
 }

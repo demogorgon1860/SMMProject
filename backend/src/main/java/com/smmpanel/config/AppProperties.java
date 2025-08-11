@@ -1,18 +1,15 @@
 package com.smmpanel.config;
 
-import lombok.Data;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.validation.annotation.Validated;
-
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.Duration;
+import lombok.Data;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
 
-/**
- * Application Configuration Properties
- */
+/** Application Configuration Properties */
 @Data
 @Validated
 @ConfigurationProperties(prefix = "app")
@@ -42,22 +39,21 @@ public class AppProperties {
 
     @Data
     public static class Jwt {
-        @NotBlank
-        private String secret = "your-super-secret-jwt-key-change-in-production";
-        
+        @NotBlank private String secret = "your-super-secret-jwt-key-change-in-production";
+
         @Min(1)
         private long expirationMs = 86400000;
-        
+
         @Min(1)
         private long refreshExpirationMs = 604800000;
-        
+
         private String issuer = "smmpanel";
     }
 
     @Data
     public static class Security {
         private ApiKey apiKey = new ApiKey();
-        
+
         @Data
         public static class ApiKey {
             private boolean enabled = true;
@@ -72,7 +68,7 @@ public class AppProperties {
         private String allowedMethods = "GET,POST,PUT,DELETE,OPTIONS";
         private String allowedHeaders = "*";
         private boolean allowCredentials = true;
-        
+
         @Min(1)
         private int maxAge = 3600;
     }
@@ -83,25 +79,25 @@ public class AppProperties {
         private Orders orders = new Orders();
         private Api api = new Api();
         private Auth auth = new Auth();
-        
+
         @Data
         public static class Orders {
             @Min(1)
             private int perMinute = 10;
-            
+
             @Min(1)
             private int perHour = 100;
         }
-        
+
         @Data
         public static class Api {
             @Min(1)
             private int perMinute = 60;
-            
+
             @Min(1)
             private int perHour = 1000;
         }
-        
+
         @Data
         public static class Auth {
             @Min(1)
@@ -113,21 +109,19 @@ public class AppProperties {
     public static class Binom {
         private Api api = new Api();
         private double defaultCoefficient = 3.0;
-        
+
         @Min(1)
         private int maxCampaignsPerOrder = 5;
-        
+
         @Data
         public static class Api {
-            @NotBlank
-            private String url = "https://your-binom-domain.com/api";
-            
-            @NotBlank
-            private String key = "your-binom-api-key";
-            
+            @NotBlank private String url = "https://your-binom-domain.com/api";
+
+            @NotBlank private String key = "your-binom-api-key";
+
             @Min(1)
             private int timeout = 30000;
-            
+
             @Min(1)
             private int retryAttempts = 3;
         }
@@ -138,33 +132,32 @@ public class AppProperties {
         private Api api = new Api();
         private Quota quota = new Quota();
         private ClipCreation clipCreation = new ClipCreation();
-        
+
         @Data
         public static class Api {
-            @NotBlank
-            private String key = "your-youtube-api-key";
-            
+            @NotBlank private String key = "your-youtube-api-key";
+
             @Min(1)
             private int timeout = 15000;
-            
+
             @Min(1)
             private int retryAttempts = 2;
         }
-        
+
         @Data
         public static class Quota {
             @Min(1)
             private int dailyLimit = 10000;
-            
+
             @Min(1)
             private int per100Seconds = 100;
         }
-        
+
         @Data
         public static class ClipCreation {
             private boolean enabled = true;
             private double coefficient = 3.0;
-            
+
             @Min(1)
             private long timeout = 300000;
         }
@@ -174,29 +167,24 @@ public class AppProperties {
     public static class Cryptomus {
         private Api api = new Api();
         private Webhook webhook = new Webhook();
-        
+
         @Min(1)
         private int timeout = 30000;
-        
-        @NotNull
-        private BigDecimal minDeposit = new BigDecimal("5.00");
-        
+
+        @NotNull private BigDecimal minDeposit = new BigDecimal("5.00");
+
         @Data
         public static class Api {
-            @NotBlank
-            private String url = "https://api.cryptomus.com/v1";
-            
-            @NotBlank
-            private String key = "your-cryptomus-api-key";
-            
-            @NotBlank
-            private String secret = "your-cryptomus-api-secret";
+            @NotBlank private String url = "https://api.cryptomus.com/v1";
+
+            @NotBlank private String key = "your-cryptomus-api-key";
+
+            @NotBlank private String secret = "your-cryptomus-api-secret";
         }
-        
+
         @Data
         public static class Webhook {
-            @NotBlank
-            private String secret = "your-webhook-secret";
+            @NotBlank private String secret = "your-webhook-secret";
         }
     }
 
@@ -205,45 +193,44 @@ public class AppProperties {
         private Driver driver = new Driver();
         private boolean headless = true;
         private Timeout timeout = new Timeout();
-        
+
         @Min(1)
         private int maxConcurrentSessions = 5;
-        
+
         private Hub hub = new Hub();
         private Browser browser = new Browser();
         private Retry retry = new Retry();
-        
+
         @Data
         public static class Driver {
             private String path = "/usr/local/bin/chromedriver";
         }
-        
+
         @Data
         public static class Timeout {
             @Min(1)
             private int pageLoad = 30;
-            
+
             @Min(1)
             private int implicit = 10;
         }
-        
+
         @Data
         public static class Hub {
-            @NotBlank
-            private String url = "http://selenium-hub:4444/wd/hub";
-            
+            @NotBlank private String url = "http://selenium-hub:4444/wd/hub";
+
             @Min(1)
             private long timeout = 300000;
-            
+
             @Min(1)
             private int maxSessions = 10;
         }
-        
+
         @Data
         public static class Browser {
             private boolean headless = true;
         }
-        
+
         @Data
         public static class Retry {
             @Min(1)
@@ -257,25 +244,25 @@ public class AppProperties {
         private Users users = new Users();
         private ConversionCoefficients conversionCoefficients = new ConversionCoefficients();
         private YoutubeStats youtubeStats = new YoutubeStats();
-        
+
         @Data
         public static class Services {
             @Min(1)
             private int ttl = 3600;
         }
-        
+
         @Data
         public static class Users {
             @Min(1)
             private int ttl = 1800;
         }
-        
+
         @Data
         public static class ConversionCoefficients {
             @Min(1)
             private int ttl = 7200;
         }
-        
+
         @Data
         public static class YoutubeStats {
             @Min(1)
@@ -287,17 +274,17 @@ public class AppProperties {
     public static class File {
         private Upload upload = new Upload();
         private Processing processing = new Processing();
-        
+
         @Data
         public static class Upload {
             private String path = "/tmp/smm-panel/uploads";
         }
-        
+
         @Data
         public static class Processing {
             @Min(1)
             private int timeout = 300;
-            
+
             @Min(1)
             private int maxConcurrent = 3;
         }
@@ -312,30 +299,29 @@ public class AppProperties {
     @Data
     public static class Order {
         private Processing processing = new Processing();
-        
+
         @Data
         public static class Processing {
             @Min(1)
             private int batchSize = 100;
-            
+
             @Min(0)
             private int maxRetries = 3;
-            
+
             @Min(1)
             private int retryDelay = 5000;
-            
+
             @Min(1)
             private int timeout = 300000;
-            
+
             private ClipCreation clipCreation = new ClipCreation();
-            
+
             @Data
             public static class ClipCreation {
                 private boolean enabled = true;
-                
-                @NotNull
-                private Duration timeout = Duration.ofMinutes(5);
-                
+
+                @NotNull private Duration timeout = Duration.ofMinutes(5);
+
                 @Min(0)
                 private int retryAttempts = 2;
             }
@@ -345,30 +331,28 @@ public class AppProperties {
     @Data
     public static class Video {
         private Processing processing = new Processing();
-        
+
         @Data
         public static class Processing {
             @Min(1)
             private int maxConcurrent = 5;
-            
+
             @Min(1)
             private int timeout = 600000;
-            
+
             @Min(1)
             private int clipLength = 60;
-            
+
             private String quality = "medium";
         }
     }
 
     @Data
     public static class Balance {
-        @NotNull
-        private BigDecimal minimumDeposit = new BigDecimal("1.00");
-        
-        @NotNull
-        private BigDecimal maximumDeposit = new BigDecimal("10000.00");
-        
+        @NotNull private BigDecimal minimumDeposit = new BigDecimal("1.00");
+
+        @NotNull private BigDecimal maximumDeposit = new BigDecimal("10000.00");
+
         @Min(1)
         private int transactionTimeout = 300000;
     }
@@ -378,7 +362,7 @@ public class AppProperties {
         private boolean compatible = true;
         private String apiVersion = "2.0";
         private StatusMapping statusMapping = new StatusMapping();
-        
+
         @Data
         public static class StatusMapping {
             private boolean enabled = true;
@@ -396,13 +380,13 @@ public class AppProperties {
     @Data
     public static class Monitoring {
         private boolean enabled = true;
-        
+
         @Min(1)
         private int slowQueryThreshold = 1000;
-        
+
         @Min(1)
         private int memoryThreshold = 80;
-        
+
         @Min(1)
         private int cpuThreshold = 80;
     }
@@ -416,7 +400,7 @@ public class AppProperties {
     @Data
     public static class Notifications {
         private Kafka kafka = new Kafka();
-        
+
         @Data
         public static class Kafka {
             private boolean enabled = true;
@@ -434,4 +418,4 @@ public class AppProperties {
         private boolean enabled = false;
         private String webhookUrl = "";
     }
-} 
+}

@@ -3,9 +3,7 @@ package com.smmpanel.service;
 import lombok.Builder;
 import lombok.Data;
 
-/**
- * Manual retry operation result
- */
+/** Manual retry operation result */
 @Builder
 @Data
 public class ManualRetryResult {
@@ -15,7 +13,8 @@ public class ManualRetryResult {
     private final String operatorNotes;
     private final boolean retryCountReset;
 
-    public static ManualRetryResult success(Long orderId, String operatorNotes, boolean retryCountReset) {
+    public static ManualRetryResult success(
+            Long orderId, String operatorNotes, boolean retryCountReset) {
         return ManualRetryResult.builder()
                 .orderId(orderId)
                 .success(true)

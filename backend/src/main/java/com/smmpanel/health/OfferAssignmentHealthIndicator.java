@@ -1,7 +1,7 @@
 package com.smmpanel.health;
 
-import com.smmpanel.repository.FixedBinomCampaignRepository;
 import com.smmpanel.client.BinomClient;
+import com.smmpanel.repository.jpa.FixedBinomCampaignRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
@@ -19,7 +19,7 @@ public class OfferAssignmentHealthIndicator implements HealthIndicator {
         try {
             // Check if exactly 3 fixed campaigns are configured
             long activeCampaignsCount = fixedCampaignRepository.countActiveCampaigns();
-            
+
             if (activeCampaignsCount != 3) {
                 return Health.down()
                         .withDetail("active_campaigns", activeCampaignsCount)
@@ -31,12 +31,12 @@ public class OfferAssignmentHealthIndicator implements HealthIndicator {
             // Test Binom API connectivity (simple check)
             try {
                 binomClient.checkOfferExists("HEALTH_CHECK_OFFER");
-                
+
                 return Health.up()
                         .withDetail("active_campaigns", activeCampaignsCount)
                         .withDetail("binom_api", "accessible")
                         .build();
-                        
+
             } catch (Exception binomError) {
                 return Health.down()
                         .withDetail("active_campaigns", activeCampaignsCount)
@@ -46,9 +46,7 @@ public class OfferAssignmentHealthIndicator implements HealthIndicator {
             }
 
         } catch (Exception e) {
-            return Health.down()
-                    .withDetail("error", e.getMessage())
-                    .build();
+            return Health.down().withDetail("error", e.getMessage()).build();
         }
     }
 }

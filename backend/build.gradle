@@ -3,6 +3,8 @@ plugins {
     id 'org.springframework.boot' version '3.1.7'
     id 'io.spring.dependency-management' version '1.1.4'
     id 'org.flywaydb.flyway' version '9.22.3'
+    id 'jacoco'
+    id 'com.diffplug.spotless' version '6.25.0'
 }
 
 // Apply performance testing configuration
@@ -17,11 +19,21 @@ configurations {
     compileOnly {
         extendsFrom annotationProcessor
     }
+    all {
+        exclude group: 'commons-logging', module: 'commons-logging'
+        exclude group: 'commons-logging', module: 'commons-logging-api'
+        exclude group: 'org.apache.logging.log4j', module: 'log4j-to-slf4j'
+        exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+        exclude group: 'log4j', module: 'log4j'
+    }
 }
 
 repositories {
     mavenCentral()
-    maven { url 'https://repo.spring.io/milestone' }
+    maven { 
+        url = uri('https://repo.spring.io/milestone')
+        name = 'SpringMilestone'
+    }
 }
 
 dependencies {
@@ -51,8 +63,8 @@ dependencies {
     implementation 'org.apache.commons:commons-pool2'
     
     // Rate limiting
-    implementation 'com.bucket4j:bucket4j-core:8.7.0'
-    implementation 'com.bucket4j:bucket4j-redis:8.7.0'
+    implementation 'com.bucket4j:bucket4j-core:8.8.0'
+    implementation 'com.bucket4j:bucket4j-redis:8.8.0'
     implementation 'io.lettuce:lettuce-core:6.2.6.RELEASE'
     
     // Database
@@ -139,8 +151,8 @@ dependencies {
     testImplementation 'com.h2database:h2:2.2.224'
 }
 
-// CRITICAL: Configure annotation processing properly
-compileJava {
+// Configure annotation processing for Gradle 9.0 compatibility
+tasks.withType(JavaCompile).configureEach {
     options.annotationProcessorPath = configurations.annotationProcessor
 }
 
@@ -148,11 +160,34 @@ compileTestJava {
     options.annotationProcessorPath = configurations.testAnnotationProcessor
 }
 
+// Configure test task for Gradle 9.0 compatibility
 test {
     useJUnitPlatform()
     testLogging {
         events "passed", "skipped", "failed"
         exceptionFormat "full"
+    }
+    finalizedBy jacocoTestReport
+}
+
+// Configure Jacoco for test coverage
+jacocoTestReport {
+    reports {
+        xml.required = true
+        html.required = true
+    }
+    dependsOn test
+}
+
+// Configure Spotless for code formatting
+spotless {
+    java {
+        target fileTree('.') {
+            include '**/*.java'
+            exclude '**/build/**', '**/target/**'
+        }
+        googleJavaFormat('1.19.2').aosp().reflowLongStrings()
+        formatAnnotations()
     }
 }
 
@@ -160,6 +195,17 @@ springBoot {
     buildInfo()
 }
 
+// Disable plain JAR for Spring Boot
 jar {
     enabled = false
+    archiveClassifier = ''
+}
+
+flyway {
+    url = "jdbc:postgresql://localhost:5432/smm_panel"
+    user = "smm_admin"
+    password = "dev_password_123"
+    locations = ["classpath:db/migration"]
+    baselineOnMigrate = true
+    validateOnMigrate = true
 }

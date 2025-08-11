@@ -6,24 +6,23 @@ import com.google.api.services.youtube.YouTube;
 import com.google.api.services.youtube.model.Video;
 import com.google.api.services.youtube.model.VideoListResponse;
 import com.smmpanel.exception.YouTubeApiException;
+import java.util.Collections;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.Collections;
-
 @Slf4j
 @Service
 @Transactional(readOnly = true)
 public class YouTubeService {
 
-    private static final Pattern VIDEO_ID_PATTERN = Pattern.compile(
-        "(?:youtube\\.com/(?:[^/]+/.+/|(?:v|e(?:mbed)?)/|.*[?&]v=)|youtu\\.be/)([^\"&?/\\s]{11})"
-    );
+    private static final Pattern VIDEO_ID_PATTERN =
+            Pattern.compile(
+                    "(?:youtube\\.com/(?:[^/]+/.+/|(?:v|e(?:mbed)?)/|.*[?&]v=)|youtu\\.be/)([^\"&?/\\s]{11})");
 
     @Value("${app.youtube.api.key}")
     private String apiKey;
@@ -31,18 +30,20 @@ public class YouTubeService {
     private final YouTube youtube;
 
     public YouTubeService() throws Exception {
-        this.youtube = new YouTube.Builder(
-            GoogleNetHttpTransport.newTrustedTransport(),
-            GsonFactory.getDefaultInstance(),
-            null
-        ).setApplicationName("SMM Panel").build();
+        this.youtube =
+                new YouTube.Builder(
+                                GoogleNetHttpTransport.newTrustedTransport(),
+                                GsonFactory.getDefaultInstance(),
+                                null)
+                        .setApplicationName("SMM Panel")
+                        .build();
     }
 
     public String extractVideoId(String url) {
         if (url == null || url.trim().isEmpty()) {
             throw new YouTubeApiException("YouTube URL cannot be null or empty");
         }
-        
+
         Matcher matcher = VIDEO_ID_PATTERN.matcher(url);
         if (matcher.find()) {
             return matcher.group(1);
@@ -55,15 +56,16 @@ public class YouTubeService {
         if (videoId == null || videoId.trim().isEmpty()) {
             throw new YouTubeApiException("Video ID cannot be null or empty");
         }
-        
+
         try {
-            YouTube.Videos.List request = youtube.videos()
-                .list(Collections.singletonList("statistics"))
-                .setId(Collections.singletonList(videoId))
-                .setKey(apiKey);
+            YouTube.Videos.List request =
+                    youtube.videos()
+                            .list(Collections.singletonList("statistics"))
+                            .setId(Collections.singletonList(videoId))
+                            .setKey(apiKey);
 
             VideoListResponse response = request.execute();
-            
+
             if (!response.getItems().isEmpty()) {
                 Video video = response.getItems().get(0);
                 return video.getStatistics().getViewCount().longValue();

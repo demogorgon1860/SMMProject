@@ -1,9 +1,12 @@
 package com.smmpanel.service;
 
+import com.smmpanel.dto.kafka.VideoProcessingMessage;
 import com.smmpanel.entity.Order;
 import com.smmpanel.entity.OrderStatus;
-import com.smmpanel.repository.OrderRepository;
-import com.smmpanel.dto.kafka.VideoProcessingMessage;
+import com.smmpanel.repository.jpa.OrderRepository;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,22 +20,16 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Propagation;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * DEAD LETTER QUEUE SERVICE
- * 
- * Handles permanently failed messages and orders:
- * 1. Consumes messages from dead letter queue topic
- * 2. Stores failed messages for operator review
- * 3. Provides dead letter queue management operations
- * 4. Tracks dead letter queue metrics and statistics
- * 5. Automated cleanup of old dead letter queue entries
+ *
+ * <p>Handles permanently failed messages and orders: 1. Consumes messages from dead letter queue
+ * topic 2. Stores failed messages for operator review 3. Provides dead letter queue management
+ * operations 4. Tracks dead letter queue metrics and statistics 5. Automated cleanup of old dead
+ * letter queue entries
  */
 @Slf4j
 @Service
@@ -57,15 +54,11 @@ public class DeadLetterQueueService {
     private final AtomicLong dlqMessagesProcessed = new AtomicLong(0);
     private final AtomicLong dlqMessagesFailed = new AtomicLong(0);
 
-    /**
-     * DEAD LETTER QUEUE CONSUMER
-     * Consumes messages that have permanently failed processing
-     */
+    /** DEAD LETTER QUEUE CONSUMER Consumes messages that have permanently failed processing */
     @KafkaListener(
-        topics = "${app.kafka.dead-letter-queue.topic:video.processing.dlq}",
-        groupId = "${app.kafka.dead-letter-queue.consumer.group-id:dlq-processing-group}",
-        containerFactory = "deadLetterQueueKafkaListenerContainerFactory"
-    )
+            topics = "${app.kafka.dead-letter-queue.topic:video.processing.dlq}",
+            groupId = "${app.kafka.dead-letter-queue.consumer.group-id:dlq-processing-group}",
+            containerFactory = "deadLetterQueueKafkaListenerContainerFactory")
     public void processDeadLetterMessage(
             @Payload VideoProcessingMessage message,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
@@ -75,13 +68,16 @@ public class DeadLetterQueueService {
 
         try {
             dlqMessagesReceived.incrementAndGet();
-            
-            log.warn("Processing dead letter queue message: orderId={}, attempts={}, reason={}", 
-                    message.getOrderId(), message.getAttemptNumber(), 
+
+            log.warn(
+                    "Processing dead letter queue message: orderId={}, attempts={}, reason={}",
+                    message.getOrderId(),
+                    message.getAttemptNumber(),
                     message.getMetadata().getOrDefault("dlq-reason", "unknown"));
 
             // Store dead letter queue entry
-            DeadLetterQueueEntry dlqEntry = createDeadLetterQueueEntry(message, topic, partition, offset);
+            DeadLetterQueueEntry dlqEntry =
+                    createDeadLetterQueueEntry(message, topic, partition, offset);
             storeDlqEntry(dlqEntry);
 
             // Update order status to reflect permanent failure
@@ -96,21 +92,23 @@ public class DeadLetterQueueService {
             log.warn("Dead letter queue message processed: orderId={}", message.getOrderId());
 
         } catch (Exception e) {
-            log.error("Failed to process dead letter queue message: orderId={}, error={}", 
-                    message.getOrderId(), e.getMessage(), e);
+            log.error(
+                    "Failed to process dead letter queue message: orderId={}, error={}",
+                    message.getOrderId(),
+                    e.getMessage(),
+                    e);
             dlqMessagesFailed.incrementAndGet();
             acknowledgment.acknowledge(); // Acknowledge to prevent infinite reprocessing
         }
     }
 
-    /**
-     * SEND TO DEAD LETTER QUEUE
-     * Manually send a message to the dead letter queue
-     */
+    /** SEND TO DEAD LETTER QUEUE Manually send a message to the dead letter queue */
     public void sendToDeadLetterQueue(VideoProcessingMessage message, String reason) {
         try {
-            log.warn("Sending message to dead letter queue: orderId={}, reason={}", 
-                    message.getOrderId(), reason);
+            log.warn(
+                    "Sending message to dead letter queue: orderId={}, reason={}",
+                    message.getOrderId(),
+                    reason);
 
             // Add DLQ metadata
             message.addMetadata("dlq-timestamp", LocalDateTime.now().toString());
@@ -118,49 +116,52 @@ public class DeadLetterQueueService {
             message.addMetadata("dlq-final-attempt", message.getAttemptNumber().toString());
 
             // Send to DLQ topic
-            kafkaTemplate.send(deadLetterQueueTopic, message.getRoutingKey(), message)
-                    .whenComplete((result, ex) -> {
-                        if (ex == null) {
-                            log.info("Successfully sent message to DLQ: orderId={}", message.getOrderId());
-                        } else {
-                            log.error("Failed to send message to DLQ: orderId={}, error={}", 
-                                    message.getOrderId(), ex.getMessage(), ex);
-                        }
-                    });
+            kafkaTemplate
+                    .send(deadLetterQueueTopic, message.getRoutingKey(), message)
+                    .whenComplete(
+                            (result, ex) -> {
+                                if (ex == null) {
+                                    log.info(
+                                            "Successfully sent message to DLQ: orderId={}",
+                                            message.getOrderId());
+                                } else {
+                                    log.error(
+                                            "Failed to send message to DLQ: orderId={}, error={}",
+                                            message.getOrderId(),
+                                            ex.getMessage(),
+                                            ex);
+                                }
+                            });
 
         } catch (Exception e) {
-            log.error("Error sending message to dead letter queue: orderId={}, error={}", 
-                    message.getOrderId(), e.getMessage(), e);
+            log.error(
+                    "Error sending message to dead letter queue: orderId={}, error={}",
+                    message.getOrderId(),
+                    e.getMessage(),
+                    e);
         }
     }
 
-    /**
-     * GET DEAD LETTER QUEUE ENTRIES
-     * Retrieves dead letter queue entries for operator review
-     */
+    /** GET DEAD LETTER QUEUE ENTRIES Retrieves dead letter queue entries for operator review */
     public Page<Order> getDeadLetterQueueOrders(Pageable pageable) {
         return orderRepository.findDeadLetterQueueOrders(pageable);
     }
 
-    /**
-     * GET DEAD LETTER QUEUE ENTRIES BY ERROR TYPE
-     * Retrieves DLQ entries filtered by error type
-     */
+    /** GET DEAD LETTER QUEUE ENTRIES BY ERROR TYPE Retrieves DLQ entries filtered by error type */
     public Page<Order> getDeadLetterQueueOrdersByErrorType(String errorType, Pageable pageable) {
         return orderRepository.findOrdersByErrorType(errorType, pageable);
     }
 
-    /**
-     * PURGE DEAD LETTER QUEUE ENTRY
-     * Permanently removes a dead letter queue entry
-     */
+    /** PURGE DEAD LETTER QUEUE ENTRY Permanently removes a dead letter queue entry */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public DlqOperationResult purgeDeadLetterQueueEntry(Long orderId, String operatorNotes) {
         try {
             log.info("Purging dead letter queue entry for order {}: {}", orderId, operatorNotes);
 
-            Order order = orderRepository.findById(orderId)
-                    .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+            Order order =
+                    orderRepository
+                            .findById(orderId)
+                            .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
 
             if (!order.getIsManuallyFailed() && order.getRetryCount() < order.getMaxRetries()) {
                 return DlqOperationResult.failed(orderId, "Order is not in dead letter queue");
@@ -178,14 +179,17 @@ public class DeadLetterQueueService {
             return DlqOperationResult.success(orderId, "Entry purged successfully");
 
         } catch (Exception e) {
-            log.error("Failed to purge dead letter queue entry for order {}: {}", orderId, e.getMessage(), e);
+            log.error(
+                    "Failed to purge dead letter queue entry for order {}: {}",
+                    orderId,
+                    e.getMessage(),
+                    e);
             return DlqOperationResult.failed(orderId, "Purge failed: " + e.getMessage());
         }
     }
 
     /**
-     * REQUEUE FROM DEAD LETTER QUEUE
-     * Moves order back to processing queue with reset retry count
+     * REQUEUE FROM DEAD LETTER QUEUE Moves order back to processing queue with reset retry count
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public DlqOperationResult requeueFromDeadLetterQueue(Long orderId, String operatorNotes) {
@@ -193,44 +197,50 @@ public class DeadLetterQueueService {
             log.info("Requeuing order {} from dead letter queue: {}", orderId, operatorNotes);
 
             // Use manual retry functionality from ErrorRecoveryService
-            ManualRetryResult retryResult = errorRecoveryService.manualRetry(orderId, operatorNotes, true);
+            ManualRetryResult retryResult =
+                    errorRecoveryService.manualRetry(orderId, operatorNotes, true);
 
             if (retryResult.isSuccess()) {
                 log.info("Successfully requeued order {} from dead letter queue", orderId);
                 return DlqOperationResult.success(orderId, "Order requeued successfully");
             } else {
-                return DlqOperationResult.failed(orderId, "Requeue failed: " + retryResult.getErrorMessage());
+                return DlqOperationResult.failed(
+                        orderId, "Requeue failed: " + retryResult.getErrorMessage());
             }
 
         } catch (Exception e) {
-            log.error("Failed to requeue order {} from dead letter queue: {}", orderId, e.getMessage(), e);
+            log.error(
+                    "Failed to requeue order {} from dead letter queue: {}",
+                    orderId,
+                    e.getMessage(),
+                    e);
             return DlqOperationResult.failed(orderId, "Requeue failed: " + e.getMessage());
         }
     }
 
-    /**
-     * GET DEAD LETTER QUEUE STATISTICS
-     * Returns statistics about dead letter queue
-     */
+    /** GET DEAD LETTER QUEUE STATISTICS Returns statistics about dead letter queue */
     public DeadLetterQueueStats getDeadLetterQueueStatistics() {
         try {
             long totalDlqOrders = orderRepository.countDeadLetterQueueOrders();
-            
+
             LocalDateTime past24Hours = LocalDateTime.now().minusHours(24);
             LocalDateTime pastWeek = LocalDateTime.now().minusWeeks(1);
-            
+
             // Get recent DLQ additions (would need additional query methods)
             long dlqLast24Hours = getDlqOrdersCount(past24Hours);
             long dlqLastWeek = getDlqOrdersCount(pastWeek);
 
             // Get breakdown by error type
             List<Object[]> errorTypeStats = orderRepository.getErrorTypeStatistics();
-            List<DlqErrorTypeStats> errorBreakdown = errorTypeStats.stream()
-                    .map(row -> DlqErrorTypeStats.builder()
-                            .errorType((String) row[0])
-                            .count((Long) row[1])
-                            .build())
-                    .toList();
+            List<DlqErrorTypeStats> errorBreakdown =
+                    errorTypeStats.stream()
+                            .map(
+                                    row ->
+                                            DlqErrorTypeStats.builder()
+                                                    .errorType((String) row[0])
+                                                    .count((Long) row[1])
+                                                    .build())
+                            .toList();
 
             return DeadLetterQueueStats.builder()
                     .totalDlqOrders(totalDlqOrders)
@@ -248,27 +258,30 @@ public class DeadLetterQueueService {
         }
     }
 
-    /**
-     * CLEANUP OLD DLQ ENTRIES
-     * Scheduled task to clean up old dead letter queue entries
-     */
+    /** CLEANUP OLD DLQ ENTRIES Scheduled task to clean up old dead letter queue entries */
     @Scheduled(cron = "${app.dead-letter-queue.cleanup-cron:0 2 * * * *}") // Daily at 2 AM
     public void cleanupOldDlqEntries() {
         try {
-            log.info("Starting cleanup of old dead letter queue entries older than {} days", retentionDays);
+            log.info(
+                    "Starting cleanup of old dead letter queue entries older than {} days",
+                    retentionDays);
 
             LocalDateTime cutoffDate = LocalDateTime.now().minusDays(retentionDays);
-            
+
             // Find old DLQ orders (would need additional query method)
             List<Order> oldDlqOrders = findOldDlqOrders(cutoffDate);
-            
+
             int cleanedCount = 0;
             for (Order order : oldDlqOrders) {
                 try {
-                    purgeDeadLetterQueueEntry(order.getId(), "Automatic cleanup - retention period exceeded");
+                    purgeDeadLetterQueueEntry(
+                            order.getId(), "Automatic cleanup - retention period exceeded");
                     cleanedCount++;
                 } catch (Exception e) {
-                    log.error("Failed to cleanup DLQ entry for order {}: {}", order.getId(), e.getMessage());
+                    log.error(
+                            "Failed to cleanup DLQ entry for order {}: {}",
+                            order.getId(),
+                            e.getMessage());
                 }
             }
 
@@ -281,8 +294,8 @@ public class DeadLetterQueueService {
 
     // Private helper methods
 
-    private DeadLetterQueueEntry createDeadLetterQueueEntry(VideoProcessingMessage message, 
-                                                           String topic, int partition, long offset) {
+    private DeadLetterQueueEntry createDeadLetterQueueEntry(
+            VideoProcessingMessage message, String topic, int partition, long offset) {
         return DeadLetterQueueEntry.builder()
                 .orderId(message.getOrderId())
                 .originalMessage(message)
@@ -310,7 +323,10 @@ public class DeadLetterQueueService {
                 order.setIsManuallyFailed(true);
                 order.setStatus(OrderStatus.HOLDING);
                 order.setFailureReason("Dead Letter Queue: " + dlqEntry.getFailureReason());
-                order.setErrorMessage("DLQ - Permanent failure after " + dlqEntry.getAttemptCount() + " attempts");
+                order.setErrorMessage(
+                        "DLQ - Permanent failure after "
+                                + dlqEntry.getAttemptCount()
+                                + " attempts");
                 order.setUpdatedAt(LocalDateTime.now());
                 orderRepository.save(order);
             }
@@ -322,8 +338,10 @@ public class DeadLetterQueueService {
     private void notifyOperatorsOfDeadLetterQueue(DeadLetterQueueEntry dlqEntry) {
         // Implementation would send notifications to operators
         // Could be email, Slack, dashboard alerts, etc.
-        log.warn("OPERATOR NOTIFICATION: Order {} moved to dead letter queue - {}", 
-                dlqEntry.getOrderId(), dlqEntry.getFailureReason());
+        log.warn(
+                "OPERATOR NOTIFICATION: Order {} moved to dead letter queue - {}",
+                dlqEntry.getOrderId(),
+                dlqEntry.getFailureReason());
     }
 
     private long getDlqOrdersCount(LocalDateTime since) {
@@ -339,9 +357,7 @@ public class DeadLetterQueueService {
 
 // Supporting classes for DLQ operations
 
-/**
- * Dead letter queue entry representation
- */
+/** Dead letter queue entry representation */
 @lombok.Builder
 @lombok.Data
 class DeadLetterQueueEntry {
@@ -354,4 +370,3 @@ class DeadLetterQueueEntry {
     private final Long offset;
     private final LocalDateTime timestamp;
 }
-

@@ -1,8 +1,14 @@
 package com.smmpanel.service.security;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
+
 import com.smmpanel.entity.User;
-import com.smmpanel.repository.UserRepository;
+import com.smmpanel.repository.jpa.UserRepository;
 import com.smmpanel.service.monitoring.SecurityMetricsService;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,33 +20,21 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import java.util.Optional;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
-import static org.junit.jupiter.api.Assertions.*;
-
 @SpringBootTest
+@org.springframework.test.context.ActiveProfiles("test")
 class LoginAttemptServiceTest {
 
-    @Autowired
-    private LoginAttemptService loginAttemptService;
+    @Autowired private LoginAttemptService loginAttemptService;
 
-    @MockBean
-    private UserRepository userRepository;
+    @MockBean private UserRepository userRepository;
 
-    @MockBean
-    private RedisTemplate<String, String> redisTemplate;
+    @MockBean private RedisTemplate<String, String> redisTemplate;
 
-    @MockBean
-    private SecurityMetricsService securityMetricsService;
+    @MockBean private SecurityMetricsService securityMetricsService;
 
-    @MockBean
-    private SecurityAuditService securityAuditService;
+    @MockBean private SecurityAuditService securityAuditService;
 
-    @MockBean
-    private ValueOperations<String, String> valueOperations;
+    @MockBean private ValueOperations<String, String> valueOperations;
 
     private MockHttpServletRequest request;
     private final String TEST_USERNAME = "testuser";
@@ -69,7 +63,8 @@ class LoginAttemptServiceTest {
         verify(valueOperations).increment(anyString());
         verify(userRepository).save(any(User.class));
         verify(securityMetricsService).recordFailedLogin(TEST_USERNAME, TEST_IP);
-        verify(securityAuditService).logAuthenticationAttempt(eq(TEST_USERNAME), eq(TEST_IP), eq(false), anyString());
+        verify(securityAuditService)
+                .logAuthenticationAttempt(eq(TEST_USERNAME), eq(TEST_IP), eq(false), anyString());
     }
 
     @Test
@@ -87,7 +82,8 @@ class LoginAttemptServiceTest {
         verify(redisTemplate).delete(anyString());
         verify(userRepository).save(argThat(u -> u.getFailedAttempts() == 0));
         verify(securityMetricsService).recordSuccessfulLogin(TEST_USERNAME, TEST_IP);
-        verify(securityAuditService).logAuthenticationAttempt(TEST_USERNAME, TEST_IP, true, "Successful login");
+        verify(securityAuditService)
+                .logAuthenticationAttempt(TEST_USERNAME, TEST_IP, true, "Successful login");
     }
 
     @Test
@@ -148,8 +144,10 @@ class LoginAttemptServiceTest {
 
         // Then
         verify(redisTemplate).delete(anyString());
-        verify(userRepository).save(argThat(u -> !u.isAccountLocked() && u.getFailedAttempts() == 0));
+        verify(userRepository)
+                .save(argThat(u -> !u.isAccountLocked() && u.getFailedAttempts() == 0));
         verify(securityMetricsService).recordAccountUnlock(TEST_USERNAME, "admin");
-        verify(securityAuditService).logAccountUnlock(TEST_USERNAME, "admin", "Manual unlock by admin");
+        verify(securityAuditService)
+                .logAccountUnlock(TEST_USERNAME, "admin", "Manual unlock by admin");
     }
 }

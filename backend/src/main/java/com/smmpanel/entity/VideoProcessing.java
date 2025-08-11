@@ -1,21 +1,22 @@
 package com.smmpanel.entity;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.LocalDateTime;
-
 @Data
 @Entity
-@Table(name = "video_processing", indexes = {
-    @Index(name = "idx_video_processing_order_id", columnList = "order_id"),
-    @Index(name = "idx_video_processing_status", columnList = "status"),
-    @Index(name = "idx_video_processing_video_id", columnList = "video_id"),
-    @Index(name = "idx_video_processing_created_at", columnList = "created_at")
-})
+@Table(
+        name = "video_processing",
+        indexes = {
+            @Index(name = "idx_video_processing_order_id", columnList = "order_id"),
+            @Index(name = "idx_video_processing_status", columnList = "status"),
+            @Index(name = "idx_video_processing_video_id", columnList = "video_id"),
+            @Index(name = "idx_video_processing_created_at", columnList = "created_at")
+        })
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -47,7 +48,7 @@ public class VideoProcessing {
     @Builder.Default
     private Boolean clipCreated = false;
 
-    @Column(name = "processing_status")
+    @Column(name = "status", nullable = false, length = 32)
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private VideoProcessingStatus status = VideoProcessingStatus.PENDING;

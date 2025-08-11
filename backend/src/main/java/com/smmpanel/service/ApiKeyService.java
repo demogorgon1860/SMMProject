@@ -3,9 +3,10 @@ package com.smmpanel.service;
 import com.smmpanel.entity.User;
 import com.smmpanel.exception.ApiException;
 import com.smmpanel.exception.ResourceNotFoundException;
-import com.smmpanel.repository.UserRepository;
+import com.smmpanel.repository.jpa.UserRepository;
 import com.smmpanel.service.security.AuthenticationRateLimitService;
 import com.smmpanel.util.ApiKeyGenerator;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,12 +15,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.security.MessageDigest;
-import java.time.LocalDateTime;
-
 /**
- * Service for managing API keys.
- * Handles generation, validation, and management of API keys for users.
+ * Service for managing API keys. Handles generation, validation, and management of API keys for
+ * users.
  */
 @Slf4j
 @Service
@@ -36,32 +34,38 @@ public class ApiKeyService {
 
     /**
      * Generates a new API key for a user.
+     *
      * @param userId The ID of the user
      * @return The newly generated API key (only returned once)
      * @throws ResourceNotFoundException if the user is not found
      */
     @Transactional
     public String generateApiKey(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(
+                                () ->
+                                        new ResourceNotFoundException(
+                                                "User not found with id: " + userId));
 
         // Generate new API key and salt
         String apiKey = apiKeyGenerator.generateApiKey();
         String salt = apiKeyGenerator.generateSalt();
-        
+
         try {
             // Hash the API key with the salt
             String hashedKey = apiKeyGenerator.hashApiKey(apiKey, salt);
-            
+
             // Update user with new API key details
             user.setApiKeyHash(hashedKey);
             user.setApiKeySalt(salt);
             user.setApiKeyLastRotated(LocalDateTime.now());
             userRepository.save(user);
-            
+
             log.info("Generated new API key for user: {}", user.getUsername());
             return apiKey; // Return the plain API key (only time it's available)
-            
+
         } catch (Exception e) {
             log.error("Failed to generate API key for user: {}", user.getUsername(), e);
             throw new ApiException("Failed to generate API key", HttpStatus.INTERNAL_SERVER_ERROR);
@@ -70,6 +74,7 @@ public class ApiKeyService {
 
     /**
      * Validates an API key for a user.
+     *
      * @param apiKey The API key to validate
      * @param user The user to validate against
      * @return true if the API key is valid for the user, false otherwise
@@ -78,9 +83,11 @@ public class ApiKeyService {
         if (user == null || user.getApiKeyHash() == null || user.getApiKeySalt() == null) {
             return false;
         }
-        
+
         try {
-            boolean isValid = apiKeyGenerator.verifyApiKey(apiKey, user.getApiKeyHash(), user.getApiKeySalt());
+            boolean isValid =
+                    apiKeyGenerator.verifyApiKey(
+                            apiKey, user.getApiKeyHash(), user.getApiKeySalt());
             if (isValid) {
                 // Update last used timestamp
                 user.recordApiAccess();
@@ -95,24 +102,31 @@ public class ApiKeyService {
 
     /**
      * Revokes the API key for a user.
+     *
      * @param userId The ID of the user
      * @throws ResourceNotFoundException if the user is not found
      */
     @Transactional
     public void revokeApiKey(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
-        
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(
+                                () ->
+                                        new ResourceNotFoundException(
+                                                "User not found with id: " + userId));
+
         user.setApiKeyHash(null);
         user.setApiKeySalt(null);
         user.setApiKeyLastRotated(null);
         userRepository.save(user);
-        
+
         log.info("Revoked API key for user: {}", user.getUsername());
     }
 
     /**
      * Rotates the API key for a user.
+     *
      * @param userId The ID of the user
      * @return The new API key
      * @throws ResourceNotFoundException if the user is not found
@@ -127,25 +141,32 @@ public class ApiKeyService {
 
     /**
      * Gets the masked API key for a user.
+     *
      * @param userId The ID of the user
      * @return The masked API key (first 4 and last 4 characters)
      * @throws ResourceNotFoundException if the user is not found
      */
     public String getMaskedApiKey(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
-        
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(
+                                () ->
+                                        new ResourceNotFoundException(
+                                                "User not found with id: " + userId));
+
         if (user.getApiKeyHash() == null) {
             return "No API key set";
         }
-        
+
         // Return a masked version of the key (first 4 and last 4 characters)
         return apiKeyGenerator.maskApiKey(user.getApiKeyHash());
     }
 
     /**
-     * SECURITY ENHANCED: Hash API key for database lookup using global salt
-     * This prevents rainbow table attacks while maintaining lookup performance
+     * SECURITY ENHANCED: Hash API key for database lookup using global salt This prevents rainbow
+     * table attacks while maintaining lookup performance
+     *
      * @param apiKey The API key to hash for lookup
      * @return The hashed API key for database lookup
      */
@@ -160,19 +181,22 @@ public class ApiKeyService {
     }
 
     /**
-     * SECURITY ENHANCED: Validates an API key with rate limiting and constant-time comparison
-     * Used in authentication filters to avoid blocking the hot path
+     * SECURITY ENHANCED: Validates an API key with rate limiting and constant-time comparison Used
+     * in authentication filters to avoid blocking the hot path
+     *
      * @param apiKey The API key to validate
      * @param apiKeyHash The stored hash to validate against
      * @param apiKeySalt The salt used for hashing
      * @param clientIdentifier Identifier for rate limiting (IP or API key prefix)
      * @return true if the API key is valid, false otherwise
      */
-    public boolean verifyApiKeyOnly(String apiKey, String apiKeyHash, String apiKeySalt, String clientIdentifier) {
+    public boolean verifyApiKeyOnly(
+            String apiKey, String apiKeyHash, String apiKeySalt, String clientIdentifier) {
         // Check rate limiting first
         if (rateLimitService.isRateLimited(clientIdentifier)) {
-            log.warn("API key validation blocked due to rate limiting for identifier: {}", 
-                maskString(clientIdentifier));
+            log.warn(
+                    "API key validation blocked due to rate limiting for identifier: {}",
+                    maskString(clientIdentifier));
             return false;
         }
 
@@ -180,21 +204,26 @@ public class ApiKeyService {
             rateLimitService.recordFailedAttempt(clientIdentifier);
             return false;
         }
-        
+
         try {
             boolean isValid = apiKeyGenerator.verifyApiKey(apiKey, apiKeyHash, apiKeySalt);
-            
+
             if (isValid) {
                 rateLimitService.recordSuccessfulAttempt(clientIdentifier);
-                log.debug("API key validation successful for identifier: {}", maskString(clientIdentifier));
+                log.debug(
+                        "API key validation successful for identifier: {}",
+                        maskString(clientIdentifier));
             } else {
                 rateLimitService.recordFailedAttempt(clientIdentifier);
-                log.warn("API key validation failed for identifier: {}", maskString(clientIdentifier));
+                log.warn(
+                        "API key validation failed for identifier: {}",
+                        maskString(clientIdentifier));
             }
-            
+
             return isValid;
         } catch (Exception e) {
-            log.error("Error verifying API key for identifier: {}", maskString(clientIdentifier), e);
+            log.error(
+                    "Error verifying API key for identifier: {}", maskString(clientIdentifier), e);
             rateLimitService.recordFailedAttempt(clientIdentifier);
             return false;
         }
@@ -202,6 +231,7 @@ public class ApiKeyService {
 
     /**
      * BACKWARD COMPATIBILITY: Validates an API key without rate limiting
+     *
      * @deprecated Use verifyApiKeyOnly(apiKey, hash, salt, identifier) for enhanced security
      */
     @Deprecated
@@ -209,7 +239,7 @@ public class ApiKeyService {
         if (apiKeyHash == null || apiKeySalt == null) {
             return false;
         }
-        
+
         try {
             return apiKeyGenerator.verifyApiKey(apiKey, apiKeyHash, apiKeySalt);
         } catch (Exception e) {
@@ -218,9 +248,7 @@ public class ApiKeyService {
         }
     }
 
-    /**
-     * Utility method to safely mask strings for logging
-     */
+    /** Utility method to safely mask strings for logging */
     private String maskString(String input) {
         if (input == null || input.length() <= 4) {
             return "[masked]";

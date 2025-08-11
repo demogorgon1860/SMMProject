@@ -13,13 +13,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateOrderRequest {
-    @NotNull(message = "Service ID is required")
-    private Long service;
-    
+    @NotNull(message = "Service ID is required") private Long service;
+
     @NotBlank(message = "Link is required")
     private String link;
-    
-    @NotNull(message = "Quantity is required")
-    @Positive(message = "Quantity must be positive")
-    private Integer quantity;
+
+    @NotNull(message = "Quantity is required") @Positive(message = "Quantity must be positive") private Integer quantity;
 }

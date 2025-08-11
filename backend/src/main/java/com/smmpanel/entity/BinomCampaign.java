@@ -1,26 +1,27 @@
 package com.smmpanel.entity;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-
-/**
- * Entity для хранения информации о кампаниях Binom
- */
+/** Entity для хранения информации о кампаниях Binom */
 @Data
 @Entity
-@Table(name = "binom_campaigns", indexes = {
-    @Index(name = "idx_binom_campaigns_order_id", columnList = "order_id"),
-    @Index(name = "idx_binom_campaigns_campaign_id", columnList = "campaign_id"),
-    @Index(name = "idx_binom_campaigns_offer_id", columnList = "offer_id"),
-    @Index(name = "idx_binom_campaigns_fixed_campaign_id", columnList = "fixed_campaign_id"),
-    @Index(name = "idx_binom_campaigns_created_at", columnList = "created_at")
-})
+@Table(
+        name = "binom_campaigns",
+        indexes = {
+            @Index(name = "idx_binom_campaigns_order_id", columnList = "order_id"),
+            @Index(name = "idx_binom_campaigns_campaign_id", columnList = "campaign_id"),
+            @Index(name = "idx_binom_campaigns_offer_id", columnList = "offer_id"),
+            @Index(
+                    name = "idx_binom_campaigns_fixed_campaign_id",
+                    columnList = "fixed_campaign_id"),
+            @Index(name = "idx_binom_campaigns_created_at", columnList = "created_at")
+        })
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -49,8 +50,6 @@ public class BinomCampaign {
 
     @Column(name = "target_url", nullable = false, length = 500)
     private String targetUrl;
-
-
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "fixed_campaign_id")
@@ -96,8 +95,7 @@ public class BinomCampaign {
     @Builder.Default
     private String geoTargeting = "US";
 
-    @Column
-    private Integer priority;
+    @Column private Integer priority;
 
     @Column(name = "is_fixed_campaign")
     @Builder.Default

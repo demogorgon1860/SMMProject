@@ -1,25 +1,23 @@
 package com.smmpanel.dto;
 
 import jakarta.validation.constraints.*;
-import lombok.*;
-
 import java.math.BigDecimal;
+import lombok.*;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class OrderDto {
-    @NotNull(message = "Service ID is required")
-    private Long serviceId;
+    @NotNull(message = "Service ID is required") private Long serviceId;
 
     @NotBlank(message = "Link is required")
-    @Pattern(regexp = "^(https?://)?([\\da-z.-]+)\\.([a-z.]{2,6})[/\\w .-]*/?$", 
-             message = "Link must be a valid URL")
+    @Pattern(
+            regexp = "^(https?://)?([\\da-z.-]+)\\.([a-z.]{2,6})[/\\w .-]*/?$",
+            message = "Link must be a valid URL")
     private String link;
 
-    @NotNull(message = "Quantity is required")
-    @Min(value = 1, message = "Quantity must be at least 1")
+    @NotNull(message = "Quantity is required") @Min(value = 1, message = "Quantity must be at least 1")
     private Integer quantity;
 
     private Long orderId;
@@ -39,4 +37,4 @@ public class OrderDto {
     private String externalOrderId;
 
     private String metadata;
-} 
+}

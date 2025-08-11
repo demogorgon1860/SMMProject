@@ -19,18 +19,11 @@ public class PerfectPanelResponse<T> {
     private Integer errorCode;
 
     public static <T> PerfectPanelResponse<T> success(T data) {
-        return PerfectPanelResponse.<T>builder()
-                .data(data)
-                .success(true)
-                .build();
+        return PerfectPanelResponse.<T>builder().data(data).success(true).build();
     }
 
     public static <T> PerfectPanelResponse<T> success(T data, String message) {
-        return PerfectPanelResponse.<T>builder()
-                .data(data)
-                .success(true)
-                .message(message)
-                .build();
+        return PerfectPanelResponse.<T>builder().data(data).success(true).message(message).build();
     }
 
     public static <T> PerfectPanelResponse<T> error(String message, Integer code) {

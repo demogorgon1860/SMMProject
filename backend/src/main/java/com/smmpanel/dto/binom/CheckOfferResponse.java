@@ -18,4 +18,4 @@ public class CheckOfferResponse {
     private String url;
     private Boolean active;
     private String message;
-} 
+}

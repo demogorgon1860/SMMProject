@@ -1,19 +1,15 @@
 package com.smmpanel.interceptor;
 
-import lombok.extern.slf4j.Slf4j;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.servlet.HandlerInterceptor;
-import java.util.UUID;
 
 /**
- * Request Validation Interceptor
- * Implements request security validations:
- * - Request ID tracking
- * - Input validation
- * - Request size limits
- * - Security headers validation
+ * Request Validation Interceptor Implements request security validations: - Request ID tracking -
+ * Input validation - Request size limits - Security headers validation
  */
 @Slf4j
 public class RequestValidationInterceptor implements HandlerInterceptor {
@@ -21,7 +17,9 @@ public class RequestValidationInterceptor implements HandlerInterceptor {
     private static final int MAX_PAYLOAD_SIZE = 10 * 1024 * 1024; // 10MB
 
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+    public boolean preHandle(
+            HttpServletRequest request, HttpServletResponse response, Object handler)
+            throws Exception {
         // Generate and set request ID
         String requestId = UUID.randomUUID().toString();
         request.setAttribute("requestId", requestId);
@@ -29,8 +27,9 @@ public class RequestValidationInterceptor implements HandlerInterceptor {
 
         // Validate URL length
         if (request.getRequestURL().length() > MAX_URL_LENGTH) {
-            response.sendError(HttpStatus.URI_TOO_LONG.value(), 
-                "URL exceeds maximum length of " + MAX_URL_LENGTH);
+            response.sendError(
+                    HttpStatus.URI_TOO_LONG.value(),
+                    "URL exceeds maximum length of " + MAX_URL_LENGTH);
             return false;
         }
 
@@ -39,8 +38,9 @@ public class RequestValidationInterceptor implements HandlerInterceptor {
         if (contentLength != null) {
             long size = Long.parseLong(contentLength);
             if (size > MAX_PAYLOAD_SIZE) {
-                response.sendError(HttpStatus.PAYLOAD_TOO_LARGE.value(),
-                    "Request payload exceeds maximum size of " + MAX_PAYLOAD_SIZE + " bytes");
+                response.sendError(
+                        HttpStatus.PAYLOAD_TOO_LARGE.value(),
+                        "Request payload exceeds maximum size of " + MAX_PAYLOAD_SIZE + " bytes");
                 return false;
             }
         }
@@ -48,8 +48,9 @@ public class RequestValidationInterceptor implements HandlerInterceptor {
         // Validate content type
         String contentType = request.getContentType();
         if (contentType != null && !isValidContentType(contentType)) {
-            response.sendError(HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(),
-                "Unsupported content type: " + contentType);
+            response.sendError(
+                    HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(),
+                    "Unsupported content type: " + contentType);
             return false;
         }
 
@@ -59,21 +60,23 @@ public class RequestValidationInterceptor implements HandlerInterceptor {
         }
 
         // Log request metadata
-        log.debug("Processing request: {} {} (ID: {})", 
-            request.getMethod(), 
-            request.getRequestURI(),
-            requestId);
+        log.debug(
+                "Processing request: {} {} (ID: {})",
+                request.getMethod(),
+                request.getRequestURI(),
+                requestId);
 
         return true;
     }
 
     private boolean isValidContentType(String contentType) {
-        return contentType.startsWith("application/json") ||
-               contentType.startsWith("multipart/form-data") ||
-               contentType.startsWith("application/x-www-form-urlencoded");
+        return contentType.startsWith("application/json")
+                || contentType.startsWith("multipart/form-data")
+                || contentType.startsWith("application/x-www-form-urlencoded");
     }
 
-    private boolean validateSecurityHeaders(HttpServletRequest request, HttpServletResponse response) throws Exception {
+    private boolean validateSecurityHeaders(
+            HttpServletRequest request, HttpServletResponse response) throws Exception {
         // Validate Origin header for CORS requests
         String origin = request.getHeader("Origin");
         if (origin != null && !isValidOrigin(origin)) {
@@ -83,10 +86,10 @@ public class RequestValidationInterceptor implements HandlerInterceptor {
 
         // Check for required security headers in production
         if (isProdEnvironment()) {
-            if (request.getHeader("X-Real-IP") == null && 
-                request.getHeader("X-Forwarded-For") == null) {
-                response.sendError(HttpStatus.BAD_REQUEST.value(), 
-                    "Missing required proxy headers");
+            if (request.getHeader("X-Real-IP") == null
+                    && request.getHeader("X-Forwarded-For") == null) {
+                response.sendError(
+                        HttpStatus.BAD_REQUEST.value(), "Missing required proxy headers");
                 return false;
             }
         }

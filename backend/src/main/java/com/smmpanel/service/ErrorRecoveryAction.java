@@ -1,8 +1,6 @@
 package com.smmpanel.service;
 
-/**
- * Error recovery actions
- */
+/** Error recovery actions */
 public enum ErrorRecoveryAction {
     RETRY_SCHEDULED,
     DEAD_LETTER_QUEUE,

@@ -18,4 +18,4 @@ public class OfferAssignmentRequest {
     private Integer requiredClicks;
     private String source;
     private Boolean useFixedCampaign;
-} 
+}

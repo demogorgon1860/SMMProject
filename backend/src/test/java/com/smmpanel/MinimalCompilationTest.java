@@ -1,14 +1,12 @@
 package com.smmpanel;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-/**
- * Minimal test to verify test dependencies and compilation work
- */
+/** Minimal test to verify test dependencies and compilation work */
 @SpringBootTest
 @ActiveProfiles("test")
 public class MinimalCompilationTest {

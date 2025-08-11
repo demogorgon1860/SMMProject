@@ -1,9 +1,14 @@
 package com.smmpanel.service;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import com.smmpanel.entity.Order;
 import com.smmpanel.entity.User;
-import com.smmpanel.repository.OrderRepository;
-import com.smmpanel.repository.UserRepository;
+import com.smmpanel.repository.jpa.OrderRepository;
+import com.smmpanel.repository.jpa.UserRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import java.util.List;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
@@ -13,33 +18,22 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.*;
-
 /**
  * Performance test for entity relationship fetch strategies
- * 
- * This test verifies that:
- * 1. Lazy loading is working correctly
- * 2. Batch fetching reduces N+1 queries
- * 3. Collections are loaded efficiently
+ *
+ * <p>This test verifies that: 1. Lazy loading is working correctly 2. Batch fetching reduces N+1
+ * queries 3. Collections are loaded efficiently
  */
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
 public class EntityRelationshipPerformanceTest {
 
-    @Autowired
-    private UserRepository userRepository;
-    
-    @Autowired
-    private OrderRepository orderRepository;
-    
-    @PersistenceContext
-    private EntityManager entityManager;
+    @Autowired private UserRepository userRepository;
+
+    @Autowired private OrderRepository orderRepository;
+
+    @PersistenceContext private EntityManager entityManager;
 
     @Test
     public void testLazyLoadingWithBatchFetching() {
@@ -52,9 +46,9 @@ public class EntityRelationshipPerformanceTest {
 
         // Load multiple users to test batch fetching
         List<User> users = userRepository.findAll();
-        
+
         long initialQueryCount = statistics.getQueryExecutionCount();
-        
+
         // Access orders for each user - should trigger batch loading
         for (User user : users) {
             List<Order> orders = user.getOrders();
@@ -63,22 +57,23 @@ public class EntityRelationshipPerformanceTest {
                 orders.size();
             }
         }
-        
+
         long finalQueryCount = statistics.getQueryExecutionCount();
-        
+
         // With batch fetching, we should have fewer queries than users
         // The exact number depends on batch size and data distribution
         System.out.println("Initial queries: " + initialQueryCount);
         System.out.println("Final queries: " + finalQueryCount);
         System.out.println("Users processed: " + users.size());
-        
+
         // Verify that lazy loading worked (we have some queries but not excessive)
         assertTrue(finalQueryCount >= initialQueryCount);
-        
+
         // Log batch fetch statistics
         System.out.println("Entity load count: " + statistics.getEntityLoadCount());
         System.out.println("Collection load count: " + statistics.getCollectionLoadCount());
-        System.out.println("Second level cache hit count: " + statistics.getSecondLevelCacheHitCount());
+        System.out.println(
+                "Second level cache hit count: " + statistics.getSecondLevelCacheHitCount());
     }
 
     @Test
@@ -91,9 +86,9 @@ public class EntityRelationshipPerformanceTest {
 
         // Load orders and test related entity fetching
         List<Order> orders = orderRepository.findAll();
-        
+
         long initialQueryCount = statistics.getQueryExecutionCount();
-        
+
         // Access user and service relationships
         for (Order order : orders) {
             if (order.getUser() != null) {
@@ -106,12 +101,16 @@ public class EntityRelationshipPerformanceTest {
                 order.getBinomCampaigns().size(); // Force campaign loading
             }
         }
-        
+
         long finalQueryCount = statistics.getQueryExecutionCount();
-        
-        System.out.println("Order relationship queries - Initial: " + initialQueryCount + ", Final: " + finalQueryCount);
+
+        System.out.println(
+                "Order relationship queries - Initial: "
+                        + initialQueryCount
+                        + ", Final: "
+                        + finalQueryCount);
         System.out.println("Orders processed: " + orders.size());
-        
+
         // Verify relationships were loaded
         assertTrue(finalQueryCount >= initialQueryCount);
     }
@@ -120,7 +119,7 @@ public class EntityRelationshipPerformanceTest {
     public void testBatchSizeConfiguration() {
         // This test ensures that @BatchSize annotations are properly configured
         List<User> users = userRepository.findAll();
-        
+
         for (User user : users) {
             // Access collections to trigger batch loading
             if (user.getOrders() != null) {
@@ -130,7 +129,7 @@ public class EntityRelationshipPerformanceTest {
                 user.getBalanceTransactions().size();
             }
         }
-        
+
         // If we reach here without LazyInitializationException, batch loading is working
         assertTrue(true, "Batch loading completed successfully");
     }

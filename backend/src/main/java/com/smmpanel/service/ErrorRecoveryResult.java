@@ -1,8 +1,8 @@
 package com.smmpanel.service;
 
+import java.time.LocalDateTime;
 import lombok.Builder;
 import lombok.Data;
-import java.time.LocalDateTime;
 
 @Builder
 @Data
@@ -14,7 +14,8 @@ public class ErrorRecoveryResult {
     private final LocalDateTime nextRetryTime;
     private final int retryCount;
 
-    public static ErrorRecoveryResult retryScheduled(Long orderId, LocalDateTime nextRetryTime, int retryCount) {
+    public static ErrorRecoveryResult retryScheduled(
+            Long orderId, LocalDateTime nextRetryTime, int retryCount) {
         return ErrorRecoveryResult.builder()
                 .orderId(orderId)
                 .success(true)

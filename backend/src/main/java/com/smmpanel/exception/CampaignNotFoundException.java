@@ -8,7 +8,7 @@ public class CampaignNotFoundException extends RuntimeException {
     public CampaignNotFoundException(String message) {
         super(message);
     }
-    
+
     public static CampaignNotFoundException forCampaignId(String campaignId) {
         return new CampaignNotFoundException("Campaign not found with ID: " + campaignId);
     }

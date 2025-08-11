@@ -2,6 +2,10 @@ package com.smmpanel.service;
 
 import com.smmpanel.entity.Order;
 import com.smmpanel.entity.User;
+import java.math.BigDecimal;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,14 +15,9 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
-import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.Map;
-
 /**
- * PRODUCTION-READY Notification Service for user communications
- * Compatible with Perfect Panel notification system
+ * PRODUCTION-READY Notification Service for user communications Compatible with Perfect Panel
+ * notification system
  */
 @Slf4j
 @Service
@@ -37,7 +36,8 @@ public class NotificationService {
     @Value("${app.notifications.kafka.enabled:true}")
     private boolean kafkaNotificationsEnabled;
 
-    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter DATE_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     // Order notification methods
     @Async("asyncExecutor")
@@ -48,7 +48,10 @@ public class NotificationService {
             sendEmailNotification(order.getUser(), subject, message);
             sendKafkaNotification("order.created", order.getId(), buildNotificationData(order));
         } catch (Exception e) {
-            log.error("Failed to send order created notification for order {}: {}", order.getId(), e.getMessage());
+            log.error(
+                    "Failed to send order created notification for order {}: {}",
+                    order.getId(),
+                    e.getMessage());
         }
     }
 
@@ -60,7 +63,10 @@ public class NotificationService {
             sendEmailNotification(order.getUser(), subject, message);
             sendKafkaNotification("order.completed", order.getId(), buildNotificationData(order));
         } catch (Exception e) {
-            log.error("Failed to send order completed notification for order {}: {}", order.getId(), e.getMessage());
+            log.error(
+                    "Failed to send order completed notification for order {}: {}",
+                    order.getId(),
+                    e.getMessage());
         }
     }
 
@@ -70,12 +76,15 @@ public class NotificationService {
             String subject = "Order Paused - #" + order.getId();
             String message = buildOrderPausedMessage(order, reason);
             sendEmailNotification(order.getUser(), subject, message);
-            
+
             Map<String, Object> data = buildNotificationData(order);
             data.put("reason", reason);
             sendKafkaNotification("order.paused", order.getId(), data);
         } catch (Exception e) {
-            log.error("Failed to send order paused notification for order {}: {}", order.getId(), e.getMessage());
+            log.error(
+                    "Failed to send order paused notification for order {}: {}",
+                    order.getId(),
+                    e.getMessage());
         }
     }
 
@@ -87,7 +96,10 @@ public class NotificationService {
             sendEmailNotification(order.getUser(), subject, message);
             sendKafkaNotification("order.resumed", order.getId(), buildNotificationData(order));
         } catch (Exception e) {
-            log.error("Failed to send order resumed notification for order {}: {}", order.getId(), e.getMessage());
+            log.error(
+                    "Failed to send order resumed notification for order {}: {}",
+                    order.getId(),
+                    e.getMessage());
         }
     }
 
@@ -97,23 +109,26 @@ public class NotificationService {
             String subject = "Order Cancelled - #" + order.getId();
             String message = buildOrderCancelledMessage(order, reason);
             sendEmailNotification(order.getUser(), subject, message);
-            
+
             Map<String, Object> data = buildNotificationData(order);
             data.put("reason", reason);
             sendKafkaNotification("order.cancelled", order.getId(), data);
         } catch (Exception e) {
-            log.error("Failed to send order cancelled notification for order {}: {}", order.getId(), e.getMessage());
+            log.error(
+                    "Failed to send order cancelled notification for order {}: {}",
+                    order.getId(),
+                    e.getMessage());
         }
     }
 
     @Async("asyncExecutor")
-    public void sendBalanceUpdatedNotification(User user, BigDecimal oldBalance, 
-                                             BigDecimal newBalance, String reason) {
+    public void sendBalanceUpdatedNotification(
+            User user, BigDecimal oldBalance, BigDecimal newBalance, String reason) {
         try {
             String subject = "Balance Updated";
             String message = buildBalanceUpdatedMessage(user, oldBalance, newBalance, reason);
             sendEmailNotification(user, subject, message);
-            
+
             Map<String, Object> data = new HashMap<>();
             data.put("userId", user.getId());
             data.put("username", user.getUsername());
@@ -121,28 +136,28 @@ public class NotificationService {
             data.put("newBalance", newBalance);
             data.put("reason", reason);
             data.put("timestamp", java.time.LocalDateTime.now().format(DATE_FORMATTER));
-            
+
             sendKafkaNotification("balance.updated", user.getId(), data);
         } catch (Exception e) {
-            log.error("Failed to send balance updated notification for user {}: {}", 
-                    user.getUsername(), e.getMessage());
+            log.error(
+                    "Failed to send balance updated notification for user {}: {}",
+                    user.getUsername(),
+                    e.getMessage());
         }
     }
 
-    /**
-     * Send push notification for critical alerts
-     */
+    /** Send push notification for critical alerts */
     public void sendPushNotification(String message) {
         try {
             // Implementation for push notifications would go here
             // This could integrate with Firebase, OneSignal, etc.
             log.info("Push notification sent: {}", message);
-            
+
             Map<String, Object> pushData = new HashMap<>();
             pushData.put("message", message);
             pushData.put("type", "CRITICAL_ALERT");
             pushData.put("timestamp", java.time.LocalDateTime.now().format(DATE_FORMATTER));
-            
+
             sendKafkaNotification("push.notification", 0L, pushData);
         } catch (Exception e) {
             log.error("Failed to send push notification: {}", e.getMessage());
@@ -152,7 +167,9 @@ public class NotificationService {
     // Private helper methods
     private void sendEmailNotification(User user, String subject, String message) {
         if (!emailEnabled || user.getEmail() == null || user.getEmail().isEmpty()) {
-            log.debug("Email notification skipped for user {} - email disabled or no email", user.getUsername());
+            log.debug(
+                    "Email notification skipped for user {} - email disabled or no email",
+                    user.getUsername());
             return;
         }
 
@@ -179,7 +196,7 @@ public class NotificationService {
         try {
             data.put("entityId", entityId);
             data.put("timestamp", java.time.LocalDateTime.now().format(DATE_FORMATTER));
-            
+
             kafkaTemplate.send("smm.notifications", entityId.toString(), data);
             log.debug("Kafka notification sent to topic: notifications.{}", topic);
         } catch (Exception e) {
@@ -202,81 +219,69 @@ public class NotificationService {
 
     private String buildOrderCreatedMessage(Order order) {
         return String.format(
-            "Your order #%d has been created successfully.\n\n" +
-            "Service: %s\n" +
-            "Link: %s\n" +
-            "Quantity: %d\n" +
-            "Status: %s\n\n" +
-            "You will receive updates as your order progresses.",
-            order.getId(),
-            order.getService().getName(),
-            order.getLink(),
-            order.getQuantity(),
-            order.getStatus().name()
-        );
+                "Your order #%d has been created successfully.\n\n"
+                        + "Service: %s\n"
+                        + "Link: %s\n"
+                        + "Quantity: %d\n"
+                        + "Status: %s\n\n"
+                        + "You will receive updates as your order progresses.",
+                order.getId(),
+                order.getService().getName(),
+                order.getLink(),
+                order.getQuantity(),
+                order.getStatus().name());
     }
 
     private String buildOrderCompletedMessage(Order order) {
         return String.format(
-            "Great news! Your order #%d has been completed.\n\n" +
-            "Service: %s\n" +
-            "Link: %s\n" +
-            "Quantity Delivered: %d\n" +
-            "Completion Time: %s\n\n" +
-            "Thank you for using our service!",
-            order.getId(),
-            order.getService().getName(),
-            order.getLink(),
-            order.getQuantity(),
-            java.time.LocalDateTime.now().format(DATE_FORMATTER)
-        );
+                "Great news! Your order #%d has been completed.\n\n"
+                        + "Service: %s\n"
+                        + "Link: %s\n"
+                        + "Quantity Delivered: %d\n"
+                        + "Completion Time: %s\n\n"
+                        + "Thank you for using our service!",
+                order.getId(),
+                order.getService().getName(),
+                order.getLink(),
+                order.getQuantity(),
+                java.time.LocalDateTime.now().format(DATE_FORMATTER));
     }
 
     private String buildOrderPausedMessage(Order order, String reason) {
         return String.format(
-            "Your order #%d has been paused.\n\n" +
-            "Service: %s\n" +
-            "Link: %s\n" +
-            "Reason: %s\n\n" +
-            "Our team is working to resolve this issue. You will be notified when the order resumes.",
-            order.getId(),
-            order.getService().getName(),
-            order.getLink(),
-            reason
-        );
+                "Your order #%d has been paused.\n\n"
+                        + "Service: %s\n"
+                        + "Link: %s\n"
+                        + "Reason: %s\n\n"
+                        + "Our team is working to resolve this issue. You will be notified when the"
+                        + " order resumes.",
+                order.getId(), order.getService().getName(), order.getLink(), reason);
     }
 
     private String buildOrderResumedMessage(Order order) {
         return String.format(
-            "Your order #%d has been resumed and is now processing.\n\n" +
-            "Service: %s\n" +
-            "Link: %s\n" +
-            "Current Status: %s\n\n" +
-            "Thank you for your patience.",
-            order.getId(),
-            order.getService().getName(),
-            order.getLink(),
-            order.getStatus().name()
-        );
+                "Your order #%d has been resumed and is now processing.\n\n"
+                        + "Service: %s\n"
+                        + "Link: %s\n"
+                        + "Current Status: %s\n\n"
+                        + "Thank you for your patience.",
+                order.getId(),
+                order.getService().getName(),
+                order.getLink(),
+                order.getStatus().name());
     }
 
     private String buildOrderCancelledMessage(Order order, String reason) {
         return String.format(
-            "Your order #%d has been cancelled.\n\n" +
-            "Service: %s\n" +
-            "Link: %s\n" +
-            "Reason: %s\n\n" +
-            "If you have any questions, please contact our support team.",
-            order.getId(),
-            order.getService().getName(),
-            order.getLink(),
-            reason
-        );
+                "Your order #%d has been cancelled.\n\n"
+                        + "Service: %s\n"
+                        + "Link: %s\n"
+                        + "Reason: %s\n\n"
+                        + "If you have any questions, please contact our support team.",
+                order.getId(), order.getService().getName(), order.getLink(), reason);
     }
 
-    /**
-     * Send notification to operators
-     */
+    /** Send notification to operators */
     @Async("asyncExecutor")
     public void notifyOperators(String message) {
         try {
@@ -288,102 +293,100 @@ public class NotificationService {
         }
     }
 
-    /**
-     * Send order started notification
-     */
+    /** Send order started notification */
     @Async("asyncExecutor")
     public void sendOrderStartedNotification(Order order) {
         try {
             String subject = "Order Started - #" + order.getId();
             String message = buildOrderStartedMessage(order);
             sendEmailNotification(order.getUser(), subject, message);
-            
-            log.info("Sent order started notification to user {} for order {}", 
-                    order.getUser().getUsername(), order.getId());
-                    
+
+            log.info(
+                    "Sent order started notification to user {} for order {}",
+                    order.getUser().getUsername(),
+                    order.getId());
+
         } catch (Exception e) {
-            log.error("Failed to send order started notification for order {}: {}", 
-                    order.getId(), e.getMessage());
+            log.error(
+                    "Failed to send order started notification for order {}: {}",
+                    order.getId(),
+                    e.getMessage());
         }
     }
 
-    /**
-     * Notify finance team about manual intervention required
-     */
+    /** Notify finance team about manual intervention required */
     public void notifyFinanceTeam(String message) {
         try {
             String subject = "Manual Intervention Required";
             String financeEmail = "finance@smmpanel.com"; // Configure via properties
-            
+
             sendEmailNotification(null, subject, message);
             log.info("Notified finance team: {}", message);
-            
+
         } catch (Exception e) {
             log.error("Failed to notify finance team: {}", e.getMessage());
         }
     }
 
-    /**
-     * Send order failed notification
-     */
+    /** Send order failed notification */
     @Async("asyncExecutor")
     public void sendOrderFailedNotification(Order order, String reason) {
         try {
             String subject = "Order Failed - #" + order.getId();
             String message = buildOrderFailedMessage(order, reason);
             sendEmailNotification(order.getUser(), subject, message);
-            
+
             Map<String, Object> data = buildNotificationData(order);
             data.put("reason", reason);
             sendKafkaNotification("order.failed", order.getId(), data);
         } catch (Exception e) {
-            log.error("Failed to send order failed notification for order {}: {}", order.getId(), e.getMessage());
+            log.error(
+                    "Failed to send order failed notification for order {}: {}",
+                    order.getId(),
+                    e.getMessage());
         }
     }
 
     private String buildOrderStartedMessage(Order order) {
         return String.format(
-            "Your order #%d has started processing.\n\n" +
-            "Service: %s\n" +
-            "Link: %s\n" +
-            "Quantity: %d\n" +
-            "Status: %s\n\n" +
-            "Your order is now being processed. You will receive updates as it progresses.",
-            order.getId(),
-            order.getService().getName(),
-            order.getLink(),
-            order.getQuantity(),
-            order.getStatus().name()
-        );
+                "Your order #%d has started processing.\n\n"
+                        + "Service: %s\n"
+                        + "Link: %s\n"
+                        + "Quantity: %d\n"
+                        + "Status: %s\n\n"
+                        + "Your order is now being processed. You will receive updates as it"
+                        + " progresses.",
+                order.getId(),
+                order.getService().getName(),
+                order.getLink(),
+                order.getQuantity(),
+                order.getStatus().name());
     }
 
     private String buildOrderFailedMessage(Order order, String reason) {
         return String.format(
-            "Your order #%d has failed.\n\n" +
-            "Service: %s\n" +
-            "Link: %s\n" +
-            "Reason: %s\n\n" +
-            "We apologize for the inconvenience. Please contact support if you need assistance.",
-            order.getId(),
-            order.getService().getName(),
-            order.getLink(),
-            reason
-        );
+                "Your order #%d has failed.\n\n"
+                        + "Service: %s\n"
+                        + "Link: %s\n"
+                        + "Reason: %s\n\n"
+                        + "We apologize for the inconvenience. Please contact support if you need"
+                        + " assistance.",
+                order.getId(), order.getService().getName(), order.getLink(), reason);
     }
 
-    private String buildBalanceUpdatedMessage(User user, BigDecimal oldBalance, BigDecimal newBalance, String reason) {
+    private String buildBalanceUpdatedMessage(
+            User user, BigDecimal oldBalance, BigDecimal newBalance, String reason) {
         return String.format(
-            "Your account balance has been updated.\n\n" +
-            "Previous Balance: $%.2f\n" +
-            "New Balance: $%.2f\n" +
-            "Change: $%.2f\n" +
-            "Reason: %s\n\n" +
-            "Transaction completed at: %s",
-            oldBalance,
-            newBalance,
-            newBalance.subtract(oldBalance),
-            reason,
-            java.time.LocalDateTime.now().format(DATE_FORMATTER)
-        );
+                "Your account balance has been updated.\n\n"
+                        + "Previous Balance: $%.2f\n"
+                        + "New Balance: $%.2f\n"
+                        + "Change: $%.2f\n"
+                        + "Reason: %s\n\n"
+                        + "Transaction completed at: %s",
+                oldBalance,
+                newBalance,
+                newBalance.subtract(oldBalance),
+                reason,
+                java.time.LocalDateTime.now().format(DATE_FORMATTER));
     }
 }

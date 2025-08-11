@@ -3,11 +3,10 @@ package com.smmpanel.controller;
 import com.smmpanel.dto.UserDto;
 import com.smmpanel.dto.auth.*;
 import com.smmpanel.service.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v2/auth")

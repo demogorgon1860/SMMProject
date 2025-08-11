@@ -1,8 +1,8 @@
 package com.smmpanel.dto.order;
 
-import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import lombok.*;
 
 @Data
 @Builder
@@ -16,4 +16,4 @@ public class OrderStatistics {
     private BigDecimal averageOrderValue;
     private LocalDateTime periodStart;
     private LocalDateTime periodEnd;
-} 
+}

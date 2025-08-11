@@ -1,7 +1,8 @@
 package com.smmpanel.security;
 
 import com.smmpanel.entity.User;
-import com.smmpanel.repository.UserRepository;
+import com.smmpanel.repository.jpa.UserRepository;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -12,8 +13,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-
 @Component
 @RequiredArgsConstructor
 public class CustomAuthenticationProvider implements AuthenticationProvider {
@@ -22,12 +21,15 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
     private final PasswordEncoder passwordEncoder;
 
     @Override
-    public Authentication authenticate(Authentication authentication) throws AuthenticationException {
+    public Authentication authenticate(Authentication authentication)
+            throws AuthenticationException {
         String username = authentication.getName();
         String password = authentication.getCredentials().toString();
 
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
+        User user =
+                userRepository
+                        .findByUsername(username)
+                        .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
 
         if (!user.isActive()) {
             throw new BadCredentialsException("Account is disabled");
@@ -37,9 +39,8 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
             throw new BadCredentialsException("Invalid credentials");
         }
 
-        List<SimpleGrantedAuthority> authorities = List.of(
-                new SimpleGrantedAuthority(user.getRole().getAuthority())
-        );
+        List<SimpleGrantedAuthority> authorities =
+                List.of(new SimpleGrantedAuthority(user.getRole().getAuthority()));
 
         return new UsernamePasswordAuthenticationToken(username, password, authorities);
     }

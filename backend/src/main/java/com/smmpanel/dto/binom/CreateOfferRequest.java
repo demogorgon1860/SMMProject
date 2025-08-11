@@ -15,4 +15,4 @@ public class CreateOfferRequest {
     private String description;
     private String geoTargeting;
     private String type;
-} 
+}

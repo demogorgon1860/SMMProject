@@ -1,11 +1,14 @@
 package com.smmpanel.config;
 
-import lombok.extern.slf4j.Slf4j;
+import java.util.Arrays;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -14,20 +17,11 @@ import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWrite
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-
-import java.util.Arrays;
-import java.util.List;
 
 /**
- * API Security Configuration
- * Implements production-grade security measures including:
- * - CORS configuration
- * - HTTP security headers
- * - XSS protection
- * - CSRF protection
- * - Content Security Policy
+ * API Security Configuration Implements production-grade security measures including: - CORS
+ * configuration - HTTP security headers - XSS protection - CSRF protection - Content Security
+ * Policy
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -50,30 +44,38 @@ public class ApiSecurityConfig {
 
     @Bean
     public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {
-        http
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .csrf(csrf -> csrf
-                .ignoringRequestMatchers("/api/v*/auth/**")
-                .ignoringRequestMatchers("/api/v*/public/**"))
-            .headers(headers -> headers
-                .xssProtection(xss -> xss.and())
-                .contentSecurityPolicy(csp -> csp
-                    .policyDirectives("default-src 'self'; " +
-                                    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-                                    "style-src 'self' 'unsafe-inline'; " +
-                                    "img-src 'self' data: https:; " +
-                                    "font-src 'self' data: https:; " +
-                                    "connect-src 'self'"))
-                .frameOptions(frame -> frame.deny())
-                .httpStrictTransportSecurity(hsts -> hsts
-                    .includeSubDomains(true)
-                    .maxAgeInSeconds(31536000))
-                .referrerPolicy(referrer -> referrer
-                    .policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)))
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .requiresChannel(channel -> channel
-                .anyRequest().requiresSecure());
+        http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .csrf(
+                        csrf ->
+                                csrf.ignoringRequestMatchers("/api/v*/auth/**")
+                                        .ignoringRequestMatchers("/api/v*/public/**"))
+                .headers(
+                        headers ->
+                                headers.xssProtection(xss -> {})
+                                        .contentSecurityPolicy(
+                                                csp ->
+                                                        csp.policyDirectives(
+                                                                "default-src 'self'; script-src"
+                                                                    + " 'self' 'unsafe-inline'"
+                                                                    + " 'unsafe-eval'; style-src"
+                                                                    + " 'self' 'unsafe-inline';"
+                                                                    + " img-src 'self' data:"
+                                                                    + " https:; font-src 'self'"
+                                                                    + " data: https:; connect-src"
+                                                                    + " 'self'"))
+                                        .frameOptions(frame -> frame.deny())
+                                        .httpStrictTransportSecurity(
+                                                hsts ->
+                                                        hsts.includeSubDomains(true)
+                                                                .maxAgeInSeconds(31536000))
+                                        .referrerPolicy(
+                                                referrer ->
+                                                        referrer.policy(
+                                                                ReferrerPolicy
+                                                                        .STRICT_ORIGIN_WHEN_CROSS_ORIGIN)))
+                .sessionManagement(
+                        session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .requiresChannel(channel -> channel.anyRequest().requiresSecure());
 
         return http.build();
     }
@@ -84,12 +86,12 @@ public class ApiSecurityConfig {
         configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(allowedMethods);
         configuration.setAllowedHeaders(allowedHeaders);
-        configuration.setExposedHeaders(Arrays.asList(
-            HttpHeaders.AUTHORIZATION,
-            "X-Api-Version",
-            "X-Request-ID",
-            "X-Rate-Limit-Remaining"
-        ));
+        configuration.setExposedHeaders(
+                Arrays.asList(
+                        HttpHeaders.AUTHORIZATION,
+                        "X-Api-Version",
+                        "X-Request-ID",
+                        "X-Rate-Limit-Remaining"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(maxAge);
 

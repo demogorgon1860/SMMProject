@@ -1,20 +1,20 @@
 package com.smmpanel.security.filter;
 
-import org.apache.commons.io.IOUtils;
-import org.springframework.web.util.HtmlUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import java.io.*;
-import java.util.regex.Pattern;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.apache.commons.io.IOUtils;
+import org.springframework.web.util.HtmlUtils;
 
 public class XssRequestWrapper extends HttpServletRequestWrapper {
-    
+
     private final Pattern[] xssPatterns;
 
     public XssRequestWrapper(HttpServletRequest request, Pattern[] patterns) {
@@ -54,18 +54,18 @@ public class XssRequestWrapper extends HttpServletRequestWrapper {
     public Map<String, String[]> getParameterMap() {
         Map<String, String[]> paramMap = super.getParameterMap();
         Map<String, String[]> encodedMap = new java.util.HashMap<>();
-        
+
         for (Map.Entry<String, String[]> entry : paramMap.entrySet()) {
             String[] values = entry.getValue();
             String[] encodedValues = new String[values.length];
-            
+
             for (int i = 0; i < values.length; i++) {
                 encodedValues[i] = stripXSS(values[i]);
             }
-            
+
             encodedMap.put(entry.getKey(), encodedValues);
         }
-        
+
         return Collections.unmodifiableMap(encodedMap);
     }
 
@@ -112,18 +112,19 @@ public class XssRequestWrapper extends HttpServletRequestWrapper {
         }
 
         // Additional sanitization
-        value = value
-            // Remove backslash escape sequences
-            .replaceAll("\\\\", "")
-            // Remove encoded javascript: and vbscript: protocols
-            .replaceAll("(?i)javascript:", "")
-            .replaceAll("(?i)vbscript:", "")
-            // Remove encoded new lines
-            .replaceAll("&#10;", "\n")
-            .replaceAll("&#13;", "\r")
-            // Remove excessive whitespace
-            .replaceAll("\\s+", " ")
-            .trim();
+        value =
+                value
+                        // Remove backslash escape sequences
+                        .replaceAll("\\\\", "")
+                        // Remove encoded javascript: and vbscript: protocols
+                        .replaceAll("(?i)javascript:", "")
+                        .replaceAll("(?i)vbscript:", "")
+                        // Remove encoded new lines
+                        .replaceAll("&#10;", "\n")
+                        .replaceAll("&#13;", "\r")
+                        // Remove excessive whitespace
+                        .replaceAll("\\s+", " ")
+                        .trim();
 
         return value;
     }
@@ -136,18 +137,19 @@ public class XssRequestWrapper extends HttpServletRequestWrapper {
         String lowercaseValue = value.toLowerCase();
 
         // Check for common XSS vectors
-        return lowercaseValue.contains("<script") ||
-               lowercaseValue.contains("javascript:") ||
-               lowercaseValue.contains("vbscript:") ||
-               lowercaseValue.contains("onload=") ||
-               lowercaseValue.contains("onerror=") ||
-               lowercaseValue.contains("onclick=") ||
-               lowercaseValue.contains("onmouseover=") ||
-               lowercaseValue.contains("onfocus=") ||
-               lowercaseValue.contains("onblur=") ||
-               lowercaseValue.matches(".*<.*>.*") ||  // Any HTML tags
-               lowercaseValue.matches(".*\\\\x[0-9a-f]{2}.*") ||  // Hex encoding
-               lowercaseValue.matches(".*&#x?[0-9a-f]+;.*");  // HTML entities
+        return lowercaseValue.contains("<script")
+                || lowercaseValue.contains("javascript:")
+                || lowercaseValue.contains("vbscript:")
+                || lowercaseValue.contains("onload=")
+                || lowercaseValue.contains("onerror=")
+                || lowercaseValue.contains("onclick=")
+                || lowercaseValue.contains("onmouseover=")
+                || lowercaseValue.contains("onfocus=")
+                || lowercaseValue.contains("onblur=")
+                || lowercaseValue.matches(".*<.*>.*")
+                || // Any HTML tags
+                lowercaseValue.matches(".*\\\\x[0-9a-f]{2}.*")
+                || // Hex encoding
+                lowercaseValue.matches(".*&#x?[0-9a-f]+;.*"); // HTML entities
     }
 }
-

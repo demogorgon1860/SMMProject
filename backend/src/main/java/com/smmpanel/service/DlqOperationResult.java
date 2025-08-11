@@ -3,9 +3,7 @@ package com.smmpanel.service;
 import lombok.Builder;
 import lombok.Data;
 
-/**
- * Result of DLQ operation
- */
+/** Result of DLQ operation */
 @Builder
 @Data
 public class DlqOperationResult {
@@ -14,11 +12,7 @@ public class DlqOperationResult {
     private final String message;
 
     public static DlqOperationResult success(Long orderId, String message) {
-        return DlqOperationResult.builder()
-                .orderId(orderId)
-                .success(true)
-                .message(message)
-                .build();
+        return DlqOperationResult.builder().orderId(orderId).success(true).message(message).build();
     }
 
     public static DlqOperationResult failed(Long orderId, String message) {

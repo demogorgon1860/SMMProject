@@ -1,16 +1,16 @@
 package com.smmpanel.dto.response;
 
 import com.smmpanel.entity.Order;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 /**
- * Optimized OrderResponse DTO with static factory methods
- * to prevent lazy loading during entity-to-DTO conversion
+ * Optimized OrderResponse DTO with static factory methods to prevent lazy loading during
+ * entity-to-DTO conversion
  */
 @Data
 @Builder
@@ -32,14 +32,14 @@ public class OrderResponse {
     private String orderId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    
+
     // Nested DTOs to avoid lazy loading
     private UserSummaryResponse user;
     private ServiceSummaryResponse serviceDetails;
-    
+
     /**
-     * OPTIMIZED: Static factory method that assumes all relations are already fetched
-     * Use this when Order entity has been fetched with JOIN FETCH
+     * OPTIMIZED: Static factory method that assumes all relations are already fetched Use this when
+     * Order entity has been fetched with JOIN FETCH
      */
     public static OrderResponse fromEntityWithFetchedRelations(Order order) {
         return OrderResponse.builder()
@@ -62,11 +62,8 @@ public class OrderResponse {
                 .serviceDetails(ServiceSummaryResponse.fromEntity(order.getService()))
                 .build();
     }
-    
-    /**
-     * OPTIMIZED: Create minimal response for listing views
-     * Avoids accessing any relationships
-     */
+
+    /** OPTIMIZED: Create minimal response for listing views Avoids accessing any relationships */
     public static OrderResponse fromEntityMinimal(Order order, String serviceName) {
         return OrderResponse.builder()
                 .id(order.getId())
@@ -86,10 +83,8 @@ public class OrderResponse {
                 .updatedAt(order.getUpdatedAt())
                 .build();
     }
-    
-    /**
-     * Supporting nested DTOs
-     */
+
+    /** Supporting nested DTOs */
     @Data
     @Builder
     @NoArgsConstructor
@@ -98,7 +93,7 @@ public class OrderResponse {
         private Long id;
         private String username;
         private String email;
-        
+
         public static UserSummaryResponse fromEntity(com.smmpanel.entity.User user) {
             return UserSummaryResponse.builder()
                     .id(user.getId())
@@ -107,7 +102,7 @@ public class OrderResponse {
                     .build();
         }
     }
-    
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -117,7 +112,7 @@ public class OrderResponse {
         private String name;
         private String category;
         private BigDecimal pricePer1000;
-        
+
         public static ServiceSummaryResponse fromEntity(com.smmpanel.entity.Service service) {
             return ServiceSummaryResponse.builder()
                     .id(service.getId())

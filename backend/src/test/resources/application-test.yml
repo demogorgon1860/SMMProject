@@ -13,9 +13,14 @@ spring:
     password:
 
     hikari:
+      driver-class-name: org.h2.Driver
       maximum-pool-size: 5
       minimum-idle: 2
       connection-timeout: 5000
+
+  # Liquibase configuration
+  liquibase:
+    enabled: false  # Disable Liquibase for tests, use JPA DDL instead
 
   # JPA configuration
   jpa:

@@ -5,24 +5,22 @@ import com.smmpanel.dto.binom.OfferAssignmentRequest;
 import com.smmpanel.dto.binom.OfferAssignmentResponse;
 import com.smmpanel.entity.FixedBinomCampaign;
 import com.smmpanel.entity.Order;
-import com.smmpanel.repository.FixedBinomCampaignRepository;
-import com.smmpanel.repository.OrderRepository;
-import com.smmpanel.service.BinomService;
+import com.smmpanel.repository.jpa.FixedBinomCampaignRepository;
+import com.smmpanel.repository.jpa.OrderRepository;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 /**
- * Unified OfferAssignmentService - eliminates unnecessary interface layer
- * Handles offer assignment to fixed Binom campaigns with retry logic
+ * Unified OfferAssignmentService - eliminates unnecessary interface layer Handles offer assignment
+ * to fixed Binom campaigns with retry logic
  */
 @Slf4j
 @Service
@@ -32,15 +30,14 @@ public class OfferAssignmentService {
     private final BinomService binomService;
     private final FixedBinomCampaignRepository fixedCampaignRepository;
     private final OrderRepository orderRepository;
-    
+
     // In-memory cache for assignment statuses
     private final Map<Long, String> assignmentStatusCache = new ConcurrentHashMap<>();
 
-    
     @Transactional
     public OfferAssignmentResponse assignOfferToFixedCampaigns(OfferAssignmentRequest request) {
         log.info("Starting offer assignment for order: {}", request.getOrderId());
-        
+
         try {
             // Validate the request
             if (!validateAssignment(request)) {
@@ -55,11 +52,11 @@ public class OfferAssignmentService {
             }
 
             // Create offer in Binom first
-            String offerId = binomService.createOffer(
-                request.getOfferName(),
-                request.getTargetUrl(),
-                "SMM Panel Offer for Order #" + request.getOrderId()
-            );
+            String offerId =
+                    binomService.createOffer(
+                            request.getOfferName(),
+                            request.getTargetUrl(),
+                            "SMM Panel Offer for Order #" + request.getOrderId());
 
             if (offerId == null) {
                 return buildErrorResponse(request.getOrderId(), "Failed to create offer in Binom");
@@ -71,19 +68,28 @@ public class OfferAssignmentService {
 
             for (FixedBinomCampaign campaign : fixedCampaigns) {
                 try {
-                    boolean assigned = binomService.assignOfferToCampaign(offerId, campaign.getCampaignId(), 1);
+                    boolean assigned =
+                            binomService.assignOfferToCampaign(
+                                    offerId, campaign.getCampaignId(), 1);
                     if (assigned) {
                         assignedCampaignIds.add(campaign.getCampaignId());
                         successfulAssignments++;
-                        log.debug("Successfully assigned offer {} to campaign {}", 
-                                offerId, campaign.getCampaignId());
+                        log.debug(
+                                "Successfully assigned offer {} to campaign {}",
+                                offerId,
+                                campaign.getCampaignId());
                     } else {
-                        log.warn("Failed to assign offer {} to campaign {}", 
-                                offerId, campaign.getCampaignId());
+                        log.warn(
+                                "Failed to assign offer {} to campaign {}",
+                                offerId,
+                                campaign.getCampaignId());
                     }
                 } catch (Exception e) {
-                    log.error("Error assigning offer {} to campaign {}: {}", 
-                            offerId, campaign.getCampaignId(), e.getMessage());
+                    log.error(
+                            "Error assigning offer {} to campaign {}: {}",
+                            offerId,
+                            campaign.getCampaignId(),
+                            e.getMessage());
                 }
             }
 
@@ -102,40 +108,51 @@ public class OfferAssignmentService {
                     .campaignsCreated(successfulAssignments)
                     .campaignIds(assignedCampaignIds)
                     .status(status)
-                    .message(String.format("Offer assigned to %d out of %d campaigns", 
-                            successfulAssignments, fixedCampaigns.size()))
+                    .message(
+                            String.format(
+                                    "Offer assigned to %d out of %d campaigns",
+                                    successfulAssignments, fixedCampaigns.size()))
                     .build();
 
         } catch (Exception e) {
-            log.error("Offer assignment failed for order {}: {}", request.getOrderId(), e.getMessage(), e);
+            log.error(
+                    "Offer assignment failed for order {}: {}",
+                    request.getOrderId(),
+                    e.getMessage(),
+                    e);
             assignmentStatusCache.put(request.getOrderId(), "ERROR");
             return buildErrorResponse(request.getOrderId(), "Assignment failed: " + e.getMessage());
         }
     }
 
-    
     @Cacheable(value = "assignedCampaigns", key = "#orderId")
     public List<AssignedCampaignInfo> getAssignedCampaigns(Long orderId) {
         log.debug("Getting assigned campaigns for order: {}", orderId);
-        
+
         try {
-            Order order = orderRepository.findById(orderId)
-                    .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+            Order order =
+                    orderRepository
+                            .findById(orderId)
+                            .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
 
             // This would typically come from a join table or campaign assignment records
             // For now, we'll return the fixed campaigns that are active
             List<FixedBinomCampaign> fixedCampaigns = fixedCampaignRepository.findByActiveTrue();
-            
+
             return fixedCampaigns.stream()
-                    .map(campaign -> AssignedCampaignInfo.builder()
-                            .campaignId(campaign.getCampaignId())
-                            .campaignName(campaign.getCampaignName())
-                            .geoTargeting(campaign.getGeoTargeting())
-                            .weight(campaign.getWeight())
-                            .priority(campaign.getPriority())
-                            .active(campaign.getActive())
-                            .assignedAt(LocalDateTime.now()) // This should come from assignment record
-                            .build())
+                    .map(
+                            campaign ->
+                                    AssignedCampaignInfo.builder()
+                                            .campaignId(campaign.getCampaignId())
+                                            .campaignName(campaign.getCampaignName())
+                                            .geoTargeting(campaign.getGeoTargeting())
+                                            .weight(campaign.getWeight())
+                                            .priority(campaign.getPriority())
+                                            .active(campaign.getActive())
+                                            .assignedAt(
+                                                    LocalDateTime.now()) // This should come from
+                                            // assignment record
+                                            .build())
                     .toList();
 
         } catch (Exception e) {
@@ -144,7 +161,6 @@ public class OfferAssignmentService {
         }
     }
 
-    
     public String getAssignmentStatus(Long orderId) {
         String status = assignmentStatusCache.get(orderId);
         if (status == null) {
@@ -154,11 +170,10 @@ public class OfferAssignmentService {
         return status;
     }
 
-    
     public void updateAssignmentStatus(Long orderId, String status) {
         log.debug("Updating assignment status for order {} to {}", orderId, status);
         assignmentStatusCache.put(orderId, status);
-        
+
         // You could also persist this to database if needed
         try {
             Order order = orderRepository.findById(orderId).orElse(null);
@@ -172,7 +187,6 @@ public class OfferAssignmentService {
         }
     }
 
-    
     public boolean validateAssignment(OfferAssignmentRequest request) {
         if (request == null) {
             log.warn("Assignment request is null");
@@ -243,7 +257,7 @@ public class OfferAssignmentService {
                 // order.setAssignedCampaignIds(String.join(",", campaignIds));
                 // order.setOfferAssignedAt(LocalDateTime.now());
                 // orderRepository.save(order);
-                
+
                 log.debug("Order {} updated with offer assignment info", orderId);
             }
         } catch (Exception e) {
@@ -251,13 +265,11 @@ public class OfferAssignmentService {
         }
     }
 
-    /**
-     * Cleanup method to remove old cache entries
-     */
+    /** Cleanup method to remove old cache entries */
     public void cleanupOldAssignments() {
         // This could be called by a scheduled task to clean up old cache entries
         log.debug("Assignment status cache size: {}", assignmentStatusCache.size());
-        
+
         // You could implement logic to remove entries older than X hours/days
         // based on order creation time or last access time
     }

@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 public class OrderActionRequest {
     @NotBlank(message = "Action is required")
     private String action;
-    
+
     private String reason;
     private Integer newStartCount;
 }

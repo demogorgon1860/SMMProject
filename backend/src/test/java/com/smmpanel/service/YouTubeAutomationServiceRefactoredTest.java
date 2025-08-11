@@ -1,60 +1,51 @@
 package com.smmpanel.service;
 
-import com.smmpanel.entity.*;
-import com.smmpanel.repository.*;
-import com.smmpanel.exception.VideoProcessingException;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
 import com.smmpanel.dto.binom.BinomIntegrationRequest;
 import com.smmpanel.dto.binom.BinomIntegrationResponse;
+import com.smmpanel.entity.*;
+import com.smmpanel.exception.VideoProcessingException;
+import com.smmpanel.repository.jpa.*;
+import java.time.LocalDateTime;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.time.LocalDateTime;
-import java.util.Optional;
-import java.util.concurrent.Future;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
-
 /**
- * Test class for refactored YouTubeAutomationService
- * Verifies proper separation of transactional and async operations
+ * Test class for refactored YouTubeAutomationService Verifies proper separation of transactional
+ * and async operations
  */
 @ExtendWith(MockitoExtension.class)
 class YouTubeAutomationServiceRefactoredTest {
 
-    @Mock
-    private VideoProcessingRepository videoProcessingRepository;
-    
-    @Mock
-    private YouTubeAccountRepository youTubeAccountRepository;
-    
-    @Mock
-    private OrderRepository orderRepository;
-    
-    @Mock
-    private SeleniumService seleniumService;
-    
-    @Mock
-    private YouTubeService youTubeService;
-    
-    @Mock
-    private BinomService binomService;
-    
-    @Mock
-    private KafkaTemplate<String, Object> kafkaTemplate;
+    @Mock private VideoProcessingRepository videoProcessingRepository;
+
+    @Mock private YouTubeAccountRepository youTubeAccountRepository;
+
+    @Mock private OrderRepository orderRepository;
+
+    @Mock private SeleniumService seleniumService;
+
+    @Mock private YouTubeService youTubeService;
+
+    @Mock private BinomService binomService;
+
+    @Mock private KafkaTemplate<String, Object> kafkaTemplate;
 
     @Mock
-    private com.smmpanel.service.kafka.VideoProcessingProducerService videoProcessingProducerService;
-    
-    @Mock
-    private OrderStateManagementService orderStateManagementService;
+    private com.smmpanel.service.kafka.VideoProcessingProducerService
+            videoProcessingProducerService;
+
+    @Mock private OrderStateManagementService orderStateManagementService;
 
     private YouTubeAutomationService youTubeAutomationService;
 
@@ -64,18 +55,18 @@ class YouTubeAutomationServiceRefactoredTest {
 
     @BeforeEach
     void setUp() {
-        youTubeAutomationService = new YouTubeAutomationService(
-                videoProcessingRepository,
-                youTubeAccountRepository,
-                orderRepository,
-                seleniumService,
-                youTubeService,
-                binomService,
-                kafkaTemplate,
-                videoProcessingProducerService,
-                orderStateManagementService
-        );
-        
+        youTubeAutomationService =
+                new YouTubeAutomationService(
+                        videoProcessingRepository,
+                        youTubeAccountRepository,
+                        orderRepository,
+                        seleniumService,
+                        youTubeService,
+                        binomService,
+                        kafkaTemplate,
+                        videoProcessingProducerService,
+                        orderStateManagementService);
+
         ReflectionTestUtils.setField(youTubeAutomationService, "clipCreationEnabled", true);
         ReflectionTestUtils.setField(youTubeAutomationService, "clipCoefficient", 3.0);
         ReflectionTestUtils.setField(youTubeAutomationService, "clipCreationTimeoutMs", 300000L);
@@ -87,12 +78,14 @@ class YouTubeAutomationServiceRefactoredTest {
         // Arrange
         Order order = createTestOrder();
         VideoProcessing videoProcessing = createTestVideoProcessing();
-        
+
         when(orderRepository.findById(TEST_ORDER_ID)).thenReturn(Optional.of(order));
-        when(videoProcessingRepository.save(any(VideoProcessing.class))).thenReturn(videoProcessing);
+        when(videoProcessingRepository.save(any(VideoProcessing.class)))
+                .thenReturn(videoProcessing);
 
         // Act
-        OrderProcessingContext context = youTubeAutomationService.initializeOrderProcessing(TEST_ORDER_ID);
+        OrderProcessingContext context =
+                youTubeAutomationService.initializeOrderProcessing(TEST_ORDER_ID);
 
         // Assert
         assertNotNull(context, "Context should not be null");
@@ -114,11 +107,12 @@ class YouTubeAutomationServiceRefactoredTest {
         // Arrange
         Order order = createTestOrder();
         order.setStatus(OrderStatus.PROCESSING);
-        
+
         when(orderRepository.findById(TEST_ORDER_ID)).thenReturn(Optional.of(order));
 
         // Act
-        OrderProcessingContext context = youTubeAutomationService.initializeOrderProcessing(TEST_ORDER_ID);
+        OrderProcessingContext context =
+                youTubeAutomationService.initializeOrderProcessing(TEST_ORDER_ID);
 
         // Assert
         assertNull(context, "Context should be null for non-pending order");
@@ -132,13 +126,15 @@ class YouTubeAutomationServiceRefactoredTest {
         // Arrange
         Order order = createTestOrder();
         order.setLink("https://invalid-url.com/video/123");
-        
+
         when(orderRepository.findById(TEST_ORDER_ID)).thenReturn(Optional.of(order));
 
         // Act & Assert
-        assertThrows(VideoProcessingException.class, () -> {
-            youTubeAutomationService.initializeOrderProcessing(TEST_ORDER_ID);
-        });
+        assertThrows(
+                VideoProcessingException.class,
+                () -> {
+                    youTubeAutomationService.initializeOrderProcessing(TEST_ORDER_ID);
+                });
     }
 
     @Test
@@ -148,7 +144,7 @@ class YouTubeAutomationServiceRefactoredTest {
         Order order = createTestOrder();
         order.setStatus(OrderStatus.PROCESSING);
         int startCount = 5000;
-        
+
         when(orderRepository.findById(TEST_ORDER_ID)).thenReturn(Optional.of(order));
 
         // Act
@@ -167,9 +163,10 @@ class YouTubeAutomationServiceRefactoredTest {
         OrderProcessingContext context = createTestContext();
         YouTubeAccount account = createTestYouTubeAccount();
         String expectedClipUrl = "https://www.youtube.com/watch?v=clipXYZ123";
-        
+
         when(youTubeAccountRepository.findFirstByStatusAndDailyClipsCountLessThanDailyLimit(
-                YouTubeAccountStatus.ACTIVE)).thenReturn(Optional.of(account));
+                        YouTubeAccountStatus.ACTIVE))
+                .thenReturn(Optional.of(account));
         when(seleniumService.createClip(anyString(), eq(account), anyString()))
                 .thenReturn(expectedClipUrl);
         when(youTubeAccountRepository.findById(account.getId())).thenReturn(Optional.of(account));
@@ -183,11 +180,11 @@ class YouTubeAutomationServiceRefactoredTest {
         assertEquals(expectedClipUrl, result.getClipUrl());
         assertNull(result.getErrorMessage());
 
-        verify(seleniumService).createClip(
-                eq("https://www.youtube.com/watch?v=" + TEST_VIDEO_ID),
-                eq(account),
-                anyString()
-        );
+        verify(seleniumService)
+                .createClip(
+                        eq("https://www.youtube.com/watch?v=" + TEST_VIDEO_ID),
+                        eq(account),
+                        anyString());
     }
 
     @Test
@@ -195,9 +192,10 @@ class YouTubeAutomationServiceRefactoredTest {
     void testCreateYouTubeClipAsync_NoAccounts() {
         // Arrange
         OrderProcessingContext context = createTestContext();
-        
+
         when(youTubeAccountRepository.findFirstByStatusAndDailyClipsCountLessThanDailyLimit(
-                YouTubeAccountStatus.ACTIVE)).thenReturn(Optional.empty());
+                        YouTubeAccountStatus.ACTIVE))
+                .thenReturn(Optional.empty());
 
         // Act
         ClipCreationResult result = youTubeAutomationService.createYouTubeClipAsync(context);
@@ -218,7 +216,7 @@ class YouTubeAutomationServiceRefactoredTest {
         YouTubeAccount account = createTestYouTubeAccount();
         int originalClipsCount = account.getDailyClipsCount();
         long originalTotalClips = account.getTotalClipsCreated();
-        
+
         when(youTubeAccountRepository.findById(account.getId())).thenReturn(Optional.of(account));
 
         // Act
@@ -238,7 +236,7 @@ class YouTubeAutomationServiceRefactoredTest {
         // Arrange
         VideoProcessing videoProcessing = createTestVideoProcessing();
         ClipCreationResult clipResult = ClipCreationResult.success("https://clip-url.com");
-        
+
         when(videoProcessingRepository.findById(videoProcessing.getId()))
                 .thenReturn(Optional.of(videoProcessing));
 
@@ -259,7 +257,7 @@ class YouTubeAutomationServiceRefactoredTest {
         // Arrange
         VideoProcessing videoProcessing = createTestVideoProcessing();
         ClipCreationResult clipResult = ClipCreationResult.failed("Selenium error");
-        
+
         when(videoProcessingRepository.findById(videoProcessing.getId()))
                 .thenReturn(Optional.of(videoProcessing));
 
@@ -281,20 +279,23 @@ class YouTubeAutomationServiceRefactoredTest {
         OrderProcessingContext context = createTestContext();
         ClipCreationResult clipResult = ClipCreationResult.success("https://clip-url.com");
         BinomIntegrationResponse response = createSuccessfulBinomResponse();
-        
+
         when(binomService.createBinomIntegration(any(BinomIntegrationRequest.class)))
                 .thenReturn(response);
 
         // Act & Assert
-        assertDoesNotThrow(() -> {
-            youTubeAutomationService.createBinomIntegrationAsync(context, clipResult);
-        });
+        assertDoesNotThrow(
+                () -> {
+                    youTubeAutomationService.createBinomIntegrationAsync(context, clipResult);
+                });
 
-        verify(binomService).createBinomIntegration(argThat(request -> 
-            request.getTargetUrl().equals("https://clip-url.com") &&
-            request.getClipCreated() &&
-            request.getOrderId().equals(TEST_ORDER_ID)
-        ));
+        verify(binomService)
+                .createBinomIntegration(
+                        argThat(
+                                request ->
+                                        request.getTargetUrl().equals("https://clip-url.com")
+                                                && request.getClipCreated()
+                                                && request.getOrderId().equals(TEST_ORDER_ID)));
     }
 
     @Test
@@ -304,20 +305,23 @@ class YouTubeAutomationServiceRefactoredTest {
         OrderProcessingContext context = createTestContext();
         ClipCreationResult clipResult = ClipCreationResult.failed("Clip creation failed");
         BinomIntegrationResponse response = createSuccessfulBinomResponse();
-        
+
         when(binomService.createBinomIntegration(any(BinomIntegrationRequest.class)))
                 .thenReturn(response);
 
         // Act & Assert
-        assertDoesNotThrow(() -> {
-            youTubeAutomationService.createBinomIntegrationAsync(context, clipResult);
-        });
+        assertDoesNotThrow(
+                () -> {
+                    youTubeAutomationService.createBinomIntegrationAsync(context, clipResult);
+                });
 
-        verify(binomService).createBinomIntegration(argThat(request -> 
-            request.getTargetUrl().equals(TEST_VIDEO_URL) &&
-            !request.getClipCreated() &&
-            request.getOrderId().equals(TEST_ORDER_ID)
-        ));
+        verify(binomService)
+                .createBinomIntegration(
+                        argThat(
+                                request ->
+                                        request.getTargetUrl().equals(TEST_VIDEO_URL)
+                                                && !request.getClipCreated()
+                                                && request.getOrderId().equals(TEST_ORDER_ID)));
     }
 
     @Test
@@ -326,7 +330,7 @@ class YouTubeAutomationServiceRefactoredTest {
         // Arrange
         Order order = createTestOrder();
         order.setStatus(OrderStatus.PROCESSING);
-        
+
         when(orderRepository.findById(TEST_ORDER_ID)).thenReturn(Optional.of(order));
 
         // Act
@@ -345,7 +349,7 @@ class YouTubeAutomationServiceRefactoredTest {
         Order order = createTestOrder();
         VideoProcessing videoProcessing = createTestVideoProcessing();
         String errorMessage = "Test error message";
-        
+
         when(orderRepository.findById(TEST_ORDER_ID)).thenReturn(Optional.of(order));
         when(videoProcessingRepository.findByOrderId(TEST_ORDER_ID))
                 .thenReturn(Optional.of(videoProcessing));
@@ -358,7 +362,7 @@ class YouTubeAutomationServiceRefactoredTest {
         assertEquals(errorMessage, order.getErrorMessage());
         assertEquals("FAILED", videoProcessing.getProcessingStatus());
         assertEquals(errorMessage, videoProcessing.getErrorMessage());
-        
+
         verify(orderRepository).save(order);
         verify(videoProcessingRepository).save(videoProcessing);
     }
@@ -372,7 +376,7 @@ class YouTubeAutomationServiceRefactoredTest {
         order.setStartCount(1000);
         order.setQuantity(500); // Target 500 views
         int currentViews = 1600; // 600 views gained, exceeds target
-        
+
         when(orderRepository.findById(TEST_ORDER_ID)).thenReturn(Optional.of(order));
 
         // Act
@@ -393,7 +397,7 @@ class YouTubeAutomationServiceRefactoredTest {
         VideoProcessing videoProcessing = createTestVideoProcessing();
         videoProcessing.setProcessingAttempts(1);
         videoProcessing.setProcessingStatus("FAILED");
-        
+
         when(orderRepository.findById(TEST_ORDER_ID)).thenReturn(Optional.of(order));
         when(videoProcessingRepository.findByOrderId(TEST_ORDER_ID))
                 .thenReturn(Optional.of(videoProcessing));
@@ -406,7 +410,7 @@ class YouTubeAutomationServiceRefactoredTest {
         assertEquals("PENDING", videoProcessing.getProcessingStatus());
         assertNull(videoProcessing.getErrorMessage());
         assertEquals(OrderStatus.PROCESSING, order.getStatus());
-        
+
         verify(videoProcessingRepository).save(videoProcessing);
         verify(orderRepository).save(order);
         verify(kafkaTemplate).send("smm.youtube.processing", TEST_ORDER_ID);

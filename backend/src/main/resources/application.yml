@@ -35,8 +35,8 @@ spring:
   datasource:
     url: >
       jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:smm_panel}
-    username: ${DB_USER:postgres}
-    password: ${DB_PASSWORD:password}
+    username: ${DB_USER:smm_admin}
+    password: ${DB_PASSWORD:dev_password_123}
     driver-class-name: org.postgresql.Driver
     hikari:
       connection-timeout: 20000
@@ -46,12 +46,43 @@ spring:
       minimum-idle: 10
       pool-name: SmmPanelHikariCP
       leak-detection-threshold: 60000
+      register-mbeans: false
+      shutdown-timeout: 5000
+      connection-test-query: SELECT 1
+      initialization-fail-timeout: 30000
+      isolate-internal-queries: false
+      allow-pool-suspension: false
+      auto-commit: true
+      read-only: false
+      catalog: null
+      connection-init-sql: null
+      driver-class-name: null
+      transaction-isolation: null
+      validation-timeout: 5000
+      keep-alive-time: 0
+      scheduled-executor: null
+      housekeeping-period-ms: 30000
+      thread-factory: null
+  # ===============================
+  # FLYWAY CONFIGURATION  
+  # ===============================
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+  
+  # ===============================
+  # LIQUIBASE CONFIGURATION (DISABLED)
+  # ===============================
+  liquibase:
+    enabled: false
+  
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: none
       naming:
-        physical-strategy: >
-          org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
     show-sql: ${HIBERNATE_SHOW_SQL:false}
     properties:
       hibernate:
@@ -63,10 +94,6 @@ spring:
         # HIBERNATE STATISTICS CONFIGURATION
         # ===============================
         generate_statistics: ${HIBERNATE_STATISTICS:true}
-        session:
-          events:
-            log:
-              LOG_QUERIES_SLOWER_THAN_MS: 100
         
         # ===============================
         # JDBC BATCH CONFIGURATION
@@ -137,7 +164,7 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
+      password: ${REDIS_PASSWORD:dev_redis_pass}
       database: 0
       timeout: 5000
       jedis:
@@ -211,6 +238,18 @@ spring:
           orderStateUpdate:java.util.Map
         spring.json.use.type.headers: false
         spring.json.value.default.type: java.util.Map
+        
+  # ===============================
+  # KAFKA MONITORING CONFIGURATION  
+  # ===============================
+kafka:
+  monitoring:
+    lag:
+      threshold: ${KAFKA_LAG_THRESHOLD:10000}
+    error:
+      threshold: ${KAFKA_ERROR_THRESHOLD:0.05}
+  dead-letter-queue:
+    topic: ${KAFKA_DLQ_TOPIC:video.processing.dlq}
 
   # ===============================
   # FILE UPLOAD CONFIGURATION
@@ -246,7 +285,7 @@ app:
   # ===============================
   jwt:
     secret: >
-      ${JWT_SECRET:your-super-secret-jwt-key-change-in-production}
+      ${JWT_SECRET:your-super-secret-jwt-key-for-development-change-in-production-64chars}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
     refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}
   security:
@@ -254,6 +293,7 @@ app:
       enabled: true
       header: X-API-Key
       hash-algorithm: SHA-256
+      global-salt: ${API_KEY_GLOBAL_SALT:smm-panel-secure-salt-2024}
   cors:
     allowed-origins: >
       ${CORS_ORIGINS:http://localhost:3000,https://demo.perfectpanel.com}
@@ -302,6 +342,8 @@ app:
       secret: ${CRYPTOMUS_API_SECRET:your-cryptomus-api-secret}
     webhook:
       secret: ${CRYPTOMUS_WEBHOOK_SECRET:your-webhook-secret}
+    merchant-id: ${CRYPTOMUS_MERCHANT_ID:your-merchant-id}
+    min-deposit: ${CRYPTOMUS_MIN_DEPOSIT:5.00}
     timeout: 30000
   selenium:
     driver:
@@ -411,6 +453,34 @@ app:
       enabled: ${QUERY_COUNT_MONITORING_ENABLED:false}
       warn-threshold: 5
       error-threshold: 10
+    connection-pool:
+      high-usage-threshold: ${CONNECTION_POOL_HIGH_USAGE_THRESHOLD:75}
+      critical-usage-threshold: ${CONNECTION_POOL_CRITICAL_USAGE_THRESHOLD:90}
+      slow-query-threshold: ${CONNECTION_POOL_SLOW_QUERY_THRESHOLD:5000}
+      
+  # ===============================
+  # ADDITIONAL SERVICE CONFIGURATION
+  # ===============================
+  currency:
+    default: ${DEFAULT_CURRENCY:USD}
+    exchange-rate-api:
+      url: ${EXCHANGE_RATE_API_URL:https://api.exchangerate.host/latest}
+      base-currency: ${EXCHANGE_RATE_BASE_CURRENCY:USD}
+      timeout-ms: ${EXCHANGE_RATE_API_TIMEOUT_MS:5000}
+      
+  email:
+    enabled: ${EMAIL_ENABLED:false}
+    from: ${EMAIL_FROM:noreply@smmpanel.com}
+    
+  error-recovery:
+    max-retries: ${ERROR_RECOVERY_MAX_RETRIES:3}
+    initial-delay-minutes: ${ERROR_RECOVERY_INITIAL_DELAY_MINUTES:5}
+    max-delay-hours: ${ERROR_RECOVERY_MAX_DELAY_HOURS:24}
+    backoff-multiplier: ${ERROR_RECOVERY_BACKOFF_MULTIPLIER:2.0}
+    
+  dead-letter-queue:
+    retention-days: ${DLQ_RETENTION_DAYS:30}
+    max-entries: ${DLQ_MAX_ENTRIES:10000}
 
 # ===============================
 # RESILIENCE4J CONFIGURATION

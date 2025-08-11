@@ -1,16 +1,15 @@
 package com.smmpanel.service;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
-import java.time.LocalDateTime;
-
 /**
- * Message Idempotency Service
- * Handles duplicate message detection using Redis as a distributed idempotency store
+ * Message Idempotency Service Handles duplicate message detection using Redis as a distributed
+ * idempotency store
  */
 @Slf4j
 @Service
@@ -23,14 +22,18 @@ public class MessageIdempotencyService {
 
     /**
      * Check if a message has been processed before
+     *
      * @param messageId Unique message identifier
      * @param timestamp Message timestamp
      * @return true if message is a duplicate, false otherwise
      */
     public boolean isDuplicate(String messageId, LocalDateTime timestamp) {
         String key = IDEMPOTENCY_KEY_PREFIX + messageId;
-        Boolean wasAbsent = redisTemplate.opsForValue().setIfAbsent(key, timestamp.toString(), DEFAULT_RETENTION);
-        
+        Boolean wasAbsent =
+                redisTemplate
+                        .opsForValue()
+                        .setIfAbsent(key, timestamp.toString(), DEFAULT_RETENTION);
+
         if (Boolean.FALSE.equals(wasAbsent)) {
             log.warn("Detected duplicate message: messageId={}", messageId);
             return true;
@@ -40,6 +43,7 @@ public class MessageIdempotencyService {
 
     /**
      * Mark a message as processed successfully
+     *
      * @param messageId Unique message identifier
      * @param timestamp Message timestamp
      */

@@ -16,12 +16,11 @@ import org.springframework.web.util.UriComponentsBuilder;
 /** PRODUCTION-READY Binom API Client with proper error handling and retry logic */
 @Slf4j
 @Component
-@RequiredArgsConstructor
+// Removed Lombok constructor to use explicit constructor with @Qualifier
 public class BinomClient {
 
     private final RestTemplate restTemplate;
-
-    @Qualifier("redisObjectMapper") private final ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
 
     @Value("${app.binom.api.url:https://your-binom-domain.com/api}")
     private String apiUrl;
@@ -31,17 +30,18 @@ public class BinomClient {
 
     @Value("${app.binom.api.timeout:30000}")
     private int timeoutMs;
-    private final ObjectMapper objectMapper;
+    // ...existing code...
+    public BinomClient(RestTemplate restTemplate, @Qualifier("redisObjectMapper") ObjectMapper objectMapper) {
+        this.restTemplate = restTemplate;
+        this.objectMapper = objectMapper;
+    }
     @Value("${app.binom.api.retry-attempts:3}")
     private int retryAttempts;
 
     private static final String API_KEY_PARAM = "api_key";
     private static final String FORMAT_JSON = "json";
 
-    public BinomClient(RestTemplate restTemplate, @Qualifier("redisObjectMapper") ObjectMapper objectMapper) {
-        this.restTemplate = restTemplate;
-        this.objectMapper = objectMapper;
-    }
+    // ...existing code...
 
     /** Create a new campaign in Binom */
     public CreateCampaignResponse createCampaign(CreateCampaignRequest request) {

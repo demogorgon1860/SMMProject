@@ -607,8 +607,10 @@ public class YouTubeAutomationService {
 
     /** Select available YouTube account for clip creation (database read only) */
     private YouTubeAccount selectAvailableYouTubeAccount() {
+        // Use a reasonable default daily limit, e.g., 50, or fetch from config if needed
+        int dailyLimit = 50;
         return youTubeAccountRepository
-                .findFirstByStatusAndDailyClipsCountLessThanDailyLimit(YouTubeAccountStatus.ACTIVE)
+                .findFirstByStatusAndDailyClipsCountLessThan(YouTubeAccountStatus.ACTIVE, dailyLimit)
                 .orElse(null);
     }
 

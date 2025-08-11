@@ -279,6 +279,8 @@ kafka:
 # ===============================
 # APPLICATION CONFIGURATION
 # ===============================
+cors:
+  allowed-origins: ${CORS_ORIGINS:http://localhost:3000,https://demo.perfectpanel.com}
 app:
   # ===============================
   # SECURITY CONFIGURATION

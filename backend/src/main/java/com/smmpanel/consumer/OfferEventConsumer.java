@@ -18,11 +18,15 @@ import org.springframework.stereotype.Component;
 /** Consumer for offer assignment events */
 @Slf4j
 @Component
-@RequiredArgsConstructor
+// Removed Lombok constructor to use explicit constructor with @Qualifier
 public class OfferEventConsumer {
 
     private final OfferAssignmentService offerAssignmentService;
     private final ObjectMapper objectMapper;
+    public OfferEventConsumer(OfferAssignmentService offerAssignmentService, @org.springframework.beans.factory.annotation.Qualifier("redisObjectMapper") ObjectMapper objectMapper) {
+        this.offerAssignmentService = offerAssignmentService;
+        this.objectMapper = objectMapper;
+    }
 
     @KafkaListener(
             topics = "smm.offer.assignments",

@@ -1,6 +1,7 @@
 package com.smmpanel.repository.jpa;
 
 import com.smmpanel.entity.VideoProcessing;
+import com.smmpanel.entity.VideoProcessingStatus;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -15,7 +16,7 @@ public interface VideoProcessingRepository extends JpaRepository<VideoProcessing
 
     Optional<VideoProcessing> findByOrderId(Long orderId);
 
-    List<VideoProcessing> findByProcessingStatusOrderByCreatedAtAsc(String processingStatus);
+    List<VideoProcessing> findByStatusOrderByCreatedAtAsc(VideoProcessingStatus status);
 
     List<VideoProcessing> findByVideoIdOrderByCreatedAtDesc(String videoId);
 
@@ -25,7 +26,7 @@ public interface VideoProcessingRepository extends JpaRepository<VideoProcessing
     List<VideoProcessing> findClipsCreatedAfter(@Param("date") java.time.LocalDateTime date);
 
     @Query(
-            "SELECT vp FROM VideoProcessing vp WHERE vp.processingStatus = 'FAILED' AND"
+            "SELECT vp FROM VideoProcessing vp WHERE vp.status = 'FAILED' AND"
                     + " vp.processingAttempts < 3")
     List<VideoProcessing> findFailedProcessingForRetry();
 
@@ -42,19 +43,19 @@ public interface VideoProcessingRepository extends JpaRepository<VideoProcessing
     List<VideoProcessing> findByYoutubeAccountIdAndCreatedAtAfter(
             Long youtubeAccountId, java.time.LocalDateTime date);
 
-    @Query("SELECT vp FROM VideoProcessing vp WHERE vp.processingStatus = :status")
-    List<VideoProcessing> findByProcessingStatus(@Param("status") String status);
+    @Query("SELECT vp FROM VideoProcessing vp WHERE vp.status = :status")
+    List<VideoProcessing> findByStatus(@Param("status") VideoProcessingStatus status);
 
     @Query(
-            "SELECT vp FROM VideoProcessing vp WHERE vp.processingStatus = 'PENDING' OR"
-                    + " (vp.processingStatus = 'PROCESSING' AND vp.updatedAt < :timeoutThreshold)")
+            "SELECT vp FROM VideoProcessing vp WHERE vp.status = 'PENDING' OR"
+                    + " (vp.status = 'PROCESSING' AND vp.updatedAt < :timeoutThreshold)")
     List<VideoProcessing> findStuckProcessing(
             @Param("timeoutThreshold") LocalDateTime timeoutThreshold);
 
     @Query("SELECT vp FROM VideoProcessing vp WHERE vp.clipCreated = true")
     List<VideoProcessing> findWithClipsCreated();
 
-    @Query("SELECT vp FROM VideoProcessing vp WHERE vp.youtubeAccount.id = :accountId")
+    @Query("SELECT vp FROM VideoProcessing vp WHERE vp.youtubeAccountId = :accountId")
     List<VideoProcessing> findByYoutubeAccountId(@Param("accountId") Long accountId);
 
     @Query(

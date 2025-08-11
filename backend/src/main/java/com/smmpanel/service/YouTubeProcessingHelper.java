@@ -167,8 +167,10 @@ public class YouTubeProcessingHelper {
      * @return Available YouTube account or null
      */
     public YouTubeAccount selectAvailableYouTubeAccountLegacy() {
+        // Use a reasonable default daily limit, e.g., 50, or fetch from config if needed
+        int dailyLimit = 50;
         return youTubeAccountRepository
-                .findFirstByStatusAndDailyClipsCountLessThanDailyLimit(YouTubeAccountStatus.ACTIVE)
+                .findFirstByStatusAndDailyClipsCountLessThan(YouTubeAccountStatus.ACTIVE, dailyLimit)
                 .orElse(null);
     }
 

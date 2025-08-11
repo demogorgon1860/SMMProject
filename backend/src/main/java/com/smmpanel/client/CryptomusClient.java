@@ -19,11 +19,15 @@ import org.springframework.web.client.RestTemplate;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
+// Removed Lombok constructor to use explicit constructor with @Qualifier
 public class CryptomusClient {
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    public CryptomusClient(RestTemplate restTemplate, @org.springframework.beans.factory.annotation.Qualifier("redisObjectMapper") ObjectMapper objectMapper) {
+        this.restTemplate = restTemplate;
+        this.objectMapper = objectMapper;
+    }
 
     @Value("${app.cryptomus.api.url:https://api.cryptomus.com/v1}")
     private String apiUrl;

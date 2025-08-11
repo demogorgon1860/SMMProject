@@ -34,8 +34,17 @@ public class KafkaConfig {
     private final KafkaProperties kafkaProperties;
 
     private final ObjectMapper objectMapper;
-    private final KafkaErrorHandlerConfig errorHandlerConfig;
-    private final KafkaConsumerErrorConfiguration consumerErrorConfiguration;
+    private KafkaErrorHandlerConfig errorHandlerConfig;
+    private KafkaConsumerErrorConfiguration consumerErrorConfiguration;
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setConsumerErrorConfiguration(@org.springframework.context.annotation.Lazy KafkaConsumerErrorConfiguration consumerErrorConfiguration) {
+        this.consumerErrorConfiguration = consumerErrorConfiguration;
+    }
+    // ...existing code...
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setErrorHandlerConfig(@org.springframework.context.annotation.Lazy KafkaErrorHandlerConfig errorHandlerConfig) {
+        this.errorHandlerConfig = errorHandlerConfig;
+    }
 
     // ===============================
     // TOPIC DEFINITIONS - FIXED NAMES

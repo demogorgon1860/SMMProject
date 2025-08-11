@@ -31,6 +31,6 @@ public interface YouTubeAccountRepository extends JpaRepository<YouTubeAccount, 
     @Query("SELECT COUNT(ya) FROM YouTubeAccount ya WHERE ya.status = 'ACTIVE'")
     long countActiveAccounts();
 
-    Optional<YouTubeAccount> findFirstByStatusAndDailyClipsCountLessThanDailyLimit(
-            YouTubeAccountStatus status);
+    Optional<YouTubeAccount> findFirstByStatusAndDailyClipsCountLessThan(
+            YouTubeAccountStatus status, Integer dailyLimit);
 }

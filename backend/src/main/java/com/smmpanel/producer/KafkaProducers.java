@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 public class KafkaProducers {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    @org.springframework.beans.factory.annotation.Qualifier("kafkaObjectMapper")
     private final ObjectMapper objectMapper;
 
     /** Send video processing request */

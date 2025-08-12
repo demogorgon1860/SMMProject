@@ -355,6 +355,8 @@ app:
       page-load: 30
       implicit: 10
     max-concurrent-sessions: 5
+    hub:
+      url: "http://localhost:4444/wd/hub"
 
   # ===============================
   # CACHING CONFIGURATION

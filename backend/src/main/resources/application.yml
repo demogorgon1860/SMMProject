@@ -38,45 +38,33 @@ spring:
     username: ${DB_USER:smm_admin}
     password: ${DB_PASSWORD:dev_password_123}
     driver-class-name: org.postgresql.Driver
-    hikari:
-      connection-timeout: 20000
-      idle-timeout: 300000
-      max-lifetime: 1200000
-      maximum-pool-size: 50
-      minimum-idle: 10
-      pool-name: SmmPanelHikariCP
-      leak-detection-threshold: 60000
-      register-mbeans: false
-      shutdown-timeout: 5000
-      connection-test-query: SELECT 1
-      initialization-fail-timeout: 30000
-      isolate-internal-queries: false
-      allow-pool-suspension: false
-      auto-commit: true
-      read-only: false
-      catalog: null
-      connection-init-sql: null
-      driver-class-name: null
-      transaction-isolation: null
-      validation-timeout: 5000
-      keep-alive-time: 0
-      scheduled-executor: null
-      housekeeping-period-ms: 30000
-      thread-factory: null
   # ===============================
-  # FLYWAY CONFIGURATION  
+  # FLYWAY CONFIGURATION (DISABLED - MIGRATED TO LIQUIBASE)
   # ===============================
   flyway:
-    enabled: true
+    enabled: false
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: true
   
   # ===============================
-  # LIQUIBASE CONFIGURATION (DISABLED)
+  # LIQUIBASE CONFIGURATION
   # ===============================
   liquibase:
-    enabled: false
+    enabled: true
+    change-log: classpath:db/liquibase/db.changelog-master.xml
+    contexts: ${LIQUIBASE_CONTEXTS:all}
+    default-schema: ${DB_SCHEMA:public}
+    drop-first: ${LIQUIBASE_DROP_FIRST:false}
+    # Performance settings
+    database-change-log-table-name: databasechangelog
+    database-change-log-lock-table-name: databasechangeloglock
+    # Security settings
+    should-run: ${LIQUIBASE_SHOULD_RUN:true}
+    # Rollback settings
+    rollback-file: ${LIQUIBASE_ROLLBACK_FILE:}
+    # Validation settings
+    test-rollback-on-update: ${LIQUIBASE_TEST_ROLLBACK:false}
   
   jpa:
     hibernate:
@@ -196,6 +184,7 @@ spring:
       batch-size: 16384
       linger-ms: 1
       buffer-memory: 33554432
+      transaction-id-prefix: smm-panel-tx-
       properties:
         enable.idempotence: "true"
         compression.type: snappy
@@ -238,6 +227,15 @@ spring:
           orderStateUpdate:java.util.Map
         spring.json.use.type.headers: false
         spring.json.value.default.type: java.util.Map
+    listener:
+      concurrency: 3
+      type: batch
+      poll-timeout: 3000
+    retry-topic:
+      attempts: 3
+      delay: 1000
+      multiplier: 2.0
+      max-delay: 10000
         
   # ===============================
   # KAFKA MONITORING CONFIGURATION  
@@ -282,6 +280,15 @@ kafka:
 cors:
   allowed-origins: ${CORS_ORIGINS:http://localhost:3000,https://demo.perfectpanel.com}
 app:
+  # ===============================
+  # DATABASE POOL OPTIMIZATION
+  # ===============================
+  database:
+    # Maximum connections available in the database (adjust based on your PostgreSQL configuration)
+    max-connections: ${DB_MAX_CONNECTIONS:200}
+    # Database connection lifetime in milliseconds (should match or be slightly higher than PostgreSQL settings)
+    connection-lifetime-ms: ${DB_CONNECTION_LIFETIME_MS:1800000}
+
   # ===============================
   # SECURITY CONFIGURATION
   # ===============================
@@ -527,12 +534,14 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus,loggers
+        include: health,info,metrics,prometheus,loggers,kafka
       base-path: /actuator
   endpoint:
     health:
       show-details: when-authorized
       show-components: always
+    kafka:
+      enabled: true
   prometheus:
     metrics:
       export:

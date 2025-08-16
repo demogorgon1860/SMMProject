@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog 
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- 
+    v1.1.0 - Enhance Error Handling
+    
+    This migration adds enhanced error handling capabilities to the database schema.
+    It includes better error logging, recovery mechanisms, and monitoring views.
+    
+    Context: all (safe for all environments)
+    Rollback: Full rollback support - removes all error handling enhancements
+    -->
+
+    <changeSet id="1.1.0-add-error-recovery-table" author="system-team" context="all">
+        <comment>Add error recovery tracking table for better error handling and monitoring</comment>
+        
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="error_recovery_log"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="error_recovery_log">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="error_type" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="error_source" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="error_message" type="TEXT"/>
+            <column name="stack_trace" type="TEXT"/>
+            <column name="recovery_attempted" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="recovery_successful" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="recovery_attempts" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_recovery_attempt" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <!-- Add indexes for performance -->
+        <createIndex tableName="error_recovery_log" indexName="idx_error_recovery_log_type">
+            <column name="error_type"/>
+        </createIndex>
+        
+        <createIndex tableName="error_recovery_log" indexName="idx_error_recovery_log_source">
+            <column name="error_source"/>
+        </createIndex>
+        
+        <createIndex tableName="error_recovery_log" indexName="idx_error_recovery_log_created_at">
+            <column name="created_at"/>
+        </createIndex>
+        
+        <createIndex tableName="error_recovery_log" indexName="idx_error_recovery_log_recovery_status">
+            <column name="recovery_attempted"/>
+            <column name="recovery_successful"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="error_recovery_log"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.1.0-create-error-monitoring-view" author="system-team" context="all">
+        <comment>Create monitoring view for error tracking and recovery status</comment>
+        
+        <createView viewName="v_error_recovery_status" replaceIfExists="true">
+            <![CDATA[
+            SELECT 
+                error_type,
+                error_source,
+                COUNT(*) as total_errors,
+                COUNT(CASE WHEN recovery_attempted = true THEN 1 END) as recovery_attempts,
+                COUNT(CASE WHEN recovery_successful = true THEN 1 END) as successful_recoveries,
+                ROUND(
+                    COUNT(CASE WHEN recovery_successful = true THEN 1 END) * 100.0 / 
+                    NULLIF(COUNT(CASE WHEN recovery_attempted = true THEN 1 END), 0), 
+                    2
+                ) as recovery_success_rate,
+                MAX(created_at) as last_error_date,
+                MAX(last_recovery_attempt) as last_recovery_date
+            FROM error_recovery_log
+            WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
+            GROUP BY error_type, error_source
+            ORDER BY total_errors DESC, recovery_success_rate ASC
+            ]]>
+        </createView>
+
+        <rollback>
+            <dropView viewName="v_error_recovery_status"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.1.0-record-migration-metadata" author="system-team" context="all">
+        <comment>Record migration execution metadata</comment>
+        
+        <insert tableName="liquibase_migration_metadata">
+            <column name="changeset_id" value="1.1.0-enhance-error-handling"/>
+            <column name="version" value="1.1.0"/>
+            <column name="context" value="all"/>
+            <column name="rollback_available" valueBoolean="true"/>
+            <column name="notes" value="Added error recovery tracking table and monitoring view for enhanced error handling"/>
+        </insert>
+
+        <rollback>
+            <delete tableName="liquibase_migration_metadata">
+                <where>changeset_id = '1.1.0-enhance-error-handling'</where>
+            </delete>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

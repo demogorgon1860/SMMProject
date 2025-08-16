@@ -147,10 +147,12 @@ public class KafkaVideoProcessingConfig {
         template.setDefaultTopic(videoProcessingTopic);
 
         // Fix: Make a mutable copy of the configuration properties before modifying
-        Map<String, Object> mutableProps = new HashMap<>(template.getProducerFactory().getConfigurationProperties());
+        Map<String, Object> mutableProps =
+                new HashMap<>(template.getProducerFactory().getConfigurationProperties());
         mutableProps.put("client.id", "video-processing-producer");
         // If you need to use these properties, set them back or use as needed
-        // template.getProducerFactory().updateConfigurationProperties(mutableProps); // If such a method exists
+        // template.getProducerFactory().updateConfigurationProperties(mutableProps); // If such a
+        // method exists
 
         log.info(
                 "Configured KafkaTemplate for video processing with default topic: {}",

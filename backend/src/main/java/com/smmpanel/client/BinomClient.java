@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smmpanel.dto.binom.*;
 import java.math.BigDecimal;
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,11 +15,13 @@ import org.springframework.web.util.UriComponentsBuilder;
 /** PRODUCTION-READY Binom API Client with proper error handling and retry logic */
 @Slf4j
 @Component
-// Removed Lombok constructor to use explicit constructor with @Qualifier
 public class BinomClient {
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private final io.github.resilience4j.circuitbreaker.CircuitBreaker circuitBreaker;
+    private final io.github.resilience4j.retry.Retry readRetry;
+    private final io.github.resilience4j.retry.Retry writeRetry;
 
     @Value("${app.binom.api.url:https://your-binom-domain.com/api}")
     private String apiUrl;
@@ -28,15 +29,18 @@ public class BinomClient {
     @Value("${app.binom.api.key:your-binom-api-key}")
     private String apiKey;
 
-    @Value("${app.binom.api.timeout:30000}")
-    private int timeoutMs;
-    // ...existing code...
-    public BinomClient(RestTemplate restTemplate, @Qualifier("redisObjectMapper") ObjectMapper objectMapper) {
+    public BinomClient(
+            @Qualifier("binomRestTemplate") RestTemplate restTemplate,
+            @Qualifier("redisObjectMapper") ObjectMapper objectMapper,
+            @Qualifier("binomCircuitBreaker") io.github.resilience4j.circuitbreaker.CircuitBreaker circuitBreaker,
+            @Qualifier("binomReadRetry") io.github.resilience4j.retry.Retry readRetry,
+            @Qualifier("binomWriteRetry") io.github.resilience4j.retry.Retry writeRetry) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
+        this.circuitBreaker = circuitBreaker;
+        this.readRetry = readRetry;
+        this.writeRetry = writeRetry;
     }
-    @Value("${app.binom.api.retry-attempts:3}")
-    private int retryAttempts;
 
     private static final String API_KEY_PARAM = "api_key";
     private static final String FORMAT_JSON = "json";
@@ -53,47 +57,54 @@ public class BinomClient {
                         .build()
                         .toUriString();
 
-        return executeWithRetry(
-                () -> {
-                    HttpHeaders headers = new HttpHeaders();
-                    headers.setContentType(MediaType.APPLICATION_JSON);
-                    headers.set("User-Agent", "SMM-Panel/1.0");
+        return circuitBreaker.executeSupplier(
+                () ->
+                        writeRetry.executeSupplier(
+                                () -> {
+                                    HttpHeaders headers = new HttpHeaders();
+                                    headers.setContentType(MediaType.APPLICATION_JSON);
+                                    headers.set("User-Agent", "SMM-Panel/1.0");
 
-                    HttpEntity<CreateCampaignRequest> entity = new HttpEntity<>(request, headers);
+                                    HttpEntity<CreateCampaignRequest> entity =
+                                            new HttpEntity<>(request, headers);
 
-                    log.info("Creating Binom campaign: {}", request.getName());
+                                    log.info("Creating Binom campaign: {}", request.getName());
 
-                    ResponseEntity<Map> response =
-                            restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
+                                    ResponseEntity<Map> response =
+                                            restTemplate.exchange(
+                                                    url, HttpMethod.POST, entity, Map.class);
 
-                    if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                        Map<String, Object> responseBody = response.getBody();
+                                    if (response.getStatusCode() == HttpStatus.OK
+                                            && response.getBody() != null) {
+                                        Map<String, Object> responseBody = response.getBody();
 
-                        // Check for API errors
-                        if (responseBody.containsKey("error")) {
-                            throw new RuntimeException(
-                                    "Binom API error: " + responseBody.get("error"));
-                        }
+                                        // Check for API errors
+                                        if (responseBody.containsKey("error")) {
+                                            throw new RuntimeException(
+                                                    "Binom API error: "
+                                                            + responseBody.get("error"));
+                                        }
 
-                        if (responseBody.containsKey("campaign_id")) {
-                            String campaignId = String.valueOf(responseBody.get("campaign_id"));
-                            log.info(
-                                    "Successfully created Binom campaign: {} -> {}",
-                                    request.getName(),
-                                    campaignId);
+                                        if (responseBody.containsKey("campaign_id")) {
+                                            String campaignId =
+                                                    String.valueOf(responseBody.get("campaign_id"));
+                                            log.info(
+                                                    "Successfully created Binom campaign: {} -> {}",
+                                                    request.getName(),
+                                                    campaignId);
 
-                            return CreateCampaignResponse.builder()
-                                    .campaignId(campaignId)
-                                    .name(request.getName())
-                                    .status("ACTIVE")
-                                    .build();
-                        }
-                    }
+                                            return CreateCampaignResponse.builder()
+                                                    .campaignId(campaignId)
+                                                    .name(request.getName())
+                                                    .status("ACTIVE")
+                                                    .build();
+                                        }
+                                    }
 
-                    throw new RuntimeException(
-                            "Invalid response from Binom API: " + response.getBody());
-                },
-                "createCampaign");
+                                    throw new RuntimeException(
+                                            "Invalid response from Binom API: "
+                                                    + response.getBody());
+                                }));
     }
 
     /** Create a new offer in Binom */
@@ -106,46 +117,53 @@ public class BinomClient {
                         .build()
                         .toUriString();
 
-        return executeWithRetry(
-                () -> {
-                    HttpHeaders headers = new HttpHeaders();
-                    headers.setContentType(MediaType.APPLICATION_JSON);
-                    headers.set("User-Agent", "SMM-Panel/1.0");
+        return circuitBreaker.executeSupplier(
+                () ->
+                        writeRetry.executeSupplier(
+                                () -> {
+                                    HttpHeaders headers = new HttpHeaders();
+                                    headers.setContentType(MediaType.APPLICATION_JSON);
+                                    headers.set("User-Agent", "SMM-Panel/1.0");
 
-                    HttpEntity<CreateOfferRequest> entity = new HttpEntity<>(request, headers);
+                                    HttpEntity<CreateOfferRequest> entity =
+                                            new HttpEntity<>(request, headers);
 
-                    log.info("Creating Binom offer: {}", request.getName());
+                                    log.info("Creating Binom offer: {}", request.getName());
 
-                    ResponseEntity<Map> response =
-                            restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
+                                    ResponseEntity<Map> response =
+                                            restTemplate.exchange(
+                                                    url, HttpMethod.POST, entity, Map.class);
 
-                    if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                        Map<String, Object> responseBody = response.getBody();
+                                    if (response.getStatusCode() == HttpStatus.OK
+                                            && response.getBody() != null) {
+                                        Map<String, Object> responseBody = response.getBody();
 
-                        if (responseBody.containsKey("error")) {
-                            throw new RuntimeException(
-                                    "Binom API error: " + responseBody.get("error"));
-                        }
+                                        if (responseBody.containsKey("error")) {
+                                            throw new RuntimeException(
+                                                    "Binom API error: "
+                                                            + responseBody.get("error"));
+                                        }
 
-                        if (responseBody.containsKey("offer_id")) {
-                            String offerId = String.valueOf(responseBody.get("offer_id"));
-                            log.info(
-                                    "Successfully created Binom offer: {} -> {}",
-                                    request.getName(),
-                                    offerId);
+                                        if (responseBody.containsKey("offer_id")) {
+                                            String offerId =
+                                                    String.valueOf(responseBody.get("offer_id"));
+                                            log.info(
+                                                    "Successfully created Binom offer: {} -> {}",
+                                                    request.getName(),
+                                                    offerId);
 
-                            return CreateOfferResponse.builder()
-                                    .offerId(offerId)
-                                    .name(request.getName())
-                                    .url(request.getUrl())
-                                    .build();
-                        }
-                    }
+                                            return CreateOfferResponse.builder()
+                                                    .offerId(offerId)
+                                                    .name(request.getName())
+                                                    .url(request.getUrl())
+                                                    .build();
+                                        }
+                                    }
 
-                    throw new RuntimeException(
-                            "Invalid response from Binom API: " + response.getBody());
-                },
-                "createOffer");
+                                    throw new RuntimeException(
+                                            "Invalid response from Binom API: "
+                                                    + response.getBody());
+                                }));
     }
 
     /** Assign offer to campaign */
@@ -159,43 +177,51 @@ public class BinomClient {
                         .build()
                         .toUriString();
 
-        return executeWithRetry(
-                () -> {
-                    HttpHeaders headers = new HttpHeaders();
-                    headers.setContentType(MediaType.APPLICATION_JSON);
-                    headers.set("User-Agent", "SMM-Panel/1.0");
+        return circuitBreaker.executeSupplier(
+                () ->
+                        writeRetry.executeSupplier(
+                                () -> {
+                                    HttpHeaders headers = new HttpHeaders();
+                                    headers.setContentType(MediaType.APPLICATION_JSON);
+                                    headers.set("User-Agent", "SMM-Panel/1.0");
 
-                    HttpEntity<String> entity = new HttpEntity<>("", headers);
+                                    HttpEntity<String> entity = new HttpEntity<>("", headers);
 
-                    log.info("Assigning offer {} to campaign {}", offerId, campaignId);
+                                    log.info(
+                                            "Assigning offer {} to campaign {}",
+                                            offerId,
+                                            campaignId);
 
-                    ResponseEntity<Map> response =
-                            restTemplate.exchange(url, HttpMethod.PUT, entity, Map.class);
+                                    ResponseEntity<Map> response =
+                                            restTemplate.exchange(
+                                                    url, HttpMethod.PUT, entity, Map.class);
 
-                    if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                        Map<String, Object> responseBody = response.getBody();
+                                    if (response.getStatusCode() == HttpStatus.OK
+                                            && response.getBody() != null) {
+                                        Map<String, Object> responseBody = response.getBody();
 
-                        if (responseBody.containsKey("error")) {
-                            throw new RuntimeException(
-                                    "Binom API error: " + responseBody.get("error"));
-                        }
+                                        if (responseBody.containsKey("error")) {
+                                            throw new RuntimeException(
+                                                    "Binom API error: "
+                                                            + responseBody.get("error"));
+                                        }
 
-                        log.info(
-                                "Successfully assigned offer {} to campaign {}",
-                                offerId,
-                                campaignId);
+                                        log.info(
+                                                "Successfully assigned offer {} to campaign {}",
+                                                offerId,
+                                                campaignId);
 
-                        return AssignOfferResponse.builder()
-                                .campaignId(campaignId)
-                                .offerId(offerId)
-                                .status("ASSIGNED")
-                                .build();
-                    }
+                                        return AssignOfferResponse.builder()
+                                                .campaignId(campaignId)
+                                                .offerId(offerId)
+                                                .status("ASSIGNED")
+                                                .build();
+                                    }
 
-                    throw new RuntimeException(
-                            "Invalid response from Binom API: " + response.getBody());
-                },
-                "assignOfferToCampaign");
+                                    throw new RuntimeException(
+                                            "Invalid response from Binom API: "
+                                                    + response.getBody());
+                                }));
     }
 
     /** Check if offer exists */
@@ -209,45 +235,52 @@ public class BinomClient {
                         .build()
                         .toUriString();
 
-        return executeWithRetry(
-                () -> {
-                    HttpHeaders headers = new HttpHeaders();
-                    headers.setContentType(MediaType.APPLICATION_JSON);
-                    headers.set("User-Agent", "SMM-Panel/1.0");
+        return circuitBreaker.executeSupplier(
+                () ->
+                        readRetry.executeSupplier(
+                                () -> {
+                                    HttpHeaders headers = new HttpHeaders();
+                                    headers.setContentType(MediaType.APPLICATION_JSON);
+                                    headers.set("User-Agent", "SMM-Panel/1.0");
 
-                    HttpEntity<String> entity = new HttpEntity<>("", headers);
+                                    HttpEntity<String> entity = new HttpEntity<>("", headers);
 
-                    ResponseEntity<Map> response =
-                            restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+                                    ResponseEntity<Map> response =
+                                            restTemplate.exchange(
+                                                    url, HttpMethod.GET, entity, Map.class);
 
-                    if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                        Map<String, Object> responseBody = response.getBody();
+                                    if (response.getStatusCode() == HttpStatus.OK
+                                            && response.getBody() != null) {
+                                        Map<String, Object> responseBody = response.getBody();
 
-                        if (responseBody.containsKey("error")) {
-                            // Offer not found is not an error in this context
-                            return CheckOfferResponse.builder().exists(false).build();
-                        }
+                                        if (responseBody.containsKey("error")) {
+                                            // Offer not found is not an error in this context
+                                            return CheckOfferResponse.builder()
+                                                    .exists(false)
+                                                    .build();
+                                        }
 
-                        if (responseBody.containsKey("offers")
-                                && responseBody.get("offers") instanceof Map) {
-                            Map<String, Object> offers =
-                                    (Map<String, Object>) responseBody.get("offers");
-                            if (!offers.isEmpty()) {
-                                String offerId = offers.keySet().iterator().next();
-                                return CheckOfferResponse.builder()
-                                        .exists(true)
-                                        .offerId(offerId)
-                                        .build();
-                            }
-                        }
+                                        if (responseBody.containsKey("offers")
+                                                && responseBody.get("offers") instanceof Map) {
+                                            Map<String, Object> offers =
+                                                    (Map<String, Object>)
+                                                            responseBody.get("offers");
+                                            if (!offers.isEmpty()) {
+                                                String offerId = offers.keySet().iterator().next();
+                                                return CheckOfferResponse.builder()
+                                                        .exists(true)
+                                                        .offerId(offerId)
+                                                        .build();
+                                            }
+                                        }
 
-                        return CheckOfferResponse.builder().exists(false).build();
-                    }
+                                        return CheckOfferResponse.builder().exists(false).build();
+                                    }
 
-                    throw new RuntimeException(
-                            "Invalid response from Binom API: " + response.getBody());
-                },
-                "checkOfferExists");
+                                    throw new RuntimeException(
+                                            "Invalid response from Binom API: "
+                                                    + response.getBody());
+                                }));
     }
 
     /** Get campaign statistics */
@@ -260,38 +293,53 @@ public class BinomClient {
                         .build()
                         .toUriString();
 
-        return executeWithRetry(
-                () -> {
-                    HttpHeaders headers = new HttpHeaders();
-                    headers.setContentType(MediaType.APPLICATION_JSON);
-                    headers.set("User-Agent", "SMM-Panel/1.0");
+        return circuitBreaker.executeSupplier(
+                () ->
+                        readRetry.executeSupplier(
+                                () -> {
+                                    HttpHeaders headers = new HttpHeaders();
+                                    headers.setContentType(MediaType.APPLICATION_JSON);
+                                    headers.set("User-Agent", "SMM-Panel/1.0");
 
-                    HttpEntity<String> entity = new HttpEntity<>("", headers);
+                                    HttpEntity<String> entity = new HttpEntity<>("", headers);
 
-                    ResponseEntity<Map> response =
-                            restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+                                    ResponseEntity<Map> response =
+                                            restTemplate.exchange(
+                                                    url, HttpMethod.GET, entity, Map.class);
 
-                    if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                        Map<String, Object> responseBody = response.getBody();
+                                    if (response.getStatusCode() == HttpStatus.OK
+                                            && response.getBody() != null) {
+                                        Map<String, Object> responseBody = response.getBody();
 
-                        if (responseBody.containsKey("error")) {
-                            throw new RuntimeException(
-                                    "Binom API error: " + responseBody.get("error"));
-                        }
+                                        if (responseBody.containsKey("error")) {
+                                            throw new RuntimeException(
+                                                    "Binom API error: "
+                                                            + responseBody.get("error"));
+                                        }
 
-                        return CampaignStatsResponse.builder()
-                                .campaignId(campaignId)
-                                .clicks(Long.valueOf(getIntValue(responseBody, "clicks", 0)))
-                                .conversions(
-                                        Long.valueOf(getIntValue(responseBody, "conversions", 0)))
-                                .cost(BigDecimal.valueOf(getDoubleValue(responseBody, "cost", 0.0)))
-                                .build();
-                    }
+                                        return CampaignStatsResponse.builder()
+                                                .campaignId(campaignId)
+                                                .clicks(
+                                                        Long.valueOf(
+                                                                getIntValue(
+                                                                        responseBody, "clicks", 0)))
+                                                .conversions(
+                                                        Long.valueOf(
+                                                                getIntValue(
+                                                                        responseBody,
+                                                                        "conversions",
+                                                                        0)))
+                                                .cost(
+                                                        BigDecimal.valueOf(
+                                                                getDoubleValue(
+                                                                        responseBody, "cost", 0.0)))
+                                                .build();
+                                    }
 
-                    throw new RuntimeException(
-                            "Invalid response from Binom API: " + response.getBody());
-                },
-                "getCampaignStats");
+                                    throw new RuntimeException(
+                                            "Invalid response from Binom API: "
+                                                    + response.getBody());
+                                }));
     }
 
     /** Check if a campaign exists in Binom (stub for admin validation) */
@@ -302,37 +350,6 @@ public class BinomClient {
     }
 
     /** Test connection to Binom API */
-    /** Execute request with retry logic */
-    private <T> T executeWithRetry(java.util.function.Supplier<T> operation, String operationName) {
-        Exception lastException = null;
-
-        for (int attempt = 1; attempt <= retryAttempts; attempt++) {
-            try {
-                return operation.get();
-            } catch (Exception e) {
-                lastException = e;
-                log.warn(
-                        "Binom API {} attempt {} failed: {}",
-                        operationName,
-                        attempt,
-                        e.getMessage());
-
-                if (attempt < retryAttempts) {
-                    try {
-                        Thread.sleep(1000 * attempt); // Exponential backoff
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        throw new RuntimeException("Operation interrupted", ie);
-                    }
-                }
-            }
-        }
-
-        throw new RuntimeException(
-                "Binom API " + operationName + " failed after " + retryAttempts + " attempts",
-                lastException);
-    }
-
     private int getIntValue(Map<String, Object> map, String key, int defaultValue) {
         Object value = map.get(key);
         if (value == null) return defaultValue;

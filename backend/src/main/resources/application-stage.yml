@@ -1,0 +1,132 @@
+# Staging Environment Configuration
+# Performance-focused but with some debugging capabilities
+
+spring:
+  # ===============================
+  # STAGING LIQUIBASE CONFIGURATION
+  # ===============================
+  liquibase:
+    contexts: stage,all
+    drop-first: false
+    test-rollback-on-update: true
+    # Moderate logging for staging
+    verbose: false
+    # Staging-specific settings
+    should-run: ${LIQUIBASE_SHOULD_RUN:true}
+    rollback-file: /tmp/liquibase-rollback-staging.sql
+
+  # ===============================
+  # STAGING JPA/HIBERNATE CONFIG
+  # ===============================
+  jpa:
+    # Limited SQL logging in staging
+    show-sql: false
+    properties:
+      hibernate:
+        # Moderate SQL formatting
+        format_sql: false
+        use_sql_comments: false
+        
+        # ===============================
+        # STAGING STATISTICS
+        # ===============================
+        generate_statistics: true
+        
+        # ===============================
+        # STAGING BATCH CONFIGURATION
+        # ===============================
+        jdbc:
+          batch_size: 75  # Higher than dev, lower than prod
+          batch_versioned_data: true
+          fetch_size: 150
+          time_zone: UTC
+          
+        # ===============================
+        # STAGING QUERY OPTIMIZATION
+        # ===============================
+        default_batch_fetch_size: 48
+        max_fetch_depth: 3
+        
+        # ===============================
+        # QUERY PLAN CACHING (STAGING)
+        # ===============================
+        query:
+          plan_cache_max_size: 6144
+          plan_parameter_metadata_max_size: 384
+          in_clause_parameter_padding: true
+          
+        # ===============================
+        # SECOND LEVEL CACHE (STAGING)
+        # ===============================
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+          default_cache_concurrency_strategy: read_write
+
+# ===============================
+# STAGING LOGGING CONFIGURATION
+# ===============================
+logging:
+  level:
+    root: INFO
+    com.smmpanel: INFO
+    org.hibernate: WARN
+    org.hibernate.SQL: WARN
+    com.zaxxer.hikari: INFO
+    org.springframework.orm.jpa: WARN
+    org.springframework.transaction: WARN
+    
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# ===============================
+# STAGING DATABASE CONFIGURATION
+# ===============================
+app:
+  database:
+    # Staging database settings - higher than dev, lower than prod
+    max-connections: ${DB_MAX_CONNECTIONS:150}
+    # Standard staging connection lifetime
+    connection-lifetime-ms: ${DB_CONNECTION_LIFETIME_MS:1200000}
+
+  # ===============================
+  # STAGING CACHE CONFIGURATION
+  # ===============================
+  cache:
+    # Staging cache TTL - balanced between dev and prod
+    services:
+      ttl: 5400    # 1.5 hours
+    users:
+      ttl: 2700    # 45 minutes
+    conversion-coefficients:
+      ttl: 10800   # 3 hours
+    youtube-stats:
+      ttl: 450     # 7.5 minutes
+
+# ===============================
+# STAGING MONITORING
+# ===============================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,liquibase
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: when-authorized
+    liquibase:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+        step: 30s
+    enable:
+      jvm: true
+      process: true
+      system: true
+      hibernate: true

@@ -10,7 +10,6 @@ import java.util.Base64;
 import java.util.Map;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -19,14 +18,25 @@ import org.springframework.web.client.RestTemplate;
 
 @Slf4j
 @Component
-// Removed Lombok constructor to use explicit constructor with @Qualifier
 public class CryptomusClient {
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
-    public CryptomusClient(RestTemplate restTemplate, @org.springframework.beans.factory.annotation.Qualifier("redisObjectMapper") ObjectMapper objectMapper) {
+    private final io.github.resilience4j.circuitbreaker.CircuitBreaker circuitBreaker;
+    private final io.github.resilience4j.retry.Retry readRetry;
+    private final io.github.resilience4j.retry.Retry writeRetry;
+
+    public CryptomusClient(
+            @org.springframework.beans.factory.annotation.Qualifier("cryptomusRestTemplate") RestTemplate restTemplate,
+            @org.springframework.beans.factory.annotation.Qualifier("redisObjectMapper") ObjectMapper objectMapper,
+            @org.springframework.beans.factory.annotation.Qualifier("cryptomusCircuitBreaker") io.github.resilience4j.circuitbreaker.CircuitBreaker circuitBreaker,
+            @org.springframework.beans.factory.annotation.Qualifier("cryptomusReadRetry") io.github.resilience4j.retry.Retry readRetry,
+            @org.springframework.beans.factory.annotation.Qualifier("cryptomusWriteRetry") io.github.resilience4j.retry.Retry writeRetry) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
+        this.circuitBreaker = circuitBreaker;
+        this.readRetry = readRetry;
+        this.writeRetry = writeRetry;
     }
 
     @Value("${app.cryptomus.api.url:https://api.cryptomus.com/v1}")
@@ -39,86 +49,118 @@ public class CryptomusClient {
     private String merchantId;
 
     public CreatePaymentResponse createPayment(CreatePaymentRequest request) {
-        try {
-            String endpoint = "/payment";
-            String url = apiUrl + endpoint;
+        return circuitBreaker.executeSupplier(
+                () ->
+                        writeRetry.executeSupplier(
+                                () -> {
+                                    try {
+                                        String endpoint = "/payment";
+                                        String url = apiUrl + endpoint;
 
-            // Add merchant ID to request
-            request.setMerchantId(merchantId);
+                                        // Add merchant ID to request
+                                        request.setMerchantId(merchantId);
 
-            String jsonPayload = objectMapper.writeValueAsString(request);
-            String sign = generateSignature(jsonPayload);
+                                        String jsonPayload =
+                                                objectMapper.writeValueAsString(request);
+                                        String sign = generateSignature(jsonPayload);
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("merchant", merchantId);
-            headers.set("sign", sign);
+                                        HttpHeaders headers = new HttpHeaders();
+                                        headers.setContentType(MediaType.APPLICATION_JSON);
+                                        headers.set("merchant", merchantId);
+                                        headers.set("sign", sign);
 
-            HttpEntity<String> entity = new HttpEntity<>(jsonPayload, headers);
+                                        HttpEntity<String> entity =
+                                                new HttpEntity<>(jsonPayload, headers);
 
-            log.debug("Creating Cryptomus payment: {}", jsonPayload);
+                                        log.debug("Creating Cryptomus payment: {}", jsonPayload);
 
-            ResponseEntity<Map> response =
-                    restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
+                                        ResponseEntity<Map> response =
+                                                restTemplate.exchange(
+                                                        url, HttpMethod.POST, entity, Map.class);
 
-            if (response.getStatusCode() == HttpStatus.OK) {
-                Map<String, Object> responseBody = response.getBody();
+                                        if (response.getStatusCode() == HttpStatus.OK) {
+                                            Map<String, Object> responseBody = response.getBody();
 
-                if (responseBody != null && responseBody.containsKey("result")) {
-                    Map<String, Object> result = (Map<String, Object>) responseBody.get("result");
+                                            if (responseBody != null
+                                                    && responseBody.containsKey("result")) {
+                                                Map<String, Object> result =
+                                                        (Map<String, Object>)
+                                                                responseBody.get("result");
 
-                    return CreatePaymentResponse.builder()
-                            .uuid((String) result.get("uuid"))
-                            .orderId((String) result.get("order_id"))
-                            .amount(new BigDecimal(String.valueOf(result.get("amount"))))
-                            .currency((String) result.get("currency"))
-                            .url((String) result.get("url"))
-                            .status((String) result.get("status"))
-                            .build();
-                }
-            }
+                                                return CreatePaymentResponse.builder()
+                                                        .uuid((String) result.get("uuid"))
+                                                        .orderId((String) result.get("order_id"))
+                                                        .amount(
+                                                                new BigDecimal(
+                                                                        String.valueOf(
+                                                                                result.get(
+                                                                                        "amount"))))
+                                                        .currency((String) result.get("currency"))
+                                                        .url((String) result.get("url"))
+                                                        .status((String) result.get("status"))
+                                                        .build();
+                                            }
+                                        }
 
-            throw new RuntimeException("Invalid response from Cryptomus API");
+                                        throw new RuntimeException(
+                                                "Invalid response from Cryptomus API");
 
-        } catch (Exception e) {
-            log.error("Failed to create Cryptomus payment: {}", e.getMessage(), e);
-            throw new RuntimeException("Payment creation failed", e);
-        }
+                                    } catch (Exception e) {
+                                        log.error(
+                                                "Failed to create Cryptomus payment: {}",
+                                                e.getMessage(),
+                                                e);
+                                        throw new RuntimeException("Payment creation failed", e);
+                                    }
+                                }));
     }
 
     public Map<String, Object> getPaymentInfo(String uuid) {
-        try {
-            String endpoint = "/payment/info";
-            String url = apiUrl + endpoint;
+        return circuitBreaker.executeSupplier(
+                () ->
+                        readRetry.executeSupplier(
+                                () -> {
+                                    try {
+                                        String endpoint = "/payment/info";
+                                        String url = apiUrl + endpoint;
 
-            String jsonPayload =
-                    objectMapper.writeValueAsString(
-                            Map.of(
-                                    "merchant", merchantId,
-                                    "uuid", uuid));
+                                        String jsonPayload =
+                                                objectMapper.writeValueAsString(
+                                                        Map.of(
+                                                                "merchant", merchantId,
+                                                                "uuid", uuid));
 
-            String sign = generateSignature(jsonPayload);
+                                        String sign = generateSignature(jsonPayload);
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("merchant", merchantId);
-            headers.set("sign", sign);
+                                        HttpHeaders headers = new HttpHeaders();
+                                        headers.setContentType(MediaType.APPLICATION_JSON);
+                                        headers.set("merchant", merchantId);
+                                        headers.set("sign", sign);
 
-            HttpEntity<String> entity = new HttpEntity<>(jsonPayload, headers);
+                                        HttpEntity<String> entity =
+                                                new HttpEntity<>(jsonPayload, headers);
 
-            ResponseEntity<Map> response =
-                    restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
+                                        ResponseEntity<Map> response =
+                                                restTemplate.exchange(
+                                                        url, HttpMethod.POST, entity, Map.class);
 
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                return response.getBody();
-            }
+                                        if (response.getStatusCode() == HttpStatus.OK
+                                                && response.getBody() != null) {
+                                            return response.getBody();
+                                        }
 
-            throw new RuntimeException("Failed to get payment info from Cryptomus");
+                                        throw new RuntimeException(
+                                                "Failed to get payment info from Cryptomus");
 
-        } catch (Exception e) {
-            log.error("Failed to get Cryptomus payment info: {}", e.getMessage(), e);
-            throw new RuntimeException("Payment info retrieval failed", e);
-        }
+                                    } catch (Exception e) {
+                                        log.error(
+                                                "Failed to get Cryptomus payment info: {}",
+                                                e.getMessage(),
+                                                e);
+                                        throw new RuntimeException(
+                                                "Payment info retrieval failed", e);
+                                    }
+                                }));
     }
 
     private String generateSignature(String data) {

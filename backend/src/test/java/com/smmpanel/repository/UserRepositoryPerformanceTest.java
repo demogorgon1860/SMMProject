@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.smmpanel.entity.User;
 import com.smmpanel.entity.UserRole;
 import com.smmpanel.integration.IntegrationTestConfig;
+import com.smmpanel.repository.jpa.UserRepository;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;

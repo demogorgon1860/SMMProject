@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smmpanel.dto.binom.OfferAssignmentRequest;
 import com.smmpanel.service.OfferAssignmentService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
@@ -23,7 +22,10 @@ public class OfferEventConsumer {
 
     private final OfferAssignmentService offerAssignmentService;
     private final ObjectMapper objectMapper;
-    public OfferEventConsumer(OfferAssignmentService offerAssignmentService, @org.springframework.beans.factory.annotation.Qualifier("redisObjectMapper") ObjectMapper objectMapper) {
+
+    public OfferEventConsumer(
+            OfferAssignmentService offerAssignmentService,
+            @org.springframework.beans.factory.annotation.Qualifier("redisObjectMapper") ObjectMapper objectMapper) {
         this.offerAssignmentService = offerAssignmentService;
         this.objectMapper = objectMapper;
     }

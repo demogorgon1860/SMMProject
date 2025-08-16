@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AlertService {
 
-    private final SlackService slackService;
     private final EmailService emailService;
 
     @Value("${app.alerts.admin-email:admin@smmpanel.com}")
@@ -29,13 +28,6 @@ public class AlertService {
         }
 
         log.info("Sending alert - Level: {}, Title: {}, Message: {}", level, title, message);
-
-        // Send to Slack
-        try {
-            slackService.sendAlert(title, message, level);
-        } catch (Exception e) {
-            log.error("Failed to send Slack alert: {}", e.getMessage());
-        }
 
         // Send email for critical alerts
         if ("CRITICAL".equalsIgnoreCase(level) || "ERROR".equalsIgnoreCase(level)) {
@@ -80,11 +72,5 @@ public class AlertService {
     /** Send a system notification */
     public void sendSystemNotification(String title, String message) {
         log.info("System notification - {}: {}", title, message);
-
-        try {
-            slackService.sendMessage(String.format("System: %s - %s", title, message));
-        } catch (Exception e) {
-            log.error("Failed to send system notification: {}", e.getMessage());
-        }
     }
 }

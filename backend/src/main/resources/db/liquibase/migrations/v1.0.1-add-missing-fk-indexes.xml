@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog 
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- 
+    v1.0.1 - Add Missing Foreign Key Indexes
+    
+    This migration adds indexes for all foreign key columns that are missing indexes.
+    These are critical for JOIN performance and referential integrity checks.
+    
+    Context: all (safe for all environments)
+    Rollback: Full rollback support - drops all created indexes
+    -->
+
+    <changeSet id="1.0.1-add-video-processing-youtube-account-fk-index" author="performance-team" context="all">
+        <comment>Add index for video_processing.youtube_account_id foreign key - critical for video processing queries</comment>
+        
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="video_processing"/>
+            <columnExists tableName="video_processing" columnName="youtube_account_id"/>
+            <not>
+                <indexExists indexName="idx_video_processing_youtube_account_id"/>
+            </not>
+        </preConditions>
+
+        <createIndex tableName="video_processing" indexName="idx_video_processing_youtube_account_id">
+            <column name="youtube_account_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex tableName="video_processing" indexName="idx_video_processing_youtube_account_id"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.0.1-add-binom-campaigns-fixed-campaign-fk-index" author="performance-team" context="all">
+        <comment>Add index for binom_campaigns.fixed_campaign_id foreign key - essential for campaign assignment</comment>
+        
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="binom_campaigns"/>
+            <columnExists tableName="binom_campaigns" columnName="fixed_campaign_id"/>
+            <not>
+                <indexExists indexName="idx_binom_campaigns_fixed_campaign_id"/>
+            </not>
+        </preConditions>
+
+        <createIndex tableName="binom_campaigns" indexName="idx_binom_campaigns_fixed_campaign_id">
+            <column name="fixed_campaign_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex tableName="binom_campaigns" indexName="idx_binom_campaigns_fixed_campaign_id"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.0.1-add-balance-transactions-deposit-fk-index" author="performance-team" context="all">
+        <comment>Add index for balance_transactions.deposit_id foreign key - important for payment tracking</comment>
+        
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="balance_transactions"/>
+            <columnExists tableName="balance_transactions" columnName="deposit_id"/>
+            <not>
+                <indexExists indexName="idx_balance_transactions_deposit_id"/>
+            </not>
+        </preConditions>
+
+        <createIndex tableName="balance_transactions" indexName="idx_balance_transactions_deposit_id">
+            <column name="deposit_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex tableName="balance_transactions" indexName="idx_balance_transactions_deposit_id"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.0.1-add-conversion-coefficients-service-fk-index" author="performance-team" context="all">
+        <comment>Add index for conversion_coefficients.service_id foreign key - critical for service configuration lookups</comment>
+        
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="conversion_coefficients"/>
+            <columnExists tableName="conversion_coefficients" columnName="service_id"/>
+            <not>
+                <indexExists indexName="idx_conversion_coefficients_service_id"/>
+            </not>
+        </preConditions>
+
+        <createIndex tableName="conversion_coefficients" indexName="idx_conversion_coefficients_service_id">
+            <column name="service_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex tableName="conversion_coefficients" indexName="idx_conversion_coefficients_service_id"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.0.1-add-view-stats-video-processing-fk-index" author="performance-team" context="all">
+        <comment>Add index for view_stats.video_processing_id foreign key - used for video performance tracking</comment>
+        
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="view_stats"/>
+            <columnExists tableName="view_stats" columnName="video_processing_id"/>
+            <not>
+                <indexExists indexName="idx_view_stats_video_processing_id"/>
+            </not>
+        </preConditions>
+
+        <createIndex tableName="view_stats" indexName="idx_view_stats_video_processing_id">
+            <column name="video_processing_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex tableName="view_stats" indexName="idx_view_stats_video_processing_id"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.0.1-record-migration-metadata" author="performance-team" context="all">
+        <comment>Record migration execution metadata</comment>
+        
+        <insert tableName="liquibase_migration_metadata">
+            <column name="changeset_id" value="1.0.1-add-missing-fk-indexes"/>
+            <column name="version" value="1.0.1"/>
+            <column name="context" value="all"/>
+            <column name="rollback_available" valueBoolean="true"/>
+            <column name="notes" value="Added 5 critical foreign key indexes for improved JOIN performance"/>
+        </insert>
+
+        <rollback>
+            <delete tableName="liquibase_migration_metadata">
+                <where>changeset_id = '1.0.1-add-missing-fk-indexes'</where>
+            </delete>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

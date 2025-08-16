@@ -16,7 +16,6 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -26,8 +25,13 @@ import org.springframework.web.util.UriComponentsBuilder;
 @RequiredArgsConstructor
 public class ExchangeRateService {
 
-    private final RestTemplate restTemplate;
+    @org.springframework.beans.factory.annotation.Qualifier("exchangeRateRestTemplate") private final RestTemplate restTemplate;
+
     private final CurrencyService currencyService;
+
+    @org.springframework.beans.factory.annotation.Qualifier("exchangeRateCircuitBreaker") private final io.github.resilience4j.circuitbreaker.CircuitBreaker circuitBreaker;
+
+    @org.springframework.beans.factory.annotation.Qualifier("exchangeRateRetry") private final io.github.resilience4j.retry.Retry retry;
 
     @Value("${app.currency.exchange-rate-api.url:https://api.exchangerate.host/latest}")
     private String exchangeRateApiUrl;
@@ -80,20 +84,32 @@ public class ExchangeRateService {
     @CacheEvict(value = "exchangeRates", allEntries = true)
     public void fetchLatestRates() {
         try {
-            String url =
-                    UriComponentsBuilder.fromHttpUrl(exchangeRateApiUrl)
-                            .queryParam("base", baseCurrency)
-                            .queryParam(
-                                    "symbols",
-                                    String.join(
-                                            ",", currencyService.getSupportedCurrencies().keySet()))
-                            .build()
-                            .toUriString();
-
-            log.info("Fetching latest exchange rates from: {}", url);
-
             CurrencyConversionResponse response =
-                    restTemplate.getForObject(url, CurrencyConversionResponse.class);
+                    circuitBreaker.executeSupplier(
+                            () ->
+                                    retry.executeSupplier(
+                                            () -> {
+                                                String url =
+                                                        UriComponentsBuilder.fromHttpUrl(
+                                                                        exchangeRateApiUrl)
+                                                                .queryParam("base", baseCurrency)
+                                                                .queryParam(
+                                                                        "symbols",
+                                                                        String.join(
+                                                                                ",",
+                                                                                currencyService
+                                                                                        .getSupportedCurrencies()
+                                                                                        .keySet()))
+                                                                .build()
+                                                                .toUriString();
+
+                                                log.info(
+                                                        "Fetching latest exchange rates from: {}",
+                                                        url);
+
+                                                return restTemplate.getForObject(
+                                                        url, CurrencyConversionResponse.class);
+                                            }));
 
             if (response != null && response.isSuccess() && response.getRates() != null) {
                 rates.clear();
@@ -106,10 +122,24 @@ public class ExchangeRateService {
                 log.error(
                         "Failed to fetch exchange rates: {}",
                         response != null ? response.getError() : "Unknown error");
+                fallbackToDefaultRates();
             }
-        } catch (RestClientException e) {
-            log.error("Error fetching exchange rates: {}", e.getMessage(), e);
-            throw new ExchangeRateException("Failed to fetch exchange rates: " + e.getMessage(), e);
+        } catch (Exception e) {
+            log.error("Error fetching exchange rates, using fallback: {}", e.getMessage(), e);
+            fallbackToDefaultRates();
+        }
+    }
+
+    private void fallbackToDefaultRates() {
+        if (rates.isEmpty()) {
+            log.warn("No exchange rates available, using default 1:1 rates");
+            currencyService
+                    .getSupportedCurrencies()
+                    .keySet()
+                    .forEach(currency -> rates.put(currency, BigDecimal.ONE));
+            lastUpdateTime.set(Instant.now());
+        } else {
+            log.info("Keeping existing exchange rates as fallback");
         }
     }
 

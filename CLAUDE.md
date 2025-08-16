@@ -8,10 +8,10 @@ This is a Social Media Marketing (SMM) Panel application consisting of a Spring 
 
 ## Architecture
 
-The application follows a microservices-inspired architecture with these key layers:
+The application follows a monolith-inspired architecture with these key layers:
 
 - **Frontend**: React + TypeScript SPA using Vite, Tailwind CSS, and Zustand for state management
-- **Backend**: Spring Boot 3.2 application with JPA, Redis caching, Kafka messaging, and JWT authentication
+- **Backend**: Spring Boot 3.1.7 application with JPA, Redis caching, Kafka messaging, and JWT authentication
 - **Database**: PostgreSQL with Liquibase migrations
 - **Message Queue**: Kafka for asynchronous processing
 - **Cache**: Redis for performance optimization

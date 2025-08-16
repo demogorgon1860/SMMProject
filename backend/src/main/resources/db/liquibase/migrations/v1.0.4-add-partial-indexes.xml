@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog 
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- 
+    v1.0.4 - Add Partial Indexes
+    
+    This migration adds partial indexes for production environments only.
+    Partial indexes are smaller, faster, and reduce index maintenance overhead.
+    They are optimized for frequently filtered data subsets.
+    
+    Context: prod (production environment only - maximum performance optimization)
+    Rollback: Full rollback support - drops all created indexes
+    -->
+
+    <changeSet id="1.0.4-add-orders-active-monitoring-index" author="performance-team" context="prod">
+        <comment>Add partial index for active orders monitoring - excludes completed/cancelled orders</comment>
+        
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="orders"/>
+            <not>
+                <indexExists indexName="idx_orders_active_monitoring"/>
+            </not>
+        </preConditions>
+
+        <sql>
+            CREATE INDEX idx_orders_active_monitoring 
+            ON orders(status, updated_at, user_id) 
+            WHERE status IN ('ACTIVE', 'PROCESSING', 'PARTIAL');
+        </sql>
+
+        <rollback>
+            <sql>DROP INDEX IF EXISTS idx_orders_active_monitoring;</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.0.4-add-video-processing-failures-index" author="performance-team" context="prod">
+        <comment>Add partial index for failed video processing - excludes successful processing</comment>
+        
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="video_processing"/>
+            <not>
+                <indexExists indexName="idx_video_processing_failures"/>
+            </not>
+        </preConditions>
+
+        <sql>
+            CREATE INDEX idx_video_processing_failures 
+            ON video_processing(status, processing_attempts, last_error_at) 
+            WHERE status = 'FAILED';
+        </sql>
+
+        <rollback>
+            <sql>DROP INDEX IF EXISTS idx_video_processing_failures;</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.0.4-add-balance-deposits-pending-index" author="performance-team" context="prod">
+        <comment>Add partial index for pending payments - excludes completed payments</comment>
+        
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="balance_deposits"/>
+            <not>
+                <indexExists indexName="idx_balance_deposits_pending"/>
+            </not>
+        </preConditions>
+
+        <sql>
+            CREATE INDEX idx_balance_deposits_pending 
+            ON balance_deposits(status, expires_at, user_id) 
+            WHERE status = 'PENDING';
+        </sql>
+
+        <rollback>
+            <sql>DROP INDEX IF EXISTS idx_balance_deposits_pending;</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.0.4-add-binom-campaigns-active-priority-index" author="performance-team" context="prod">
+        <comment>Add partial index for active campaign prioritization - excludes inactive campaigns</comment>
+        
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="binom_campaigns"/>
+            <not>
+                <indexExists indexName="idx_binom_campaigns_active_priority"/>
+            </not>
+        </preConditions>
+
+        <sql>
+            CREATE INDEX idx_binom_campaigns_active_priority 
+            ON binom_campaigns(priority, clicks_delivered, clicks_required) 
+            WHERE is_active = true AND status = 'ACTIVE';
+        </sql>
+
+        <rollback>
+            <sql>DROP INDEX IF EXISTS idx_binom_campaigns_active_priority;</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.0.4-add-youtube-accounts-available-index" author="performance-team" context="prod">
+        <comment>Add partial index for available YouTube accounts - excludes disabled/banned accounts</comment>
+        
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="youtube_accounts"/>
+            <not>
+                <indexExists indexName="idx_youtube_accounts_available"/>
+            </not>
+        </preConditions>
+
+        <sql>
+            CREATE INDEX idx_youtube_accounts_available 
+            ON youtube_accounts(daily_clips_count, last_clip_date) 
+            WHERE status IN ('ACTIVE', 'AVAILABLE') AND daily_clips_count &lt; daily_limit;
+        </sql>
+
+        <rollback>
+            <sql>DROP INDEX IF EXISTS idx_youtube_accounts_available;</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.0.4-add-traffic-sources-active-performance-index" author="performance-team" context="prod">
+        <comment>Add partial index for active traffic sources with performance scoring</comment>
+        
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="traffic_sources"/>
+            <not>
+                <indexExists indexName="idx_traffic_sources_active_performance"/>
+            </not>
+        </preConditions>
+
+        <sql>
+            CREATE INDEX idx_traffic_sources_active_performance 
+            ON traffic_sources(performance_score DESC, weight DESC, geo_targeting) 
+            WHERE active = true;
+        </sql>
+
+        <rollback>
+            <sql>DROP INDEX IF EXISTS idx_traffic_sources_active_performance;</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.0.4-add-orders-high-priority-index" author="performance-team" context="prod">
+        <comment>Add partial index for high priority orders - optimization for urgent processing</comment>
+        
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="orders"/>
+            <not>
+                <indexExists indexName="idx_orders_high_priority"/>
+            </not>
+        </preConditions>
+
+        <sql>
+            CREATE INDEX idx_orders_high_priority 
+            ON orders(processing_priority DESC, created_at ASC, user_id) 
+            WHERE processing_priority >= 5 AND status IN ('PENDING', 'PROCESSING');
+        </sql>
+
+        <rollback>
+            <sql>DROP INDEX IF EXISTS idx_orders_high_priority;</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.0.4-add-balance-transactions-recent-index" author="performance-team" context="prod">
+        <comment>Add partial index for recent balance transactions - last 30 days for dashboard queries</comment>
+        
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="balance_transactions"/>
+            <not>
+                <indexExists indexName="idx_balance_transactions_recent"/>
+            </not>
+        </preConditions>
+
+        <sql>
+            CREATE INDEX idx_balance_transactions_recent 
+            ON balance_transactions(user_id, created_at DESC, transaction_type) 
+            WHERE created_at >= (CURRENT_DATE - INTERVAL '30 days');
+        </sql>
+
+        <rollback>
+            <sql>DROP INDEX IF EXISTS idx_balance_transactions_recent;</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.0.4-record-migration-metadata" author="performance-team" context="prod">
+        <comment>Record migration execution metadata</comment>
+        
+        <insert tableName="liquibase_migration_metadata">
+            <column name="changeset_id" value="1.0.4-add-partial-indexes"/>
+            <column name="version" value="1.0.4"/>
+            <column name="context" value="prod"/>
+            <column name="rollback_available" valueBoolean="true"/>
+            <column name="notes" value="Added 8 partial indexes for production performance optimization on filtered data subsets"/>
+        </insert>
+
+        <rollback>
+            <delete tableName="liquibase_migration_metadata">
+                <where>changeset_id = '1.0.4-add-partial-indexes'</where>
+            </delete>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

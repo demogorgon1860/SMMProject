@@ -110,7 +110,27 @@ logging:
 # ===============================
 # DEVELOPMENT CACHE CONFIGURATION
 # ===============================
+spring:
+  # ===============================
+  # DEVELOPMENT LIQUIBASE CONFIGURATION
+  # ===============================
+  liquibase:
+    contexts: dev,all
+    drop-first: false
+    test-rollback-on-update: true
+    # Enable detailed logging for development
+    verbose: true
+
 app:
+  # ===============================
+  # DEVELOPMENT DATABASE CONFIGURATION
+  # ===============================
+  database:
+    # Lower max connections for development environment
+    max-connections: ${DB_MAX_CONNECTIONS:50}
+    # Shorter connection lifetime for development
+    connection-lifetime-ms: ${DB_CONNECTION_LIFETIME_MS:900000}
+
   cache:
     # Enhanced cache TTL for development
     services:

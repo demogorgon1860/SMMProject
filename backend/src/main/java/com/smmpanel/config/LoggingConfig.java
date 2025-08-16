@@ -12,7 +12,8 @@ public class LoggingConfig implements WebMvcConfigurer {
 
     private final ObjectMapper objectMapper;
 
-    public LoggingConfig(@org.springframework.beans.factory.annotation.Qualifier("redisObjectMapper") ObjectMapper objectMapper) {
+    public LoggingConfig(
+            @org.springframework.beans.factory.annotation.Qualifier("redisObjectMapper") ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
 

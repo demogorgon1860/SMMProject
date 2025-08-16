@@ -170,7 +170,8 @@ public class YouTubeProcessingHelper {
         // Use a reasonable default daily limit, e.g., 50, or fetch from config if needed
         int dailyLimit = 50;
         return youTubeAccountRepository
-                .findFirstByStatusAndDailyClipsCountLessThan(YouTubeAccountStatus.ACTIVE, dailyLimit)
+                .findFirstByStatusAndDailyClipsCountLessThan(
+                        YouTubeAccountStatus.ACTIVE, dailyLimit)
                 .orElse(null);
     }
 

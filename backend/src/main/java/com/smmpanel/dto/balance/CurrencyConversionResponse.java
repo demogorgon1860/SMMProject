@@ -17,7 +17,14 @@ public class CurrencyConversionResponse {
     public CurrencyConversionResponse() {}
 
     // All-args constructor for Lombok builder
-    public CurrencyConversionResponse(boolean success, long timestamp, String base, LocalDate date, Map<String, BigDecimal> rates, BigDecimal amount, ErrorInfo error) {
+    public CurrencyConversionResponse(
+            boolean success,
+            long timestamp,
+            String base,
+            LocalDate date,
+            Map<String, BigDecimal> rates,
+            BigDecimal amount,
+            ErrorInfo error) {
         this.success = success;
         this.timestamp = timestamp;
         this.base = base;
@@ -26,6 +33,7 @@ public class CurrencyConversionResponse {
         this.amount = amount;
         this.error = error;
     }
+
     private boolean success;
     private long timestamp;
     private String base;

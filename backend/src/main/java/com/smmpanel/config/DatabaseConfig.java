@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Primary;
 
 @Slf4j
 @Configuration
-@org.springframework.context.annotation.Profile("!test")
+@org.springframework.context.annotation.Profile("legacy-hikari-config")
 public class DatabaseConfig {
 
     private HikariDataSource hikariDataSource;

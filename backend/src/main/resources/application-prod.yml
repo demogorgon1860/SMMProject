@@ -1,0 +1,154 @@
+# Production Environment Configuration
+# Optimized for performance with minimal logging and maximum throughput
+
+spring:
+  # ===============================
+  # PRODUCTION LIQUIBASE CONFIGURATION
+  # ===============================
+  liquibase:
+    contexts: prod,all
+    drop-first: false
+    test-rollback-on-update: false
+    # Minimal logging for production performance
+    verbose: false
+    # Production-specific settings
+    should-run: ${LIQUIBASE_SHOULD_RUN:true}
+    rollback-file: /var/log/smm-panel/liquibase-rollback.sql
+
+  # ===============================
+  # PRODUCTION JPA/HIBERNATE CONFIG
+  # ===============================
+  jpa:
+    # Disable SQL logging in production
+    show-sql: false
+    properties:
+      hibernate:
+        # Minimal SQL formatting
+        format_sql: false
+        use_sql_comments: false
+        highlight_sql: false
+        
+        # ===============================
+        # PRODUCTION STATISTICS
+        # ===============================
+        generate_statistics: false
+        
+        # ===============================
+        # OPTIMIZED BATCH CONFIGURATION
+        # ===============================
+        jdbc:
+          batch_size: 100  # Maximum batch size for production
+          batch_versioned_data: true
+          fetch_size: 200  # Larger fetch size for production
+          time_zone: UTC
+          
+        # ===============================
+        # PRODUCTION QUERY OPTIMIZATION
+        # ===============================
+        default_batch_fetch_size: 64  # Maximum batch fetch for production
+        max_fetch_depth: 3
+        
+        # ===============================
+        # QUERY PLAN CACHING (PRODUCTION)
+        # ===============================
+        query:
+          plan_cache_max_size: 8192  # Large cache for production
+          plan_parameter_metadata_max_size: 512
+          in_clause_parameter_padding: true
+          
+        # ===============================
+        # SECOND LEVEL CACHE (PRODUCTION)
+        # ===============================
+        cache:
+          use_second_level_cache: true
+          use_query_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+          default_cache_concurrency_strategy: read_write
+          
+        # ===============================
+        # PRODUCTION OPTIMIZATIONS
+        # ===============================
+        temp:
+          use_jdbc_metadata_defaults: false
+        auto_quote_keyword: false
+        globally_quoted_identifiers: false
+
+# ===============================
+# PRODUCTION LOGGING CONFIGURATION
+# ===============================
+logging:
+  level:
+    root: WARN
+    com.smmpanel: INFO
+    org.hibernate: WARN
+    org.hibernate.SQL: WARN
+    org.springframework.security: WARN
+    com.zaxxer.hikari: WARN
+    org.springframework.orm.jpa: WARN
+    org.springframework.transaction: WARN
+    
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# ===============================
+# PRODUCTION DATABASE CONFIGURATION
+# ===============================
+app:
+  database:
+    # Production database settings - adjust based on your PostgreSQL setup
+    max-connections: ${DB_MAX_CONNECTIONS:400}
+    # Standard production connection lifetime (30 minutes)
+    connection-lifetime-ms: ${DB_CONNECTION_LIFETIME_MS:1800000}
+
+  # ===============================
+  # PRODUCTION CACHE CONFIGURATION
+  # ===============================
+  cache:
+    # Longer TTL for production caching
+    services:
+      ttl: 7200    # 2 hours
+    users:
+      ttl: 3600    # 1 hour
+    conversion-coefficients:
+      ttl: 14400   # 4 hours
+    youtube-stats:
+      ttl: 600     # 10 minutes
+
+# ===============================
+# PRODUCTION MONITORING
+# ===============================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      show-components: never
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+        step: 60s
+    enable:
+      jvm: true
+      process: true
+      system: true
+      hibernate: false  # Disable Hibernate metrics in production
+
+# ===============================
+# PRODUCTION PERFORMANCE TUNING
+# ===============================
+server:
+  tomcat:
+    # Production thread pool sizing
+    threads:
+      max: 400
+      min-spare: 50
+    # Production connection settings
+    max-connections: 16384
+    connection-timeout: PT10S
+    keep-alive-timeout: PT10S

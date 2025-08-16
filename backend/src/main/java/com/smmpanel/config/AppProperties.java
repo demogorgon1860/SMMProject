@@ -35,7 +35,6 @@ public class AppProperties {
     private Mail mail = new Mail();
     private Notifications notifications = new Notifications();
     private Alerts alerts = new Alerts();
-    private Slack slack = new Slack();
 
     @Data
     public static class Jwt {
@@ -411,11 +410,5 @@ public class AppProperties {
     public static class Alerts {
         private boolean enabled = true;
         private String adminEmail = "admin@smmpanel.com";
-    }
-
-    @Data
-    public static class Slack {
-        private boolean enabled = false;
-        private String webhookUrl = "";
     }
 }

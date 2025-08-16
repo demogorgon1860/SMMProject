@@ -39,7 +39,8 @@ public class CurrencyService {
     @Value("${app.currency.exchange-rate-api.base-currency:USD}")
     private String baseCurrency;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    @org.springframework.beans.factory.annotation.Qualifier("exchangeRateRestTemplate") private final RestTemplate restTemplate;
+
     private final UserRepository userRepository;
 
     // In-memory cache for exchange rates

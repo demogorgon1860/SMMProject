@@ -1,7 +1,6 @@
 package com.smmpanel.service.monitoring;
 
 import com.smmpanel.service.NotificationService;
-import com.smmpanel.service.SlackService;
 import com.smmpanel.service.email.EmailService;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -17,7 +16,6 @@ import org.springframework.stereotype.Service;
 public class AlertService {
 
     private final NotificationService notificationService;
-    private final SlackService slackService;
     private final EmailService emailService;
 
     public void sendAlert(AlertLevel level, String message, Map<String, Object> details) {
@@ -32,18 +30,15 @@ public class AlertService {
         // Send to appropriate channels based on alert level
         switch (level) {
             case INFO:
-                slackService.sendToChannel("#monitoring", formatAlert(alert));
                 log.info("Info Alert: {}", message);
                 break;
 
             case WARNING:
-                slackService.sendToChannel("#alerts", formatAlert(alert));
                 emailService.sendToTeam("Warning Alert: " + message, formatAlert(alert));
                 log.warn("Warning Alert: {}", message);
                 break;
 
             case CRITICAL:
-                slackService.sendToChannel("#alerts", formatAlert(alert));
                 emailService.sendToTeam("CRITICAL ALERT: " + message, formatAlert(alert));
                 notificationService.sendPushNotification("CRITICAL: " + message);
                 log.error("CRITICAL ALERT: {}", message);

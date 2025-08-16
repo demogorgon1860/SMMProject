@@ -8,15 +8,16 @@ import com.smmpanel.producer.OrderEventProducer;
 import com.smmpanel.repository.jpa.OrderRepository;
 import com.smmpanel.service.BinomService;
 import com.smmpanel.service.MessageProcessingService;
-import com.smmpanel.service.MessageProcessingService.ProcessingResult;
 import com.smmpanel.service.YouTubeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.kafka.support.Acknowledgment;
+import org.springframework.kafka.annotation.RetryableTopic;
+import org.springframework.kafka.retrytopic.TopicSuffixingStrategy;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.retry.annotation.Backoff;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,62 +33,46 @@ public class OrderEventConsumer {
     private final OrderEventProducer orderEventProducer;
     private final MessageProcessingService messageProcessingService;
 
-    /** Process order created events with comprehensive error handling and idempotency */
-    @KafkaListener(
-            topics = "smm.order.processing",
-            groupId = "smm-order-processing-group",
-            containerFactory = "orderProcessingConsumerGroupFactory")
+    /** Process order created events with RetryTopic and DLT */
+    @RetryableTopic(
+            attempts = "3",
+            backoff = @Backoff(delay = 1000, multiplier = 2.0),
+            autoCreateTopics = "true",
+            topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
+            dltStrategy = org.springframework.kafka.retrytopic.DltStrategy.FAIL_ON_ERROR,
+            concurrency = "2")
+    @KafkaListener(topics = "smm.order.processing", groupId = "smm-order-processing-group")
     public void processOrderCreatedEvent(
             @Payload OrderCreatedEvent event,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
-            @Header(KafkaHeaders.OFFSET) long offset,
-            Acknowledgment acknowledgment) {
-
-        // Generate unique message ID for idempotency
-        String messageId =
-                generateMessageId("order-created", event.getOrderId(), event.getTimestamp());
+            @Header(KafkaHeaders.OFFSET) long offset) {
 
         log.info(
-                "Processing order created event: orderId={}, userId={}, messageId={}, topic={},"
+                "Processing order created event: orderId={}, userId={}, topic={},"
                         + " partition={}, offset={}",
                 event.getOrderId(),
                 event.getUserId(),
-                messageId,
                 topic,
                 partition,
                 offset);
 
-        // Process with comprehensive error handling and idempotency
-        ProcessingResult result =
-                messageProcessingService.processMessageWithRetry(
-                        event,
-                        messageId,
-                        topic,
-                        partition,
-                        offset,
-                        acknowledgment,
-                        this::processOrderCreatedEventInternal);
-
-        if (result.isSuccess()) {
-            log.info(
-                    "Successfully processed order created event: orderId={}, messageId={}",
-                    event.getOrderId(),
-                    messageId);
-        } else if (!result.isDuplicate()) {
-            log.error(
-                    "Failed to process order created event: orderId={}, messageId={}, error={}",
-                    event.getOrderId(),
-                    messageId,
-                    result.getErrorMessage());
+        try {
+            processOrderCreatedEventInternal(event);
+            log.info("Successfully processed order created event: orderId={}", event.getOrderId());
+        } catch (Exception e) {
+            log.error("Failed to process order created event: orderId={}", event.getOrderId(), e);
+            throw e; // Let RetryTopic handle retries and DLT
         }
     }
 
     /** Process order status changed events */
-    @KafkaListener(
-            topics = "smm.order.state.updates",
-            groupId = "order-status-group",
-            containerFactory = "kafkaListenerContainerFactory")
+    @RetryableTopic(
+            attempts = "3",
+            backoff = @Backoff(delay = 1000, multiplier = 2.0),
+            autoCreateTopics = "true",
+            concurrency = "2")
+    @KafkaListener(topics = "smm.order.state.updates", groupId = "order-status-group")
     @Transactional
     public void processOrderStatusChangedEvent(
             @Payload OrderStatusChangedEvent event,
@@ -205,34 +190,24 @@ public class OrderEventConsumer {
     }
 
     /** Internal processing method for order created events */
-    private ProcessingResult processOrderCreatedEventInternal(OrderCreatedEvent event) {
-        try {
-            Order order =
-                    orderRepository
-                            .findById(event.getOrderId())
-                            .orElseThrow(
-                                    () ->
-                                            new RuntimeException(
-                                                    "Order not found: " + event.getOrderId()));
+    private void processOrderCreatedEventInternal(OrderCreatedEvent event) {
+        Order order =
+                orderRepository
+                        .findById(event.getOrderId())
+                        .orElseThrow(
+                                () ->
+                                        new RuntimeException(
+                                                "Order not found: " + event.getOrderId()));
 
-            // Process YouTube verification
-            processYouTubeVerification(order);
+        // Process YouTube verification
+        processYouTubeVerification(order);
 
-            // Process Binom campaign creation
-            processBinomCampaignCreation(order);
+        // Process Binom campaign creation
+        processBinomCampaignCreation(order);
 
-            // Update order status to ACTIVE
-            updateOrderStatus(order, OrderStatus.ACTIVE);
+        // Update order status to ACTIVE
+        updateOrderStatus(order, OrderStatus.ACTIVE);
 
-            log.info("Order created event processed successfully: orderId={}", event.getOrderId());
-            return ProcessingResult.success("order-created-" + event.getOrderId());
-
-        } catch (Exception e) {
-            log.error(
-                    "Failed to process order created event internally: orderId={}",
-                    event.getOrderId(),
-                    e);
-            return ProcessingResult.error("order-created-" + event.getOrderId(), e.getMessage(), e);
-        }
+        log.info("Order created event processed successfully: orderId={}", event.getOrderId());
     }
 }

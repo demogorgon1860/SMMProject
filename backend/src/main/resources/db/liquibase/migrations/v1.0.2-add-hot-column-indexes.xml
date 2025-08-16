@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog 
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- 
+    v1.0.2 - Add Hot Column Indexes
+    
+    This migration adds indexes for frequently queried columns (hot columns) that are missing indexes.
+    These columns are used in WHERE clauses, ORDER BY, and filtering operations.
+    
+    Context: all (safe for all environments)
+    Rollback: Full rollback support - drops all created indexes
+    -->
+
+    <changeSet id="1.0.2-add-video-processing-hot-column-indexes" author="performance-team" context="all">
+        <comment>Add indexes for video_processing hot columns: processing_attempts, last_processed_at</comment>
+        
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="video_processing"/>
+        </preConditions>
+
+        <createIndex tableName="video_processing" indexName="idx_video_processing_processing_attempts" unique="false">
+            <column name="processing_attempts"/>
+        </createIndex>
+
+        <createIndex tableName="video_processing" indexName="idx_video_processing_last_processed_at" unique="false">
+            <column name="last_processed_at"/>
+        </createIndex>
+
+        <createIndex tableName="video_processing" indexName="idx_video_processing_video_type" unique="false">
+            <column name="video_type"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex tableName="video_processing" indexName="idx_video_processing_processing_attempts"/>
+            <dropIndex tableName="video_processing" indexName="idx_video_processing_last_processed_at"/>
+            <dropIndex tableName="video_processing" indexName="idx_video_processing_video_type"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.0.2-add-binom-campaigns-hot-column-indexes" author="performance-team" context="all">
+        <comment>Add indexes for binom_campaigns hot columns: geo_targeting, is_active, priority</comment>
+        
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="binom_campaigns"/>
+        </preConditions>
+
+        <createIndex tableName="binom_campaigns" indexName="idx_binom_campaigns_geo_targeting" unique="false">
+            <column name="geo_targeting"/>
+        </createIndex>
+
+        <createIndex tableName="binom_campaigns" indexName="idx_binom_campaigns_is_active" unique="false">
+            <column name="is_active"/>
+        </createIndex>
+
+        <createIndex tableName="binom_campaigns" indexName="idx_binom_campaigns_priority" unique="false">
+            <column name="priority"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex tableName="binom_campaigns" indexName="idx_binom_campaigns_geo_targeting"/>
+            <dropIndex tableName="binom_campaigns" indexName="idx_binom_campaigns_is_active"/>
+            <dropIndex tableName="binom_campaigns" indexName="idx_binom_campaigns_priority"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.0.2-add-youtube-accounts-hot-column-indexes" author="performance-team" context="all">
+        <comment>Add indexes for youtube_accounts hot columns: daily_clips_count, last_clip_date</comment>
+        
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="youtube_accounts"/>
+            <not>
+                <indexExists indexName="idx_youtube_accounts_daily_clips_count"/>
+            </not>
+        </preConditions>
+
+        <createIndex tableName="youtube_accounts" indexName="idx_youtube_accounts_daily_clips_count" unique="false">
+            <column name="daily_clips_count"/>
+        </createIndex>
+
+        <createIndex tableName="youtube_accounts" indexName="idx_youtube_accounts_status_daily_clips" unique="false">
+            <column name="status"/>
+            <column name="daily_clips_count"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex tableName="youtube_accounts" indexName="idx_youtube_accounts_daily_clips_count"/>
+            <dropIndex tableName="youtube_accounts" indexName="idx_youtube_accounts_status_daily_clips"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.0.2-add-balance-deposits-hot-column-indexes" author="performance-team" context="all">
+        <comment>Add indexes for balance_deposits hot columns: expires_at, cryptomus_payment_id</comment>
+        
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="balance_deposits"/>
+        </preConditions>
+
+        <createIndex tableName="balance_deposits" indexName="idx_balance_deposits_expires_at" unique="false">
+            <column name="expires_at"/>
+        </createIndex>
+
+        <createIndex tableName="balance_deposits" indexName="idx_balance_deposits_cryptomus_payment_id" unique="false">
+            <column name="cryptomus_payment_id"/>
+        </createIndex>
+
+        <createIndex tableName="balance_deposits" indexName="idx_balance_deposits_status_expires_at" unique="false">
+            <column name="status"/>
+            <column name="expires_at"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex tableName="balance_deposits" indexName="idx_balance_deposits_expires_at"/>
+            <dropIndex tableName="balance_deposits" indexName="idx_balance_deposits_cryptomus_payment_id"/>
+            <dropIndex tableName="balance_deposits" indexName="idx_balance_deposits_status_expires_at"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.0.2-add-traffic-sources-hot-column-indexes" author="performance-team" context="all">
+        <comment>Add indexes for traffic_sources hot columns: geo_targeting, performance_score</comment>
+        
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="traffic_sources"/>
+        </preConditions>
+
+        <createIndex tableName="traffic_sources" indexName="idx_traffic_sources_geo_targeting" unique="false">
+            <column name="geo_targeting"/>
+        </createIndex>
+
+        <createIndex tableName="traffic_sources" indexName="idx_traffic_sources_performance_score" unique="false">
+            <column name="performance_score"/>
+        </createIndex>
+
+        <createIndex tableName="traffic_sources" indexName="idx_traffic_sources_geo_active" unique="false">
+            <column name="geo_targeting"/>
+            <column name="active"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex tableName="traffic_sources" indexName="idx_traffic_sources_geo_targeting"/>
+            <dropIndex tableName="traffic_sources" indexName="idx_traffic_sources_performance_score"/>
+            <dropIndex tableName="traffic_sources" indexName="idx_traffic_sources_geo_active"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.0.2-add-orders-additional-hot-indexes" author="performance-team" context="all">
+        <comment>Add missing indexes for orders hot columns: target_country, coefficient, youtube_video_id</comment>
+        
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="orders"/>
+        </preConditions>
+
+        <createIndex tableName="orders" indexName="idx_orders_target_country" unique="false">
+            <column name="target_country"/>
+        </createIndex>
+
+        <createIndex tableName="orders" indexName="idx_orders_coefficient" unique="false">
+            <column name="coefficient"/>
+        </createIndex>
+
+        <createIndex tableName="orders" indexName="idx_orders_youtube_video_id" unique="false">
+            <column name="youtube_video_id"/>
+        </createIndex>
+
+        <createIndex tableName="orders" indexName="idx_orders_processing_priority" unique="false">
+            <column name="processing_priority"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex tableName="orders" indexName="idx_orders_target_country"/>
+            <dropIndex tableName="orders" indexName="idx_orders_coefficient"/>
+            <dropIndex tableName="orders" indexName="idx_orders_youtube_video_id"/>
+            <dropIndex tableName="orders" indexName="idx_orders_processing_priority"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.0.2-record-migration-metadata" author="performance-team" context="all">
+        <comment>Record migration execution metadata</comment>
+        
+        <insert tableName="liquibase_migration_metadata">
+            <column name="changeset_id" value="1.0.2-add-hot-column-indexes"/>
+            <column name="version" value="1.0.2"/>
+            <column name="context" value="all"/>
+            <column name="rollback_available" valueBoolean="true"/>
+            <column name="notes" value="Added 18 indexes on frequently queried hot columns across 6 tables"/>
+        </insert>
+
+        <rollback>
+            <delete tableName="liquibase_migration_metadata">
+                <where>changeset_id = '1.0.2-add-hot-column-indexes'</where>
+            </delete>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

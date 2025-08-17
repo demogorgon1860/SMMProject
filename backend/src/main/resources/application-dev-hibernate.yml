@@ -45,9 +45,7 @@ spring:
       connection-test-query: SELECT 1
       leak-detection-threshold: 60000
 
-# ENABLE HIBERNATE CONFIGURATION BEAN
-hibernate:
-  generate_statistics: true
+# Hibernate statistics are configured in spring.jpa.properties.hibernate section above
 
 # LOGGING CONFIGURATION FOR DATABASE PERFORMANCE
 logging:

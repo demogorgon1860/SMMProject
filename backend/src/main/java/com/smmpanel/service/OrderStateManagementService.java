@@ -571,37 +571,6 @@ class OrderValidationResult {
     }
 }
 
-/** State transition result */
-@lombok.Builder
-@lombok.Data
-class StateTransitionResult {
-    private final Long orderId;
-    private final boolean success;
-    private final OrderStatus fromStatus;
-    private final OrderStatus toStatus;
-    private final String errorMessage;
-
-    public static StateTransitionResult success(
-            Long orderId, OrderStatus fromStatus, OrderStatus toStatus) {
-        return StateTransitionResult.builder()
-                .orderId(orderId)
-                .success(true)
-                .fromStatus(fromStatus)
-                .toStatus(toStatus)
-                .build();
-    }
-
-    public static StateTransitionResult failed(
-            Long orderId, OrderStatus fromStatus, OrderStatus toStatus, String errorMessage) {
-        return StateTransitionResult.builder()
-                .orderId(orderId)
-                .success(false)
-                .fromStatus(fromStatus)
-                .toStatus(toStatus)
-                .errorMessage(errorMessage)
-                .build();
-    }
-}
 
 /** Progress update result */
 @lombok.Builder

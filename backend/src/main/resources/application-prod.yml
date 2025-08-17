@@ -95,26 +95,32 @@ logging:
 # ===============================
 # PRODUCTION DATABASE CONFIGURATION
 # ===============================
+# ===============================
+# PRODUCTION DATASOURCE OVERRIDES
+# ===============================
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: ${DB_MAX_POOL_SIZE:200}    # Optimized for production load
+      minimum-idle: ${DB_MIN_IDLE:20}               # Higher minimum for prod
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}  # Standard prod timeout
+      max-lifetime: ${DB_MAX_LIFETIME:1800000}      # 30 minutes
+
 app:
-  database:
-    # Production database settings - adjust based on your PostgreSQL setup
-    max-connections: ${DB_MAX_CONNECTIONS:400}
-    # Standard production connection lifetime (30 minutes)
-    connection-lifetime-ms: ${DB_CONNECTION_LIFETIME_MS:1800000}
 
   # ===============================
   # PRODUCTION CACHE CONFIGURATION
   # ===============================
   cache:
-    # Longer TTL for production caching
+    # Production cache TTL - longer for better performance
     services:
-      ttl: 7200    # 2 hours
+      ttl: ${CACHE_SERVICES_TTL:7200}      # 2 hours - stable in production
     users:
-      ttl: 3600    # 1 hour
+      ttl: ${CACHE_USERS_TTL:3600}         # 1 hour - balance freshness/performance
     conversion-coefficients:
-      ttl: 14400   # 4 hours
+      ttl: ${CACHE_COEFFICIENTS_TTL:14400}  # 4 hours - rarely change
     youtube-stats:
-      ttl: 600     # 10 minutes
+      ttl: ${CACHE_YOUTUBE_TTL:600}         # 10 minutes - regular updates needed
 
 # ===============================
 # PRODUCTION MONITORING

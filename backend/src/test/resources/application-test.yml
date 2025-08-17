@@ -15,8 +15,10 @@ spring:
     hikari:
       driver-class-name: org.h2.Driver
       maximum-pool-size: 5
-      minimum-idle: 2
+      minimum-idle: 1
       connection-timeout: 5000
+      connection-test-query: SELECT 1
+      auto-commit: false
 
   # Liquibase configuration
   liquibase:
@@ -60,23 +62,24 @@ spring:
       enabled: true
       path: /h2-console
 
-  # Redis configuration (using embedded for tests)
-  redis:
-    host: localhost
-    port: 6379
-    timeout: 2000ms
-    lettuce:
-      pool:
-        max-active: 8
-        max-idle: 8
-        min-idle: 0
-        max-wait: -1ms
+  # Redis configuration (embedded for tests)
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+      jedis:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1ms
 
-  # Kafka configuration (using embedded for tests)
+  # Kafka configuration (embedded for tests via @EmbeddedKafka)
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${spring.embedded.kafka.brokers:localhost:9092}
     consumer:
-      group-id: smm-panel-test
+      group-id: smm-panel-test-${random.uuid}
       auto-offset-reset: earliest
       key-deserializer: >-
         org.apache.kafka.common.serialization.StringDeserializer
@@ -84,6 +87,7 @@ spring:
         org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "*"
+        spring.json.use.type.headers: false
     producer:
       key-serializer: >-
         org.apache.kafka.common.serialization.StringSerializer
@@ -91,6 +95,7 @@ spring:
         org.springframework.kafka.support.serializer.JsonSerializer
       acks: 1
       retries: 0
+      batch-size: 1
 
   # Task execution
   task:
@@ -107,6 +112,7 @@ spring:
     activate:
       on-profile: integration-test
 
+  # Testcontainers configuration for integration tests
   testcontainers:
     reuse:
       enable: true

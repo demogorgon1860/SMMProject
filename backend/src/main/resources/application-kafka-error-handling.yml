@@ -12,33 +12,33 @@ app:
       # Error metadata configuration
       include-stack-trace: false   # Set to true in development
       
-      # Topic-specific configurations
+      # Topic-specific configurations with business rationale
       topics:
         order-processing:
-          max-retries: 3
-          initial-interval: 2000
-          max-interval: 60000
-          include-stack-trace: true
+          max-retries: 3            # Orders need fast processing, limited retries
+          initial-interval: 2000    # Quick first retry for transient issues
+          max-interval: 60000       # Max 1 minute delay for order processing
+          include-stack-trace: true # Debug order issues quickly
         
         video-processing:
-          max-retries: 5
-          initial-interval: 5000
-          max-interval: 300000      # 5 minutes
+          max-retries: 5            # Video processing can handle more retries
+          initial-interval: 5000    # Longer initial wait for heavy processing
+          max-interval: 300000      # 5 minutes - video processing is not time-critical
           
         youtube-processing:
-          max-retries: 10           # YouTube API can be flaky
-          initial-interval: 10000
-          max-interval: 600000      # 10 minutes
+          max-retries: 10           # YouTube API can be flaky, need patience
+          initial-interval: 10000   # Start with 10s due to API rate limits
+          max-interval: 600000      # 10 minutes max - respect YouTube quotas
           
         high-priority:
-          max-retries: 7
-          initial-interval: 500
-          max-interval: 10000
+          max-retries: 7            # Critical business operations
+          initial-interval: 500     # Very fast retry for urgent tasks
+          max-interval: 10000       # Max 10s delay for high priority items
           
         dlq-processing:
-          max-retries: 2
-          initial-interval: 5000
-          max-interval: 10000
+          max-retries: 2            # DLQ items already failed multiple times
+          initial-interval: 5000    # Slower processing for problem messages
+          max-interval: 10000       # Limited retry for DLQ recovery
     
     # Dead Letter Queue configuration
     dlq:

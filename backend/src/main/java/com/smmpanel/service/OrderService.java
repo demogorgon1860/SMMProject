@@ -1,6 +1,7 @@
 package com.smmpanel.service;
 
 import com.smmpanel.dto.OrderCreateRequest;
+import com.smmpanel.dto.binom.CampaignStatsResponse;
 import com.smmpanel.dto.request.CreateOrderRequest;
 import com.smmpanel.dto.response.OrderResponse;
 import com.smmpanel.entity.*;
@@ -37,6 +38,8 @@ public class OrderService {
     private final ServiceRepository serviceRepository;
     private final BalanceService balanceService;
     private final YouTubeProcessingService youTubeProcessingService;
+    private final BinomService binomService;
+    private final OrderStateManagementService orderStateManagementService;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     /** CRITICAL: Create order with API key (Perfect Panel compatibility) */
@@ -490,5 +493,147 @@ public class OrderService {
         }
 
         return result;
+    }
+
+    /**
+     * CRITICAL: Check order completion based on 3-campaign distribution
+     * Integrates campaign stats to determine if order should be completed
+     */
+    @Transactional(readOnly = true)
+    public boolean isOrderCompletedBasedOnCampaigns(Long orderId) {
+        try {
+            Order order = orderRepository.findById(orderId).orElse(null);
+            if (order == null || !order.getStatus().equals(OrderStatus.ACTIVE)) {
+                return false;
+            }
+
+            // Get aggregated campaign stats from all 3 campaigns
+            CampaignStatsResponse campaignStats = binomService.getCampaignStatsForOrder(orderId);
+            
+            if (campaignStats == null) {
+                log.warn("No campaign stats available for order {}", orderId);
+                return false;
+            }
+
+            // Check if all 3 campaigns are working (ensure proper distribution)
+            boolean has3CampaignsActive = campaignStats.getCampaignId().split(",").length == 3;
+            if (!has3CampaignsActive) {
+                log.warn("Order {} does not have 3 active campaigns as expected", orderId);
+            }
+
+            // Calculate completion based on total conversions from all campaigns
+            long totalConversions = campaignStats.getConversions();
+            int targetQuantity = order.getQuantity();
+
+            boolean isCompleted = totalConversions >= targetQuantity;
+
+            if (isCompleted) {
+                log.info(
+                    "Order {} completed based on campaign data: {}/{} conversions achieved across {} campaigns", 
+                    orderId, totalConversions, targetQuantity, campaignStats.getCampaignId().split(",").length);
+            }
+
+            return isCompleted;
+
+        } catch (Exception e) {
+            log.error("Failed to check campaign completion for order {}: {}", orderId, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * CRITICAL: Update order progress using campaign data from 3-campaign distribution
+     * This method aggregates data from all campaigns and updates order accordingly
+     */
+    @Transactional
+    public void updateOrderProgressFromCampaigns(Long orderId) {
+        try {
+            Order order = orderRepository.findById(orderId).orElse(null);
+            if (order == null || !order.getStatus().equals(OrderStatus.ACTIVE)) {
+                log.debug("Skipping campaign progress update for order {} - not active", orderId);
+                return;
+            }
+
+            // Get aggregated campaign stats
+            CampaignStatsResponse campaignStats = binomService.getCampaignStatsForOrder(orderId);
+            
+            if (campaignStats == null) {
+                log.warn("No campaign stats available for order {}", orderId);
+                return;
+            }
+
+            // Calculate progress from campaign data
+            long totalConversions = campaignStats.getConversions();
+            int targetQuantity = order.getQuantity();
+            int remains = Math.max(0, targetQuantity - (int) totalConversions);
+
+            // Update order progress
+            order.setRemains(remains);
+            order.setUpdatedAt(LocalDateTime.now());
+
+            // Check for completion based on campaign data
+            if (remains <= 0 && totalConversions >= targetQuantity) {
+                // Use state management for proper completion transition
+                StateTransitionResult result = orderStateManagementService.transitionToCompleted(
+                    orderId, order.getStartCount() + (int) totalConversions);
+                
+                if (result.isSuccess()) {
+                    log.info(
+                        "Order {} completed via campaign aggregation: {} conversions from {} campaigns",
+                        orderId, totalConversions, campaignStats.getCampaignId().split(",").length);
+                    
+                    // Stop all campaigns asynchronously
+                    try {
+                        binomService.stopAllCampaignsForOrder(orderId);
+                    } catch (Exception e) {
+                        log.error("Failed to stop campaigns for completed order {}: {}", orderId, e.getMessage());
+                    }
+                } else {
+                    log.warn("Failed to transition order {} to completed: {}", orderId, result.getErrorMessage());
+                }
+            } else {
+                orderRepository.save(order);
+                log.debug(
+                    "Updated order {} progress from campaigns: {}/{} conversions, {} remains",
+                    orderId, totalConversions, targetQuantity, remains);
+            }
+
+            // Publish Kafka event for order progress update (maintaining compatibility)
+            Map<String, Object> progressEvent = new HashMap<>();
+            progressEvent.put("orderId", orderId);
+            progressEvent.put("totalConversions", totalConversions);
+            progressEvent.put("remains", remains);
+            progressEvent.put("campaignCount", campaignStats.getCampaignId().split(",").length);
+            progressEvent.put("updateSource", "campaign-aggregation");
+            
+            kafkaTemplate.send("smm.order.progress", orderId.toString(), progressEvent);
+
+        } catch (Exception e) {
+            log.error("Failed to update order progress from campaigns for order {}: {}", orderId, e.getMessage());
+        }
+    }
+
+    /**
+     * CRITICAL: Monitor and update all active orders using 3-campaign distribution data
+     * This method should be called periodically to sync order status with campaign performance
+     */
+    @Transactional
+    public void monitorActiveOrdersFromCampaigns() {
+        try {
+            List<Order> activeOrders = orderRepository.findByStatus(OrderStatus.ACTIVE);
+            
+            log.debug("Monitoring {} active orders for campaign completion", activeOrders.size());
+
+            for (Order order : activeOrders) {
+                try {
+                    updateOrderProgressFromCampaigns(order.getId());
+                } catch (Exception e) {
+                    log.error("Failed to update campaign progress for order {}: {}", order.getId(), e.getMessage());
+                }
+            }
+
+        } catch (Exception e) {
+            log.error("Failed to monitor active orders from campaigns: {}", e.getMessage());
+        }
     }
 }

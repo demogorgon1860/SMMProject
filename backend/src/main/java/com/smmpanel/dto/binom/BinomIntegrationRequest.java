@@ -18,4 +18,8 @@ public class BinomIntegrationRequest {
     private String geoTargeting;
     private String clipUrl;
     private java.math.BigDecimal coefficient;
+    
+    public boolean isClipCreated() {
+        return clipCreated != null && clipCreated;
+    }
 }

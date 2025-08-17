@@ -10,6 +10,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,38 +37,86 @@ public class BinomService {
     @Value("${app.binom.default-coefficient:3.0}")
     private BigDecimal defaultCoefficient;
 
-    /** FIXED: Assign order to existing Binom campaign */
+    /** FIXED: Distribute order across exactly 3 fixed Binom campaigns */
     @Transactional
     public BinomIntegrationResponse createBinomIntegration(
             Order order, String videoId, boolean clipCreated, String targetUrl) {
         try {
-            // Calculate coefficient based on clip creation
+            // Calculate coefficient based on clip creation (existing logic)
             BigDecimal coefficient = clipCreated ? new BigDecimal("3.0") : new BigDecimal("4.0");
             int targetViews = order.getQuantity();
-            int requiredClicks = BigDecimal.valueOf(targetViews).multiply(coefficient).intValue();
 
-            BinomCampaign campaign =
-                    BinomCampaign.builder()
-                            .order(order)
-                            .campaignId(generateCampaignId(order.getId(), "DEFAULT"))
-                            .targetUrl(targetUrl)
-                            .coefficient(coefficient)
-                            .clicksRequired(requiredClicks)
-                            .clicksDelivered(0)
-                            .viewsGenerated(0)
-                            .status("ACTIVE")
-                            .build();
-            binomCampaignRepository.save(campaign);
+            // Get exactly 3 fixed campaigns
+            List<FixedBinomCampaign> fixedCampaigns = getThreeFixedCampaigns("US");
+
+            // Create single offer for all campaigns
+            String offerName = generateOfferName(order.getId(), clipCreated);
+            String offerId = createOrGetOffer(offerName, targetUrl, "US");
+
+            // Calculate clicks per campaign: total_views * coefficient / 3
+            int totalRequiredClicks =
+                    BigDecimal.valueOf(targetViews).multiply(coefficient).intValue();
+            int clicksPerCampaign = totalRequiredClicks / 3;
+            int remainingClicks = totalRequiredClicks % 3; // Handle rounding
+
+            List<String> assignedCampaignIds = new ArrayList<>();
+
+            // Distribute offer across 3 fixed campaigns
+            for (int i = 0; i < fixedCampaigns.size(); i++) {
+                FixedBinomCampaign fixedCampaign = fixedCampaigns.get(i);
+
+                // Add remaining clicks to the first campaign to handle rounding
+                int campaignClicks = clicksPerCampaign + (i == 0 ? remainingClicks : 0);
+
+                // Assign offer to this fixed campaign
+                boolean assigned =
+                        assignOfferToCampaign(
+                                offerId,
+                                fixedCampaign.getCampaignId(),
+                                fixedCampaign.getPriority());
+
+                if (assigned) {
+                    // Save relationship in binom_campaigns table
+                    saveBinomCampaignRecord(
+                            order,
+                            fixedCampaign.getCampaignId(),
+                            offerId,
+                            campaignClicks,
+                            targetUrl,
+                            coefficient);
+                    assignedCampaignIds.add(fixedCampaign.getCampaignId());
+
+                    log.info(
+                            "Order {} distributed to fixed campaign {} - Required clicks: {}",
+                            order.getId(),
+                            fixedCampaign.getCampaignId(),
+                            campaignClicks);
+                }
+            }
+
+            if (assignedCampaignIds.size() != 3) {
+                throw new BinomApiException(
+                        String.format(
+                                "Failed to assign to all 3 campaigns. Only %d assignments"
+                                        + " succeeded.",
+                                assignedCampaignIds.size()));
+            }
 
             log.info(
-                    "Order {} assigned to campaign - Required clicks: {} (coefficient: {})",
+                    "Order {} successfully distributed across 3 fixed campaigns - Total clicks: {}"
+                            + " (coefficient: {})",
                     order.getId(),
-                    requiredClicks,
+                    totalRequiredClicks,
                     coefficient);
+
             return BinomIntegrationResponse.builder()
                     .success(true)
-                    .campaignId(campaign.getCampaignId())
-                    .message("Order assigned to campaign successfully")
+                    .campaignId(String.join(",", assignedCampaignIds))
+                    .campaignsCreated(assignedCampaignIds.size())
+                    .message(
+                            String.format(
+                                    "Order distributed across %d fixed campaigns successfully",
+                                    assignedCampaignIds.size()))
                     .build();
         } catch (Exception e) {
             log.error(
@@ -76,8 +125,9 @@ public class BinomService {
                     e.getMessage());
             return BinomIntegrationResponse.builder()
                     .success(false)
-                    .message("Failed to assign campaign: " + e.getMessage())
-                    .errorCode("CAMPAIGN_ASSIGNMENT_FAILED")
+                    .campaignsCreated(0)
+                    .message("Failed to assign to fixed campaigns: " + e.getMessage())
+                    .errorCode("FIXED_CAMPAIGN_ASSIGNMENT_FAILED")
                     .build();
         }
     }
@@ -150,13 +200,19 @@ public class BinomService {
                 return existingOffer.getOfferId();
             }
 
-            // Create new offer
+            // Create new offer with updated DTO structure
             CreateOfferRequest offerRequest =
                     CreateOfferRequest.builder()
                             .name(offerName)
                             .url(targetUrl)
-                            .geoTargeting(geoTargeting)
+                            .geoTargeting(List.of(geoTargeting)) // Now expects List<String>
                             .description("SMM Panel auto-generated offer")
+                            .affiliateNetworkId(1L) // Default affiliate network ID
+                            .type("REDIRECT")
+                            .status("ACTIVE")
+                            .payoutType("CPA")
+                            .requiresApproval(false)
+                            .isArchived(false)
                             .build();
 
             CreateOfferResponse response = binomClient.createOffer(offerRequest);
@@ -171,20 +227,34 @@ public class BinomService {
 
     /** Save Binom campaign record in database */
     private void saveBinomCampaignRecord(
-            Order order, String campaignId, String offerId, int clicksRequired, String targetUrl) {
+            Order order,
+            String campaignId,
+            String offerId,
+            int clicksRequired,
+            String targetUrl,
+            BigDecimal coefficient) {
         BinomCampaign campaign = new BinomCampaign();
         campaign.setOrder(order);
         campaign.setCampaignId(campaignId);
         campaign.setOfferId(offerId);
         campaign.setClicksRequired(clicksRequired);
         campaign.setClicksDelivered(0);
+        campaign.setViewsGenerated(0);
         campaign.setTargetUrl(targetUrl);
+        campaign.setCoefficient(coefficient);
         campaign.setStatus("ACTIVE");
         campaign.setCreatedAt(LocalDateTime.now());
         campaign.setUpdatedAt(LocalDateTime.now());
 
         binomCampaignRepository.save(campaign);
-        log.info("Saved Binom campaign record: {}", campaignId);
+        log.info("Saved Binom campaign record: {} with {} clicks", campaignId, clicksRequired);
+    }
+
+    /** Save Binom campaign record in database (legacy method for backward compatibility) */
+    private void saveBinomCampaignRecord(
+            Order order, String campaignId, String offerId, int clicksRequired, String targetUrl) {
+        saveBinomCampaignRecord(
+                order, campaignId, offerId, clicksRequired, targetUrl, new BigDecimal("3.0"));
     }
 
     /** Generate offer name for Perfect Panel compatibility */
@@ -196,50 +266,123 @@ public class BinomService {
                 System.currentTimeMillis());
     }
 
-    /** Get campaign statistics for monitoring */
-    public List<CampaignStatsResponse> getCampaignStatsForOrder(Long orderId) {
+    /** Get aggregated campaign statistics for monitoring from 3 campaigns */
+    public CampaignStatsResponse getCampaignStatsForOrder(Long orderId) {
         List<BinomCampaign> campaigns = binomCampaignRepository.findByOrderIdAndActiveTrue(orderId);
-        List<CampaignStatsResponse> statsList = new ArrayList<>();
 
+        // Initialize aggregated values
+        long totalClicks = 0L;
+        long totalConversions = 0L;
+        BigDecimal totalCost = BigDecimal.ZERO;
+        BigDecimal totalRevenue = BigDecimal.ZERO;
+        List<String> campaignIds = new ArrayList<>();
+        List<String> errors = new ArrayList<>();
+
+        // Aggregate stats from all 3 campaigns
         for (BinomCampaign campaign : campaigns) {
             try {
                 CampaignStatsResponse stats =
                         binomClient.getCampaignStats(campaign.getCampaignId());
-                statsList.add(stats);
+
+                totalClicks += stats.getClicks();
+                totalConversions += stats.getConversions();
+                totalCost =
+                        totalCost.add(stats.getCost() != null ? stats.getCost() : BigDecimal.ZERO);
+                totalRevenue =
+                        totalRevenue.add(
+                                stats.getRevenue() != null ? stats.getRevenue() : BigDecimal.ZERO);
+                campaignIds.add(campaign.getCampaignId());
+
+                log.debug(
+                        "Campaign {} stats: {} clicks, {} conversions",
+                        campaign.getCampaignId(),
+                        stats.getClicks(),
+                        stats.getConversions());
+
             } catch (Exception e) {
                 log.error(
                         "Failed to get stats for campaign {}: {}",
                         campaign.getCampaignId(),
                         e.getMessage());
+                errors.add(
+                        String.format("Campaign %s: %s", campaign.getCampaignId(), e.getMessage()));
             }
         }
 
-        return statsList;
+        log.info(
+                "Aggregated stats for order {}: {} clicks from {} campaigns",
+                orderId,
+                totalClicks,
+                campaignIds.size());
+
+        // Return aggregated response maintaining existing structure
+        return CampaignStatsResponse.builder()
+                .campaignId(String.join(",", campaignIds)) // Comma-separated campaign IDs
+                .clicks(totalClicks)
+                .conversions(totalConversions)
+                .cost(totalCost)
+                .revenue(totalRevenue)
+                .status(campaignIds.size() == 3 ? "ACTIVE" : "PARTIAL")
+                .build();
     }
 
-    /** Stop all campaigns for an order */
+    /** Stop all campaigns for an order - Updated for 3-campaign distribution */
     @Transactional
     public void stopAllCampaignsForOrder(Long orderId) {
         List<BinomCampaign> campaigns = binomCampaignRepository.findByOrderIdAndActiveTrue(orderId);
 
+        if (campaigns.isEmpty()) {
+            log.warn("No active campaigns found for order {}", orderId);
+            return;
+        }
+
+        log.info("Stopping {} campaigns for order {}", campaigns.size(), orderId);
+
+        int successCount = 0;
+        int failureCount = 0;
+
         for (BinomCampaign campaign : campaigns) {
             try {
-                // Note: Binom API doesn't have a stopCampaign method, so we just update the status
+                // Stop campaign in Binom system if API method exists
+                // Note: Currently updating status only as Binom API doesn't have stopCampaign
+                // method
                 campaign.setStatus("STOPPED");
                 campaign.setUpdatedAt(LocalDateTime.now());
                 binomCampaignRepository.save(campaign);
 
+                successCount++;
                 log.info(
-                        "Stopped Binom campaign {} for order {}",
+                        "Stopped Binom campaign {} for order {} (Campaign {}/{} for this order)",
                         campaign.getCampaignId(),
-                        orderId);
+                        orderId,
+                        successCount,
+                        campaigns.size());
             } catch (Exception e) {
+                failureCount++;
                 log.error(
                         "Failed to stop campaign {} for order {}: {}",
                         campaign.getCampaignId(),
                         orderId,
                         e.getMessage());
             }
+        }
+
+        // Log summary for distributed campaign management
+        if (campaigns.size() == 3) {
+            log.info(
+                    "Completed stopping distributed campaigns for order {}: {} successful, {}"
+                            + " failed (Expected 3 campaigns)",
+                    orderId,
+                    successCount,
+                    failureCount);
+        } else {
+            log.warn(
+                    "Order {} has {} campaigns instead of expected 3. Stopped {} successfully, {}"
+                            + " failed",
+                    orderId,
+                    campaigns.size(),
+                    successCount,
+                    failureCount);
         }
     }
 
@@ -248,13 +391,64 @@ public class BinomService {
         return binomCampaignRepository.findByOrderIdAndActiveTrue(orderId);
     }
 
+    /** Stop a specific campaign - Updated for 3-campaign distribution logic */
+    @Transactional
     public void stopCampaign(String campaignId) {
-        BinomCampaign campaign = binomCampaignRepository.findByCampaignId(campaignId).orElse(null);
-        if (campaign != null) {
+        if (campaignId == null || campaignId.trim().isEmpty()) {
+            log.error("Cannot stop campaign: campaignId is null or empty");
+            throw new IllegalArgumentException("Campaign ID is required");
+        }
+
+        Optional<BinomCampaign> campaignOpt = binomCampaignRepository.findByCampaignId(campaignId);
+        if (campaignOpt.isEmpty()) {
+            log.error("Campaign not found: {}", campaignId);
+            throw new BinomApiException("Campaign not found: " + campaignId);
+        }
+
+        BinomCampaign campaign = campaignOpt.get();
+        String previousStatus = campaign.getStatus();
+
+        try {
+            // Stop campaign in Binom system if API method exists
+            // Note: Currently updating status only as Binom API doesn't have stopCampaign method
             campaign.setStatus("STOPPED");
             campaign.setUpdatedAt(LocalDateTime.now());
             binomCampaignRepository.save(campaign);
-            log.info("Stopped campaign {}", campaignId);
+
+            // Check if this is part of a 3-campaign order and log accordingly
+            Long orderId = campaign.getOrder().getId();
+            List<BinomCampaign> allOrderCampaigns = binomCampaignRepository.findByOrderId(orderId);
+            long activeCampaigns =
+                    allOrderCampaigns.stream().filter(c -> "ACTIVE".equals(c.getStatus())).count();
+            long stoppedCampaigns =
+                    allOrderCampaigns.stream().filter(c -> "STOPPED".equals(c.getStatus())).count();
+
+            log.info(
+                    "Stopped campaign {} (order {}) - Status: {} -> STOPPED. Order now has {}"
+                            + " active, {} stopped campaigns",
+                    campaignId,
+                    orderId,
+                    previousStatus,
+                    activeCampaigns,
+                    stoppedCampaigns);
+
+            // Log warning if not following 3-campaign pattern
+            if (allOrderCampaigns.size() != 3) {
+                log.warn(
+                        "Order {} has {} campaigns instead of expected 3 for distributed campaign"
+                                + " model",
+                        orderId,
+                        allOrderCampaigns.size());
+            }
+
+            // Log if all campaigns for an order are now stopped
+            if (activeCampaigns == 0) {
+                log.info("All campaigns for order {} are now stopped", orderId);
+            }
+
+        } catch (Exception e) {
+            log.error("Failed to stop campaign {}: {}", campaignId, e.getMessage());
+            throw new BinomApiException("Failed to stop campaign: " + campaignId, e);
         }
     }
 
@@ -263,13 +457,144 @@ public class BinomService {
         log.info("Updating campaign stats for {} (stub)", campaignId);
     }
 
+    /** Resume all campaigns for an order - Companion to stopAllCampaignsForOrder */
+    @Transactional
+    public void resumeAllCampaignsForOrder(Long orderId) {
+        List<BinomCampaign> campaigns =
+                binomCampaignRepository.findByOrderIdAndStatus(orderId, "STOPPED");
+
+        if (campaigns.isEmpty()) {
+            log.warn("No stopped campaigns found for order {}", orderId);
+            return;
+        }
+
+        log.info("Resuming {} campaigns for order {}", campaigns.size(), orderId);
+
+        int successCount = 0;
+        int failureCount = 0;
+
+        for (BinomCampaign campaign : campaigns) {
+            try {
+                campaign.setStatus("ACTIVE");
+                campaign.setUpdatedAt(LocalDateTime.now());
+                binomCampaignRepository.save(campaign);
+
+                successCount++;
+                log.info(
+                        "Resumed Binom campaign {} for order {} (Campaign {}/{} for this order)",
+                        campaign.getCampaignId(),
+                        orderId,
+                        successCount,
+                        campaigns.size());
+            } catch (Exception e) {
+                failureCount++;
+                log.error(
+                        "Failed to resume campaign {} for order {}: {}",
+                        campaign.getCampaignId(),
+                        orderId,
+                        e.getMessage());
+            }
+        }
+
+        // Log summary for distributed campaign management
+        if (campaigns.size() == 3) {
+            log.info(
+                    "Completed resuming distributed campaigns for order {}: {} successful, {}"
+                            + " failed (Expected 3 campaigns)",
+                    orderId,
+                    successCount,
+                    failureCount);
+        } else {
+            log.warn(
+                    "Order {} has {} campaigns instead of expected 3. Resumed {} successfully, {}"
+                            + " failed",
+                    orderId,
+                    campaigns.size(),
+                    successCount,
+                    failureCount);
+        }
+    }
+
+    /** Get campaign status summary for an order - Useful for order workflow integration */
+    public String getCampaignStatusSummary(Long orderId) {
+        List<BinomCampaign> allCampaigns = binomCampaignRepository.findByOrderId(orderId);
+
+        if (allCampaigns.isEmpty()) {
+            return "NO_CAMPAIGNS";
+        }
+
+        long activeCampaigns =
+                allCampaigns.stream().filter(c -> "ACTIVE".equals(c.getStatus())).count();
+        long stoppedCampaigns =
+                allCampaigns.stream().filter(c -> "STOPPED".equals(c.getStatus())).count();
+
+        // Return status based on 3-campaign distribution logic
+        if (allCampaigns.size() == 3) {
+            if (activeCampaigns == 3) {
+                return "ALL_ACTIVE";
+            } else if (activeCampaigns == 0) {
+                return "ALL_STOPPED";
+            } else {
+                return "PARTIAL_ACTIVE";
+            }
+        } else {
+            // Non-standard campaign count
+            return String.format(
+                    "NONSTANDARD_%d_TOTAL_%d_ACTIVE", allCampaigns.size(), activeCampaigns);
+        }
+    }
+
+    /** Resume a specific campaign - Updated for 3-campaign distribution logic */
+    @Transactional
     public void resumeCampaign(String campaignId) {
-        BinomCampaign campaign = binomCampaignRepository.findByCampaignId(campaignId).orElse(null);
-        if (campaign != null) {
+        if (campaignId == null || campaignId.trim().isEmpty()) {
+            log.error("Cannot resume campaign: campaignId is null or empty");
+            throw new IllegalArgumentException("Campaign ID is required");
+        }
+
+        Optional<BinomCampaign> campaignOpt = binomCampaignRepository.findByCampaignId(campaignId);
+        if (campaignOpt.isEmpty()) {
+            log.error("Campaign not found: {}", campaignId);
+            throw new BinomApiException("Campaign not found: " + campaignId);
+        }
+
+        BinomCampaign campaign = campaignOpt.get();
+        String previousStatus = campaign.getStatus();
+
+        try {
+            // Resume campaign in Binom system if API method exists
+            // Note: Currently updating status only as Binom API doesn't have resumeCampaign method
             campaign.setStatus("ACTIVE");
             campaign.setUpdatedAt(LocalDateTime.now());
             binomCampaignRepository.save(campaign);
-            log.info("Resumed campaign {}", campaignId);
+
+            // Check if this is part of a 3-campaign order and log accordingly
+            Long orderId = campaign.getOrder().getId();
+            List<BinomCampaign> allOrderCampaigns = binomCampaignRepository.findByOrderId(orderId);
+            long activeCampaigns =
+                    allOrderCampaigns.stream().filter(c -> "ACTIVE".equals(c.getStatus())).count();
+
+            log.info(
+                    "Resumed campaign {} (order {}) - Status: {} -> ACTIVE. Order now has {}/{}"
+                            + " active campaigns",
+                    campaignId,
+                    orderId,
+                    previousStatus,
+                    activeCampaigns,
+                    allOrderCampaigns.size());
+
+            // Log warning if not following 3-campaign pattern
+            if (allOrderCampaigns.size() != 3) {
+                log.warn(
+                        "Order {} has {} campaigns instead of expected 3 for distributed campaign"
+                                + " model",
+                        orderId,
+                        allOrderCampaigns.size());
+            }
+
+        } catch (Exception e) {
+            log.error("Failed to resume campaign {}: {}", campaignId, e.getMessage());
+            throw new BinomApiException("Failed to resume campaign: " + campaignId, e);
         }
     }
 
@@ -297,8 +622,14 @@ public class BinomService {
                     CreateOfferRequest.builder()
                             .name(name)
                             .url(url)
-                            .geoTargeting(geo)
+                            .geoTargeting(List.of(geo)) // Updated to List<String>
                             .description("SMM Panel auto-generated offer")
+                            .affiliateNetworkId(1L) // Default affiliate network ID
+                            .type("REDIRECT")
+                            .status("ACTIVE")
+                            .payoutType("CPA")
+                            .requiresApproval(false)
+                            .isArchived(false)
                             .build();
 
             CreateOfferResponse response = binomClient.createOffer(offerRequest);
@@ -352,6 +683,7 @@ public class BinomService {
             log.error("Failed to create Binom integration: {}", e.getMessage());
             return BinomIntegrationResponse.builder()
                     .success(false)
+                    .campaignsCreated(0)
                     .message("Failed to create Binom integration: " + e.getMessage())
                     .errorCode("INTEGRATION_FAILED")
                     .build();

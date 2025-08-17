@@ -468,12 +468,16 @@ public class YouTubeProcessingService {
                             ? clipResult.getClipUrl()
                             : context.getOrderLink();
 
+            // Determine coefficient based on clip creation
+            double coefficient = (clipResult != null && clipResult.isSuccess()) ? clipCoefficient : 4.0;
+
             BinomIntegrationRequest binomRequest =
                     BinomIntegrationRequest.builder()
                             .orderId(context.getOrderId())
                             .targetViews(context.getTargetQuantity())
                             .targetUrl(finalTargetUrl)
                             .clipCreated(clipResult != null && clipResult.isSuccess())
+                            .coefficient(BigDecimal.valueOf(coefficient))
                             .geoTargeting("US") // Default, can be configurable
                             .build();
 
@@ -838,12 +842,16 @@ public class YouTubeProcessingService {
         try {
             log.info("Creating Binom campaigns for processing ID: {}", processing.getId());
 
+            // Determine coefficient based on clip creation
+            BigDecimal coefficient = processing.isClipCreated() ? 
+                BigDecimal.valueOf(clipCoefficient) : BigDecimal.valueOf(4.0);
+
             BinomIntegrationRequest request =
                     BinomIntegrationRequest.builder()
                             .orderId(processing.getOrder().getId())
                             .targetUrl(targetUrl)
                             .targetViews(processing.getOrder().getTargetViews())
-                            .coefficient(processing.getOrder().getCoefficient())
+                            .coefficient(coefficient)
                             .clipCreated(processing.isClipCreated())
                             .clipUrl(processing.getClipUrl())
                             .geoTargeting(processing.getOrder().getTargetCountry())

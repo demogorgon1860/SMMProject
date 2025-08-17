@@ -1,5 +1,22 @@
 ---
 # ===============================
+# SMM PANEL APPLICATION CONFIGURATION
+# ===============================
+# Main configuration file for the Social Media Marketing Panel
+# 
+# SECURITY NOTICE: All sensitive values are externalized to environment variables
+# Ensure the following environment variables are set in production:
+# - DB_PASSWORD, REDIS_PASSWORD, JWT_SECRET
+# - BINOM_API_KEY, YOUTUBE_API_KEY, CRYPTOMUS_API_KEY, CRYPTOMUS_API_SECRET
+# - CRYPTOMUS_WEBHOOK_SECRET, CRYPTOMUS_MERCHANT_ID
+#
+# For environment-specific overrides, use:
+# - application-dev.yml (development)
+# - application-stage.yml (staging) 
+# - application-prod.yml (production)
+# ===============================
+
+# ===============================
 # SERVER CONFIGURATION
 # ===============================
 server:
@@ -36,16 +53,21 @@ spring:
     url: >
       jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:smm_panel}
     username: ${DB_USER:smm_admin}
-    password: ${DB_PASSWORD:dev_password_123}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      # Connection pool sizing - adjust based on your PostgreSQL max_connections
+      # Default PostgreSQL max_connections is typically 100-200
+      maximum-pool-size: ${DB_MAX_POOL_SIZE:50}      # Max active connections
+      minimum-idle: ${DB_MIN_IDLE:10}                # Min idle connections
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:20000}    # 20 seconds
+      idle-timeout: ${DB_IDLE_TIMEOUT:600000}        # 10 minutes
+      max-lifetime: ${DB_MAX_LIFETIME:1800000}       # 30 minutes
+      connection-test-query: SELECT 1               # Health check query
+      leak-detection-threshold: ${DB_LEAK_DETECTION_THRESHOLD:60000}  # 60 seconds
   # ===============================
-  # FLYWAY CONFIGURATION (DISABLED - MIGRATED TO LIQUIBASE)
+  # DATABASE MIGRATION - USING LIQUIBASE ONLY
   # ===============================
-  flyway:
-    enabled: false
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-    validate-on-migrate: true
   
   # ===============================
   # LIQUIBASE CONFIGURATION
@@ -152,7 +174,7 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:dev_redis_pass}
+      password: ${REDIS_PASSWORD:}
       database: 0
       timeout: 5000
       jedis:
@@ -240,14 +262,13 @@ spring:
   # ===============================
   # KAFKA MONITORING CONFIGURATION  
   # ===============================
-kafka:
-  monitoring:
+  kafka-monitoring:
     lag:
       threshold: ${KAFKA_LAG_THRESHOLD:10000}
     error:
       threshold: ${KAFKA_ERROR_THRESHOLD:0.05}
-  dead-letter-queue:
-    topic: ${KAFKA_DLQ_TOPIC:video.processing.dlq}
+    dead-letter-queue:
+      topic: ${KAFKA_DLQ_TOPIC:video.processing.dlq}
 
   # ===============================
   # FILE UPLOAD CONFIGURATION
@@ -281,20 +302,14 @@ cors:
   allowed-origins: ${CORS_ORIGINS:http://localhost:3000,https://demo.perfectpanel.com}
 app:
   # ===============================
-  # DATABASE POOL OPTIMIZATION
+  # DATABASE POOL CONFIGURATION (MOVED TO DATASOURCE.HIKARI SECTION)
   # ===============================
-  database:
-    # Maximum connections available in the database (adjust based on your PostgreSQL configuration)
-    max-connections: ${DB_MAX_CONNECTIONS:200}
-    # Database connection lifetime in milliseconds (should match or be slightly higher than PostgreSQL settings)
-    connection-lifetime-ms: ${DB_CONNECTION_LIFETIME_MS:1800000}
 
   # ===============================
   # SECURITY CONFIGURATION
   # ===============================
   jwt:
-    secret: >
-      ${JWT_SECRET:your-super-secret-jwt-key-for-development-change-in-production-64chars}
+    secret: ${JWT_SECRET}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
     refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}
   security:
@@ -330,15 +345,58 @@ app:
   # ===============================
   binom:
     api:
-      url: ${BINOM_API_URL:https://your-binom-domain.com/api}
-      key: ${BINOM_API_KEY:your-binom-api-key}
-      timeout: 30000
-      retry-attempts: 3
-    default-coefficient: 3.0
-    max-campaigns-per-order: 5
+      # Binom V2 API Configuration
+      url: ${BINOM_API_URL}
+      key: ${BINOM_API_KEY}
+      timeout: ${BINOM_API_TIMEOUT:30000}
+      retry-attempts: ${BINOM_RETRY_ATTEMPTS:3}
+      # V2 specific endpoints
+      version: ${BINOM_API_VERSION:v2}
+      endpoints:
+        campaigns: ${BINOM_CAMPAIGNS_ENDPOINT:/v2/campaigns}
+        offers: ${BINOM_OFFERS_ENDPOINT:/v2/offers}
+        clicks: ${BINOM_CLICKS_ENDPOINT:/v2/clicks}
+        conversions: ${BINOM_CONVERSIONS_ENDPOINT:/v2/conversions}
+        statistics: ${BINOM_STATISTICS_ENDPOINT:/v2/statistics}
+        landing-pages: ${BINOM_LANDING_PAGES_ENDPOINT:/v2/landing-pages}
+        traffic-sources: ${BINOM_TRAFFIC_SOURCES_ENDPOINT:/v2/traffic-sources}
+      # Enhanced authentication for V2
+      auth:
+        method: ${BINOM_AUTH_METHOD:api-key} # api-key, oauth2, bearer
+        header: ${BINOM_AUTH_HEADER:X-API-Key}
+        bearer-token: ${BINOM_BEARER_TOKEN:}
+        oauth2:
+          client-id: ${BINOM_OAUTH2_CLIENT_ID:}
+          client-secret: ${BINOM_OAUTH2_CLIENT_SECRET:}
+          token-url: ${BINOM_OAUTH2_TOKEN_URL:}
+    # Business logic configuration
+    default-coefficient: ${BINOM_DEFAULT_COEFFICIENT:3.0}
+    max-campaigns-per-order: ${BINOM_MAX_CAMPAIGNS_PER_ORDER:5}
+    # V2 Performance and monitoring
+    monitoring:
+      enabled: ${BINOM_MONITORING_ENABLED:true}
+      metrics-interval: ${BINOM_METRICS_INTERVAL:300000} # 5 minutes
+      health-check-interval: ${BINOM_HEALTH_CHECK_INTERVAL:60000} # 1 minute
+      alert-thresholds:
+        response-time-ms: ${BINOM_ALERT_RESPONSE_TIME:5000}
+        error-rate-percent: ${BINOM_ALERT_ERROR_RATE:5.0}
+        failure-rate-percent: ${BINOM_ALERT_FAILURE_RATE:10.0}
+    # V2 Rate limiting and throttling
+    rate-limiting:
+      enabled: ${BINOM_RATE_LIMITING_ENABLED:true}
+      requests-per-minute: ${BINOM_REQUESTS_PER_MINUTE:120}
+      requests-per-hour: ${BINOM_REQUESTS_PER_HOUR:1000}
+      burst-capacity: ${BINOM_BURST_CAPACITY:20}
+    # V2 Caching configuration
+    cache:
+      enabled: ${BINOM_CACHE_ENABLED:true}
+      campaigns-ttl: ${BINOM_CACHE_CAMPAIGNS_TTL:1800} # 30 minutes
+      offers-ttl: ${BINOM_CACHE_OFFERS_TTL:3600} # 1 hour
+      statistics-ttl: ${BINOM_CACHE_STATISTICS_TTL:300} # 5 minutes
+      landing-pages-ttl: ${BINOM_CACHE_LANDING_PAGES_TTL:7200} # 2 hours
   youtube:
     api:
-      key: ${YOUTUBE_API_KEY:your-youtube-api-key}
+      key: ${YOUTUBE_API_KEY}
       timeout: 15000
       retry-attempts: 2
     quota:
@@ -347,11 +405,11 @@ app:
   cryptomus:
     api:
       url: ${CRYPTOMUS_API_URL:https://api.cryptomus.com/v1}
-      key: ${CRYPTOMUS_API_KEY:your-cryptomus-api-key}
-      secret: ${CRYPTOMUS_API_SECRET:your-cryptomus-api-secret}
+      key: ${CRYPTOMUS_API_KEY}
+      secret: ${CRYPTOMUS_API_SECRET}
     webhook:
-      secret: ${CRYPTOMUS_WEBHOOK_SECRET:your-webhook-secret}
-    merchant-id: ${CRYPTOMUS_MERCHANT_ID:your-merchant-id}
+      secret: ${CRYPTOMUS_WEBHOOK_SECRET}
+    merchant-id: ${CRYPTOMUS_MERCHANT_ID}
     min-deposit: ${CRYPTOMUS_MIN_DEPOSIT:5.00}
     timeout: 30000
   selenium:
@@ -369,14 +427,15 @@ app:
   # CACHING CONFIGURATION
   # ===============================
   cache:
+    # Cache TTL values in seconds - standardized across environments
     services:
-      ttl: 3600
+      ttl: ${CACHE_SERVICES_TTL:3600}      # 1 hour - service data changes infrequently
     users:
-      ttl: 1800
+      ttl: ${CACHE_USERS_TTL:1800}         # 30 minutes - user data moderately dynamic
     conversion-coefficients:
-      ttl: 7200
+      ttl: ${CACHE_COEFFICIENTS_TTL:7200}  # 2 hours - coefficients change rarely
     youtube-stats:
-      ttl: 300
+      ttl: ${CACHE_YOUTUBE_TTL:600}        # 10 minutes - stats need regular updates
 
   # ===============================
   # FILE UPLOAD & PROCESSING
@@ -499,13 +558,42 @@ app:
 resilience4j:
   circuitbreaker:
     instances:
+      # Binom V2 API Circuit Breaker - Enhanced configuration
       binom-api:
-        failure-rate-threshold: 50
-        slow-call-rate-threshold: 50
-        slow-call-duration-threshold: PT5S
+        failure-rate-threshold: ${BINOM_CB_FAILURE_RATE_THRESHOLD:45}
+        slow-call-rate-threshold: ${BINOM_CB_SLOW_CALL_RATE_THRESHOLD:40}
+        slow-call-duration-threshold: ${BINOM_CB_SLOW_CALL_DURATION:PT8S}
+        wait-duration-in-open-state: ${BINOM_CB_WAIT_DURATION_OPEN:PT45S}
+        minimum-number-of-calls: ${BINOM_CB_MIN_CALLS:15}
+        sliding-window-size: ${BINOM_CB_SLIDING_WINDOW_SIZE:30}
+        sliding-window-type: ${BINOM_CB_SLIDING_WINDOW_TYPE:COUNT_BASED}
+        permitted-number-of-calls-in-half-open-state: ${BINOM_CB_HALF_OPEN_CALLS:5}
+        max-wait-duration-in-half-open-state: ${BINOM_CB_MAX_WAIT_HALF_OPEN:PT15S}
+        automatic-transition-from-open-to-half-open-enabled: true
+        # V2 specific configurations
+        record-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.client.ResourceAccessException
+          - com.smmpanel.exception.BinomApiException
+        ignore-exceptions:
+          - com.smmpanel.exception.BinomAuthenticationException
+          - java.lang.IllegalArgumentException
+      # Binom V2 specific endpoints circuit breakers
+      binom-campaigns:
+        failure-rate-threshold: 40
+        slow-call-rate-threshold: 35
+        slow-call-duration-threshold: PT6S
         wait-duration-in-open-state: PT30S
         minimum-number-of-calls: 10
         sliding-window-size: 20
+      binom-statistics:
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 45
+        slow-call-duration-threshold: PT10S
+        wait-duration-in-open-state: PT60S
+        minimum-number-of-calls: 8
+        sliding-window-size: 15
       youtube-api:
         failure-rate-threshold: 60
         slow-call-duration-threshold: PT10S
@@ -516,16 +604,64 @@ resilience4j:
         wait-duration-in-open-state: PT1M
   retry:
     instances:
+      # Binom V2 API Retry - Enhanced configuration
       binom-api:
+        max-attempts: ${BINOM_RETRY_MAX_ATTEMPTS:4}
+        wait-duration: ${BINOM_RETRY_WAIT_DURATION:PT2S}
+        exponential-backoff-multiplier: ${BINOM_RETRY_BACKOFF_MULTIPLIER:1.8}
+        max-retry-attempts: ${BINOM_RETRY_MAX_RETRY_ATTEMPTS:4}
+        # V2 specific retry configurations
+        retry-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.client.ResourceAccessException
+          - com.smmpanel.exception.BinomTemporaryException
+        ignore-exceptions:
+          - com.smmpanel.exception.BinomAuthenticationException
+          - com.smmpanel.exception.BinomValidationException
+          - java.lang.IllegalArgumentException
+      # Binom V2 endpoint-specific retry policies
+      binom-campaigns:
         max-attempts: 3
         wait-duration: PT1S
-        exponential-backoff-multiplier: 2
+        exponential-backoff-multiplier: 2.0
+      binom-statistics:
+        max-attempts: 2
+        wait-duration: PT3S
+        exponential-backoff-multiplier: 1.5
       youtube-api:
         max-attempts: 2
         wait-duration: PT2S
       payment-api:
         max-attempts: 2
         wait-duration: PT3S
+  # Binom V2 Bulkhead configuration
+  bulkhead:
+    instances:
+      binom-api:
+        max-concurrent-calls: ${BINOM_BULKHEAD_MAX_CALLS:25}
+        max-wait-duration: ${BINOM_BULKHEAD_MAX_WAIT:PT10S}
+      binom-campaigns:
+        max-concurrent-calls: 15
+        max-wait-duration: PT8S
+      binom-statistics:
+        max-concurrent-calls: 10
+        max-wait-duration: PT12S
+  # Binom V2 Rate Limiter configuration
+  ratelimiter:
+    instances:
+      binom-api:
+        limit-for-period: ${BINOM_RATE_LIMIT_PERIOD:30}
+        limit-refresh-period: ${BINOM_RATE_LIMIT_REFRESH:PT1M}
+        timeout-duration: ${BINOM_RATE_LIMIT_TIMEOUT:PT5S}
+      binom-campaigns:
+        limit-for-period: 20
+        limit-refresh-period: PT1M
+        timeout-duration: PT3S
+      binom-statistics:
+        limit-for-period: 15
+        limit-refresh-period: PT1M
+        timeout-duration: PT8S
 
 # ===============================
 # MONITORING & OBSERVABILITY

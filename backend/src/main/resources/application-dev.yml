@@ -108,12 +108,9 @@ logging:
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n"
 
 # ===============================
-# DEVELOPMENT CACHE CONFIGURATION
+# DEVELOPMENT LIQUIBASE CONFIGURATION  
 # ===============================
 spring:
-  # ===============================
-  # DEVELOPMENT LIQUIBASE CONFIGURATION
-  # ===============================
   liquibase:
     contexts: dev,all
     drop-first: false
@@ -125,22 +122,30 @@ app:
   # ===============================
   # DEVELOPMENT DATABASE CONFIGURATION
   # ===============================
-  database:
-    # Lower max connections for development environment
-    max-connections: ${DB_MAX_CONNECTIONS:50}
-    # Shorter connection lifetime for development
-    connection-lifetime-ms: ${DB_CONNECTION_LIFETIME_MS:900000}
+  # Database connection pool settings overridden for development in spring.datasource.hikari
 
+# ===============================
+# DEVELOPMENT DATASOURCE OVERRIDES
+# ===============================
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: ${DB_MAX_POOL_SIZE:25}     # Lower for development
+      minimum-idle: ${DB_MIN_IDLE:5}                # Smaller minimum pool
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:10000}  # Faster timeout for dev
+      max-lifetime: ${DB_MAX_LIFETIME:900000}       # Shorter lifetime (15 min)
+
+app:
   cache:
-    # Enhanced cache TTL for development
+    # Development cache TTL - shorter for faster testing
     services:
-      ttl: 1800  # 30 minutes for development
+      ttl: ${CACHE_SERVICES_TTL:1800}      # 30 minutes - faster refresh for dev
     users:
-      ttl: 900   # 15 minutes for development
+      ttl: ${CACHE_USERS_TTL:900}          # 15 minutes - frequent user changes in dev
     conversion-coefficients:
-      ttl: 3600  # 1 hour for development
+      ttl: ${CACHE_COEFFICIENTS_TTL:3600}  # 1 hour - still relatively stable in dev
     youtube-stats:
-      ttl: 180   # 3 minutes for development
+      ttl: ${CACHE_YOUTUBE_TTL:180}        # 3 minutes - frequent updates for testing
 
 # ===============================
 # DEVELOPMENT MONITORING

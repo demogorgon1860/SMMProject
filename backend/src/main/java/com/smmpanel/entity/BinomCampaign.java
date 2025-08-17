@@ -116,4 +116,16 @@ public class BinomCampaign {
     public void setActive(boolean active) {
         this.isActive = active;
     }
+    
+    public boolean isActive() {
+        return this.isActive != null ? this.isActive : true;
+    }
+    
+    public void setOrderId(Long orderId) {
+        // This method is used in tests - we'll handle it by setting the order directly
+        if (this.order == null) {
+            this.order = new Order();
+        }
+        this.order.setId(orderId);
+    }
 }

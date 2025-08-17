@@ -95,6 +95,56 @@ class OfferAssignmentServiceTest {
     }
 
     @Test
+    void testThreeCampaignDistribution() {
+        // Given - Add third campaign for 3-campaign distribution testing
+        List<FixedBinomCampaign> threeCampaigns = Arrays.asList(
+                FixedBinomCampaign.builder()
+                        .id(1L)
+                        .campaignId("CAMPAIGN_001")
+                        .campaignName("Campaign 1")
+                        .active(true)
+                        .build(),
+                FixedBinomCampaign.builder()
+                        .id(2L)
+                        .campaignId("CAMPAIGN_002")
+                        .campaignName("Campaign 2")
+                        .active(true)
+                        .build(),
+                FixedBinomCampaign.builder()
+                        .id(3L)
+                        .campaignId("CAMPAIGN_003")
+                        .campaignName("Campaign 3")
+                        .active(true)
+                        .build());
+
+        when(orderRepository.existsById(1L)).thenReturn(true);
+        when(fixedCampaignRepository.findByActiveTrue()).thenReturn(threeCampaigns);
+        when(binomService.createOffer(
+                        "Test Offer",
+                        "https://youtube.com/watch?v=clip123",
+                        "Test offer description"))
+                .thenReturn("OFFER_123");
+        when(binomService.assignOfferToCampaign("OFFER_123", anyString(), eq(1))).thenReturn(true);
+
+        // When
+        OfferAssignmentResponse response =
+                offerAssignmentService.assignOfferToFixedCampaigns(request);
+
+        // Then
+        assertNotNull(response);
+        assertEquals("SUCCESS", response.getStatus());
+        assertEquals("OFFER_123", response.getOfferId());
+        assertEquals(3, response.getCampaignsCreated()); // Should create 3 campaigns
+        assertEquals(3, response.getCampaignIds().size());
+        assertTrue(response.getCampaignIds().contains("CAMPAIGN_001"));
+        assertTrue(response.getCampaignIds().contains("CAMPAIGN_002"));
+        assertTrue(response.getCampaignIds().contains("CAMPAIGN_003"));
+
+        // Verify 3-campaign distribution
+        verify(binomService, times(3)).assignOfferToCampaign(eq("OFFER_123"), anyString(), eq(1));
+    }
+
+    @Test
     void testOfferAssignmentWithInvalidOrder() {
         // Given
         when(orderRepository.existsById(999L)).thenReturn(false);

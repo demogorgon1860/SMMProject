@@ -1,6 +1,5 @@
 package com.smmpanel.dto.binom;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import lombok.*;
 
@@ -8,8 +7,7 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class CreateOfferResponse {
-    private String offerId;
+public class UpdateOfferRequest {
     private String name;
     private String url;
     private String description;
@@ -24,7 +22,5 @@ public class CreateOfferResponse {
     private String conversionCap;
     private Boolean requiresApproval;
     private String notes;
-    private Boolean isArchived;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private Boolean isActive;
 }

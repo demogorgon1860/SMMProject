@@ -7,6 +7,7 @@ import com.smmpanel.entity.*;
 import com.smmpanel.exception.VideoProcessingException;
 import com.smmpanel.repository.jpa.*;
 import com.smmpanel.service.kafka.VideoProcessingProducerService;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.concurrent.Future;
@@ -472,12 +473,16 @@ public class YouTubeAutomationService {
                             ? clipResult.getClipUrl()
                             : context.getOrderLink();
 
+            // Determine coefficient based on clip creation
+            double coefficient = (clipResult != null && clipResult.isSuccess()) ? clipCoefficient : 4.0;
+
             BinomIntegrationRequest binomRequest =
                     BinomIntegrationRequest.builder()
                             .orderId(context.getOrderId())
                             .targetViews(context.getTargetQuantity())
                             .targetUrl(finalTargetUrl)
                             .clipCreated(clipResult != null && clipResult.isSuccess())
+                            .coefficient(BigDecimal.valueOf(coefficient))
                             .geoTargeting("US") // Default, can be configurable
                             .build();
 

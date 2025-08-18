@@ -474,7 +474,8 @@ public class YouTubeAutomationService {
                             : context.getOrderLink();
 
             // Determine coefficient based on clip creation
-            double coefficient = (clipResult != null && clipResult.isSuccess()) ? clipCoefficient : 4.0;
+            double coefficient =
+                    (clipResult != null && clipResult.isSuccess()) ? clipCoefficient : 4.0;
 
             BinomIntegrationRequest binomRequest =
                     BinomIntegrationRequest.builder()

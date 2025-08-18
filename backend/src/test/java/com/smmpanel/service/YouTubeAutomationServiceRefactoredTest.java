@@ -78,16 +78,18 @@ class YouTubeAutomationServiceRefactoredTest {
     void testCreateBinomIntegrationAsync_CoefficientWithClip() {
         // Arrange
         OrderProcessingContext context = createTestContext();
-        ClipCreationResult clipResult = ClipCreationResult.builder()
-                .success(true)
-                .clipUrl("https://youtube.com/watch?v=clip123")
-                .build();
+        ClipCreationResult clipResult =
+                ClipCreationResult.builder()
+                        .success(true)
+                        .clipUrl("https://youtube.com/watch?v=clip123")
+                        .build();
 
-        BinomIntegrationResponse mockResponse = BinomIntegrationResponse.builder()
-                .status("SUCCESS")
-                .offerId("OFFER_123")
-                .campaignsCreated(3)
-                .build();
+        BinomIntegrationResponse mockResponse =
+                BinomIntegrationResponse.builder()
+                        .status("SUCCESS")
+                        .offerId("OFFER_123")
+                        .campaignsCreated(3)
+                        .build();
         when(binomService.createBinomIntegration(any(BinomIntegrationRequest.class)))
                 .thenReturn(mockResponse);
 
@@ -95,11 +97,16 @@ class YouTubeAutomationServiceRefactoredTest {
         youTubeAutomationService.createBinomIntegrationAsync(context, clipResult);
 
         // Assert
-        verify(binomService).createBinomIntegration(argThat(request -> {
-            // Should use clipCoefficient (3.0) when clip is created
-            return request.isClipCreated() && 
-                   request.getCoefficient().compareTo(BigDecimal.valueOf(3.0)) == 0;
-        }));
+        verify(binomService)
+                .createBinomIntegration(
+                        argThat(
+                                request -> {
+                                    // Should use clipCoefficient (3.0) when clip is created
+                                    return request.isClipCreated()
+                                            && request.getCoefficient()
+                                                            .compareTo(BigDecimal.valueOf(3.0))
+                                                    == 0;
+                                }));
     }
 
     @Test
@@ -107,16 +114,18 @@ class YouTubeAutomationServiceRefactoredTest {
     void testCreateBinomIntegrationAsync_CoefficientWithoutClip() {
         // Arrange
         OrderProcessingContext context = createTestContext();
-        ClipCreationResult clipResult = ClipCreationResult.builder()
-                .success(false)
-                .errorMessage("No account available")
-                .build();
+        ClipCreationResult clipResult =
+                ClipCreationResult.builder()
+                        .success(false)
+                        .errorMessage("No account available")
+                        .build();
 
-        BinomIntegrationResponse mockResponse = BinomIntegrationResponse.builder()
-                .status("SUCCESS")
-                .offerId("OFFER_123")
-                .campaignsCreated(3)
-                .build();
+        BinomIntegrationResponse mockResponse =
+                BinomIntegrationResponse.builder()
+                        .status("SUCCESS")
+                        .offerId("OFFER_123")
+                        .campaignsCreated(3)
+                        .build();
         when(binomService.createBinomIntegration(any(BinomIntegrationRequest.class)))
                 .thenReturn(mockResponse);
 
@@ -124,11 +133,16 @@ class YouTubeAutomationServiceRefactoredTest {
         youTubeAutomationService.createBinomIntegrationAsync(context, clipResult);
 
         // Assert
-        verify(binomService).createBinomIntegration(argThat(request -> {
-            // Should use 4.0 coefficient when clip creation fails
-            return !request.isClipCreated() && 
-                   request.getCoefficient().compareTo(BigDecimal.valueOf(4.0)) == 0;
-        }));
+        verify(binomService)
+                .createBinomIntegration(
+                        argThat(
+                                request -> {
+                                    // Should use 4.0 coefficient when clip creation fails
+                                    return !request.isClipCreated()
+                                            && request.getCoefficient()
+                                                            .compareTo(BigDecimal.valueOf(4.0))
+                                                    == 0;
+                                }));
     }
 
     @Test

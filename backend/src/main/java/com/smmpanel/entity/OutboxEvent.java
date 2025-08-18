@@ -17,9 +17,9 @@ import org.hibernate.annotations.CreationTimestamp;
 @Table(
         name = "outbox_events",
         indexes = {
-            @Index(name = "idx_outbox_processed_created", columnList = "processed, createdAt"),
+            @Index(name = "idx_outbox_processed_created", columnList = "processed, created_at"),
             @Index(name = "idx_outbox_topic", columnList = "topic"),
-            @Index(name = "idx_outbox_aggregate", columnList = "aggregateType, aggregateId")
+            @Index(name = "idx_outbox_aggregate", columnList = "aggregate_type, aggregate_id")
         })
 @Data
 @Builder

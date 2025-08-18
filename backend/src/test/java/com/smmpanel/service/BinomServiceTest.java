@@ -56,24 +56,26 @@ class BinomServiceTest {
         testOrder.setTargetCountry("US");
 
         // Create test campaigns for 3-campaign distribution
-        testCampaigns = Arrays.asList(
-            createBinomCampaign(1L, TEST_CAMPAIGN_ID_1, TEST_ORDER_ID, true),
-            createBinomCampaign(2L, TEST_CAMPAIGN_ID_2, TEST_ORDER_ID, true),
-            createBinomCampaign(3L, TEST_CAMPAIGN_ID_3, TEST_ORDER_ID, true)
-        );
+        testCampaigns =
+                Arrays.asList(
+                        createBinomCampaign(1L, TEST_CAMPAIGN_ID_1, TEST_ORDER_ID, true),
+                        createBinomCampaign(2L, TEST_CAMPAIGN_ID_2, TEST_ORDER_ID, true),
+                        createBinomCampaign(3L, TEST_CAMPAIGN_ID_3, TEST_ORDER_ID, true));
 
         // Create test integration request
-        testRequest = BinomIntegrationRequest.builder()
-                .orderId(TEST_ORDER_ID)
-                .targetViews(1000)
-                .targetUrl(TEST_TARGET_URL)
-                .clipCreated(true)
-                .coefficient(BigDecimal.valueOf(3.0))
-                .geoTargeting("US")
-                .build();
+        testRequest =
+                BinomIntegrationRequest.builder()
+                        .orderId(TEST_ORDER_ID)
+                        .targetViews(1000)
+                        .targetUrl(TEST_TARGET_URL)
+                        .clipCreated(true)
+                        .coefficient(BigDecimal.valueOf(3.0))
+                        .geoTargeting("US")
+                        .build();
     }
 
-    private BinomCampaign createBinomCampaign(Long id, String campaignId, Long orderId, boolean active) {
+    private BinomCampaign createBinomCampaign(
+            Long id, String campaignId, Long orderId, boolean active) {
         BinomCampaign campaign = new BinomCampaign();
         campaign.setId(id);
         campaign.setCampaignId(campaignId);
@@ -94,41 +96,46 @@ class BinomServiceTest {
     void testCreateBinomIntegration_ThreeCampaignDistribution() {
         // Arrange
         when(orderRepository.findById(TEST_ORDER_ID)).thenReturn(Optional.of(testOrder));
-        
-        CreateOfferResponse offerResponse = CreateOfferResponse.builder()
-                .offerId(TEST_OFFER_ID)
-                .name("Test Offer")
-                .url(TEST_TARGET_URL)
-                .status("ACTIVE")
-                .build();
+
+        CreateOfferResponse offerResponse =
+                CreateOfferResponse.builder()
+                        .offerId(TEST_OFFER_ID)
+                        .name("Test Offer")
+                        .url(TEST_TARGET_URL)
+                        .status("ACTIVE")
+                        .build();
         when(binomClient.createOffer(any(CreateOfferRequest.class))).thenReturn(offerResponse);
 
         // Mock 3 campaign creation responses
-        CreateCampaignResponse campaign1 = CreateCampaignResponse.builder()
-                .campaignId(TEST_CAMPAIGN_ID_1)
-                .name("Campaign 1")
-                .status("ACTIVE")
-                .build();
-        CreateCampaignResponse campaign2 = CreateCampaignResponse.builder()
-                .campaignId(TEST_CAMPAIGN_ID_2)
-                .name("Campaign 2")
-                .status("ACTIVE")
-                .build();
-        CreateCampaignResponse campaign3 = CreateCampaignResponse.builder()
-                .campaignId(TEST_CAMPAIGN_ID_3)
-                .name("Campaign 3")
-                .status("ACTIVE")
-                .build();
+        CreateCampaignResponse campaign1 =
+                CreateCampaignResponse.builder()
+                        .campaignId(TEST_CAMPAIGN_ID_1)
+                        .name("Campaign 1")
+                        .status("ACTIVE")
+                        .build();
+        CreateCampaignResponse campaign2 =
+                CreateCampaignResponse.builder()
+                        .campaignId(TEST_CAMPAIGN_ID_2)
+                        .name("Campaign 2")
+                        .status("ACTIVE")
+                        .build();
+        CreateCampaignResponse campaign3 =
+                CreateCampaignResponse.builder()
+                        .campaignId(TEST_CAMPAIGN_ID_3)
+                        .name("Campaign 3")
+                        .status("ACTIVE")
+                        .build();
 
         when(binomClient.createCampaign(any(CreateCampaignRequest.class)))
                 .thenReturn(campaign1, campaign2, campaign3);
 
         when(binomClient.assignOfferToCampaign(anyString(), anyString()))
-                .thenReturn(AssignOfferResponse.builder()
-                        .campaignId("test")
-                        .offerId(TEST_OFFER_ID)
-                        .status("ASSIGNED")
-                        .build());
+                .thenReturn(
+                        AssignOfferResponse.builder()
+                                .campaignId("test")
+                                .offerId(TEST_OFFER_ID)
+                                .status("ASSIGNED")
+                                .build());
 
         when(binomCampaignRepository.save(any(BinomCampaign.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -155,20 +162,23 @@ class BinomServiceTest {
     void testCreateBinomIntegration_CoefficientCalculation() {
         // Arrange - Test with clip creation (coefficient 3.0)
         when(orderRepository.findById(TEST_ORDER_ID)).thenReturn(Optional.of(testOrder));
-        
-        CreateOfferResponse offerResponse = CreateOfferResponse.builder()
-                .offerId(TEST_OFFER_ID)
-                .name("Test Offer")
-                .url(TEST_TARGET_URL)
-                .build();
+
+        CreateOfferResponse offerResponse =
+                CreateOfferResponse.builder()
+                        .offerId(TEST_OFFER_ID)
+                        .name("Test Offer")
+                        .url(TEST_TARGET_URL)
+                        .build();
         when(binomClient.createOffer(any(CreateOfferRequest.class))).thenReturn(offerResponse);
 
-        CreateCampaignResponse campaignResponse = CreateCampaignResponse.builder()
-                .campaignId(TEST_CAMPAIGN_ID_1)
-                .name("Test Campaign")
-                .status("ACTIVE")
-                .build();
-        when(binomClient.createCampaign(any(CreateCampaignRequest.class))).thenReturn(campaignResponse);
+        CreateCampaignResponse campaignResponse =
+                CreateCampaignResponse.builder()
+                        .campaignId(TEST_CAMPAIGN_ID_1)
+                        .name("Test Campaign")
+                        .status("ACTIVE")
+                        .build();
+        when(binomClient.createCampaign(any(CreateCampaignRequest.class)))
+                .thenReturn(campaignResponse);
         when(binomClient.assignOfferToCampaign(anyString(), anyString()))
                 .thenReturn(AssignOfferResponse.builder().status("ASSIGNED").build());
         when(binomCampaignRepository.save(any(BinomCampaign.class)))
@@ -181,12 +191,24 @@ class BinomServiceTest {
         assertNotNull(response);
         assertEquals("SUCCESS", response.getStatus());
 
-        // Verify coefficient was used correctly (3.0 for clip creation, distributed across 3 campaigns)
-        verify(binomClient, times(3)).createCampaign(argThat(request -> {
-            // Each campaign should get approximately 333 views (1000/3) with coefficient 3.0
-            int expectedViews = (int) (testRequest.getTargetViews() / 3.0 * testRequest.getCoefficient().doubleValue());
-            return Math.abs(request.getTargetViews() - expectedViews) <= 1; // Allow for rounding
-        }));
+        // Verify coefficient was used correctly (3.0 for clip creation, distributed across 3
+        // campaigns)
+        verify(binomClient, times(3))
+                .createCampaign(
+                        argThat(
+                                request -> {
+                                    // Each campaign should get approximately 333 views (1000/3)
+                                    // with coefficient 3.0
+                                    int expectedViews =
+                                            (int)
+                                                    (testRequest.getTargetViews()
+                                                            / 3.0
+                                                            * testRequest
+                                                                    .getCoefficient()
+                                                                    .doubleValue());
+                                    return Math.abs(request.getTargetViews() - expectedViews)
+                                            <= 1; // Allow for rounding
+                                }));
     }
 
     @Test
@@ -197,36 +219,40 @@ class BinomServiceTest {
                 .thenReturn(testCampaigns);
 
         // Mock individual campaign stats
-        CampaignStatsResponse stats1 = CampaignStatsResponse.builder()
-                .campaignId(TEST_CAMPAIGN_ID_1)
-                .clicks(100L)
-                .conversions(10L)
-                .cost(BigDecimal.valueOf(50.0))
-                .revenue(BigDecimal.valueOf(80.0))
-                .build();
+        CampaignStatsResponse stats1 =
+                CampaignStatsResponse.builder()
+                        .campaignId(TEST_CAMPAIGN_ID_1)
+                        .clicks(100L)
+                        .conversions(10L)
+                        .cost(BigDecimal.valueOf(50.0))
+                        .revenue(BigDecimal.valueOf(80.0))
+                        .build();
 
-        CampaignStatsResponse stats2 = CampaignStatsResponse.builder()
-                .campaignId(TEST_CAMPAIGN_ID_2)
-                .clicks(150L)
-                .conversions(15L)
-                .cost(BigDecimal.valueOf(75.0))
-                .revenue(BigDecimal.valueOf(120.0))
-                .build();
+        CampaignStatsResponse stats2 =
+                CampaignStatsResponse.builder()
+                        .campaignId(TEST_CAMPAIGN_ID_2)
+                        .clicks(150L)
+                        .conversions(15L)
+                        .cost(BigDecimal.valueOf(75.0))
+                        .revenue(BigDecimal.valueOf(120.0))
+                        .build();
 
-        CampaignStatsResponse stats3 = CampaignStatsResponse.builder()
-                .campaignId(TEST_CAMPAIGN_ID_3)
-                .clicks(200L)
-                .conversions(20L)
-                .cost(BigDecimal.valueOf(100.0))
-                .revenue(BigDecimal.valueOf(160.0))
-                .build();
+        CampaignStatsResponse stats3 =
+                CampaignStatsResponse.builder()
+                        .campaignId(TEST_CAMPAIGN_ID_3)
+                        .clicks(200L)
+                        .conversions(20L)
+                        .cost(BigDecimal.valueOf(100.0))
+                        .revenue(BigDecimal.valueOf(160.0))
+                        .build();
 
         when(binomClient.getCampaignStats(TEST_CAMPAIGN_ID_1)).thenReturn(stats1);
         when(binomClient.getCampaignStats(TEST_CAMPAIGN_ID_2)).thenReturn(stats2);
         when(binomClient.getCampaignStats(TEST_CAMPAIGN_ID_3)).thenReturn(stats3);
 
         // Act
-        CampaignStatsResponse aggregatedStats = binomService.getCampaignStatsForOrder(TEST_ORDER_ID);
+        CampaignStatsResponse aggregatedStats =
+                binomService.getCampaignStatsForOrder(TEST_ORDER_ID);
 
         // Assert
         assertNotNull(aggregatedStats);
@@ -256,10 +282,14 @@ class BinomServiceTest {
 
         // Verify campaigns were marked as inactive
         for (BinomCampaign campaign : testCampaigns) {
-            verify(binomCampaignRepository).save(argThat(savedCampaign -> 
-                savedCampaign.getCampaignId().equals(campaign.getCampaignId()) && 
-                !savedCampaign.isActive()
-            ));
+            verify(binomCampaignRepository)
+                    .save(
+                            argThat(
+                                    savedCampaign ->
+                                            savedCampaign
+                                                            .getCampaignId()
+                                                            .equals(campaign.getCampaignId())
+                                                    && !savedCampaign.isActive()));
         }
     }
 
@@ -268,29 +298,34 @@ class BinomServiceTest {
     void testCreateBinomIntegration_PartialFailures() {
         // Arrange
         when(orderRepository.findById(TEST_ORDER_ID)).thenReturn(Optional.of(testOrder));
-        
-        CreateOfferResponse offerResponse = CreateOfferResponse.builder()
-                .offerId(TEST_OFFER_ID)
-                .name("Test Offer")
-                .url(TEST_TARGET_URL)
-                .build();
+
+        CreateOfferResponse offerResponse =
+                CreateOfferResponse.builder()
+                        .offerId(TEST_OFFER_ID)
+                        .name("Test Offer")
+                        .url(TEST_TARGET_URL)
+                        .build();
         when(binomClient.createOffer(any(CreateOfferRequest.class))).thenReturn(offerResponse);
 
         // First campaign succeeds, second fails, third succeeds
-        CreateCampaignResponse campaign1 = CreateCampaignResponse.builder()
-                .campaignId(TEST_CAMPAIGN_ID_1)
-                .name("Campaign 1")
-                .status("ACTIVE")
-                .build();
-        CreateCampaignResponse campaign3 = CreateCampaignResponse.builder()
-                .campaignId(TEST_CAMPAIGN_ID_3)
-                .name("Campaign 3")
-                .status("ACTIVE")
-                .build();
+        CreateCampaignResponse campaign1 =
+                CreateCampaignResponse.builder()
+                        .campaignId(TEST_CAMPAIGN_ID_1)
+                        .name("Campaign 1")
+                        .status("ACTIVE")
+                        .build();
+        CreateCampaignResponse campaign3 =
+                CreateCampaignResponse.builder()
+                        .campaignId(TEST_CAMPAIGN_ID_3)
+                        .name("Campaign 3")
+                        .status("ACTIVE")
+                        .build();
 
         when(binomClient.createCampaign(any(CreateCampaignRequest.class)))
                 .thenReturn(campaign1)
-                .thenThrow(new BinomApiException("Campaign creation failed", HttpStatus.BAD_REQUEST, "/campaign"))
+                .thenThrow(
+                        new BinomApiException(
+                                "Campaign creation failed", HttpStatus.BAD_REQUEST, "/campaign"))
                 .thenReturn(campaign3);
 
         when(binomClient.assignOfferToCampaign(anyString(), anyString()))
@@ -313,34 +348,35 @@ class BinomServiceTest {
     @DisplayName("getCampaignStatsForOrder should handle missing campaigns gracefully")
     void testGetCampaignStatsForOrder_MissingCampaigns() {
         // Arrange - Only 2 campaigns instead of expected 3
-        List<BinomCampaign> partialCampaigns = Arrays.asList(
-            testCampaigns.get(0),
-            testCampaigns.get(1)
-        );
+        List<BinomCampaign> partialCampaigns =
+                Arrays.asList(testCampaigns.get(0), testCampaigns.get(1));
         when(binomCampaignRepository.findByOrderIdAndActiveTrue(TEST_ORDER_ID))
                 .thenReturn(partialCampaigns);
 
-        CampaignStatsResponse stats1 = CampaignStatsResponse.builder()
-                .campaignId(TEST_CAMPAIGN_ID_1)
-                .clicks(100L)
-                .conversions(10L)
-                .cost(BigDecimal.valueOf(50.0))
-                .revenue(BigDecimal.valueOf(80.0))
-                .build();
+        CampaignStatsResponse stats1 =
+                CampaignStatsResponse.builder()
+                        .campaignId(TEST_CAMPAIGN_ID_1)
+                        .clicks(100L)
+                        .conversions(10L)
+                        .cost(BigDecimal.valueOf(50.0))
+                        .revenue(BigDecimal.valueOf(80.0))
+                        .build();
 
-        CampaignStatsResponse stats2 = CampaignStatsResponse.builder()
-                .campaignId(TEST_CAMPAIGN_ID_2)
-                .clicks(150L)
-                .conversions(15L)
-                .cost(BigDecimal.valueOf(75.0))
-                .revenue(BigDecimal.valueOf(120.0))
-                .build();
+        CampaignStatsResponse stats2 =
+                CampaignStatsResponse.builder()
+                        .campaignId(TEST_CAMPAIGN_ID_2)
+                        .clicks(150L)
+                        .conversions(15L)
+                        .cost(BigDecimal.valueOf(75.0))
+                        .revenue(BigDecimal.valueOf(120.0))
+                        .build();
 
         when(binomClient.getCampaignStats(TEST_CAMPAIGN_ID_1)).thenReturn(stats1);
         when(binomClient.getCampaignStats(TEST_CAMPAIGN_ID_2)).thenReturn(stats2);
 
         // Act
-        CampaignStatsResponse aggregatedStats = binomService.getCampaignStatsForOrder(TEST_ORDER_ID);
+        CampaignStatsResponse aggregatedStats =
+                binomService.getCampaignStatsForOrder(TEST_ORDER_ID);
 
         // Assert
         assertNotNull(aggregatedStats);
@@ -350,33 +386,38 @@ class BinomServiceTest {
     }
 
     @Test
-    @DisplayName("createBinomIntegration should handle coefficient calculation without clip creation")
+    @DisplayName(
+            "createBinomIntegration should handle coefficient calculation without clip creation")
     void testCreateBinomIntegration_NoCoefficientWithoutClip() {
         // Arrange - Test without clip creation (coefficient 4.0)
-        BinomIntegrationRequest requestWithoutClip = BinomIntegrationRequest.builder()
-                .orderId(TEST_ORDER_ID)
-                .targetViews(1000)
-                .targetUrl(TEST_TARGET_URL)
-                .clipCreated(false)
-                .coefficient(BigDecimal.valueOf(4.0))
-                .geoTargeting("US")
-                .build();
+        BinomIntegrationRequest requestWithoutClip =
+                BinomIntegrationRequest.builder()
+                        .orderId(TEST_ORDER_ID)
+                        .targetViews(1000)
+                        .targetUrl(TEST_TARGET_URL)
+                        .clipCreated(false)
+                        .coefficient(BigDecimal.valueOf(4.0))
+                        .geoTargeting("US")
+                        .build();
 
         when(orderRepository.findById(TEST_ORDER_ID)).thenReturn(Optional.of(testOrder));
-        
-        CreateOfferResponse offerResponse = CreateOfferResponse.builder()
-                .offerId(TEST_OFFER_ID)
-                .name("Test Offer")
-                .url(TEST_TARGET_URL)
-                .build();
+
+        CreateOfferResponse offerResponse =
+                CreateOfferResponse.builder()
+                        .offerId(TEST_OFFER_ID)
+                        .name("Test Offer")
+                        .url(TEST_TARGET_URL)
+                        .build();
         when(binomClient.createOffer(any(CreateOfferRequest.class))).thenReturn(offerResponse);
 
-        CreateCampaignResponse campaignResponse = CreateCampaignResponse.builder()
-                .campaignId(TEST_CAMPAIGN_ID_1)
-                .name("Test Campaign")
-                .status("ACTIVE")
-                .build();
-        when(binomClient.createCampaign(any(CreateCampaignRequest.class))).thenReturn(campaignResponse);
+        CreateCampaignResponse campaignResponse =
+                CreateCampaignResponse.builder()
+                        .campaignId(TEST_CAMPAIGN_ID_1)
+                        .name("Test Campaign")
+                        .status("ACTIVE")
+                        .build();
+        when(binomClient.createCampaign(any(CreateCampaignRequest.class)))
+                .thenReturn(campaignResponse);
         when(binomClient.assignOfferToCampaign(anyString(), anyString()))
                 .thenReturn(AssignOfferResponse.builder().status("ASSIGNED").build());
         when(binomCampaignRepository.save(any(BinomCampaign.class)))
@@ -390,10 +431,21 @@ class BinomServiceTest {
         assertEquals("SUCCESS", response.getStatus());
 
         // Verify coefficient was used correctly (4.0 without clip creation)
-        verify(binomClient, times(3)).createCampaign(argThat(request -> {
-            // Each campaign should get approximately 333 views (1000/3) with coefficient 4.0
-            int expectedViews = (int) (requestWithoutClip.getTargetViews() / 3.0 * requestWithoutClip.getCoefficient().doubleValue());
-            return Math.abs(request.getTargetViews() - expectedViews) <= 1; // Allow for rounding
-        }));
+        verify(binomClient, times(3))
+                .createCampaign(
+                        argThat(
+                                request -> {
+                                    // Each campaign should get approximately 333 views (1000/3)
+                                    // with coefficient 4.0
+                                    int expectedViews =
+                                            (int)
+                                                    (requestWithoutClip.getTargetViews()
+                                                            / 3.0
+                                                            * requestWithoutClip
+                                                                    .getCoefficient()
+                                                                    .doubleValue());
+                                    return Math.abs(request.getTargetViews() - expectedViews)
+                                            <= 1; // Allow for rounding
+                                }));
     }
 }

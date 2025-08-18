@@ -58,10 +58,11 @@ dependencies {
     implementation 'org.springframework.kafka:spring-kafka'
     testImplementation 'org.springframework.kafka:spring-kafka-test'
     
-    // Redis
+    // Redis - Using Lettuce client (better performance, non-blocking I/O)
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-    implementation 'redis.clients:jedis'
-    implementation 'org.apache.commons:commons-pool2'
+    // Jedis removed - using Lettuce instead for better performance
+    // implementation 'redis.clients:jedis' 
+    implementation 'org.apache.commons:commons-pool2' // Still needed for connection pooling
     
     // Rate limiting
     implementation 'com.bucket4j:bucket4j-core:8.8.0'
@@ -156,6 +157,9 @@ dependencies {
     testImplementation 'org.junit.platform:junit-platform-suite-api:1.10.1'
     testImplementation 'org.mockito:mockito-core:5.7.0'
     testImplementation 'com.h2database:h2:2.2.224'
+    
+    // H2 for development/test profiles
+    runtimeOnly 'com.h2database:h2:2.2.224'
 }
 
 // Configure annotation processing for Gradle 9.0 compatibility

@@ -1,23 +1,25 @@
 # Multi-stage build for SMM Panel application
-FROM openjdk:17-jdk-slim as build
+FROM eclipse-temurin:17-jdk-jammy AS builder
 
-# Install Maven and security updates
+# Install security updates
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends maven && \
     apt-get upgrade -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Create non-root build user
-RUN groupadd -r builduser && useradd -r -g builduser builduser
+RUN groupadd -r builduser && \
+    useradd -r -g builduser -m builduser
 
 # Set working directory
 WORKDIR /app
 
-# Copy Maven files for dependency caching
-COPY --chown=builduser:builduser backend/build.gradle backend/gradle.properties ./
+# Copy Gradle wrapper and config files for dependency caching
+COPY --chown=builduser:builduser backend/build.gradle backend/settings.gradle ./
 COPY --chown=builduser:builduser backend/gradle ./gradle/
 COPY --chown=builduser:builduser backend/gradlew ./
+# Copy gradle.properties if it exists
+COPY --chown=builduser:builduser backend/gradle.propertie[s] ./
 
 # Make gradlew executable
 RUN chmod +x ./gradlew
@@ -33,7 +35,7 @@ COPY --chown=builduser:builduser backend/src ./src/
 RUN ./gradlew clean bootJar --no-daemon -x test
 
 # Production stage
-FROM openjdk:17-jre-slim
+FROM eclipse-temurin:17-jre-jammy
 
 # Install security updates and curl for health checks
 RUN apt-get update && \
@@ -49,7 +51,7 @@ RUN groupadd -r -g 1001 smmapp && useradd -r -u 1001 -g smmapp smmapp
 WORKDIR /app
 
 # Copy built JAR from build stage
-COPY --from=build --chown=smmapp:smmapp /app/build/libs/*.jar app.jar
+COPY --from=builder --chown=smmapp:smmapp /app/build/libs/*.jar app.jar
 
 # Create logs directory and set permissions
 RUN mkdir -p /app/logs && \
@@ -73,11 +75,10 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 ENV JAVA_OPTS="-Xms512m -Xmx1024m \
                -XX:+UseG1GC -XX:MaxGCPauseMillis=200 \
                -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 \
+               -XX:InitialRAMPercentage=50.0 \
                -Djava.security.egd=file:/dev/./urandom \
                -Djava.awt.headless=true \
-               -XX:+UnlockExperimentalVMOptions \
-               -XX:+UseCGroupMemoryLimitForHeap \
-               -Djava.security.policy=all.policy \
+               -XX:+ExitOnOutOfMemoryError \
                -Djava.net.preferIPv4Stack=true \
                -Dserver.tomcat.basedir=/app/tmp \
                -Dspring.profiles.active=docker"

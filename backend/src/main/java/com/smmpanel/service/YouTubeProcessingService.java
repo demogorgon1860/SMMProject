@@ -50,7 +50,6 @@ public class YouTubeProcessingService {
     // External services
     private final SeleniumService seleniumService;
     private final YouTubeService youTubeService;
-    private final YouTubeApiService youTubeApiService;
     private final BinomService binomService;
     private final OrderStateManagementService orderStateManagementService;
 
@@ -469,7 +468,8 @@ public class YouTubeProcessingService {
                             : context.getOrderLink();
 
             // Determine coefficient based on clip creation
-            double coefficient = (clipResult != null && clipResult.isSuccess()) ? clipCoefficient : 4.0;
+            double coefficient =
+                    (clipResult != null && clipResult.isSuccess()) ? clipCoefficient : 4.0;
 
             BinomIntegrationRequest binomRequest =
                     BinomIntegrationRequest.builder()
@@ -512,15 +512,15 @@ public class YouTubeProcessingService {
     /** LEGACY: Process YouTube verification (YouTubeOrderProcessor compatibility) */
     private void processYouTubeVerificationLegacy(Order order) {
         try {
-            String videoId = youTubeApiService.extractVideoId(order.getLink());
+            String videoId = youTubeService.extractVideoId(order.getLink());
 
             // Verify video exists and is public
-            if (!youTubeApiService.verifyVideoExists(videoId)) {
+            if (!youTubeService.verifyVideoExists(videoId)) {
                 throw new YouTubeApiException("Video does not exist or is not public: " + videoId);
             }
 
             // Get current view count
-            Long viewCount = youTubeApiService.getViewCount(videoId);
+            Long viewCount = youTubeService.getViewCount(videoId);
 
             // Update order with video details
             order.setYoutubeVideoId(videoId);
@@ -843,8 +843,10 @@ public class YouTubeProcessingService {
             log.info("Creating Binom campaigns for processing ID: {}", processing.getId());
 
             // Determine coefficient based on clip creation
-            BigDecimal coefficient = processing.isClipCreated() ? 
-                BigDecimal.valueOf(clipCoefficient) : BigDecimal.valueOf(4.0);
+            BigDecimal coefficient =
+                    processing.isClipCreated()
+                            ? BigDecimal.valueOf(clipCoefficient)
+                            : BigDecimal.valueOf(4.0);
 
             BinomIntegrationRequest request =
                     BinomIntegrationRequest.builder()

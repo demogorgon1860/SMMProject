@@ -97,25 +97,26 @@ class OfferAssignmentServiceTest {
     @Test
     void testThreeCampaignDistribution() {
         // Given - Add third campaign for 3-campaign distribution testing
-        List<FixedBinomCampaign> threeCampaigns = Arrays.asList(
-                FixedBinomCampaign.builder()
-                        .id(1L)
-                        .campaignId("CAMPAIGN_001")
-                        .campaignName("Campaign 1")
-                        .active(true)
-                        .build(),
-                FixedBinomCampaign.builder()
-                        .id(2L)
-                        .campaignId("CAMPAIGN_002")
-                        .campaignName("Campaign 2")
-                        .active(true)
-                        .build(),
-                FixedBinomCampaign.builder()
-                        .id(3L)
-                        .campaignId("CAMPAIGN_003")
-                        .campaignName("Campaign 3")
-                        .active(true)
-                        .build());
+        List<FixedBinomCampaign> threeCampaigns =
+                Arrays.asList(
+                        FixedBinomCampaign.builder()
+                                .id(1L)
+                                .campaignId("CAMPAIGN_001")
+                                .campaignName("Campaign 1")
+                                .active(true)
+                                .build(),
+                        FixedBinomCampaign.builder()
+                                .id(2L)
+                                .campaignId("CAMPAIGN_002")
+                                .campaignName("Campaign 2")
+                                .active(true)
+                                .build(),
+                        FixedBinomCampaign.builder()
+                                .id(3L)
+                                .campaignId("CAMPAIGN_003")
+                                .campaignName("Campaign 3")
+                                .active(true)
+                                .build());
 
         when(orderRepository.existsById(1L)).thenReturn(true);
         when(fixedCampaignRepository.findByActiveTrue()).thenReturn(threeCampaigns);

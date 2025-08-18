@@ -27,7 +27,7 @@ public class BinomIntegrationResponse {
     private String campaignId;
     private String errorCode;
     private Integer campaignsCreated;
-    
+
     public int getCampaignsCreated() {
         return campaignsCreated != null ? campaignsCreated : 0;
     }

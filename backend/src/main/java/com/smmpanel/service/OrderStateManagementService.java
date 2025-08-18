@@ -571,7 +571,6 @@ class OrderValidationResult {
     }
 }
 
-
 /** Progress update result */
 @lombok.Builder
 @lombok.Data

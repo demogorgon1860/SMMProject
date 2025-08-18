@@ -39,20 +39,30 @@ class BinomClientTest {
 
     @BeforeEach
     void setUp() {
-        binomClient = new BinomClient(restTemplate, objectMapper, circuitBreaker, readRetry, writeRetry);
+        binomClient =
+                new BinomClient(restTemplate, objectMapper, circuitBreaker, readRetry, writeRetry);
         ReflectionTestUtils.setField(binomClient, "apiUrl", TEST_API_URL);
         ReflectionTestUtils.setField(binomClient, "apiKey", TEST_API_KEY);
 
         // Mock circuit breaker and retry to execute directly
-        when(circuitBreaker.executeSupplier(any())).thenAnswer(invocation -> {
-            return ((java.util.function.Supplier<?>) invocation.getArgument(0)).get();
-        });
-        when(readRetry.executeSupplier(any())).thenAnswer(invocation -> {
-            return ((java.util.function.Supplier<?>) invocation.getArgument(0)).get();
-        });
-        when(writeRetry.executeSupplier(any())).thenAnswer(invocation -> {
-            return ((java.util.function.Supplier<?>) invocation.getArgument(0)).get();
-        });
+        when(circuitBreaker.executeSupplier(any()))
+                .thenAnswer(
+                        invocation -> {
+                            return ((java.util.function.Supplier<?>) invocation.getArgument(0))
+                                    .get();
+                        });
+        when(readRetry.executeSupplier(any()))
+                .thenAnswer(
+                        invocation -> {
+                            return ((java.util.function.Supplier<?>) invocation.getArgument(0))
+                                    .get();
+                        });
+        when(writeRetry.executeSupplier(any()))
+                .thenAnswer(
+                        invocation -> {
+                            return ((java.util.function.Supplier<?>) invocation.getArgument(0))
+                                    .get();
+                        });
     }
 
     @Test
@@ -60,15 +70,22 @@ class BinomClientTest {
     void testGetOffersList_Success() {
         // Arrange
         Map<String, Object> responseBody = new HashMap<>();
-        List<Map<String, Object>> offersData = Arrays.asList(
-            createOfferData("OFFER_001", "Test Offer 1", "https://example.com/offer1", "ACTIVE"),
-            createOfferData("OFFER_002", "Test Offer 2", "https://example.com/offer2", "ACTIVE")
-        );
+        List<Map<String, Object>> offersData =
+                Arrays.asList(
+                        createOfferData(
+                                "OFFER_001",
+                                "Test Offer 1",
+                                "https://example.com/offer1",
+                                "ACTIVE"),
+                        createOfferData(
+                                "OFFER_002",
+                                "Test Offer 2",
+                                "https://example.com/offer2",
+                                "ACTIVE"));
         responseBody.put("data", offersData);
 
         ResponseEntity<Map> response = new ResponseEntity<>(responseBody, HttpStatus.OK);
-        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class)))
-                .thenReturn(response);
+        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class))).thenReturn(response);
 
         // Act
         OffersListResponse result = binomClient.getOffersList();
@@ -95,13 +112,12 @@ class BinomClientTest {
         errorResponse.put("error_code", "AUTH_001");
 
         ResponseEntity<Map> response = new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
-        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class)))
-                .thenReturn(response);
+        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class))).thenReturn(response);
 
         // Act & Assert
-        BinomApiException exception = assertThrows(BinomApiException.class, 
-                () -> binomClient.getOffersList());
-        
+        BinomApiException exception =
+                assertThrows(BinomApiException.class, () -> binomClient.getOffersList());
+
         assertEquals(HttpStatus.UNAUTHORIZED, exception.getHttpStatus());
         assertTrue(exception.getMessage().contains("Unauthorized"));
         assertEquals("AUTH_001", exception.getBinomErrorCode());
@@ -112,21 +128,21 @@ class BinomClientTest {
     void testUpdateOffer_Success() {
         // Arrange
         String offerId = "OFFER_123";
-        UpdateOfferRequest request = UpdateOfferRequest.builder()
-                .name("Updated Offer")
-                .url("https://example.com/updated")
-                .status("ACTIVE")
-                .payout(15.0)
-                .payoutCurrency("USD")
-                .build();
+        UpdateOfferRequest request =
+                UpdateOfferRequest.builder()
+                        .name("Updated Offer")
+                        .url("https://example.com/updated")
+                        .status("ACTIVE")
+                        .payout(15.0)
+                        .payoutCurrency("USD")
+                        .build();
 
         Map<String, Object> responseBody = new HashMap<>();
         responseBody.put("success", true);
         responseBody.put("message", "Offer updated successfully");
 
         ResponseEntity<Map> response = new ResponseEntity<>(responseBody, HttpStatus.OK);
-        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class)))
-                .thenReturn(response);
+        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class))).thenReturn(response);
 
         // Act
         UpdateOfferResponse result = binomClient.updateOffer(offerId, request);
@@ -145,22 +161,20 @@ class BinomClientTest {
     void testUpdateOffer_NotFound() {
         // Arrange
         String offerId = "OFFER_NONEXISTENT";
-        UpdateOfferRequest request = UpdateOfferRequest.builder()
-                .name("Updated Offer")
-                .build();
+        UpdateOfferRequest request = UpdateOfferRequest.builder().name("Updated Offer").build();
 
         Map<String, Object> errorResponse = new HashMap<>();
         errorResponse.put("error", "Offer not found");
         errorResponse.put("message", "The specified offer does not exist");
 
         ResponseEntity<Map> response = new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
-        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class)))
-                .thenReturn(response);
+        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class))).thenReturn(response);
 
         // Act & Assert
-        BinomApiException exception = assertThrows(BinomApiException.class, 
-                () -> binomClient.updateOffer(offerId, request));
-        
+        BinomApiException exception =
+                assertThrows(
+                        BinomApiException.class, () -> binomClient.updateOffer(offerId, request));
+
         assertEquals(HttpStatus.NOT_FOUND, exception.getHttpStatus());
         assertTrue(exception.getMessage().contains("Not found"));
         assertFalse(exception.isRetryable());
@@ -189,8 +203,7 @@ class BinomClientTest {
         responseBody.put("cr", 10.0);
 
         ResponseEntity<Map> response = new ResponseEntity<>(responseBody, HttpStatus.OK);
-        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class)))
-                .thenReturn(response);
+        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class))).thenReturn(response);
 
         // Act
         CampaignInfoResponse result = binomClient.getCampaignInfo(campaignId);
@@ -221,21 +234,21 @@ class BinomClientTest {
     @DisplayName("setClickCost should set campaign click cost successfully")
     void testSetClickCost_Success() {
         // Arrange
-        SetClickCostRequest request = SetClickCostRequest.builder()
-                .campaignId("CAMP_123")
-                .cost(BigDecimal.valueOf(0.30))
-                .costModel("CPC")
-                .currency("USD")
-                .notes("Updated cost for better performance")
-                .build();
+        SetClickCostRequest request =
+                SetClickCostRequest.builder()
+                        .campaignId("CAMP_123")
+                        .cost(BigDecimal.valueOf(0.30))
+                        .costModel("CPC")
+                        .currency("USD")
+                        .notes("Updated cost for better performance")
+                        .build();
 
         Map<String, Object> responseBody = new HashMap<>();
         responseBody.put("success", true);
         responseBody.put("message", "Click cost updated successfully");
 
         ResponseEntity<Map> response = new ResponseEntity<>(responseBody, HttpStatus.OK);
-        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class)))
-                .thenReturn(response);
+        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class))).thenReturn(response);
 
         // Act
         SetClickCostResponse result = binomClient.setClickCost(request);
@@ -254,12 +267,13 @@ class BinomClientTest {
     @DisplayName("setClickCost should handle validation errors")
     void testSetClickCost_ValidationError() {
         // Arrange
-        SetClickCostRequest request = SetClickCostRequest.builder()
-                .campaignId("CAMP_123")
-                .cost(BigDecimal.valueOf(-1.0)) // Invalid negative cost
-                .costModel("CPC")
-                .currency("USD")
-                .build();
+        SetClickCostRequest request =
+                SetClickCostRequest.builder()
+                        .campaignId("CAMP_123")
+                        .cost(BigDecimal.valueOf(-1.0)) // Invalid negative cost
+                        .costModel("CPC")
+                        .currency("USD")
+                        .build();
 
         Map<String, Object> errorResponse = new HashMap<>();
         errorResponse.put("error", "Invalid cost value");
@@ -267,13 +281,12 @@ class BinomClientTest {
         errorResponse.put("error_code", "VALIDATION_001");
 
         ResponseEntity<Map> response = new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
-        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class)))
-                .thenReturn(response);
+        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class))).thenReturn(response);
 
         // Act & Assert
-        BinomApiException exception = assertThrows(BinomApiException.class, 
-                () -> binomClient.setClickCost(request));
-        
+        BinomApiException exception =
+                assertThrows(BinomApiException.class, () -> binomClient.setClickCost(request));
+
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatus());
         assertTrue(exception.getMessage().contains("Bad request"));
         assertEquals("VALIDATION_001", exception.getBinomErrorCode());
@@ -288,14 +301,14 @@ class BinomClientTest {
         errorResponse.put("error", "Rate limit exceeded");
         errorResponse.put("message", "Too many requests, please try again later");
 
-        ResponseEntity<Map> response = new ResponseEntity<>(errorResponse, HttpStatus.I_AM_A_TEAPOT);
-        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class)))
-                .thenReturn(response);
+        ResponseEntity<Map> response =
+                new ResponseEntity<>(errorResponse, HttpStatus.I_AM_A_TEAPOT);
+        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class))).thenReturn(response);
 
         // Act & Assert
-        BinomApiException exception = assertThrows(BinomApiException.class, 
-                () -> binomClient.getOffersList());
-        
+        BinomApiException exception =
+                assertThrows(BinomApiException.class, () -> binomClient.getOffersList());
+
         assertEquals(HttpStatus.I_AM_A_TEAPOT, exception.getHttpStatus());
         assertTrue(exception.getMessage().contains("Service temporarily unavailable"));
         assertTrue(exception.isRetryable()); // 418 should be retryable
@@ -310,13 +323,12 @@ class BinomClientTest {
         errorResponse.put("message", "Your account does not have permission for this operation");
 
         ResponseEntity<Map> response = new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
-        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class)))
-                .thenReturn(response);
+        when(restTemplate.exchange(anyString(), any(), any(), eq(Map.class))).thenReturn(response);
 
         // Act & Assert
-        BinomApiException exception = assertThrows(BinomApiException.class, 
-                () -> binomClient.getOffersList());
-        
+        BinomApiException exception =
+                assertThrows(BinomApiException.class, () -> binomClient.getOffersList());
+
         assertEquals(HttpStatus.FORBIDDEN, exception.getHttpStatus());
         assertTrue(exception.getMessage().contains("Forbidden"));
         assertTrue(exception.isClientError());

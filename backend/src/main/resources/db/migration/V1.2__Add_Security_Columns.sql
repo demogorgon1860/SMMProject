@@ -1,12 +1,44 @@
 -- V1.2__Add_Security_Columns.sql
+-- Migration: Enhance API key security with hashing and proper storage
+-- This migration is idempotent and preserves existing data
 
 -- Add API key security columns to users table
 ALTER TABLE users 
     ADD COLUMN IF NOT EXISTS api_key_hash VARCHAR(256),
     ADD COLUMN IF NOT EXISTS api_key_salt VARCHAR(128),
     ADD COLUMN IF NOT EXISTS api_key_last_rotated TIMESTAMP WITH TIME ZONE,
-    ADD COLUMN IF NOT EXISTS last_api_access TIMESTAMP WITH TIME ZONE,
-    DROP COLUMN IF EXISTS api_key; -- Remove plain text API key column
+    ADD COLUMN IF NOT EXISTS last_api_access TIMESTAMP WITH TIME ZONE;
+
+-- Handle the plain text api_key column safely
+DO $$
+BEGIN
+    -- Check if plain text api_key column exists
+    IF EXISTS (
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_name = 'users' 
+        AND column_name = 'api_key'
+    ) THEN
+        -- Rename for backup instead of dropping (preserves data)
+        ALTER TABLE users 
+        RENAME COLUMN api_key TO api_key_plaintext_deprecated;
+        
+        -- Add constraint to prevent new data in deprecated column
+        ALTER TABLE users 
+        ADD CONSTRAINT chk_no_new_plaintext_keys 
+        CHECK (api_key_plaintext_deprecated IS NULL);
+        
+        -- Log migration notice
+        RAISE WARNING 'Plain text api_key column renamed to api_key_plaintext_deprecated for security. Please migrate existing keys to hashed format.';
+        
+        -- Create a migration tracking entry
+        INSERT INTO liquibase_migration_metadata (changeset_id, version, context, notes, executed_by)
+        VALUES ('V1.2-api-key-deprecation', '1.2', 'security', 
+                'Plain text API keys deprecated. Column renamed to api_key_plaintext_deprecated. Manual migration required.', 
+                'migration-script')
+        ON CONFLICT DO NOTHING;
+    END IF;
+END $$;
 
 -- Update balance precision for users table
 ALTER TABLE users 

@@ -19,7 +19,7 @@ public class BinomIntegrationResponse {
     private int campaignsCreated;
     private String status;
     private java.util.List<String> campaignIds;
-    
+
     public int getCampaignsCreated() {
         return campaignsCreated;
     }

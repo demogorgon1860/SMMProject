@@ -1,21 +1,64 @@
+# Build artifacts
 target/
+build/
+dist/
+backend/build/
+backend/target/
+frontend/dist/
+frontend/build/
+
+# Java/Gradle
+.gradle/
+backend/.gradle/
 *.jar
 *.war
 *.ear
 *.class
-*.log
+
+# Git
 .git
 .gitignore
-.dockerignore
+
+# Docker
 Dockerfile
 Dockerfile.*
+docker-compose*.yml
+.dockerignore
+
+# Documentation
 README.md
 *.md
+docs/
+
+# Environment files
 .env
 .env.*
+*.env.local
+*.env.development
+*.env.production
+
+# Node
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
 .idea/
 .vscode/
 *.iml
 *.ipr
 *.iws
+.DS_Store
+
+# Logs and temp
+*.log
+logs/
+tmp/
+temp/
+
+# Tests
+test/
+tests/
+coverage/
+.nyc_output/

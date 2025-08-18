@@ -19,11 +19,11 @@ public class BinomIntegrationRequest {
     private boolean active;
     private boolean clipCreated;
     private BigDecimal coefficient;
-    
+
     public boolean isClipCreated() {
         return clipCreated;
     }
-    
+
     public Boolean getClipCreated() {
         return clipCreated;
     }

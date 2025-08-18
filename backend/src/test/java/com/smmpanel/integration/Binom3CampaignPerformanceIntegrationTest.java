@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.*;
-import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,8 +26,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Performance and concurrency integration tests for 3-campaign distribution
- * Tests system behavior under load and concurrent operations
+ * Performance and concurrency integration tests for 3-campaign distribution Tests system behavior
+ * under load and concurrent operations
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -82,45 +81,56 @@ class Binom3CampaignPerformanceIntegrationTest {
     private void setupBinomClientMocks() {
         // Mock offer creation with unique IDs
         when(binomClient.createOffer(any(CreateOfferRequest.class)))
-                .thenAnswer(invocation -> {
-                    CreateOfferRequest request = invocation.getArgument(0);
-                    return CreateOfferResponse.builder()
-                            .offerId("PERF_OFFER_" + System.currentTimeMillis())
-                            .name(request.getName())
-                            .url(request.getUrl())
-                            .status("ACTIVE")
-                            .build();
-                });
+                .thenAnswer(
+                        invocation -> {
+                            CreateOfferRequest request = invocation.getArgument(0);
+                            return CreateOfferResponse.builder()
+                                    .offerId("PERF_OFFER_" + System.currentTimeMillis())
+                                    .name(request.getName())
+                                    .url(request.getUrl())
+                                    .status("ACTIVE")
+                                    .build();
+                        });
 
         // Mock campaign creation with unique IDs
         when(binomClient.createCampaign(any(CreateCampaignRequest.class)))
-                .thenAnswer(invocation -> {
-                    CreateCampaignRequest request = invocation.getArgument(0);
-                    return CreateCampaignResponse.builder()
-                            .campaignId("PERF_CAMP_" + System.currentTimeMillis() + "_" + Thread.currentThread().getId())
-                            .name(request.getName())
-                            .status("ACTIVE")
-                            .build();
-                });
+                .thenAnswer(
+                        invocation -> {
+                            CreateCampaignRequest request = invocation.getArgument(0);
+                            return CreateCampaignResponse.builder()
+                                    .campaignId(
+                                            "PERF_CAMP_"
+                                                    + System.currentTimeMillis()
+                                                    + "_"
+                                                    + Thread.currentThread().getId())
+                                    .name(request.getName())
+                                    .status("ACTIVE")
+                                    .build();
+                        });
 
         // Mock offer assignment
         when(binomClient.assignOfferToCampaign(anyString(), anyString()))
-                .thenReturn(AssignOfferResponse.builder()
-                        .status("ASSIGNED")
-                        .build());
+                .thenReturn(AssignOfferResponse.builder().status("ASSIGNED").build());
 
         // Mock campaign stats
         when(binomClient.getCampaignStats(anyString()))
-                .thenAnswer(invocation -> {
-                    String campaignId = invocation.getArgument(0);
-                    return CampaignStatsResponse.builder()
-                            .campaignId(campaignId)
-                            .clicks(ThreadLocalRandom.current().nextLong(100, 500))
-                            .conversions(ThreadLocalRandom.current().nextLong(10, 50))
-                            .cost(BigDecimal.valueOf(ThreadLocalRandom.current().nextDouble(50, 250)))
-                            .revenue(BigDecimal.valueOf(ThreadLocalRandom.current().nextDouble(80, 400)))
-                            .build();
-                });
+                .thenAnswer(
+                        invocation -> {
+                            String campaignId = invocation.getArgument(0);
+                            return CampaignStatsResponse.builder()
+                                    .campaignId(campaignId)
+                                    .clicks(ThreadLocalRandom.current().nextLong(100, 500))
+                                    .conversions(ThreadLocalRandom.current().nextLong(10, 50))
+                                    .cost(
+                                            BigDecimal.valueOf(
+                                                    ThreadLocalRandom.current()
+                                                            .nextDouble(50, 250)))
+                                    .revenue(
+                                            BigDecimal.valueOf(
+                                                    ThreadLocalRandom.current()
+                                                            .nextDouble(80, 400)))
+                                    .build();
+                        });
     }
 
     @Test
@@ -135,49 +145,60 @@ class Binom3CampaignPerformanceIntegrationTest {
         // Create concurrent orders with 3-campaign distribution
         for (int i = 0; i < CONCURRENT_ORDERS; i++) {
             final int orderIndex = i;
-            CompletableFuture<BinomIntegrationResponse> future = CompletableFuture.supplyAsync(() -> {
-                try {
-                    startLatch.await(); // Wait for all threads to be ready
-                    
-                    // Create order
-                    Order order = createTestOrder(orderIndex);
-                    
-                    // Create Binom integration
-                    BinomIntegrationRequest request = BinomIntegrationRequest.builder()
-                            .orderId(order.getId())
-                            .targetViews(VIEWS_PER_ORDER)
-                            .targetUrl(BASE_VIDEO_URL + orderIndex)
-                            .clipCreated(orderIndex % 2 == 0) // Alternate clip creation
-                            .coefficient(orderIndex % 2 == 0 ? BigDecimal.valueOf(3.0) : BigDecimal.valueOf(4.0))
-                            .geoTargeting("US")
-                            .build();
+            CompletableFuture<BinomIntegrationResponse> future =
+                    CompletableFuture.supplyAsync(
+                            () -> {
+                                try {
+                                    startLatch.await(); // Wait for all threads to be ready
 
-                    return binomService.createBinomIntegration(request);
-                    
-                } catch (Exception e) {
-                    exceptions.add(e);
-                    throw new RuntimeException(e);
-                } finally {
-                    completionLatch.countDown();
-                }
-            }, executorService);
-            
+                                    // Create order
+                                    Order order = createTestOrder(orderIndex);
+
+                                    // Create Binom integration
+                                    BinomIntegrationRequest request =
+                                            BinomIntegrationRequest.builder()
+                                                    .orderId(order.getId())
+                                                    .targetViews(VIEWS_PER_ORDER)
+                                                    .targetUrl(BASE_VIDEO_URL + orderIndex)
+                                                    .clipCreated(
+                                                            orderIndex % 2
+                                                                    == 0) // Alternate clip creation
+                                                    .coefficient(
+                                                            orderIndex % 2 == 0
+                                                                    ? BigDecimal.valueOf(3.0)
+                                                                    : BigDecimal.valueOf(4.0))
+                                                    .geoTargeting("US")
+                                                    .build();
+
+                                    return binomService.createBinomIntegration(request);
+
+                                } catch (Exception e) {
+                                    exceptions.add(e);
+                                    throw new RuntimeException(e);
+                                } finally {
+                                    completionLatch.countDown();
+                                }
+                            },
+                            executorService);
+
             futures.add(future);
         }
 
         // Start all threads simultaneously
         long startTime = System.currentTimeMillis();
         startLatch.countDown();
-        
+
         // Wait for completion
-        assertTrue(completionLatch.await(25, TimeUnit.SECONDS), 
+        assertTrue(
+                completionLatch.await(25, TimeUnit.SECONDS),
                 "All concurrent operations should complete within 25 seconds");
-        
+
         long endTime = System.currentTimeMillis();
         long totalTime = endTime - startTime;
 
         // Verify all operations completed successfully
-        assertTrue(exceptions.isEmpty(), 
+        assertTrue(
+                exceptions.isEmpty(),
                 "No exceptions should occur during concurrent operations: " + exceptions);
 
         int successfulIntegrations = 0;
@@ -185,34 +206,41 @@ class Binom3CampaignPerformanceIntegrationTest {
 
         for (CompletableFuture<BinomIntegrationResponse> future : futures) {
             assertTrue(future.isDone(), "All futures should be completed");
-            
+
             BinomIntegrationResponse response = future.join();
             assertNotNull(response);
-            
-            if ("SUCCESS".equals(response.getStatus()) || "PARTIAL_SUCCESS".equals(response.getStatus())) {
+
+            if ("SUCCESS".equals(response.getStatus())
+                    || "PARTIAL_SUCCESS".equals(response.getStatus())) {
                 successfulIntegrations++;
                 totalCampaignsCreated += response.getCampaignsCreated();
             }
         }
 
         // Performance assertions
-        assertEquals(CONCURRENT_ORDERS, successfulIntegrations, 
+        assertEquals(
+                CONCURRENT_ORDERS,
+                successfulIntegrations,
                 "All integrations should complete successfully");
-        
+
         // We expect 3 campaigns per order, but allow for some partial failures
-        assertTrue(totalCampaignsCreated >= CONCURRENT_ORDERS * 2, 
+        assertTrue(
+                totalCampaignsCreated >= CONCURRENT_ORDERS * 2,
                 "At least 2 campaigns per order should be created");
-        
+
         // Verify database state
         List<BinomCampaign> allCampaigns = binomCampaignRepository.findAll();
-        assertTrue(allCampaigns.size() >= CONCURRENT_ORDERS * 2, 
+        assertTrue(
+                allCampaigns.size() >= CONCURRENT_ORDERS * 2,
                 "Database should contain campaigns from all orders");
 
         // Performance benchmark (should handle 10 concurrent orders in < 25 seconds)
-        assertTrue(totalTime < 25000, 
+        assertTrue(
+                totalTime < 25000,
                 String.format("Concurrent creation took %d ms, should be < 25000 ms", totalTime));
 
-        System.out.printf("Performance Test Results: %d orders, %d campaigns, %d ms total%n", 
+        System.out.printf(
+                "Performance Test Results: %d orders, %d campaigns, %d ms total%n",
                 CONCURRENT_ORDERS, totalCampaignsCreated, totalTime);
     }
 
@@ -225,7 +253,7 @@ class Binom3CampaignPerformanceIntegrationTest {
         for (int i = 0; i < CONCURRENT_ORDERS; i++) {
             Order order = createTestOrder(i);
             orders.add(order);
-            
+
             // Create 3 campaigns per order
             for (int j = 0; j < 3; j++) {
                 BinomCampaign campaign = new BinomCampaign();
@@ -249,51 +277,57 @@ class Binom3CampaignPerformanceIntegrationTest {
         List<CompletableFuture<CampaignStatsResponse>> statsFutures = new ArrayList<>();
 
         for (Order order : orders) {
-            CompletableFuture<CampaignStatsResponse> future = CompletableFuture.supplyAsync(() -> {
-                try {
-                    startLatch.await();
-                    return binomService.getCampaignStatsForOrder(order.getId());
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                } finally {
-                    completionLatch.countDown();
-                }
-            }, executorService);
-            
+            CompletableFuture<CampaignStatsResponse> future =
+                    CompletableFuture.supplyAsync(
+                            () -> {
+                                try {
+                                    startLatch.await();
+                                    return binomService.getCampaignStatsForOrder(order.getId());
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                } finally {
+                                    completionLatch.countDown();
+                                }
+                            },
+                            executorService);
+
             statsFutures.add(future);
         }
 
         long startTime = System.currentTimeMillis();
         startLatch.countDown();
-        
-        assertTrue(completionLatch.await(15, TimeUnit.SECONDS), 
+
+        assertTrue(
+                completionLatch.await(15, TimeUnit.SECONDS),
                 "Stats aggregation should complete within 15 seconds");
-        
+
         long totalTime = System.currentTimeMillis() - startTime;
 
         // Verify all stats aggregations completed
         for (int i = 0; i < statsFutures.size(); i++) {
             CompletableFuture<CampaignStatsResponse> future = statsFutures.get(i);
             assertTrue(future.isDone());
-            
+
             CampaignStatsResponse stats = future.join();
             assertNotNull(stats);
-            
+
             // Verify aggregation across 3 campaigns
             assertTrue(stats.getClicks() > 0, "Aggregated clicks should be > 0");
             assertTrue(stats.getConversions() > 0, "Aggregated conversions should be > 0");
             assertEquals("ACTIVE", stats.getStatus(), "Status should be ACTIVE with 3 campaigns");
-            
+
             // Verify campaign IDs aggregation
             String[] campaignIds = stats.getCampaignId().split(",");
             assertEquals(3, campaignIds.length, "Should aggregate exactly 3 campaign IDs");
         }
 
         // Performance assertion
-        assertTrue(totalTime < 15000, 
+        assertTrue(
+                totalTime < 15000,
                 String.format("Stats aggregation took %d ms, should be < 15000 ms", totalTime));
 
-        System.out.printf("Stats Aggregation Performance: %d orders, %d ms total%n", 
+        System.out.printf(
+                "Stats Aggregation Performance: %d orders, %d ms total%n",
                 CONCURRENT_ORDERS, totalTime);
     }
 
@@ -306,7 +340,7 @@ class Binom3CampaignPerformanceIntegrationTest {
         for (int i = 0; i < CONCURRENT_ORDERS; i++) {
             Order order = createTestOrder(i);
             orders.add(order);
-            
+
             // Create 3 active campaigns
             for (int j = 0; j < 3; j++) {
                 BinomCampaign campaign = new BinomCampaign();
@@ -326,26 +360,30 @@ class Binom3CampaignPerformanceIntegrationTest {
         List<CompletableFuture<Void>> stopFutures = new ArrayList<>();
 
         for (Order order : orders) {
-            CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-                try {
-                    startLatch.await();
-                    binomService.stopAllCampaignsForOrder(order.getId());
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                } finally {
-                    completionLatch.countDown();
-                }
-            }, executorService);
-            
+            CompletableFuture<Void> future =
+                    CompletableFuture.runAsync(
+                            () -> {
+                                try {
+                                    startLatch.await();
+                                    binomService.stopAllCampaignsForOrder(order.getId());
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                } finally {
+                                    completionLatch.countDown();
+                                }
+                            },
+                            executorService);
+
             stopFutures.add(future);
         }
 
         long startTime = System.currentTimeMillis();
         startLatch.countDown();
-        
-        assertTrue(completionLatch.await(10, TimeUnit.SECONDS), 
+
+        assertTrue(
+                completionLatch.await(10, TimeUnit.SECONDS),
                 "Campaign stops should complete within 10 seconds");
-        
+
         long totalTime = System.currentTimeMillis() - startTime;
 
         // Verify all stop operations completed
@@ -356,19 +394,19 @@ class Binom3CampaignPerformanceIntegrationTest {
 
         // Verify campaigns were stopped
         List<BinomCampaign> allCampaigns = binomCampaignRepository.findAll();
-        long activeCampaigns = allCampaigns.stream()
-                .filter(BinomCampaign::isActive)
-                .count();
-        
+        long activeCampaigns = allCampaigns.stream().filter(BinomCampaign::isActive).count();
+
         assertEquals(0, activeCampaigns, "All campaigns should be inactive after stop");
 
         // Verify BinomClient was called for each campaign
         verify(binomClient, times(CONCURRENT_ORDERS * 3)).stopCampaign(anyString());
 
-        assertTrue(totalTime < 10000, 
+        assertTrue(
+                totalTime < 10000,
                 String.format("Campaign stop took %d ms, should be < 10000 ms", totalTime));
 
-        System.out.printf("Campaign Stop Performance: %d orders, %d campaigns, %d ms total%n", 
+        System.out.printf(
+                "Campaign Stop Performance: %d orders, %d campaigns, %d ms total%n",
                 CONCURRENT_ORDERS, CONCURRENT_ORDERS * 3, totalTime);
     }
 
@@ -384,45 +422,55 @@ class Binom3CampaignPerformanceIntegrationTest {
 
         for (int i = 0; i < LARGE_ORDER_COUNT; i++) {
             Order order = createTestOrder(i);
-            
-            BinomIntegrationRequest request = BinomIntegrationRequest.builder()
-                    .orderId(order.getId())
-                    .targetViews(VIEWS_PER_ORDER)
-                    .targetUrl(BASE_VIDEO_URL + i)
-                    .clipCreated(i % 2 == 0)
-                    .coefficient(i % 2 == 0 ? BigDecimal.valueOf(3.0) : BigDecimal.valueOf(4.0))
-                    .geoTargeting("US")
-                    .build();
+
+            BinomIntegrationRequest request =
+                    BinomIntegrationRequest.builder()
+                            .orderId(order.getId())
+                            .targetViews(VIEWS_PER_ORDER)
+                            .targetUrl(BASE_VIDEO_URL + i)
+                            .clipCreated(i % 2 == 0)
+                            .coefficient(
+                                    i % 2 == 0 ? BigDecimal.valueOf(3.0) : BigDecimal.valueOf(4.0))
+                            .geoTargeting("US")
+                            .build();
 
             BinomIntegrationResponse response = binomService.createBinomIntegration(request);
             responses.add(response);
-            
+
             // Verify each response
             assertNotNull(response);
-            assertTrue(response.getCampaignsCreated() >= 1, "At least 1 campaign should be created");
+            assertTrue(
+                    response.getCampaignsCreated() >= 1, "At least 1 campaign should be created");
         }
 
         // Force garbage collection
         System.gc();
         Thread.yield();
-        
+
         long endMemory = runtime.totalMemory() - runtime.freeMemory();
         long memoryUsed = endMemory - startMemory;
 
         // Memory usage should be reasonable (< 100MB for 50 orders)
-        assertTrue(memoryUsed < 100 * 1024 * 1024, 
+        assertTrue(
+                memoryUsed < 100 * 1024 * 1024,
                 String.format("Memory usage %d bytes should be < 100MB", memoryUsed));
 
         // Verify all integrations were successful
-        long successfulIntegrations = responses.stream()
-                .filter(r -> "SUCCESS".equals(r.getStatus()) || "PARTIAL_SUCCESS".equals(r.getStatus()))
-                .count();
-        
-        assertEquals(LARGE_ORDER_COUNT, successfulIntegrations, 
+        long successfulIntegrations =
+                responses.stream()
+                        .filter(
+                                r ->
+                                        "SUCCESS".equals(r.getStatus())
+                                                || "PARTIAL_SUCCESS".equals(r.getStatus()))
+                        .count();
+
+        assertEquals(
+                LARGE_ORDER_COUNT,
+                successfulIntegrations,
                 "All integrations should complete successfully");
 
-        System.out.printf("Memory Usage Test: %d orders, %d bytes used%n", 
-                LARGE_ORDER_COUNT, memoryUsed);
+        System.out.printf(
+                "Memory Usage Test: %d orders, %d bytes used%n", LARGE_ORDER_COUNT, memoryUsed);
     }
 
     private Order createTestOrder(int index) {
@@ -440,7 +488,7 @@ class Binom3CampaignPerformanceIntegrationTest {
         order.setYoutubeVideoId("perf" + index);
         order.setCreatedAt(LocalDateTime.now());
         order.setUpdatedAt(LocalDateTime.now());
-        
+
         return orderRepository.save(order);
     }
 }

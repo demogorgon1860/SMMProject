@@ -73,20 +73,10 @@ spring:
   # LIQUIBASE CONFIGURATION
   # ===============================
   liquibase:
-    enabled: true
-    change-log: classpath:db/liquibase/db.changelog-master.xml
-    contexts: ${LIQUIBASE_CONTEXTS:all}
-    default-schema: ${DB_SCHEMA:public}
-    drop-first: ${LIQUIBASE_DROP_FIRST:false}
-    # Performance settings
-    database-change-log-table-name: databasechangelog
-    database-change-log-lock-table-name: databasechangeloglock
-    # Security settings
-    should-run: ${LIQUIBASE_SHOULD_RUN:true}
-    # Rollback settings
-    rollback-file: ${LIQUIBASE_ROLLBACK_FILE:}
-    # Validation settings
-    test-rollback-on-update: ${LIQUIBASE_TEST_ROLLBACK:false}
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    database-change-log-table: databasechangelog
+    database-change-log-lock-table: databasechangeloglock
+    enabled: ${LIQUIBASE_SHOULD_RUN:true}
   
   jpa:
     hibernate:
@@ -176,13 +166,21 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
       database: 0
-      timeout: 5000
-      jedis:
+      timeout: 5000ms
+      # Using Lettuce client instead of Jedis for better performance
+      lettuce:
         pool:
+          enabled: true
           max-active: 50
           max-idle: 20
           min-idle: 5
-          max-wait: 2000
+          max-wait: 2000ms
+          time-between-eviction-runs: 30s
+        cluster:
+          refresh:
+            adaptive: true
+            period: 30s
+        shutdown-timeout: 2000ms
   cache:
     type: redis
     redis:
@@ -298,8 +296,6 @@ spring:
 # ===============================
 # APPLICATION CONFIGURATION
 # ===============================
-cors:
-  allowed-origins: ${CORS_ORIGINS:http://localhost:3000,https://demo.perfectpanel.com}
 app:
   # ===============================
   # DATABASE POOL CONFIGURATION (MOVED TO DATASOURCE.HIKARI SECTION)

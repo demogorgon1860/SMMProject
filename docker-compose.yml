@@ -5,7 +5,7 @@ version: '3.9'
 # Environment variables can be set in .env file
 x-common-env: &common-env
   TZ: ${TZ:-UTC}
-  SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+  SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-production}
   SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-smm_panel}
   SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-smm_admin}
   SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
@@ -83,15 +83,27 @@ services:
     restart: unless-stopped
     ports:
       - "6379:6379"
-    command: redis-server /usr/local/etc/redis/redis.conf
+    # Use config file with password override for security
+    command: >
+      redis-server /usr/local/etc/redis/redis.conf
+      --requirepass ${REDIS_PASSWORD:-changeme}
     volumes:
       - redis_data:/data
-      - ./redis.conf:/usr/local/etc/redis/redis.conf
+      - ./redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - ./redis.acl:/usr/local/etc/redis/users.acl:ro
+      # Persistence volumes
+      - redis_backup:/backup
+    environment:
+      # Redis tuning for Docker
+      REDIS_REPLICATION_MODE: master
+      REDIS_MAXMEMORY: 3gb
+      REDIS_MAXMEMORY_POLICY: allkeys-lru
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-changeme}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
     networks:
       - smm_network
     deploy:
@@ -102,59 +114,113 @@ services:
         reservations:
           cpus: '1'
           memory: 2G
+    # sysctls not supported on Windows Docker - commented out
+    # sysctls:
+    #   - net.core.somaxconn=65535
+    #   - vm.overcommit_memory=1
 
-  # Kafka for event streaming
+  # Kafka for event streaming (Traditional Zookeeper Mode)
+  # Note: Consider using docker-compose-kafka-kraft.yml for KRaft mode (no Zookeeper)
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.5.0
+    image: confluentinc/cp-zookeeper:7.4.0
     container_name: smm_zookeeper
     restart: unless-stopped
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
       ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_MAX_CLIENT_CNXNS: 60
+      ZOOKEEPER_AUTOPURGE_SNAP_RETAIN_COUNT: 3
+      ZOOKEEPER_AUTOPURGE_PURGE_INTERVAL: 24
+      ZOOKEEPER_LOG4J_ROOT_LOGLEVEL: WARN
+      ZOOKEEPER_4LW_COMMANDS_WHITELIST: 'srvr,stat,ruok,conf,mntr'
     volumes:
       - zookeeper_data:/var/lib/zookeeper/data
       - zookeeper_logs:/var/lib/zookeeper/log
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      test: ["CMD-SHELL", "nc -z localhost 2181 || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
     networks:
       - smm_network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
 
   kafka:
-    image: confluentinc/cp-kafka:7.5.0
+    image: confluentinc/cp-kafka:7.4.0
     container_name: smm_kafka
+    hostname: kafka
     restart: unless-stopped
     depends_on:
       zookeeper:
         condition: service_healthy
     ports:
-      - "9092:9092"
-      - "9093:9093"
+      - "9092:9092"      # External listener for host access
+      - "29092:29092"    # Internal listener for Docker network (exposed for debugging)
+      - "9101:9101"      # JMX metrics port
     environment:
+      # Basic Configuration
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_ZOOKEEPER_CONNECTION_TIMEOUT_MS: 6000
+      
+      # Listeners - Fixed for Docker networking
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      
+      # Replication Settings (single node)
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_LOG_RETENTION_HOURS: 168
-      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+      
+      # Log Retention
+      KAFKA_LOG_RETENTION_HOURS: 168           # 7 days
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824      # 1GB
       KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 300000
+      KAFKA_LOG_CLEANUP_POLICY: delete
+      
+      # Performance Settings
       KAFKA_COMPRESSION_TYPE: snappy
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_NUM_NETWORK_THREADS: 8
+      KAFKA_NUM_IO_THREADS: 8
+      KAFKA_SOCKET_SEND_BUFFER_BYTES: 102400
+      KAFKA_SOCKET_RECEIVE_BUFFER_BYTES: 102400
+      KAFKA_SOCKET_REQUEST_MAX_BYTES: 104857600
+      
+      # Security Settings
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'  # Require explicit topic creation
       KAFKA_DELETE_TOPIC_ENABLE: 'true'
+      
+      # JMX Monitoring
+      KAFKA_JMX_PORT: 9101
+      KAFKA_JMX_HOSTNAME: localhost
+      
+      # JVM Settings
+      KAFKA_HEAP_OPTS: '-Xms1G -Xmx3G'
+      KAFKA_JVM_PERFORMANCE_OPTS: '-XX:+UseG1GC -XX:MaxGCPauseMillis=20 -XX:InitiatingHeapOccupancyPercent=35'
+      
+      # Additional Settings
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_CONFLUENT_SUPPORT_METRICS_ENABLE: 'false'
     volumes:
       - kafka_data:/var/lib/kafka/data
+      - kafka_logs:/var/lib/kafka/logs
     healthcheck:
-      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9093"]
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 5
+      start_period: 30s
     networks:
       - smm_network
     deploy:
@@ -177,13 +243,13 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_PROFILES_ACTIVE: production
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-production}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/smm_panel
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-smm_admin}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: 6379
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       JAVA_OPTS: "-Xms2g -Xmx4g -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
     volumes:
       - ./backend/logs:/app/logs
@@ -202,7 +268,6 @@ services:
       timeout: 10s
       retries: 3
     deploy:
-      replicas: 2
       resources:
         limits:
           cpus: '2'
@@ -337,7 +402,7 @@ services:
     networks:
       - smm_network
     depends_on:
-      - backend
+      - spring-boot-app
     healthcheck:
       test: ["CMD", "wget", "--spider", "http://localhost:9090/-/healthy"]
       interval: 30s
@@ -391,7 +456,7 @@ services:
     networks:
       - smm_network
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://localhost:3100/ready"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3100/ready"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -437,7 +502,7 @@ services:
     networks:
       - smm_network
     healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:14269/healthz"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:14269"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -483,13 +548,15 @@ volumes:
     driver: local
   redis_data:
     driver: local
+  redis_backup:
+    driver: local
   kafka_data:
+    driver: local
+  kafka_logs:
     driver: local
   zookeeper_data:
     driver: local
   zookeeper_logs:
-    driver: local
-  kafka_logs:
     driver: local
   prometheus_data:
     driver: local

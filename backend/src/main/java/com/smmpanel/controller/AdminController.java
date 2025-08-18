@@ -3,7 +3,7 @@ package com.smmpanel.controller;
 import com.smmpanel.dto.admin.*;
 import com.smmpanel.dto.response.PerfectPanelResponse;
 import com.smmpanel.service.AdminService;
-import com.smmpanel.service.OrderProcessingService;
+import com.smmpanel.service.order.OrderProcessingService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
@@ -47,15 +47,24 @@ public class AdminController {
 
         switch (request.getAction().toLowerCase()) {
             case "stop":
-                orderProcessingService.stopOrder(orderId, request.getReason());
-                break;
+                // TODO: Implement stop order functionality
+                return ResponseEntity.badRequest()
+                        .body(
+                                PerfectPanelResponse.error(
+                                        "Stop operation not yet implemented", 400));
             case "resume":
             case "start":
-                orderProcessingService.resumeOrder(orderId);
-                break;
+                // TODO: Implement resume/start order functionality
+                return ResponseEntity.badRequest()
+                        .body(
+                                PerfectPanelResponse.error(
+                                        "Resume/Start operation not yet implemented", 400));
             case "refill":
-                orderProcessingService.refillOrder(orderId);
-                break;
+                // TODO: Implement refill order functionality
+                return ResponseEntity.badRequest()
+                        .body(
+                                PerfectPanelResponse.error(
+                                        "Refill operation not yet implemented", 400));
             case "cancel":
                 adminService.cancelOrder(orderId, request.getReason());
                 break;

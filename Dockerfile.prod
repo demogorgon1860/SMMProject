@@ -1,5 +1,26 @@
-# Production Dockerfile (optimized)
-FROM openjdk:17-jdk-slim
+# Build stage (for CI/CD pipelines)
+FROM eclipse-temurin:17-jdk-jammy AS builder
+
+WORKDIR /app
+
+# Copy Gradle files
+COPY backend/build.gradle backend/settings.gradle backend/gradlew ./
+COPY backend/gradle ./gradle
+
+# Make gradlew executable
+RUN chmod +x ./gradlew
+
+# Download dependencies (cached layer)
+RUN ./gradlew dependencies --no-daemon
+
+# Copy source code
+COPY backend/src ./src
+
+# Build application
+RUN ./gradlew clean bootJar --no-daemon -x test
+
+# Runtime stage
+FROM eclipse-temurin:17-jre-jammy
 
 # Install required packages
 RUN apt-get update && \
@@ -14,8 +35,8 @@ RUN groupadd -r smmapp && useradd -r -g smmapp smmapp
 # Set working directory
 WORKDIR /app
 
-# Copy pre-built JAR (for production deployment)
-COPY target/smm-panel-*.jar app.jar
+# Copy built JAR from builder stage
+COPY --from=builder --chown=smmapp:smmapp /app/build/libs/*.jar app.jar
 
 # Create necessary directories
 RUN mkdir -p /app/logs /app/config && \
@@ -38,6 +59,8 @@ ENV JAVA_OPTS="-server \
                -XX:MaxGCPauseMillis=200 \
                -XX:+UseContainerSupport \
                -XX:MaxRAMPercentage=75.0 \
+               -XX:InitialRAMPercentage=50.0 \
+               -XX:+ExitOnOutOfMemoryError \
                -XX:+HeapDumpOnOutOfMemoryError \
                -XX:HeapDumpPath=/app/logs/ \
                -Djava.security.egd=file:/dev/./urandom \

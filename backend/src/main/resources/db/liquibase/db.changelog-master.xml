@@ -38,5 +38,10 @@
     
     <!-- Development Support -->
     <include file="migrations/v1.2.0-dev-test-data.xml" context="dev"/>
+    
+    <!-- Migrated from Flyway SQL Migrations -->
+    <include file="migrations/v1.3.0-migrate-flyway-v1.1.xml" context="all"/>
+    <!-- Note: Additional Flyway migrations will be converted to Liquibase format
+         and included here in semantic version order -->
 
 </databaseChangeLog>

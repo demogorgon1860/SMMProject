@@ -34,7 +34,7 @@ public class StateTransitionResult {
                 .errorMessage(errorMessage)
                 .build();
     }
-    
+
     // Helper method for tests
     public StateTransitionResult newStatus(OrderStatus status) {
         return StateTransitionResult.builder()

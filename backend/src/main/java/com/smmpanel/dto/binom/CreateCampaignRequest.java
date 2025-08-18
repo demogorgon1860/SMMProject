@@ -44,9 +44,9 @@ public class CreateCampaignRequest {
     private String rotationType;
 
     @Builder.Default private Boolean isArchived = false;
-    
+
     private Integer targetViews;
-    
+
     public String getName() {
         return this.name;
     }

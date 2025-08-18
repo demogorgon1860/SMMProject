@@ -4,9 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smmpanel.dto.binom.*;
 import com.smmpanel.exception.BinomApiException;
 import java.math.BigDecimal;
-import java.util.Map;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -425,49 +425,81 @@ public class BinomClient {
                                     Map<String, Object> responseBody = response.getBody();
                                     validateResponseBody(responseBody, endpoint, "getOffersList");
 
-                                        List<OffersListResponse.OfferInfo> offers = new ArrayList<>();
-                                        int totalCount = 0;
+                                    List<OffersListResponse.OfferInfo> offers = new ArrayList<>();
+                                    int totalCount = 0;
 
-                                        if (responseBody.containsKey("data")) {
-                                            Object data = responseBody.get("data");
-                                            if (data instanceof List) {
-                                                List<?> offersList = (List<?>) data;
-                                                totalCount = offersList.size();
+                                    if (responseBody.containsKey("data")) {
+                                        Object data = responseBody.get("data");
+                                        if (data instanceof List) {
+                                            List<?> offersList = (List<?>) data;
+                                            totalCount = offersList.size();
 
-                                                for (Object offerObj : offersList) {
-                                                    if (offerObj instanceof Map) {
-                                                        Map<String, Object> offerMap = 
-                                                                (Map<String, Object>) offerObj;
-                                                        
-                                                        OffersListResponse.OfferInfo offer = 
-                                                                OffersListResponse.OfferInfo.builder()
-                                                                        .offerId(getString(offerMap, "id"))
-                                                                        .name(getString(offerMap, "name"))
-                                                                        .url(getString(offerMap, "url"))
-                                                                        .status(getString(offerMap, "status"))
-                                                                        .type(getString(offerMap, "type"))
-                                                                        .category(getString(offerMap, "category"))
-                                                                        .payout(getDoubleValue(offerMap, "payout", 0.0))
-                                                                        .payoutCurrency(getString(offerMap, "payout_currency"))
-                                                                        .payoutType(getString(offerMap, "payout_type"))
-                                                                        .isActive(getBooleanValue(offerMap, "is_active", false))
-                                                                        .affiliateNetwork(getString(offerMap, "affiliate_network"))
-                                                                        .build();
-                                                        
-                                                        offers.add(offer);
-                                                    }
+                                            for (Object offerObj : offersList) {
+                                                if (offerObj instanceof Map) {
+                                                    Map<String, Object> offerMap =
+                                                            (Map<String, Object>) offerObj;
+
+                                                    OffersListResponse.OfferInfo offer =
+                                                            OffersListResponse.OfferInfo.builder()
+                                                                    .offerId(
+                                                                            getString(
+                                                                                    offerMap, "id"))
+                                                                    .name(
+                                                                            getString(
+                                                                                    offerMap,
+                                                                                    "name"))
+                                                                    .url(getString(offerMap, "url"))
+                                                                    .status(
+                                                                            getString(
+                                                                                    offerMap,
+                                                                                    "status"))
+                                                                    .type(
+                                                                            getString(
+                                                                                    offerMap,
+                                                                                    "type"))
+                                                                    .category(
+                                                                            getString(
+                                                                                    offerMap,
+                                                                                    "category"))
+                                                                    .payout(
+                                                                            getDoubleValue(
+                                                                                    offerMap,
+                                                                                    "payout", 0.0))
+                                                                    .payoutCurrency(
+                                                                            getString(
+                                                                                    offerMap,
+                                                                                    "payout_currency"))
+                                                                    .payoutType(
+                                                                            getString(
+                                                                                    offerMap,
+                                                                                    "payout_type"))
+                                                                    .isActive(
+                                                                            getBooleanValue(
+                                                                                    offerMap,
+                                                                                    "is_active",
+                                                                                    false))
+                                                                    .affiliateNetwork(
+                                                                            getString(
+                                                                                    offerMap,
+                                                                                    "affiliate_network"))
+                                                                    .build();
+
+                                                    offers.add(offer);
                                                 }
                                             }
                                         }
+                                    }
 
-                                        log.info("Successfully fetched {} offers from Binom", totalCount);
+                                    log.info(
+                                            "Successfully fetched {} offers from Binom",
+                                            totalCount);
 
-                                        return OffersListResponse.builder()
-                                                .offers(offers)
-                                                .totalCount(totalCount)
-                                                .status("SUCCESS")
-                                                .message("Offers retrieved successfully")
-                                                .build();
+                                    return OffersListResponse.builder()
+                                            .offers(offers)
+                                            .totalCount(totalCount)
+                                            .status("SUCCESS")
+                                            .message("Offers retrieved successfully")
+                                            .build();
                                 }));
     }
 
@@ -492,8 +524,10 @@ public class BinomClient {
                                     HttpEntity<UpdateOfferRequest> entity =
                                             new HttpEntity<>(request, headers);
 
-                                    log.info("Updating Binom offer: {} with name: {}", 
-                                            offerId, request.getName());
+                                    log.info(
+                                            "Updating Binom offer: {} with name: {}",
+                                            offerId,
+                                            request.getName());
 
                                     ResponseEntity<Map> response =
                                             restTemplate.exchange(
@@ -565,29 +599,58 @@ public class BinomClient {
                                         }
 
                                         // Build campaign stats
-                                        CampaignInfoResponse.CampaignStats stats = 
+                                        CampaignInfoResponse.CampaignStats stats =
                                                 CampaignInfoResponse.CampaignStats.builder()
-                                                        .clicks(Long.valueOf(getIntValue(responseBody, "clicks", 0)))
-                                                        .conversions(Long.valueOf(getIntValue(responseBody, "conversions", 0)))
-                                                        .cost(getDoubleValue(responseBody, "cost", 0.0))
-                                                        .revenue(getDoubleValue(responseBody, "revenue", 0.0))
-                                                        .roi(getDoubleValue(responseBody, "roi", 0.0))
-                                                        .ctr(getDoubleValue(responseBody, "ctr", 0.0))
+                                                        .clicks(
+                                                                Long.valueOf(
+                                                                        getIntValue(
+                                                                                responseBody,
+                                                                                "clicks",
+                                                                                0)))
+                                                        .conversions(
+                                                                Long.valueOf(
+                                                                        getIntValue(
+                                                                                responseBody,
+                                                                                "conversions",
+                                                                                0)))
+                                                        .cost(
+                                                                getDoubleValue(
+                                                                        responseBody, "cost", 0.0))
+                                                        .revenue(
+                                                                getDoubleValue(
+                                                                        responseBody,
+                                                                        "revenue",
+                                                                        0.0))
+                                                        .roi(
+                                                                getDoubleValue(
+                                                                        responseBody, "roi", 0.0))
+                                                        .ctr(
+                                                                getDoubleValue(
+                                                                        responseBody, "ctr", 0.0))
                                                         .cr(getDoubleValue(responseBody, "cr", 0.0))
                                                         .build();
 
-                                        log.info("Successfully fetched campaign info for: {}", campaignId);
+                                        log.info(
+                                                "Successfully fetched campaign info for: {}",
+                                                campaignId);
 
                                         return CampaignInfoResponse.builder()
                                                 .campaignId(campaignId)
                                                 .name(getString(responseBody, "name"))
                                                 .status(getString(responseBody, "status"))
-                                                .trafficSource(getString(responseBody, "traffic_source"))
-                                                .landingPage(getString(responseBody, "landing_page"))
+                                                .trafficSource(
+                                                        getString(responseBody, "traffic_source"))
+                                                .landingPage(
+                                                        getString(responseBody, "landing_page"))
                                                 .costModel(getString(responseBody, "cost_model"))
-                                                .costValue(getDoubleValue(responseBody, "cost_value", 0.0))
-                                                .geoTargeting(getString(responseBody, "geo_targeting"))
-                                                .isActive(getBooleanValue(responseBody, "is_active", false))
+                                                .costValue(
+                                                        getDoubleValue(
+                                                                responseBody, "cost_value", 0.0))
+                                                .geoTargeting(
+                                                        getString(responseBody, "geo_targeting"))
+                                                .isActive(
+                                                        getBooleanValue(
+                                                                responseBody, "is_active", false))
                                                 .createdAt(getString(responseBody, "created_at"))
                                                 .updatedAt(getString(responseBody, "updated_at"))
                                                 .stats(stats)
@@ -621,8 +684,11 @@ public class BinomClient {
                                     HttpEntity<SetClickCostRequest> entity =
                                             new HttpEntity<>(request, headers);
 
-                                    log.info("Setting click cost for campaign: {} to {} {}", 
-                                            request.getCampaignId(), request.getCost(), request.getCurrency());
+                                    log.info(
+                                            "Setting click cost for campaign: {} to {} {}",
+                                            request.getCampaignId(),
+                                            request.getCost(),
+                                            request.getCurrency());
 
                                     ResponseEntity<Map> response =
                                             restTemplate.exchange(
@@ -638,7 +704,8 @@ public class BinomClient {
                                                             + responseBody.get("error"));
                                         }
 
-                                        log.info("Successfully set click cost for campaign: {}", 
+                                        log.info(
+                                                "Successfully set click cost for campaign: {}",
                                                 request.getCampaignId());
 
                                         return SetClickCostResponse.builder()
@@ -666,114 +733,125 @@ public class BinomClient {
     }
 
     /**
-     * Enhanced response validation with comprehensive HTTP status code handling
-     * Handles: 400 (Bad Request), 401 (Unauthorized), 403 (Forbidden), 404 (Not Found), 418 (I'm a teapot)
+     * Enhanced response validation with comprehensive HTTP status code handling Handles: 400 (Bad
+     * Request), 401 (Unauthorized), 403 (Forbidden), 404 (Not Found), 418 (I'm a teapot)
      */
     private void validateResponse(ResponseEntity<Map> response, String endpoint, String operation) {
         HttpStatus status = HttpStatus.valueOf(response.getStatusCode().value());
-        
+
         // Log response status for debugging
-        log.debug("Binom API response for {}: {} - {}", operation, status.value(), status.getReasonPhrase());
-        
+        log.debug(
+                "Binom API response for {}: {} - {}",
+                operation,
+                status.value(),
+                status.getReasonPhrase());
+
         if (status.is2xxSuccessful()) {
             // Success - continue with normal processing
             return;
         }
-        
+
         // Handle specific error status codes
         String errorMessage = buildErrorMessage(status, response.getBody(), endpoint, operation);
-        
+
         switch (status) {
             case BAD_REQUEST: // 400
                 log.error("Bad request to Binom API: {} - {}", endpoint, errorMessage);
                 throw new BinomApiException(
-                    "Bad request: " + errorMessage, 
-                    status, 
-                    extractBinomErrorCode(response.getBody()), 
-                    endpoint
-                );
-                
+                        "Bad request: " + errorMessage,
+                        status,
+                        extractBinomErrorCode(response.getBody()),
+                        endpoint);
+
             case UNAUTHORIZED: // 401
                 log.error("Unauthorized access to Binom API: {} - Check API key", endpoint);
                 throw new BinomApiException(
-                    "Unauthorized: Invalid or expired API key - " + errorMessage, 
-                    status, 
-                    extractBinomErrorCode(response.getBody()), 
-                    endpoint
-                );
-                
+                        "Unauthorized: Invalid or expired API key - " + errorMessage,
+                        status,
+                        extractBinomErrorCode(response.getBody()),
+                        endpoint);
+
             case FORBIDDEN: // 403
                 log.error("Forbidden access to Binom API: {} - Insufficient permissions", endpoint);
                 throw new BinomApiException(
-                    "Forbidden: Insufficient permissions for operation - " + errorMessage, 
-                    status, 
-                    extractBinomErrorCode(response.getBody()), 
-                    endpoint
-                );
-                
+                        "Forbidden: Insufficient permissions for operation - " + errorMessage,
+                        status,
+                        extractBinomErrorCode(response.getBody()),
+                        endpoint);
+
             case NOT_FOUND: // 404
                 log.warn("Resource not found in Binom API: {} - {}", endpoint, errorMessage);
                 throw new BinomApiException(
-                    "Not found: " + errorMessage, 
-                    status, 
-                    extractBinomErrorCode(response.getBody()), 
-                    endpoint
-                );
-                
+                        "Not found: " + errorMessage,
+                        status,
+                        extractBinomErrorCode(response.getBody()),
+                        endpoint);
+
             case I_AM_A_TEAPOT: // 418
-                log.warn("Binom API returned teapot status: {} - Rate limiting or maintenance", endpoint);
+                log.warn(
+                        "Binom API returned teapot status: {} - Rate limiting or maintenance",
+                        endpoint);
                 throw new BinomApiException(
-                    "Service temporarily unavailable (teapot response): " + errorMessage, 
-                    status, 
-                    extractBinomErrorCode(response.getBody()), 
-                    endpoint
-                );
-                
+                        "Service temporarily unavailable (teapot response): " + errorMessage,
+                        status,
+                        extractBinomErrorCode(response.getBody()),
+                        endpoint);
+
             case TOO_MANY_REQUESTS: // 429
                 log.warn("Rate limit exceeded for Binom API: {} - {}", endpoint, errorMessage);
                 throw new BinomApiException(
-                    "Rate limit exceeded: " + errorMessage, 
-                    status, 
-                    extractBinomErrorCode(response.getBody()), 
-                    endpoint
-                );
-                
+                        "Rate limit exceeded: " + errorMessage,
+                        status,
+                        extractBinomErrorCode(response.getBody()),
+                        endpoint);
+
             default:
                 if (status.is4xxClientError()) {
-                    log.error("Client error from Binom API: {} {} - {}", status.value(), endpoint, errorMessage);
+                    log.error(
+                            "Client error from Binom API: {} {} - {}",
+                            status.value(),
+                            endpoint,
+                            errorMessage);
                     throw new BinomApiException(
-                        "Client error (" + status.value() + "): " + errorMessage, 
-                        status, 
-                        extractBinomErrorCode(response.getBody()), 
-                        endpoint
-                    );
+                            "Client error (" + status.value() + "): " + errorMessage,
+                            status,
+                            extractBinomErrorCode(response.getBody()),
+                            endpoint);
                 } else if (status.is5xxServerError()) {
-                    log.error("Server error from Binom API: {} {} - {}", status.value(), endpoint, errorMessage);
+                    log.error(
+                            "Server error from Binom API: {} {} - {}",
+                            status.value(),
+                            endpoint,
+                            errorMessage);
                     throw new BinomApiException(
-                        "Server error (" + status.value() + "): " + errorMessage, 
-                        status, 
-                        extractBinomErrorCode(response.getBody()), 
-                        endpoint
-                    );
+                            "Server error (" + status.value() + "): " + errorMessage,
+                            status,
+                            extractBinomErrorCode(response.getBody()),
+                            endpoint);
                 } else {
-                    log.error("Unexpected status from Binom API: {} {} - {}", status.value(), endpoint, errorMessage);
+                    log.error(
+                            "Unexpected status from Binom API: {} {} - {}",
+                            status.value(),
+                            endpoint,
+                            errorMessage);
                     throw new BinomApiException(
-                        "Unexpected response (" + status.value() + "): " + errorMessage, 
-                        status, 
-                        extractBinomErrorCode(response.getBody()), 
-                        endpoint
-                    );
+                            "Unexpected response (" + status.value() + "): " + errorMessage,
+                            status,
+                            extractBinomErrorCode(response.getBody()),
+                            endpoint);
                 }
         }
     }
-    
-    /**
-     * Build comprehensive error message from response
-     */
-    private String buildErrorMessage(HttpStatus status, Map<String, Object> responseBody, String endpoint, String operation) {
+
+    /** Build comprehensive error message from response */
+    private String buildErrorMessage(
+            HttpStatus status,
+            Map<String, Object> responseBody,
+            String endpoint,
+            String operation) {
         StringBuilder message = new StringBuilder();
         message.append("Operation '").append(operation).append("' failed");
-        
+
         if (responseBody != null) {
             // Check for Binom-specific error fields
             if (responseBody.containsKey("error")) {
@@ -791,52 +869,49 @@ public class BinomClient {
         } else {
             message.append(" - No response body");
         }
-        
+
         return message.toString();
     }
-    
-    /**
-     * Extract Binom-specific error code from response body
-     */
+
+    /** Extract Binom-specific error code from response body */
     private String extractBinomErrorCode(Map<String, Object> responseBody) {
         if (responseBody == null) return null;
-        
+
         Object errorCode = responseBody.get("error_code");
         if (errorCode != null) return errorCode.toString();
-        
+
         Object code = responseBody.get("code");
         if (code != null) return code.toString();
-        
+
         return null;
     }
-    
-    /**
-     * Enhanced response body validation with better error messages
-     */
-    private void validateResponseBody(Map<String, Object> responseBody, String endpoint, String operation) {
+
+    /** Enhanced response body validation with better error messages */
+    private void validateResponseBody(
+            Map<String, Object> responseBody, String endpoint, String operation) {
         if (responseBody == null) {
             throw new BinomApiException(
-                "Empty response body from " + operation + " operation", 
-                null, 
-                endpoint
-            );
+                    "Empty response body from " + operation + " operation", null, endpoint);
         }
-        
+
         // Check for API-level errors in successful HTTP responses
         if (responseBody.containsKey("error")) {
             String error = responseBody.get("error").toString();
             String errorCode = extractBinomErrorCode(responseBody);
-            
-            log.warn("Binom API error in response body for {}: {} (code: {})", operation, error, errorCode);
-            
+
+            log.warn(
+                    "Binom API error in response body for {}: {} (code: {})",
+                    operation,
+                    error,
+                    errorCode);
+
             throw new BinomApiException(
-                "API Error: " + error, 
-                HttpStatus.OK, // HTTP was successful but API returned error
-                errorCode, 
-                endpoint
-            );
+                    "API Error: " + error,
+                    HttpStatus.OK, // HTTP was successful but API returned error
+                    errorCode,
+                    endpoint);
         }
-        
+
         // Log successful response for debugging
         log.debug("Valid response body received for {} operation on {}", operation, endpoint);
     }

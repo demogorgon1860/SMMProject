@@ -33,8 +33,10 @@ public interface YouTubeAccountRepository extends JpaRepository<YouTubeAccount, 
 
     Optional<YouTubeAccount> findFirstByStatusAndDailyClipsCountLessThan(
             YouTubeAccountStatus status, Integer dailyLimit);
-            
-    @Query("SELECT ya FROM YouTubeAccount ya WHERE ya.status = :status AND ya.dailyClipsCount < ya.dailyLimit")
+
+    @Query(
+            "SELECT ya FROM YouTubeAccount ya WHERE ya.status = :status AND ya.dailyClipsCount <"
+                    + " ya.dailyLimit")
     Optional<YouTubeAccount> findFirstByStatusAndDailyClipsCountLessThanDailyLimit(
             YouTubeAccountStatus status);
 }

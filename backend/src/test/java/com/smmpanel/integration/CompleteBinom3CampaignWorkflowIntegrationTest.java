@@ -16,16 +16,12 @@ import com.smmpanel.repository.jpa.*;
 import com.smmpanel.service.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
-import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -39,8 +35,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
 
 /**
- * Complete integration test for 3-campaign Binom workflow
- * Tests the entire flow: Order Creation → Offer Creation → 3-Campaign Assignment → Stats Aggregation
+ * Complete integration test for 3-campaign Binom workflow Tests the entire flow: Order Creation →
+ * Offer Creation → 3-Campaign Assignment → Stats Aggregation
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -104,42 +100,45 @@ class CompleteBinom3CampaignWorkflowIntegrationTest {
 
     private void setupBinomClientMocks() {
         // Mock offer creation
-        CreateOfferResponse offerResponse = CreateOfferResponse.builder()
-                .offerId("INTEGRATION_OFFER_123")
-                .name("Integration Test Offer")
-                .url(TEST_VIDEO_URL)
-                .status("ACTIVE")
-                .build();
+        CreateOfferResponse offerResponse =
+                CreateOfferResponse.builder()
+                        .offerId("INTEGRATION_OFFER_123")
+                        .name("Integration Test Offer")
+                        .url(TEST_VIDEO_URL)
+                        .status("ACTIVE")
+                        .build();
         when(binomClient.createOffer(any(CreateOfferRequest.class))).thenReturn(offerResponse);
 
         // Mock 3 campaign creation responses
         CreateCampaignResponse[] campaignResponses = {
             CreateCampaignResponse.builder()
-                .campaignId("INTEGRATION_CAMP_001")
-                .name("Integration Campaign 1")
-                .status("ACTIVE")
-                .build(),
+                    .campaignId("INTEGRATION_CAMP_001")
+                    .name("Integration Campaign 1")
+                    .status("ACTIVE")
+                    .build(),
             CreateCampaignResponse.builder()
-                .campaignId("INTEGRATION_CAMP_002")
-                .name("Integration Campaign 2")
-                .status("ACTIVE")
-                .build(),
+                    .campaignId("INTEGRATION_CAMP_002")
+                    .name("Integration Campaign 2")
+                    .status("ACTIVE")
+                    .build(),
             CreateCampaignResponse.builder()
-                .campaignId("INTEGRATION_CAMP_003")
-                .name("Integration Campaign 3")
-                .status("ACTIVE")
-                .build()
+                    .campaignId("INTEGRATION_CAMP_003")
+                    .name("Integration Campaign 3")
+                    .status("ACTIVE")
+                    .build()
         };
         when(binomClient.createCampaign(any(CreateCampaignRequest.class)))
                 .thenReturn(campaignResponses[0], campaignResponses[1], campaignResponses[2]);
 
         // Mock offer assignment
-        AssignOfferResponse assignResponse = AssignOfferResponse.builder()
-                .campaignId("test")
-                .offerId("INTEGRATION_OFFER_123")
-                .status("ASSIGNED")
-                .build();
-        when(binomClient.assignOfferToCampaign(anyString(), anyString())).thenReturn(assignResponse);
+        AssignOfferResponse assignResponse =
+                AssignOfferResponse.builder()
+                        .campaignId("test")
+                        .offerId("INTEGRATION_OFFER_123")
+                        .status("ASSIGNED")
+                        .build();
+        when(binomClient.assignOfferToCampaign(anyString(), anyString()))
+                .thenReturn(assignResponse);
 
         // Mock campaign stats (realistic distribution across 3 campaigns)
         setupCampaignStatsMocks();
@@ -147,31 +146,34 @@ class CompleteBinom3CampaignWorkflowIntegrationTest {
 
     private void setupCampaignStatsMocks() {
         // Campaign 1: 35% of traffic
-        CampaignStatsResponse stats1 = CampaignStatsResponse.builder()
-                .campaignId("INTEGRATION_CAMP_001")
-                .clicks(1050L) // 35% of 3000
-                .conversions(350L) // 35% of 1000 target conversions
-                .cost(BigDecimal.valueOf(525.0))
-                .revenue(BigDecimal.valueOf(700.0))
-                .build();
+        CampaignStatsResponse stats1 =
+                CampaignStatsResponse.builder()
+                        .campaignId("INTEGRATION_CAMP_001")
+                        .clicks(1050L) // 35% of 3000
+                        .conversions(350L) // 35% of 1000 target conversions
+                        .cost(BigDecimal.valueOf(525.0))
+                        .revenue(BigDecimal.valueOf(700.0))
+                        .build();
 
         // Campaign 2: 40% of traffic
-        CampaignStatsResponse stats2 = CampaignStatsResponse.builder()
-                .campaignId("INTEGRATION_CAMP_002")
-                .clicks(1200L) // 40% of 3000
-                .conversions(400L) // 40% of 1000 target conversions
-                .cost(BigDecimal.valueOf(600.0))
-                .revenue(BigDecimal.valueOf(800.0))
-                .build();
+        CampaignStatsResponse stats2 =
+                CampaignStatsResponse.builder()
+                        .campaignId("INTEGRATION_CAMP_002")
+                        .clicks(1200L) // 40% of 3000
+                        .conversions(400L) // 40% of 1000 target conversions
+                        .cost(BigDecimal.valueOf(600.0))
+                        .revenue(BigDecimal.valueOf(800.0))
+                        .build();
 
         // Campaign 3: 25% of traffic
-        CampaignStatsResponse stats3 = CampaignStatsResponse.builder()
-                .campaignId("INTEGRATION_CAMP_003")
-                .clicks(750L) // 25% of 3000
-                .conversions(250L) // 25% of 1000 target conversions
-                .cost(BigDecimal.valueOf(375.0))
-                .revenue(BigDecimal.valueOf(500.0))
-                .build();
+        CampaignStatsResponse stats3 =
+                CampaignStatsResponse.builder()
+                        .campaignId("INTEGRATION_CAMP_003")
+                        .clicks(750L) // 25% of 3000
+                        .conversions(250L) // 25% of 1000 target conversions
+                        .cost(BigDecimal.valueOf(375.0))
+                        .revenue(BigDecimal.valueOf(500.0))
+                        .build();
 
         when(binomClient.getCampaignStats("INTEGRATION_CAMP_001")).thenReturn(stats1);
         when(binomClient.getCampaignStats("INTEGRATION_CAMP_002")).thenReturn(stats2);
@@ -189,37 +191,41 @@ class CompleteBinom3CampaignWorkflowIntegrationTest {
         orderRequest.setLink(TEST_VIDEO_URL);
         orderRequest.setQuantity(TARGET_VIEWS);
 
-        MvcResult result = mockMvc.perform(post("/api/orders")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(orderRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("PENDING"))
-                .andExpect(jsonPath("$.quantity").value(TARGET_VIEWS))
-                .andExpect(jsonPath("$.link").value(TEST_VIDEO_URL))
-                .andReturn();
+        MvcResult result =
+                mockMvc.perform(
+                                post("/api/orders")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(objectMapper.writeValueAsString(orderRequest)))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.status").value("PENDING"))
+                        .andExpect(jsonPath("$.quantity").value(TARGET_VIEWS))
+                        .andExpect(jsonPath("$.link").value(TEST_VIDEO_URL))
+                        .andReturn();
 
         String responseContent = result.getResponse().getContentAsString();
         OrderResponse orderResponse = objectMapper.readValue(responseContent, OrderResponse.class);
         Long orderId = orderResponse.getId();
-        
+
         assertNotNull(orderId);
-        
+
         // Step 2: Simulate order processing initialization
-        OrderProcessingContext context = youTubeAutomationService.initializeOrderProcessing(orderId);
+        OrderProcessingContext context =
+                youTubeAutomationService.initializeOrderProcessing(orderId);
         assertNotNull(context);
         assertEquals(orderId, context.getOrderId());
         assertEquals(TEST_VIDEO_ID, context.getVideoId());
         assertEquals(TARGET_VIEWS, context.getTargetQuantity());
 
         // Step 3: Create Binom integration with 3-campaign distribution
-        BinomIntegrationRequest binomRequest = BinomIntegrationRequest.builder()
-                .orderId(orderId)
-                .targetViews(TARGET_VIEWS)
-                .targetUrl(TEST_VIDEO_URL)
-                .clipCreated(true) // Test with clip creation
-                .coefficient(COEFFICIENT_WITH_CLIP)
-                .geoTargeting("US")
-                .build();
+        BinomIntegrationRequest binomRequest =
+                BinomIntegrationRequest.builder()
+                        .orderId(orderId)
+                        .targetViews(TARGET_VIEWS)
+                        .targetUrl(TEST_VIDEO_URL)
+                        .clipCreated(true) // Test with clip creation
+                        .coefficient(COEFFICIENT_WITH_CLIP)
+                        .geoTargeting("US")
+                        .build();
 
         BinomIntegrationResponse binomResponse = binomService.createBinomIntegration(binomRequest);
 
@@ -235,14 +241,22 @@ class CompleteBinom3CampaignWorkflowIntegrationTest {
         assertEquals(3, campaigns.size());
 
         // Verify coefficient calculation distribution
-        int expectedViewsPerCampaign = (int) (TARGET_VIEWS / 3.0 * COEFFICIENT_WITH_CLIP.doubleValue());
-        verify(binomClient, times(3)).createCampaign(argThat(request -> {
-            return Math.abs(request.getTargetViews() - expectedViewsPerCampaign) <= 2; // Allow rounding
-        }));
+        int expectedViewsPerCampaign =
+                (int) (TARGET_VIEWS / 3.0 * COEFFICIENT_WITH_CLIP.doubleValue());
+        verify(binomClient, times(3))
+                .createCampaign(
+                        argThat(
+                                request -> {
+                                    return Math.abs(
+                                                    request.getTargetViews()
+                                                            - expectedViewsPerCampaign)
+                                            <= 2; // Allow rounding
+                                }));
 
         // Step 5: Verify click distribution setup
         verify(binomClient, times(3)).createCampaign(any(CreateCampaignRequest.class));
-        verify(binomClient, times(3)).assignOfferToCampaign(eq("INTEGRATION_OFFER_123"), anyString());
+        verify(binomClient, times(3))
+                .assignOfferToCampaign(eq("INTEGRATION_OFFER_123"), anyString());
 
         // Store order for next test
         testOrder = orderRepository.findById(orderId).orElse(null);
@@ -265,7 +279,7 @@ class CompleteBinom3CampaignWorkflowIntegrationTest {
         CampaignStatsResponse aggregatedStats = binomService.getCampaignStatsForOrder(orderId);
 
         assertNotNull(aggregatedStats);
-        
+
         // Verify aggregated click distribution
         assertEquals(3000L, aggregatedStats.getClicks()); // 1050 + 1200 + 750
         assertEquals(1000L, aggregatedStats.getConversions()); // 350 + 400 + 250
@@ -274,7 +288,7 @@ class CompleteBinom3CampaignWorkflowIntegrationTest {
 
         // Verify campaign status aggregation
         assertEquals("ACTIVE", aggregatedStats.getStatus());
-        
+
         // Verify campaign IDs are properly aggregated
         String campaignIds = aggregatedStats.getCampaignId();
         assertTrue(campaignIds.contains("INTEGRATION_CAMP_001"));
@@ -335,18 +349,20 @@ class CompleteBinom3CampaignWorkflowIntegrationTest {
         testCoefficientScenario(false, COEFFICIENT_WITHOUT_CLIP, "without clip creation");
     }
 
-    private void testCoefficientScenario(boolean clipCreated, BigDecimal coefficient, String scenario) {
+    private void testCoefficientScenario(
+            boolean clipCreated, BigDecimal coefficient, String scenario) {
         // Create new order for this scenario
         Order order = createTestOrderDirectly();
-        
-        BinomIntegrationRequest request = BinomIntegrationRequest.builder()
-                .orderId(order.getId())
-                .targetViews(TARGET_VIEWS)
-                .targetUrl(TEST_VIDEO_URL)
-                .clipCreated(clipCreated)
-                .coefficient(coefficient)
-                .geoTargeting("US")
-                .build();
+
+        BinomIntegrationRequest request =
+                BinomIntegrationRequest.builder()
+                        .orderId(order.getId())
+                        .targetViews(TARGET_VIEWS)
+                        .targetUrl(TEST_VIDEO_URL)
+                        .clipCreated(clipCreated)
+                        .coefficient(coefficient)
+                        .geoTargeting("US")
+                        .build();
 
         BinomIntegrationResponse response = binomService.createBinomIntegration(request);
 
@@ -357,27 +373,35 @@ class CompleteBinom3CampaignWorkflowIntegrationTest {
         // Calculate expected views per campaign: (targetViews / 3) * coefficient
         int expectedViewsPerCampaign = (int) (TARGET_VIEWS / 3.0 * coefficient.doubleValue());
 
-        verify(binomClient, times(3)).createCampaign(argThat(campaignRequest -> {
-            int actualViews = campaignRequest.getTargetViews();
-            boolean isWithinRange = Math.abs(actualViews - expectedViewsPerCampaign) <= 2;
-            
-            if (!isWithinRange) {
-                System.err.printf("Coefficient test failed for %s: expected ~%d views, got %d views%n", 
-                    scenario, expectedViewsPerCampaign, actualViews);
-            }
-            
-            return isWithinRange;
-        }));
+        verify(binomClient, times(3))
+                .createCampaign(
+                        argThat(
+                                campaignRequest -> {
+                                    int actualViews = campaignRequest.getTargetViews();
+                                    boolean isWithinRange =
+                                            Math.abs(actualViews - expectedViewsPerCampaign) <= 2;
+
+                                    if (!isWithinRange) {
+                                        System.err.printf(
+                                                "Coefficient test failed for %s: expected ~%d"
+                                                        + " views, got %d views%n",
+                                                scenario, expectedViewsPerCampaign, actualViews);
+                                    }
+
+                                    return isWithinRange;
+                                }));
 
         // Verify total views across all campaigns
         int totalExpectedViews = expectedViewsPerCampaign * 3;
         int tolerance = 6; // Allow for rounding across 3 campaigns
-        
+
         // This should be approximately TARGET_VIEWS * coefficient
         int theoreticalTotal = (int) (TARGET_VIEWS * coefficient.doubleValue());
-        assertTrue(Math.abs(totalExpectedViews - theoreticalTotal) <= tolerance,
-            String.format("Total views for %s: expected ~%d, calculated %d", 
-                scenario, theoreticalTotal, totalExpectedViews));
+        assertTrue(
+                Math.abs(totalExpectedViews - theoreticalTotal) <= tolerance,
+                String.format(
+                        "Total views for %s: expected ~%d, calculated %d",
+                        scenario, theoreticalTotal, totalExpectedViews));
     }
 
     @Test
@@ -389,24 +413,27 @@ class CompleteBinom3CampaignWorkflowIntegrationTest {
 
         // Reset and setup partial failure mocks
         reset(binomClient);
-        
+
         // Mock offer creation success
-        CreateOfferResponse offerResponse = CreateOfferResponse.builder()
-                .offerId("ERROR_TEST_OFFER")
-                .name("Error Test Offer")
-                .url(TEST_VIDEO_URL)
-                .build();
+        CreateOfferResponse offerResponse =
+                CreateOfferResponse.builder()
+                        .offerId("ERROR_TEST_OFFER")
+                        .name("Error Test Offer")
+                        .url(TEST_VIDEO_URL)
+                        .build();
         when(binomClient.createOffer(any())).thenReturn(offerResponse);
 
         // Mock partial campaign creation failure
-        CreateCampaignResponse successCampaign1 = CreateCampaignResponse.builder()
-                .campaignId("ERROR_CAMP_001")
-                .status("ACTIVE")
-                .build();
-        CreateCampaignResponse successCampaign3 = CreateCampaignResponse.builder()
-                .campaignId("ERROR_CAMP_003")
-                .status("ACTIVE")
-                .build();
+        CreateCampaignResponse successCampaign1 =
+                CreateCampaignResponse.builder()
+                        .campaignId("ERROR_CAMP_001")
+                        .status("ACTIVE")
+                        .build();
+        CreateCampaignResponse successCampaign3 =
+                CreateCampaignResponse.builder()
+                        .campaignId("ERROR_CAMP_003")
+                        .status("ACTIVE")
+                        .build();
 
         when(binomClient.createCampaign(any()))
                 .thenReturn(successCampaign1) // First succeeds
@@ -416,14 +443,15 @@ class CompleteBinom3CampaignWorkflowIntegrationTest {
         when(binomClient.assignOfferToCampaign(anyString(), anyString()))
                 .thenReturn(AssignOfferResponse.builder().status("ASSIGNED").build());
 
-        BinomIntegrationRequest request = BinomIntegrationRequest.builder()
-                .orderId(order.getId())
-                .targetViews(TARGET_VIEWS)
-                .targetUrl(TEST_VIDEO_URL)
-                .clipCreated(true)
-                .coefficient(COEFFICIENT_WITH_CLIP)
-                .geoTargeting("US")
-                .build();
+        BinomIntegrationRequest request =
+                BinomIntegrationRequest.builder()
+                        .orderId(order.getId())
+                        .targetViews(TARGET_VIEWS)
+                        .targetUrl(TEST_VIDEO_URL)
+                        .clipCreated(true)
+                        .coefficient(COEFFICIENT_WITH_CLIP)
+                        .geoTargeting("US")
+                        .build();
 
         // Execute and verify partial success
         BinomIntegrationResponse response = binomService.createBinomIntegration(request);
@@ -457,11 +485,12 @@ class CompleteBinom3CampaignWorkflowIntegrationTest {
         // Verify order was marked as completed
         Order updatedOrder = orderRepository.findById(orderId).orElse(null);
         assertNotNull(updatedOrder);
-        
+
         // Check if order completion logic was triggered
         CampaignStatsResponse stats = binomService.getCampaignStatsForOrder(orderId);
-        assertTrue(stats.getConversions() >= TARGET_VIEWS, 
-            "Campaign conversions should meet or exceed target for completion");
+        assertTrue(
+                stats.getConversions() >= TARGET_VIEWS,
+                "Campaign conversions should meet or exceed target for completion");
 
         // Test API endpoint for order status
         mockMvc.perform(get("/api/orders/" + orderId))
@@ -472,29 +501,32 @@ class CompleteBinom3CampaignWorkflowIntegrationTest {
 
     private void setupOrderCompletionMocks() {
         // Mock stats that indicate order completion
-        CampaignStatsResponse completionStats1 = CampaignStatsResponse.builder()
-                .campaignId("INTEGRATION_CAMP_001")
-                .clicks(2000L)
-                .conversions(1000L) // Enough to complete
-                .cost(BigDecimal.valueOf(1000.0))
-                .revenue(BigDecimal.valueOf(1500.0))
-                .build();
+        CampaignStatsResponse completionStats1 =
+                CampaignStatsResponse.builder()
+                        .campaignId("INTEGRATION_CAMP_001")
+                        .clicks(2000L)
+                        .conversions(1000L) // Enough to complete
+                        .cost(BigDecimal.valueOf(1000.0))
+                        .revenue(BigDecimal.valueOf(1500.0))
+                        .build();
 
-        CampaignStatsResponse completionStats2 = CampaignStatsResponse.builder()
-                .campaignId("INTEGRATION_CAMP_002")
-                .clicks(2000L)
-                .conversions(1000L)
-                .cost(BigDecimal.valueOf(1000.0))
-                .revenue(BigDecimal.valueOf(1500.0))
-                .build();
+        CampaignStatsResponse completionStats2 =
+                CampaignStatsResponse.builder()
+                        .campaignId("INTEGRATION_CAMP_002")
+                        .clicks(2000L)
+                        .conversions(1000L)
+                        .cost(BigDecimal.valueOf(1000.0))
+                        .revenue(BigDecimal.valueOf(1500.0))
+                        .build();
 
-        CampaignStatsResponse completionStats3 = CampaignStatsResponse.builder()
-                .campaignId("INTEGRATION_CAMP_003")
-                .clicks(2000L)
-                .conversions(1000L)
-                .cost(BigDecimal.valueOf(1000.0))
-                .revenue(BigDecimal.valueOf(1500.0))
-                .build();
+        CampaignStatsResponse completionStats3 =
+                CampaignStatsResponse.builder()
+                        .campaignId("INTEGRATION_CAMP_003")
+                        .clicks(2000L)
+                        .conversions(1000L)
+                        .cost(BigDecimal.valueOf(1000.0))
+                        .revenue(BigDecimal.valueOf(1500.0))
+                        .build();
 
         when(binomClient.getCampaignStats("INTEGRATION_CAMP_001")).thenReturn(completionStats1);
         when(binomClient.getCampaignStats("INTEGRATION_CAMP_002")).thenReturn(completionStats2);
@@ -503,29 +535,32 @@ class CompleteBinom3CampaignWorkflowIntegrationTest {
 
     private void updateCampaignStatsMocks() {
         // Updated stats - 50% increase across all campaigns
-        CampaignStatsResponse updatedStats1 = CampaignStatsResponse.builder()
-                .campaignId("INTEGRATION_CAMP_001")
-                .clicks(1575L) // 50% increase
-                .conversions(525L)
-                .cost(BigDecimal.valueOf(787.5))
-                .revenue(BigDecimal.valueOf(1050.0))
-                .build();
+        CampaignStatsResponse updatedStats1 =
+                CampaignStatsResponse.builder()
+                        .campaignId("INTEGRATION_CAMP_001")
+                        .clicks(1575L) // 50% increase
+                        .conversions(525L)
+                        .cost(BigDecimal.valueOf(787.5))
+                        .revenue(BigDecimal.valueOf(1050.0))
+                        .build();
 
-        CampaignStatsResponse updatedStats2 = CampaignStatsResponse.builder()
-                .campaignId("INTEGRATION_CAMP_002")
-                .clicks(1800L)
-                .conversions(600L)
-                .cost(BigDecimal.valueOf(900.0))
-                .revenue(BigDecimal.valueOf(1200.0))
-                .build();
+        CampaignStatsResponse updatedStats2 =
+                CampaignStatsResponse.builder()
+                        .campaignId("INTEGRATION_CAMP_002")
+                        .clicks(1800L)
+                        .conversions(600L)
+                        .cost(BigDecimal.valueOf(900.0))
+                        .revenue(BigDecimal.valueOf(1200.0))
+                        .build();
 
-        CampaignStatsResponse updatedStats3 = CampaignStatsResponse.builder()
-                .campaignId("INTEGRATION_CAMP_003")
-                .clicks(1125L)
-                .conversions(375L)
-                .cost(BigDecimal.valueOf(562.5))
-                .revenue(BigDecimal.valueOf(750.0))
-                .build();
+        CampaignStatsResponse updatedStats3 =
+                CampaignStatsResponse.builder()
+                        .campaignId("INTEGRATION_CAMP_003")
+                        .clicks(1125L)
+                        .conversions(375L)
+                        .cost(BigDecimal.valueOf(562.5))
+                        .revenue(BigDecimal.valueOf(750.0))
+                        .build();
 
         when(binomClient.getCampaignStats("INTEGRATION_CAMP_001")).thenReturn(updatedStats1);
         when(binomClient.getCampaignStats("INTEGRATION_CAMP_002")).thenReturn(updatedStats2);
@@ -547,7 +582,7 @@ class CompleteBinom3CampaignWorkflowIntegrationTest {
         order.setYoutubeVideoId(TEST_VIDEO_ID);
         order.setCreatedAt(LocalDateTime.now());
         order.setUpdatedAt(LocalDateTime.now());
-        
+
         return orderRepository.save(order);
     }
 }

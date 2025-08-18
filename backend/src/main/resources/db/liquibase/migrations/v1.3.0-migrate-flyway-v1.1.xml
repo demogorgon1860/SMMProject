@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog 
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- 
+    v1.3.0 - Migrated from Flyway V1.1__Add_Missing_Columns.sql
+    
+    This changeset adds missing columns and tables that were not included 
+    in the initial schema setup. It's idempotent and safe to run multiple times.
+    
+    Context: all (safe for all environments)
+    Rollback: Supported - removes added columns and tables
+    -->
+
+    <changeSet id="1.3.0-add-missing-final-url-column" author="migration-team" context="all">
+        <comment>Add missing final_url column to video_processing table</comment>
+        
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="video_processing"/>
+            <not>
+                <columnExists tableName="video_processing" columnName="final_url"/>
+            </not>
+        </preConditions>
+
+        <addColumn tableName="video_processing">
+            <column name="final_url" type="VARCHAR(500)"/>
+        </addColumn>
+
+        <rollback>
+            <dropColumn tableName="video_processing" columnName="final_url"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.3.0-add-geo-targeting-to-services" author="migration-team" context="all">
+        <comment>Add geo_targeting column to services table with default value</comment>
+        
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="services"/>
+            <not>
+                <columnExists tableName="services" columnName="geo_targeting"/>
+            </not>
+        </preConditions>
+
+        <addColumn tableName="services">
+            <column name="geo_targeting" type="VARCHAR(50)" defaultValue="US">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <rollback>
+            <dropColumn tableName="services" columnName="geo_targeting"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.3.0-create-conversion-coefficients-table" author="migration-team" context="all">
+        <comment>Create conversion_coefficients table if not exists</comment>
+        
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="conversion_coefficients"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="conversion_coefficients">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="service_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="coefficient" type="DECIMAL(4,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="without_clip" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_by" type="VARCHAR(100)"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint 
+            tableName="conversion_coefficients" 
+            columnNames="service_id, without_clip"
+            constraintName="uk_conversion_coefficients_service_clip"/>
+
+        <rollback>
+            <dropTable tableName="conversion_coefficients"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.3.0-create-fixed-binom-campaigns-table" author="migration-team" context="all">
+        <comment>Create fixed_binom_campaigns table if not exists</comment>
+        
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="fixed_binom_campaigns"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="fixed_binom_campaigns">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="campaign_id" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="campaign_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="geo_targeting" type="VARCHAR(50)" defaultValue="US"/>
+            <column name="weight" type="INTEGER" defaultValueNumeric="100"/>
+            <column name="priority" type="INTEGER" defaultValueNumeric="1"/>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="description" type="VARCHAR(500)"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="fixed_binom_campaigns" indexName="idx_fixed_binom_campaigns_active">
+            <column name="active"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="fixed_binom_campaigns"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.3.0-insert-default-conversion-coefficients" author="migration-team" context="all">
+        <comment>Insert default conversion coefficients for existing services</comment>
+        
+        <preConditions onFail="CONTINUE">
+            <tableExists tableName="conversion_coefficients"/>
+            <tableExists tableName="services"/>
+        </preConditions>
+
+        <!-- Use SQL for complex insert with conflict handling -->
+        <sql>
+            -- Insert coefficients with clip (coefficient = 3.0)
+            INSERT INTO conversion_coefficients (service_id, coefficient, without_clip, updated_by) 
+            SELECT id, 3.0, FALSE, 'SYSTEM' FROM services 
+            ON CONFLICT (service_id, without_clip) DO NOTHING;
+
+            -- Insert coefficients without clip (coefficient = 4.0)
+            INSERT INTO conversion_coefficients (service_id, coefficient, without_clip, updated_by) 
+            SELECT id, 4.0, TRUE, 'SYSTEM' FROM services 
+            ON CONFLICT (service_id, without_clip) DO NOTHING;
+        </sql>
+
+        <rollback>
+            <delete tableName="conversion_coefficients">
+                <where>updated_by = 'SYSTEM'</where>
+            </delete>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.3.0-record-migration-metadata" author="migration-team" context="all">
+        <comment>Record migration execution metadata</comment>
+        
+        <preConditions onFail="CONTINUE">
+            <tableExists tableName="liquibase_migration_metadata"/>
+        </preConditions>
+
+        <insert tableName="liquibase_migration_metadata">
+            <column name="changeset_id" value="1.3.0-migrate-flyway-v1.1"/>
+            <column name="version" value="1.3.0"/>
+            <column name="context" value="all"/>
+            <column name="rollback_available" valueBoolean="true"/>
+            <column name="notes" value="Migrated from Flyway V1.1__Add_Missing_Columns.sql - Added missing columns and tables"/>
+        </insert>
+
+        <rollback>
+            <delete tableName="liquibase_migration_metadata">
+                <where>changeset_id = '1.3.0-migrate-flyway-v1.1'</where>
+            </delete>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

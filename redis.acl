@@ -1,0 +1,146 @@
+# Redis ACL Configuration File
+# =============================
+# User-based access control for Redis 7
+# 
+# Format: user <username> [attributes...]
+# Attributes:
+#   on/off - Enable/disable user
+#   +<command> - Allow command
+#   -<command> - Deny command
+#   +@<category> - Allow command category
+#   -@<category> - Deny command category
+#   ~<pattern> - Key pattern access
+#   &<pattern> - Pub/Sub channel pattern
+#   ><password> - Set password (SHA256)
+#   nopass - No password required
+#   resetkeys - Reset key patterns
+#   reset - Reset all rules
+
+# =============================
+# DEFAULT USER (Disabled for Security)
+# =============================
+user default on -@all +ping
+
+# =============================
+# APPLICATION USERS
+# =============================
+
+# Main application user - Full cache operations
+user app-user on ~* &* -@dangerous +@read +@write +@list +@set +@hash +@string +@bitmap +@stream +@geo +@hyperloglog -flushdb -flushall -shutdown -config -acl -debug -lastsave -monitor -role -slaveof -replicaof -save -bgsave -bgrewriteaof
+
+# Read-only cache user - For reporting/analytics
+user readonly-user on ~* &* -@all +@read +ping +info +exists +ttl +type +strlen +llen +scard +zcard +hlen +memory|usage
+
+# Session management user - Limited to session keys
+user session-user on ~session:* ~sess:* &* -@all +@read +@write +@string +expire +ttl +del +exists
+
+# Rate limiting user - For API rate limiting
+user ratelimit-user on ~rate:* ~limit:* &* -@all +@read +@write +incr +decr +expire +ttl +del +exists +get +set +setex
+
+# =============================
+# SERVICE ACCOUNTS
+# =============================
+
+# YouTube service - Access to YouTube-related caches
+user youtube-service on ~youtube:* ~video:* ~clip:* &* -@all +@read +@write +@hash +@string +@list +expire +ttl +del
+
+# Binom service - Campaign management caches  
+user binom-service on ~binom:* ~campaign:* ~offer:* &* -@all +@read +@write +@hash +@string +expire +ttl +del
+
+# Order service - Order processing caches
+user order-service on ~order:* ~processing:* &order-events -@all +@read +@write +@hash +@string +@stream +@list +expire +ttl +del +xadd +xread +xrange +xlen
+
+# Payment service - Payment and balance caches
+user payment-service on ~payment:* ~balance:* ~transaction:* &payment-events -@all +@read +@write +@string +@hash +expire +ttl +del +publish +subscribe
+
+# =============================
+# MONITORING & OPERATIONS
+# =============================
+
+# Monitoring user - For Prometheus/Grafana
+user monitoring on ~* &* -@all +ping +info +client|list +client|getname +config|get +cluster|info +latency|* +memory|* +slowlog|get +dbsize +lastsave
+
+# Backup user - For backup operations
+user backup-user on ~* &* -@all +@read +bgsave +lastsave +config|get +client|list +info
+
+# Health check user - For Docker/K8s health checks
+user healthcheck on ~health:check &* -@all +ping +info|server +client|list
+
+# =============================
+# ADMINISTRATIVE USERS  
+# =============================
+
+# Admin user - Full access (use very strong password)
+user admin on ~* &* +@all
+
+# DBA user - Database administration without dangerous commands
+user dba-user on ~* &* +@all -flushall -shutdown -config|set -acl|* -debug
+
+# =============================
+# DEVELOPMENT USERS (Disable in Production)
+# =============================
+
+# Developer user - Full access to dev/test keys only
+user developer on ~dev:* ~test:* ~debug:* &dev:* &test:* -@dangerous +@all -flushall -shutdown
+
+# =============================
+# MIGRATION & MAINTENANCE
+# =============================
+
+# Migration user - For data migration tasks
+user migration-user on ~* &* -@all +@read +@write +migrate +dump +restore +copy +move
+
+# =============================
+# ACL RULES NOTES
+# =============================
+# 
+# Command Categories:
+# - @read: Read-only commands
+# - @write: Write commands
+# - @list: List commands
+# - @set: Set commands
+# - @sortedset: Sorted set commands
+# - @hash: Hash commands
+# - @string: String commands
+# - @bitmap: Bitmap commands
+# - @hyperloglog: HyperLogLog commands
+# - @geo: Geo commands
+# - @stream: Stream commands
+# - @pubsub: Pub/Sub commands
+# - @transaction: Transaction commands
+# - @scripting: Lua scripting commands
+# - @dangerous: Dangerous administrative commands
+# - @admin: Administrative commands
+# - @slow: Potentially slow commands
+# - @blocking: Blocking commands
+# - @connection: Connection commands
+# - @keyspace: Keyspace notification commands
+#
+# Key Patterns:
+# - ~*: All keys
+# - ~cache:*: Keys starting with "cache:"
+# - ~user:*: Keys starting with "user:"
+# 
+# Channel Patterns:
+# - &*: All channels
+# - &events:*: Channels starting with "events:"
+#
+# Password Setting (use redis-cli):
+# ACL SETUSER username >[password_hash]
+# 
+# Generate password hash:
+# echo -n "password" | sha256sum
+#
+# Apply this ACL file:
+# 1. Save as /etc/redis/users.acl
+# 2. Add to redis.conf: aclfile /etc/redis/users.acl
+# 3. Or load dynamically: ACL LOAD
+#
+# Best Practices:
+# 1. Use strong passwords for all users
+# 2. Disable default user in production
+# 3. Create specific users for each service
+# 4. Use key patterns to limit access scope
+# 5. Regularly audit ACL logs: ACL LOG
+# 6. Rotate passwords periodically
+# 7. Monitor failed authentication attempts

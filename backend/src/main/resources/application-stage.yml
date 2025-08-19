@@ -6,13 +6,13 @@ spring:
   # STAGING LIQUIBASE CONFIGURATION
   # ===============================
   liquibase:
-    contexts: stage,all
+    enabled: ${SPRING_LIQUIBASE_ENABLED:true}
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    contexts: stage,dev  # Stage gets dev data for testing
     drop-first: false
     test-rollback-on-update: true
     # Moderate logging for staging
     verbose: false
-    # Staging-specific settings
-    should-run: ${LIQUIBASE_SHOULD_RUN:true}
     rollback-file: /tmp/liquibase-rollback-staging.sql
 
   # ===============================

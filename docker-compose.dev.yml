@@ -115,26 +115,217 @@ services:
         
         echo 'Creating Kafka topics...'
         
-        # Create offer assignment events topic
+        # Order processing topics
         kafka-topics --create --if-not-exists \
           --bootstrap-server kafka:29092 \
-          --topic offer-assignment-events \
+          --topic smm.order.processing \
           --partitions 3 \
-          --replication-factor 1
+          --replication-factor 1 \
+          --config retention.ms=604800000 \
+          --config compression.type=snappy
           
-        # Create video processing events topic
         kafka-topics --create --if-not-exists \
           --bootstrap-server kafka:29092 \
-          --topic video-processing-events \
+          --topic smm.order.state.updates \
           --partitions 3 \
-          --replication-factor 1
+          --replication-factor 1 \
+          --config retention.ms=604800000 \
+          --config compression.type=snappy
           
-        # Create order update events topic
         kafka-topics --create --if-not-exists \
           --bootstrap-server kafka:29092 \
-          --topic order-update-events \
+          --topic smm.order.refund \
+          --partitions 1 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000 \
+          --config compression.type=snappy
+          
+        # Video processing topics
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:29092 \
+          --topic smm.video.processing \
           --partitions 3 \
-          --replication-factor 1
+          --replication-factor 1 \
+          --config retention.ms=2592000000 \
+          --config compression.type=snappy
+          
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:29092 \
+          --topic smm.video.processing.retry \
+          --partitions 1 \
+          --replication-factor 1 \
+          --config retention.ms=86400000 \
+          --config compression.type=snappy
+          
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:29092 \
+          --topic smm.youtube.processing \
+          --partitions 3 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000 \
+          --config compression.type=snappy
+          
+        # Binom and offer assignment topics
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:29092 \
+          --topic smm.binom.campaign.creation \
+          --partitions 3 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000 \
+          --config compression.type=snappy
+          
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:29092 \
+          --topic smm.offer.assignments \
+          --partitions 3 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000 \
+          --config compression.type=snappy
+          
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:29092 \
+          --topic smm.offer.assignment.events \
+          --partitions 3 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000 \
+          --config compression.type=snappy
+          
+        # Notification topic
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:29092 \
+          --topic smm.notifications \
+          --partitions 3 \
+          --replication-factor 1 \
+          --config retention.ms=604800000 \
+          --config compression.type=snappy
+          
+        # Payment topics
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:29092 \
+          --topic smm.payment.confirmations \
+          --partitions 3 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000 \
+          --config compression.type=snappy \
+          --config min.insync.replicas=1
+          
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:29092 \
+          --topic smm.payment.webhooks \
+          --partitions 3 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000 \
+          --config compression.type=snappy \
+          --config min.insync.replicas=1
+          
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:29092 \
+          --topic smm.payment.refunds \
+          --partitions 3 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000 \
+          --config compression.type=snappy \
+          --config min.insync.replicas=1
+          
+        # DLQ (Dead Letter Queue) topics
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:29092 \
+          --topic smm.order.processing.dlq \
+          --partitions 1 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000 \
+          --config compression.type=snappy
+          
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:29092 \
+          --topic smm.order.state.updates.dlq \
+          --partitions 1 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000 \
+          --config compression.type=snappy
+          
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:29092 \
+          --topic smm.video.processing.dlq \
+          --partitions 1 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000 \
+          --config compression.type=snappy
+          
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:29092 \
+          --topic smm.video.processing.retry.dlq \
+          --partitions 1 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000 \
+          --config compression.type=snappy
+          
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:29092 \
+          --topic smm.youtube.processing.dlq \
+          --partitions 1 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000 \
+          --config compression.type=snappy
+          
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:29092 \
+          --topic smm.binom.campaign.creation.dlq \
+          --partitions 1 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000 \
+          --config compression.type=snappy
+          
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:29092 \
+          --topic smm.offer.assignments.dlq \
+          --partitions 1 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000 \
+          --config compression.type=snappy
+          
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:29092 \
+          --topic smm.order.refund.dlq \
+          --partitions 1 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000 \
+          --config compression.type=snappy
+          
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:29092 \
+          --topic smm.notifications.dlq \
+          --partitions 1 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000 \
+          --config compression.type=snappy
+          
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:29092 \
+          --topic smm.payment.confirmations.dlq \
+          --partitions 1 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000 \
+          --config compression.type=snappy \
+          --config min.insync.replicas=1
+          
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:29092 \
+          --topic smm.payment.webhooks.dlq \
+          --partitions 1 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000 \
+          --config compression.type=snappy \
+          --config min.insync.replicas=1
+          
+        kafka-topics --create --if-not-exists \
+          --bootstrap-server kafka:29092 \
+          --topic smm.payment.refunds.dlq \
+          --partitions 1 \
+          --replication-factor 1 \
+          --config retention.ms=2592000000 \
+          --config compression.type=snappy \
+          --config min.insync.replicas=1
           
         echo 'Kafka topics created successfully'
       "

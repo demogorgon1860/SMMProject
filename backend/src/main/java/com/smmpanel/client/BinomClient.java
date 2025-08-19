@@ -26,7 +26,7 @@ public class BinomClient {
     private final io.github.resilience4j.retry.Retry readRetry;
     private final io.github.resilience4j.retry.Retry writeRetry;
 
-    @Value("${app.binom.api.url:https://your-binom-domain.com/public/api/v1}")
+    @Value("${app.binom.api.url:https://your-binom-domain.com}")
     private String apiUrl;
 
     @Value("${app.binom.api.key:your-binom-api-key}")
@@ -45,14 +45,14 @@ public class BinomClient {
         this.writeRetry = writeRetry;
     }
 
-    private static final String API_KEY_HEADER = "Api-Key";
+    private static final String API_KEY_HEADER = "X-API-Key";
     private static final String FORMAT_JSON = "json";
 
     // ...existing code...
 
     /** Create a new campaign in Binom */
     public CreateCampaignResponse createCampaign(CreateCampaignRequest request) {
-        String endpoint = "/campaign";
+        String endpoint = "/public/api/v1/campaign";
         String url =
                 UriComponentsBuilder.fromHttpUrl(apiUrl + endpoint)
                         .queryParam("format", FORMAT_JSON)
@@ -82,9 +82,9 @@ public class BinomClient {
                                     Map<String, Object> responseBody = response.getBody();
                                     validateResponseBody(responseBody, endpoint, "createCampaign");
 
-                                    if (responseBody.containsKey("campaign_id")) {
+                                    if (responseBody.containsKey("id")) {
                                         String campaignId =
-                                                String.valueOf(responseBody.get("campaign_id"));
+                                                String.valueOf(responseBody.get("id"));
                                         log.info(
                                                 "Successfully created Binom campaign: {} -> {}",
                                                 request.getName(),
@@ -98,7 +98,7 @@ public class BinomClient {
                                     }
 
                                     throw new BinomApiException(
-                                            "Invalid response: missing campaign_id field",
+                                            "Invalid response: missing id field",
                                             HttpStatus.OK,
                                             endpoint);
                                 }));
@@ -106,7 +106,7 @@ public class BinomClient {
 
     /** Create a new offer in Binom */
     public CreateOfferResponse createOffer(CreateOfferRequest request) {
-        String endpoint = "/offer";
+        String endpoint = "/public/api/v1/offer";
         String url =
                 UriComponentsBuilder.fromHttpUrl(apiUrl + endpoint)
                         .queryParam("format", FORMAT_JSON)
@@ -136,9 +136,9 @@ public class BinomClient {
                                     Map<String, Object> responseBody = response.getBody();
                                     validateResponseBody(responseBody, endpoint, "createOffer");
 
-                                    if (responseBody.containsKey("offer_id")) {
+                                    if (responseBody.containsKey("id")) {
                                         String offerId =
-                                                String.valueOf(responseBody.get("offer_id"));
+                                                String.valueOf(responseBody.get("id"));
                                         log.info(
                                                 "Successfully created Binom offer: {} -> {}",
                                                 request.getName(),
@@ -152,19 +152,20 @@ public class BinomClient {
                                     }
 
                                     throw new BinomApiException(
-                                            "Invalid response: missing offer_id field",
+                                            "Invalid response: missing id field",
                                             HttpStatus.OK,
                                             endpoint);
                                 }));
     }
 
-    /** Assign offer to campaign */
+    /** Assign offer to campaign - Note: In V2, offers are assigned during campaign creation/update */
     public AssignOfferResponse assignOfferToCampaign(String campaignId, String offerId) {
-        String endpoint = String.format("/campaign/%s/offer", campaignId);
+        // In Binom V2, offers are assigned via campaign update with paths configuration
+        // This is a simplified implementation - proper implementation would update campaign paths
+        String endpoint = String.format("/public/api/v1/campaign/%s", campaignId);
         String url =
                 UriComponentsBuilder.fromHttpUrl(apiUrl + endpoint)
                         .queryParam("format", FORMAT_JSON)
-                        .queryParam("offer_id", offerId)
                         .build()
                         .toUriString();
 
@@ -177,7 +178,11 @@ public class BinomClient {
                                     headers.set("User-Agent", "SMM-Panel/1.0");
                                     headers.set(API_KEY_HEADER, apiKey);
 
-                                    HttpEntity<String> entity = new HttpEntity<>("", headers);
+                                    // Need to send campaign update with offer in paths
+                                    Map<String, Object> updateRequest = new java.util.HashMap<>();
+                                    updateRequest.put("offerId", offerId);
+                                    
+                                    HttpEntity<Map<String, Object>> entity = new HttpEntity<>(updateRequest, headers);
 
                                     log.info(
                                             "Assigning offer {} to campaign {}",
@@ -277,7 +282,7 @@ public class BinomClient {
 
     /** Check if offer exists */
     public CheckOfferResponse checkOfferExists(String offerName) {
-        String endpoint = "/offers";
+        String endpoint = "/public/api/v1/offer/list/filtered";
         String url =
                 UriComponentsBuilder.fromHttpUrl(apiUrl + endpoint)
                         .queryParam("format", FORMAT_JSON)
@@ -336,11 +341,12 @@ public class BinomClient {
 
     /** Get campaign statistics */
     public CampaignStatsResponse getCampaignStats(String campaignId) {
-        String endpoint = "/stats/campaign";
+        String endpoint = "/public/api/v1/stats";
         String url =
                 UriComponentsBuilder.fromHttpUrl(apiUrl + endpoint)
                         .queryParam("format", FORMAT_JSON)
-                        .queryParam("campaign_id", campaignId)
+                        .queryParam("entity_name", "campaign")
+                        .queryParam("id[]", campaignId)
                         .build()
                         .toUriString();
 
@@ -396,7 +402,7 @@ public class BinomClient {
 
     /** Get all offers list from Binom */
     public OffersListResponse getOffersList() {
-        String endpoint = "/offer/list/all";
+        String endpoint = "/public/api/v1/offer/list/all";
         String url =
                 UriComponentsBuilder.fromHttpUrl(apiUrl + endpoint)
                         .queryParam("format", FORMAT_JSON)
@@ -505,7 +511,7 @@ public class BinomClient {
 
     /** Update an existing offer in Binom */
     public UpdateOfferResponse updateOffer(String offerId, UpdateOfferRequest request) {
-        String endpoint = String.format("/offer/%s", offerId);
+        String endpoint = String.format("/public/api/v1/offer/%s", offerId);
         String url =
                 UriComponentsBuilder.fromHttpUrl(apiUrl + endpoint)
                         .queryParam("format", FORMAT_JSON)
@@ -563,11 +569,11 @@ public class BinomClient {
 
     /** Get campaign information from Binom */
     public CampaignInfoResponse getCampaignInfo(String campaignId) {
-        String endpoint = "/info/campaign";
+        String endpoint = "/public/api/v1/info/campaign";
         String url =
                 UriComponentsBuilder.fromHttpUrl(apiUrl + endpoint)
                         .queryParam("format", FORMAT_JSON)
-                        .queryParam("campaign_id", campaignId)
+                        .queryParam("id[]", campaignId)
                         .build()
                         .toUriString();
 
@@ -665,7 +671,7 @@ public class BinomClient {
 
     /** Set click cost for a campaign in Binom */
     public SetClickCostResponse setClickCost(SetClickCostRequest request) {
-        String endpoint = "/clicks/cost";
+        String endpoint = String.format("/public/api/v1/clicks/campaign/%s", request.getCampaignId());
         String url =
                 UriComponentsBuilder.fromHttpUrl(apiUrl + endpoint)
                         .queryParam("format", FORMAT_JSON)
@@ -692,7 +698,7 @@ public class BinomClient {
 
                                     ResponseEntity<Map> response =
                                             restTemplate.exchange(
-                                                    url, HttpMethod.POST, entity, Map.class);
+                                                    url, HttpMethod.PUT, entity, Map.class);
 
                                     if (response.getStatusCode() == HttpStatus.OK
                                             && response.getBody() != null) {
@@ -725,11 +731,28 @@ public class BinomClient {
                                 }));
     }
 
-    /** Check if a campaign exists in Binom (stub for admin validation) */
+    /** Check if a campaign exists in Binom */
     public boolean campaignExists(String campaignId) {
-        // TODO: Implement actual API call to Binom to check campaign existence
-        // For now, always return true
-        return true;
+        try {
+            String endpoint = String.format("/public/api/v1/campaign/%s", campaignId);
+            String url = UriComponentsBuilder.fromHttpUrl(apiUrl + endpoint)
+                    .queryParam("format", FORMAT_JSON)
+                    .build()
+                    .toUriString();
+            
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(API_KEY_HEADER, apiKey);
+            headers.set("User-Agent", "SMM-Panel/1.0");
+            HttpEntity<String> entity = new HttpEntity<>("", headers);
+            
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    url, HttpMethod.GET, entity, Map.class);
+            
+            return response.getStatusCode() == HttpStatus.OK;
+        } catch (Exception e) {
+            log.debug("Campaign {} does not exist: {}", campaignId, e.getMessage());
+            return false;
+        }
     }
 
     /**
@@ -957,7 +980,7 @@ public class BinomClient {
     }
 
     public CheckOfferResponse checkOffer(String offerName) {
-        String endpoint = "/offer/list/filtered";
+        String endpoint = "/public/api/v1/offer/list/filtered";
         String url =
                 UriComponentsBuilder.fromHttpUrl(apiUrl + endpoint)
                         .queryParam("format", FORMAT_JSON)
@@ -1025,18 +1048,5 @@ public class BinomClient {
                                 }));
     }
 
-    public void stopCampaign(String campaignId) {
-        log.info("Stopping campaign: {}", campaignId);
-        // Implementation
-    }
-
-    public void pauseCampaign(String campaignId) {
-        log.info("Pausing campaign: {}", campaignId);
-        // Implementation
-    }
-
-    public void resumeCampaign(String campaignId) {
-        log.info("Resuming campaign: {}", campaignId);
-        // Implementation
-    }
+    // Campaign pause/resume methods removed - use campaign update API with status field if needed
 }

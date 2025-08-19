@@ -1,31 +1,50 @@
 package com.smmpanel.config;
 
-import io.lettuce.core.RedisClient;
-import io.lettuce.core.RedisURI;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import io.lettuce.core.ClientOptions;
+import io.lettuce.core.SocketOptions;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CachingConfigurer;
 import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.interceptor.CacheErrorHandler;
+import org.springframework.cache.interceptor.CacheResolver;
+import org.springframework.cache.interceptor.KeyGenerator;
+import org.springframework.cache.interceptor.SimpleCacheErrorHandler;
+import org.springframework.cache.interceptor.SimpleCacheResolver;
+import org.springframework.cache.interceptor.SimpleKeyGenerator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 /**
- * Enhanced Redis Configuration with Caching Provides Redis caching with different TTLs for
- * different cache types
+ * Production-Ready Redis Configuration Provides optimized Redis caching with proper serialization
+ * and TTL management
  */
+@Slf4j
 @Configuration
 @EnableCaching
-@RequiredArgsConstructor
-public class RedisConfig {
+@ConditionalOnProperty(value = "spring.cache.type", havingValue = "redis", matchIfMissing = true)
+public class RedisConfig implements CachingConfigurer {
 
     @Value("${spring.data.redis.host:localhost}")
     private String redisHost;
@@ -36,89 +55,245 @@ public class RedisConfig {
     @Value("${spring.data.redis.password:}")
     private String redisPassword;
 
-    // RedisTemplate is configured in CacheConfig.java
+    @Value("${spring.data.redis.database:0}")
+    private int database;
 
-    @Bean
-    public RedisClient redisClient() {
-        RedisURI.Builder uriBuilder = RedisURI.builder().withHost(redisHost).withPort(redisPort);
+    @Value("${spring.data.redis.timeout:5000ms}")
+    private Duration timeout;
 
-        if (redisPassword != null && !redisPassword.trim().isEmpty()) {
-            uriBuilder.withPassword(redisPassword.toCharArray());
-        }
+    @Value("${spring.cache.redis.key-prefix:smm:cache:}")
+    private String keyPrefix;
 
-        RedisURI redisURI = uriBuilder.build();
-        return RedisClient.create(redisURI);
+    @Value("${spring.cache.redis.use-key-prefix:true}")
+    private boolean useKeyPrefix;
+
+    @Value("${spring.cache.redis.cache-null-values:false}")
+    private boolean cacheNullValues;
+
+    /**
+     * Custom ObjectMapper for Redis serialization Configured with type information for proper
+     * deserialization
+     */
+    @Bean("redisObjectMapper")
+    public ObjectMapper redisObjectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+
+        // Register JavaTimeModule for Java 8 time types
+        mapper.registerModule(new JavaTimeModule());
+        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+        // Enable type information for polymorphic types
+        mapper.activateDefaultTyping(
+                LaissezFaireSubTypeValidator.instance,
+                ObjectMapper.DefaultTyping.NON_FINAL,
+                JsonTypeInfo.As.PROPERTY);
+
+        return mapper;
     }
 
+    /** Redis Connection Factory with optimized settings */
     @Bean
-    public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
-        // Configure different TTLs for different cache types
-        Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
+    public LettuceConnectionFactory redisConnectionFactory() {
+        RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration();
+        redisConfig.setHostName(redisHost);
+        redisConfig.setPort(redisPort);
+        redisConfig.setDatabase(database);
 
-        // Service list cache - 1 hour
-        cacheConfigurations.put(
-                "services",
-                RedisCacheConfiguration.defaultCacheConfig()
-                        .entryTtl(Duration.ofHours(1))
-                        .serializeKeysWith(
-                                RedisSerializationContext.SerializationPair.fromSerializer(
-                                        new StringRedisSerializer()))
-                        .serializeValuesWith(
-                                RedisSerializationContext.SerializationPair.fromSerializer(
-                                        new GenericJackson2JsonRedisSerializer())));
+        if (redisPassword != null && !redisPassword.trim().isEmpty()) {
+            redisConfig.setPassword(redisPassword);
+        }
 
-        // Start count cache - 30 days
-        cacheConfigurations.put(
-                "start_count",
-                RedisCacheConfiguration.defaultCacheConfig()
-                        .entryTtl(Duration.ofDays(30))
-                        .serializeKeysWith(
-                                RedisSerializationContext.SerializationPair.fromSerializer(
-                                        new StringRedisSerializer()))
-                        .serializeValuesWith(
-                                RedisSerializationContext.SerializationPair.fromSerializer(
-                                        new GenericJackson2JsonRedisSerializer())));
+        // Configure Lettuce client options for production
+        SocketOptions socketOptions =
+                SocketOptions.builder()
+                        .connectTimeout(timeout != null ? timeout : Duration.ofSeconds(5))
+                        .keepAlive(true)
+                        .tcpNoDelay(true)
+                        .build();
 
-        // User balance cache - 5 minutes
-        cacheConfigurations.put(
-                "balance",
-                RedisCacheConfiguration.defaultCacheConfig()
-                        .entryTtl(Duration.ofMinutes(5))
-                        .serializeKeysWith(
-                                RedisSerializationContext.SerializationPair.fromSerializer(
-                                        new StringRedisSerializer()))
-                        .serializeValuesWith(
-                                RedisSerializationContext.SerializationPair.fromSerializer(
-                                        new GenericJackson2JsonRedisSerializer())));
+        ClientOptions clientOptions =
+                ClientOptions.builder()
+                        .socketOptions(socketOptions)
+                        .autoReconnect(true)
+                        .disconnectedBehavior(ClientOptions.DisconnectedBehavior.REJECT_COMMANDS)
+                        .build();
 
-        // YouTube views cache - 5 minutes
-        cacheConfigurations.put(
-                "youtube-views",
-                RedisCacheConfiguration.defaultCacheConfig()
-                        .entryTtl(Duration.ofMinutes(5))
-                        .serializeKeysWith(
-                                RedisSerializationContext.SerializationPair.fromSerializer(
-                                        new StringRedisSerializer()))
-                        .serializeValuesWith(
-                                RedisSerializationContext.SerializationPair.fromSerializer(
-                                        new GenericJackson2JsonRedisSerializer())));
+        LettuceClientConfiguration clientConfig =
+                LettuceClientConfiguration.builder()
+                        .clientOptions(clientOptions)
+                        .commandTimeout(timeout != null ? timeout : Duration.ofSeconds(5))
+                        .build();
 
-        // Default cache configuration - 1 hour
+        LettuceConnectionFactory factory = new LettuceConnectionFactory(redisConfig, clientConfig);
+        factory.setValidateConnection(true);
+
+        return factory;
+    }
+
+    /** Redis Template for manual Redis operations */
+    @Bean
+    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
+        RedisTemplate<String, Object> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+
+        // Use String serializer for keys
+        StringRedisSerializer stringSerializer = new StringRedisSerializer();
+
+        // Use JSON serializer for values with custom ObjectMapper
+        GenericJackson2JsonRedisSerializer jsonSerializer =
+                new GenericJackson2JsonRedisSerializer(redisObjectMapper());
+
+        template.setKeySerializer(stringSerializer);
+        template.setValueSerializer(jsonSerializer);
+        template.setHashKeySerializer(stringSerializer);
+        template.setHashValueSerializer(jsonSerializer);
+
+        template.setEnableTransactionSupport(false);
+        template.afterPropertiesSet();
+
+        return template;
+    }
+
+    /** Cache Manager with comprehensive cache configurations */
+    @Bean
+    @Primary
+    @Override
+    public CacheManager cacheManager() {
+        RedisConnectionFactory connectionFactory = redisConnectionFactory();
+
+        // Create JSON serializer with custom ObjectMapper
+        GenericJackson2JsonRedisSerializer jsonSerializer =
+                new GenericJackson2JsonRedisSerializer(redisObjectMapper());
+
+        // Default cache configuration
         RedisCacheConfiguration defaultConfig =
                 RedisCacheConfiguration.defaultCacheConfig()
-                        .entryTtl(Duration.ofHours(1))
+                        .entryTtl(Duration.ofMinutes(30))
                         .serializeKeysWith(
                                 RedisSerializationContext.SerializationPair.fromSerializer(
                                         new StringRedisSerializer()))
                         .serializeValuesWith(
                                 RedisSerializationContext.SerializationPair.fromSerializer(
-                                        new GenericJackson2JsonRedisSerializer()));
+                                        jsonSerializer))
+                        .disableCachingNullValues();
+
+        if (useKeyPrefix) {
+            defaultConfig = defaultConfig.prefixCacheNameWith(keyPrefix);
+        }
+
+        if (!cacheNullValues) {
+            defaultConfig = defaultConfig.disableCachingNullValues();
+        }
+
+        // Individual cache configurations with specific TTLs
+        Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
+
+        // Service-related caches
+        cacheConfigurations.put("services", defaultConfig.entryTtl(Duration.ofHours(1)));
+        cacheConfigurations.put("active-services", defaultConfig.entryTtl(Duration.ofHours(1)));
+
+        // User-related caches
+        cacheConfigurations.put("users", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+        cacheConfigurations.put("balance", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+        cacheConfigurations.put("user-balances", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+        cacheConfigurations.put("userCurrency", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+
+        // YouTube-related caches
+        cacheConfigurations.put("youtube-views", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+        cacheConfigurations.put("youtube-stats", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+        cacheConfigurations.put("youtube-accounts", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+
+        // Currency and exchange rate caches
+        cacheConfigurations.put("exchangeRates", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+        cacheConfigurations.put("exchange-rates", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+        cacheConfigurations.put(
+                "conversion-coefficients", defaultConfig.entryTtl(Duration.ofMinutes(45)));
+
+        // Order and campaign caches
+        cacheConfigurations.put("start_count", defaultConfig.entryTtl(Duration.ofDays(30)));
+        cacheConfigurations.put("assignedCampaigns", defaultConfig.entryTtl(Duration.ofHours(2)));
+
+        // Binom-related caches
+        cacheConfigurations.put("binom-campaigns", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+        cacheConfigurations.put("binom-offers", defaultConfig.entryTtl(Duration.ofHours(1)));
+        cacheConfigurations.put("binom-statistics", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+        cacheConfigurations.put("binom-landing-pages", defaultConfig.entryTtl(Duration.ofHours(2)));
+
+        log.info(
+                "Initializing Redis Cache Manager with {} cache configurations",
+                cacheConfigurations.size());
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaultConfig)
                 .withInitialCacheConfigurations(cacheConfigurations)
+                .transactionAware()
                 .build();
     }
 
-    // redisObjectMapper is configured in CacheConfig.java
+    /** Custom cache error handler for resilience */
+    @Override
+    public CacheErrorHandler errorHandler() {
+        return new RedisCacheErrorHandler();
+    }
+
+    /** Custom key generator */
+    @Override
+    public KeyGenerator keyGenerator() {
+        return new SimpleKeyGenerator();
+    }
+
+    /** Cache resolver */
+    @Override
+    public CacheResolver cacheResolver() {
+        return new SimpleCacheResolver(cacheManager());
+    }
+
+    /**
+     * Custom error handler that logs errors but doesn't throw exceptions This ensures the
+     * application continues to work even if Redis is down
+     */
+    private static class RedisCacheErrorHandler extends SimpleCacheErrorHandler {
+
+        @Override
+        public void handleCacheGetError(
+                RuntimeException exception, org.springframework.cache.Cache cache, Object key) {
+            log.error(
+                    "Redis cache GET error - cache: {}, key: {}, error: {}",
+                    cache.getName(),
+                    key,
+                    exception.getMessage());
+        }
+
+        @Override
+        public void handleCachePutError(
+                RuntimeException exception,
+                org.springframework.cache.Cache cache,
+                Object key,
+                Object value) {
+            log.error(
+                    "Redis cache PUT error - cache: {}, key: {}, error: {}",
+                    cache.getName(),
+                    key,
+                    exception.getMessage());
+        }
+
+        @Override
+        public void handleCacheEvictError(
+                RuntimeException exception, org.springframework.cache.Cache cache, Object key) {
+            log.error(
+                    "Redis cache EVICT error - cache: {}, key: {}, error: {}",
+                    cache.getName(),
+                    key,
+                    exception.getMessage());
+        }
+
+        @Override
+        public void handleCacheClearError(
+                RuntimeException exception, org.springframework.cache.Cache cache) {
+            log.error(
+                    "Redis cache CLEAR error - cache: {}, error: {}",
+                    cache.getName(),
+                    exception.getMessage());
+        }
+    }
 }

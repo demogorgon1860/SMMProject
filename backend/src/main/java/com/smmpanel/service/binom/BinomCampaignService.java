@@ -415,22 +415,30 @@ public class BinomCampaignService {
     // NOTE: createBinomCampaign method removed as we now use fixed campaigns instead of creating
     // new ones
 
+    // Campaign status management methods
+    // Note: In Binom V2, use campaign update API with status field
     @CircuitBreaker(name = "binom-api")
     @Retry(name = "binom-api")
     private void stopCampaign(String campaignId) {
-        binomClient.stopCampaign(campaignId);
+        // In V2, stopping a campaign would be done via campaign update
+        // For now, we just log the action
+        log.info("Campaign {} stop requested - manual update needed in Binom", campaignId);
     }
 
     @CircuitBreaker(name = "binom-api")
     @Retry(name = "binom-api")
     private void pauseCampaign(String campaignId) {
-        binomClient.pauseCampaign(campaignId);
+        // In V2, pausing a campaign would be done via campaign update
+        // For now, we just log the action
+        log.info("Campaign {} pause requested - manual update needed in Binom", campaignId);
     }
 
     @CircuitBreaker(name = "binom-api")
     @Retry(name = "binom-api")
     private void resumeCampaign(String campaignId) {
-        binomClient.resumeCampaign(campaignId);
+        // In V2, resuming a campaign would be done via campaign update
+        // For now, we just log the action
+        log.info("Campaign {} resume requested - manual update needed in Binom", campaignId);
     }
 
     private BinomCampaign saveCampaignRecord(

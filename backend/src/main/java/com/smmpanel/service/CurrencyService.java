@@ -97,7 +97,7 @@ public class CurrencyService {
     }
 
     /** Get exchange rate for a currency relative to the base currency */
-    @Cacheable(key = "#currencyCode")
+    @Cacheable(value = "exchangeRates", key = "#currencyCode")
     public BigDecimal getExchangeRate(String currencyCode) {
         if (currencyCode.equals(baseCurrency)) {
             return BigDecimal.ONE;
@@ -118,7 +118,7 @@ public class CurrencyService {
     @Scheduled(
             fixedRateString =
                     "${app.currency.exchange-rate-api.refresh-rate:3600000}") // Default: 1 hour
-    @CacheEvict(allEntries = true)
+    @CacheEvict(value = "exchangeRates", allEntries = true)
     public void fetchLatestRates() {
         try {
             String url =

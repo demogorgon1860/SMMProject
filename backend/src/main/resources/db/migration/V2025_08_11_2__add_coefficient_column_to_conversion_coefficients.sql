@@ -1,2 +1,0 @@
-ALTER TABLE conversion_coefficients
-ADD COLUMN IF NOT EXISTS coefficient NUMERIC(10, 2) NOT NULL DEFAULT 1.0;

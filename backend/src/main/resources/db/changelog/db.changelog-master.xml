@@ -1,0 +1,667 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- ========================================== -->
+    <!-- SMM Panel Database Schema - Master Changelog -->
+    <!-- ========================================== -->
+    
+    <!-- Extensions -->
+    <changeSet id="1" author="system">
+        <sql>
+            CREATE EXTENSION IF NOT EXISTS pg_trgm;
+            CREATE EXTENSION IF NOT EXISTS btree_gin;
+            CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+        </sql>
+    </changeSet>
+
+    <!-- Enum Types -->
+    <changeSet id="2" author="system">
+        <sql>
+            CREATE TYPE user_role AS ENUM ('USER', 'OPERATOR', 'ADMIN');
+            CREATE TYPE order_status AS ENUM (
+                'PENDING', 'IN_PROGRESS', 'PROCESSING', 'ACTIVE', 
+                'PARTIAL', 'COMPLETED', 'CANCELLED', 'PAUSED', 
+                'HOLDING', 'REFILL'
+            );
+            CREATE TYPE video_type AS ENUM ('STANDARD', 'SHORTS', 'LIVE');
+            CREATE TYPE payment_status AS ENUM ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'EXPIRED');
+            CREATE TYPE transaction_type AS ENUM ('DEPOSIT', 'ORDER_PAYMENT', 'REFUND', 'REFILL');
+            CREATE TYPE youtube_account_status AS ENUM ('ACTIVE', 'BLOCKED', 'SUSPENDED', 'RATE_LIMITED');
+        </sql>
+    </changeSet>
+
+    <!-- Users Table -->
+    <changeSet id="3" author="system">
+        <createTable tableName="users">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="username" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="email" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="password_hash" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="api_key" type="VARCHAR(255)">
+                <constraints unique="true"/>
+            </column>
+            <column name="balance" type="DECIMAL(10,2)" defaultValueNumeric="0.00">
+                <constraints checkConstraint="balance >= 0"/>
+            </column>
+            <column name="role" type="user_role" defaultValue="USER"/>
+            <column name="timezone" type="VARCHAR(50)" defaultValue="UTC"/>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Users Indexes -->
+    <changeSet id="4" author="system">
+        <createIndex tableName="users" indexName="idx_users_api_key_active">
+            <column name="api_key"/>
+        </createIndex>
+        <sql>
+            DROP INDEX IF EXISTS idx_users_api_key_active;
+            CREATE INDEX idx_users_api_key_active ON users(api_key) WHERE is_active = TRUE;
+        </sql>
+        <createIndex tableName="users" indexName="idx_users_role">
+            <column name="role"/>
+        </createIndex>
+        <sql>
+            DROP INDEX IF EXISTS idx_users_role;
+            CREATE INDEX idx_users_role ON users(role) WHERE role != 'USER';
+        </sql>
+        <createIndex tableName="users" indexName="idx_users_balance">
+            <column name="balance"/>
+        </createIndex>
+        <sql>
+            DROP INDEX IF EXISTS idx_users_balance;
+            CREATE INDEX idx_users_balance ON users(balance) WHERE balance > 0;
+        </sql>
+        <createIndex tableName="users" indexName="idx_users_created_at">
+            <column name="created_at" descending="true"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Services Table -->
+    <changeSet id="5" author="system">
+        <createTable tableName="services">
+            <column name="id" type="BIGINT">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="category" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="min_order" type="INTEGER">
+                <constraints nullable="false" checkConstraint="min_order > 0"/>
+            </column>
+            <column name="max_order" type="INTEGER">
+                <constraints nullable="false" checkConstraint="max_order >= min_order"/>
+            </column>
+            <column name="price_per_1000" type="DECIMAL(8,4)">
+                <constraints nullable="false" checkConstraint="price_per_1000 > 0"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Default Services Data -->
+    <changeSet id="6" author="system">
+        <insert tableName="services">
+            <column name="id" valueNumeric="1"/>
+            <column name="name" value="YouTube Views (Standard)"/>
+            <column name="category" value="YouTube"/>
+            <column name="min_order" valueNumeric="100"/>
+            <column name="max_order" valueNumeric="1000000"/>
+            <column name="price_per_1000" valueNumeric="1.0000"/>
+        </insert>
+        <insert tableName="services">
+            <column name="id" valueNumeric="2"/>
+            <column name="name" value="YouTube Views (Premium)"/>
+            <column name="category" value="YouTube"/>
+            <column name="min_order" valueNumeric="100"/>
+            <column name="max_order" valueNumeric="1000000"/>
+            <column name="price_per_1000" valueNumeric="2.0000"/>
+        </insert>
+        <insert tableName="services">
+            <column name="id" valueNumeric="3"/>
+            <column name="name" value="YouTube Views (High Quality)"/>
+            <column name="category" value="YouTube"/>
+            <column name="min_order" valueNumeric="100"/>
+            <column name="max_order" valueNumeric="1000000"/>
+            <column name="price_per_1000" valueNumeric="3.0000"/>
+        </insert>
+    </changeSet>
+
+    <!-- Orders Table (Partitioned) -->
+    <changeSet id="7" author="system">
+        <sql>
+            CREATE TABLE orders (
+                id BIGSERIAL,
+                user_id BIGINT NOT NULL REFERENCES users(id),
+                service_id BIGINT NOT NULL REFERENCES services(id),
+                link VARCHAR(500) NOT NULL,
+                quantity INTEGER NOT NULL CHECK (quantity > 0),
+                charge DECIMAL(10,2) NOT NULL CHECK (charge > 0),
+                start_count INTEGER DEFAULT 0,
+                remains INTEGER,
+                status order_status DEFAULT 'PENDING',
+                youtube_video_id VARCHAR(100),
+                processing_priority INTEGER DEFAULT 0,
+                error_message TEXT,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                PRIMARY KEY (id, created_at)
+            ) PARTITION BY RANGE (created_at);
+        </sql>
+    </changeSet>
+
+    <!-- Orders Partitions -->
+    <changeSet id="8" author="system">
+        <sql>
+            CREATE TABLE orders_2025_01 PARTITION OF orders 
+                FOR VALUES FROM ('2025-01-01') TO ('2025-02-01');
+            CREATE TABLE orders_2025_02 PARTITION OF orders 
+                FOR VALUES FROM ('2025-02-01') TO ('2025-03-01');
+        </sql>
+    </changeSet>
+
+    <!-- Orders Indexes -->
+    <changeSet id="9" author="system">
+        <sql>
+            CREATE INDEX idx_orders_user_id ON orders(user_id, created_at DESC);
+            CREATE INDEX idx_orders_status ON orders(status) WHERE status NOT IN ('COMPLETED', 'CANCELLED');
+            CREATE INDEX idx_orders_youtube_video_id ON orders(youtube_video_id) WHERE youtube_video_id IS NOT NULL;
+            CREATE INDEX idx_orders_processing ON orders(status, processing_priority DESC) 
+                WHERE status IN ('PENDING', 'IN_PROGRESS', 'PROCESSING');
+            CREATE INDEX idx_orders_active_monitoring ON orders(status, updated_at) 
+                WHERE status IN ('ACTIVE', 'HOLDING');
+        </sql>
+    </changeSet>
+
+    <!-- YouTube Accounts Table -->
+    <changeSet id="10" author="system">
+        <createTable tableName="youtube_accounts">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="username" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="email" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="youtube_account_status" defaultValue="ACTIVE"/>
+            <column name="daily_clips_count" type="INTEGER" defaultValueNumeric="0"/>
+            <column name="last_clip_date" type="DATE"/>
+            <column name="daily_limit" type="INTEGER" defaultValueNumeric="50"/>
+            <column name="total_clips_created" type="INTEGER" defaultValueNumeric="0"/>
+            <column name="last_error" type="TEXT"/>
+            <column name="last_error_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="proxy_config" type="JSONB"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Video Processing Table -->
+    <changeSet id="11" author="system">
+        <createTable tableName="video_processing">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="order_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="order_created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="original_url" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="video_type" type="video_type"/>
+            <column name="clip_created" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="clip_url" type="VARCHAR(500)"/>
+            <column name="youtube_account_id" type="BIGINT"/>
+            <column name="processing_status" type="VARCHAR(50)" defaultValue="PENDING"/>
+            <column name="processing_attempts" type="INTEGER" defaultValueNumeric="0"/>
+            <column name="error_message" type="TEXT"/>
+            <column name="metadata" type="JSONB"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Video Processing Foreign Key -->
+    <changeSet id="12" author="system">
+        <sql>
+            ALTER TABLE video_processing ADD CONSTRAINT fk_video_processing_order 
+                FOREIGN KEY (order_id, order_created_at) REFERENCES orders(id, created_at);
+        </sql>
+    </changeSet>
+
+    <!-- Traffic Sources Table -->
+    <changeSet id="13" author="system">
+        <createTable tableName="traffic_sources">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source_id" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="weight" type="INTEGER" defaultValueNumeric="1">
+                <constraints checkConstraint="weight > 0"/>
+            </column>
+            <column name="daily_limit" type="INTEGER"/>
+            <column name="clicks_used_today" type="INTEGER" defaultValueNumeric="0"/>
+            <column name="last_reset_date" type="DATE" defaultValueComputed="CURRENT_DATE"/>
+            <column name="geo_targeting" type="VARCHAR(255)"/>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="performance_score" type="DECIMAL(5,2)" defaultValueNumeric="100.00"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Fixed Binom Campaigns Table -->
+    <changeSet id="14" author="system">
+        <createTable tableName="fixed_binom_campaigns">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="campaign_id" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="campaign_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="traffic_source_id" type="BIGINT">
+                <constraints foreignKeyName="fk_fixed_campaigns_traffic_source" references="traffic_sources(id)"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Fixed Campaigns Index -->
+    <changeSet id="15" author="system">
+        <sql>
+            CREATE INDEX idx_fixed_campaigns_active ON fixed_binom_campaigns(active) WHERE active = TRUE;
+        </sql>
+    </changeSet>
+
+    <!-- Binom Campaigns Table -->
+    <changeSet id="16" author="system">
+        <createTable tableName="binom_campaigns">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="order_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="order_created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="campaign_id" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="offer_id" type="VARCHAR(100)"/>
+            <column name="target_url" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="traffic_source_id" type="BIGINT">
+                <constraints foreignKeyName="fk_binom_campaigns_traffic_source" references="traffic_sources(id)"/>
+            </column>
+            <column name="fixed_campaign_id" type="BIGINT">
+                <constraints foreignKeyName="fk_binom_campaigns_fixed_campaign" references="fixed_binom_campaigns(id)"/>
+            </column>
+            <column name="coefficient" type="DECIMAL(4,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="clicks_required" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="clicks_delivered" type="INTEGER" defaultValueNumeric="0"/>
+            <column name="views_generated" type="INTEGER" defaultValueNumeric="0"/>
+            <column name="status" type="VARCHAR(50)" defaultValue="ACTIVE"/>
+            <column name="cost_per_click" type="DECIMAL(8,6)"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Binom Campaigns Foreign Key -->
+    <changeSet id="17" author="system">
+        <sql>
+            ALTER TABLE binom_campaigns ADD CONSTRAINT fk_binom_campaigns_order 
+                FOREIGN KEY (order_id, order_created_at) REFERENCES orders(id, created_at);
+        </sql>
+    </changeSet>
+
+    <!-- Balance Deposits Table -->
+    <changeSet id="18" author="system">
+        <createTable tableName="balance_deposits">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_deposits_user" references="users(id)"/>
+            </column>
+            <column name="order_id" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="amount_usd" type="DECIMAL(10,2)">
+                <constraints nullable="false" checkConstraint="amount_usd >= 5.00"/>
+            </column>
+            <column name="currency" type="VARCHAR(10)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="crypto_amount" type="DECIMAL(20,8)"/>
+            <column name="cryptomus_payment_id" type="VARCHAR(255)"/>
+            <column name="payment_url" type="VARCHAR(500)"/>
+            <column name="status" type="payment_status" defaultValue="PENDING"/>
+            <column name="expires_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="confirmed_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="webhook_data" type="JSONB"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Balance Transactions Table -->
+    <changeSet id="19" author="system">
+        <createTable tableName="balance_transactions">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_transactions_user" references="users(id)"/>
+            </column>
+            <column name="order_id" type="BIGINT"/>
+            <column name="order_created_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="deposit_id" type="BIGINT">
+                <constraints foreignKeyName="fk_transactions_deposit" references="balance_deposits(id)"/>
+            </column>
+            <column name="amount" type="DECIMAL(10,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="balance_before" type="DECIMAL(10,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="balance_after" type="DECIMAL(10,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="transaction_type" type="transaction_type">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Balance Transactions Foreign Key -->
+    <changeSet id="20" author="system">
+        <sql>
+            ALTER TABLE balance_transactions ADD CONSTRAINT fk_transactions_order 
+                FOREIGN KEY (order_id, order_created_at) REFERENCES orders(id, created_at);
+        </sql>
+    </changeSet>
+
+    <!-- View Stats Table -->
+    <changeSet id="21" author="system">
+        <createTable tableName="view_stats">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="order_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="order_created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="video_processing_id" type="BIGINT">
+                <constraints foreignKeyName="fk_view_stats_video_processing" references="video_processing(id)"/>
+            </column>
+            <column name="current_views" type="INTEGER" defaultValueNumeric="0"/>
+            <column name="target_views" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="views_velocity" type="DECIMAL(10,2)"/>
+            <column name="last_checked" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+            <column name="check_interval" type="INTEGER" defaultValueNumeric="1800"/>
+            <column name="check_count" type="INTEGER" defaultValueNumeric="0"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+        </createTable>
+    </changeSet>
+
+    <!-- View Stats Foreign Key -->
+    <changeSet id="22" author="system">
+        <sql>
+            ALTER TABLE view_stats ADD CONSTRAINT fk_view_stats_order 
+                FOREIGN KEY (order_id, order_created_at) REFERENCES orders(id, created_at);
+        </sql>
+    </changeSet>
+
+    <!-- Conversion Coefficients Table -->
+    <changeSet id="23" author="system">
+        <createTable tableName="conversion_coefficients">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="service_id" type="BIGINT">
+                <constraints foreignKeyName="fk_coefficients_service" references="services(id)"/>
+            </column>
+            <column name="with_clip" type="DECIMAL(4,2)" defaultValueNumeric="3.0"/>
+            <column name="without_clip" type="DECIMAL(4,2)" defaultValueNumeric="4.0"/>
+            <column name="updated_by" type="BIGINT">
+                <constraints foreignKeyName="fk_coefficients_updated_by" references="users(id)"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Default Conversion Coefficients -->
+    <changeSet id="24" author="system">
+        <insert tableName="conversion_coefficients">
+            <column name="service_id" valueNumeric="1"/>
+            <column name="with_clip" valueNumeric="3.0"/>
+            <column name="without_clip" valueNumeric="4.0"/>
+        </insert>
+        <insert tableName="conversion_coefficients">
+            <column name="service_id" valueNumeric="2"/>
+            <column name="with_clip" valueNumeric="3.0"/>
+            <column name="without_clip" valueNumeric="4.0"/>
+        </insert>
+        <insert tableName="conversion_coefficients">
+            <column name="service_id" valueNumeric="3"/>
+            <column name="with_clip" valueNumeric="3.0"/>
+            <column name="without_clip" valueNumeric="4.0"/>
+        </insert>
+    </changeSet>
+
+    <!-- Operator Logs Table (Partitioned) -->
+    <changeSet id="25" author="system">
+        <sql>
+            CREATE TABLE operator_logs (
+                id BIGSERIAL,
+                operator_id BIGINT NOT NULL REFERENCES users(id),
+                action VARCHAR(100) NOT NULL,
+                target_type VARCHAR(50) NOT NULL,
+                target_id BIGINT NOT NULL,
+                details JSONB,
+                ip_address INET,
+                user_agent TEXT,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                PRIMARY KEY (id, created_at)
+            ) PARTITION BY RANGE (created_at);
+        </sql>
+    </changeSet>
+
+    <!-- Operator Logs Partition -->
+    <changeSet id="26" author="system">
+        <sql>
+            CREATE TABLE operator_logs_2025_01 PARTITION OF operator_logs 
+                FOR VALUES FROM ('2025-01-01') TO ('2025-02-01');
+        </sql>
+    </changeSet>
+
+    <!-- Updated At Trigger Function -->
+    <changeSet id="27" author="system">
+        <sql>
+            CREATE OR REPLACE FUNCTION update_updated_at_column()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                NEW.updated_at = NOW();
+                RETURN NEW;
+            END;
+            $$ language 'plpgsql';
+        </sql>
+    </changeSet>
+
+    <!-- Apply Updated At Triggers -->
+    <changeSet id="28" author="system">
+        <sql>
+            CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users 
+                FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+            CREATE TRIGGER update_orders_updated_at BEFORE UPDATE ON orders 
+                FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+            CREATE TRIGGER update_video_processing_updated_at BEFORE UPDATE ON video_processing 
+                FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+            CREATE TRIGGER update_youtube_accounts_updated_at BEFORE UPDATE ON youtube_accounts 
+                FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+            CREATE TRIGGER update_traffic_sources_updated_at BEFORE UPDATE ON traffic_sources 
+                FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+            CREATE TRIGGER update_binom_campaigns_updated_at BEFORE UPDATE ON binom_campaigns 
+                FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+            CREATE TRIGGER update_fixed_campaigns_updated_at BEFORE UPDATE ON fixed_binom_campaigns 
+                FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+        </sql>
+    </changeSet>
+
+    <!-- Reset Daily Limits Function -->
+    <changeSet id="29" author="system">
+        <sql>
+            CREATE OR REPLACE FUNCTION reset_daily_limits() RETURNS void AS $$
+            BEGIN
+                -- Reset YouTube accounts daily clips
+                UPDATE youtube_accounts 
+                SET daily_clips_count = 0, last_clip_date = CURRENT_DATE 
+                WHERE last_clip_date &lt; CURRENT_DATE;
+                
+                -- Reset traffic sources daily clicks
+                UPDATE traffic_sources 
+                SET clicks_used_today = 0, last_reset_date = CURRENT_DATE 
+                WHERE last_reset_date &lt; CURRENT_DATE;
+            END;
+            $$ LANGUAGE plpgsql;
+        </sql>
+    </changeSet>
+
+    <!-- Sequences (for completeness) -->
+    <changeSet id="30" author="system">
+        <sql>
+            -- Sequences are automatically created with BIGSERIAL columns
+            -- This changeSet documents their existence for clarity
+            SELECT setval('users_id_seq', (SELECT COALESCE(MAX(id), 1) FROM users));
+            SELECT setval('youtube_accounts_id_seq', (SELECT COALESCE(MAX(id), 1) FROM youtube_accounts));
+            SELECT setval('video_processing_id_seq', (SELECT COALESCE(MAX(id), 1) FROM video_processing));
+            SELECT setval('traffic_sources_id_seq', (SELECT COALESCE(MAX(id), 1) FROM traffic_sources));
+            SELECT setval('fixed_binom_campaigns_id_seq', (SELECT COALESCE(MAX(id), 1) FROM fixed_binom_campaigns));
+            SELECT setval('binom_campaigns_id_seq', (SELECT COALESCE(MAX(id), 1) FROM binom_campaigns));
+            SELECT setval('balance_deposits_id_seq', (SELECT COALESCE(MAX(id), 1) FROM balance_deposits));
+            SELECT setval('balance_transactions_id_seq', (SELECT COALESCE(MAX(id), 1) FROM balance_transactions));
+            SELECT setval('view_stats_id_seq', (SELECT COALESCE(MAX(id), 1) FROM view_stats));
+            SELECT setval('conversion_coefficients_id_seq', (SELECT COALESCE(MAX(id), 1) FROM conversion_coefficients));
+            SELECT setval('operator_logs_id_seq', (SELECT COALESCE(MAX(id), 1) FROM operator_logs));
+        </sql>
+    </changeSet>
+
+    <!-- Development Data (context-specific) -->
+    <changeSet id="31" author="system" context="dev">
+        <insert tableName="traffic_sources">
+            <column name="name" value="Clickadoo Source 1"/>
+            <column name="source_id" value="CLICKADOO_001"/>
+            <column name="weight" valueNumeric="1"/>
+            <column name="daily_limit" valueNumeric="10000"/>
+            <column name="geo_targeting" value="US,UK,CA"/>
+            <column name="active" valueBoolean="true"/>
+        </insert>
+        <insert tableName="traffic_sources">
+            <column name="name" value="Clickadoo Source 2"/>
+            <column name="source_id" value="CLICKADOO_002"/>
+            <column name="weight" valueNumeric="1"/>
+            <column name="daily_limit" valueNumeric="8000"/>
+            <column name="geo_targeting" value="US,DE,FR"/>
+            <column name="active" valueBoolean="true"/>
+        </insert>
+        <insert tableName="traffic_sources">
+            <column name="name" value="Clickadoo Source 3"/>
+            <column name="source_id" value="CLICKADOO_003"/>
+            <column name="weight" valueNumeric="1"/>
+            <column name="daily_limit" valueNumeric="12000"/>
+            <column name="geo_targeting" value="US,AU,NZ"/>
+            <column name="active" valueBoolean="true"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="32" author="system" context="dev">
+        <insert tableName="fixed_binom_campaigns">
+            <column name="campaign_id" value="DEV_CAMPAIGN_001"/>
+            <column name="campaign_name" value="Development Fixed Campaign 1"/>
+            <column name="traffic_source_id" valueNumeric="1"/>
+            <column name="description" value="First fixed campaign for development"/>
+            <column name="active" valueBoolean="true"/>
+        </insert>
+        <insert tableName="fixed_binom_campaigns">
+            <column name="campaign_id" value="DEV_CAMPAIGN_002"/>
+            <column name="campaign_name" value="Development Fixed Campaign 2"/>
+            <column name="traffic_source_id" valueNumeric="2"/>
+            <column name="description" value="Second fixed campaign for development"/>
+            <column name="active" valueBoolean="true"/>
+        </insert>
+        <insert tableName="fixed_binom_campaigns">
+            <column name="campaign_id" value="DEV_CAMPAIGN_003"/>
+            <column name="campaign_name" value="Development Fixed Campaign 3"/>
+            <column name="traffic_source_id" valueNumeric="3"/>
+            <column name="description" value="Third fixed campaign for development"/>
+            <column name="active" valueBoolean="true"/>
+        </insert>
+    </changeSet>
+
+    <!-- Production Fixed Campaigns -->
+    <changeSet id="33" author="system" context="prod">
+        <sql>
+            INSERT INTO fixed_binom_campaigns (campaign_id, campaign_name, traffic_source_id, description) VALUES
+            ('CAMPAIGN_001', 'Fixed Campaign Source 1', 1, 'Primary traffic source'),
+            ('CAMPAIGN_002', 'Fixed Campaign Source 2', 2, 'Secondary traffic source'),
+            ('CAMPAIGN_003', 'Fixed Campaign Source 3', 3, 'Tertiary traffic source')
+            ON CONFLICT (campaign_id) DO NOTHING;
+        </sql>
+    </changeSet>
+
+    <!-- Include additional migrations from Flyway -->
+    <include file="db/changelog/db.changelog-migrations.xml"/>
+    
+    <!-- Include fixes for missing schema elements -->
+    <include file="db/changelog/db.changelog-fixes.xml"/>
+
+</databaseChangeLog>

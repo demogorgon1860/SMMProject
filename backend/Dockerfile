@@ -1,24 +1,4 @@
-FROM eclipse-temurin:17-jdk-jammy AS builder
-
-WORKDIR /app
-
-# Copy gradle files
-COPY build.gradle settings.gradle gradlew ./
-COPY gradle ./gradle
-
-# Make gradlew executable
-RUN chmod +x ./gradlew
-
-# Download dependencies
-RUN ./gradlew dependencies --no-daemon
-
-# Copy source code
-COPY src ./src
-
-# Build application
-RUN ./gradlew build --no-daemon -x test
-
-# Runtime stage
+# Runtime stage - using pre-built JAR
 FROM eclipse-temurin:17-jre-jammy
 
 # Install curl for health checks and dumb-init for signal handling
@@ -28,14 +8,14 @@ RUN apt-get update && \
 
 # Add non-root user
 RUN addgroup --system appgroup && \
-    adduser --system --no-create-home --shell /bin/false --group appgroup appuser && \
+    adduser --system --no-create-home --shell /bin/false --ingroup appgroup appuser && \
     mkdir -p /app && \
     chown -R appuser:appgroup /app
 
 WORKDIR /app
 
-# Copy the built application from builder stage
-COPY --from=builder /app/build/libs/*.jar app.jar
+# Copy the pre-built JAR
+COPY build/libs/*.jar app.jar
 
 # Switch to non-root user
 USER appuser

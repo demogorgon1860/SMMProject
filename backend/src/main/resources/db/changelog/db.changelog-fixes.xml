@@ -1,0 +1,376 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- ========================================== -->
+    <!-- Fix Missing Tables and Schema Elements -->
+    <!-- ========================================== -->
+    
+    <!-- Fix 1: Create missing operator_logs table (partitioned) -->
+    <changeSet id="fix-1" author="audit-fix" runOnChange="false">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="operator_logs"/>
+            </not>
+        </preConditions>
+        <sql>
+            CREATE TABLE operator_logs (
+                id BIGSERIAL PRIMARY KEY,
+                operator_id BIGINT NOT NULL REFERENCES users(id),
+                action VARCHAR(100) NOT NULL,
+                target_type VARCHAR(50) NOT NULL,
+                target_id BIGINT NOT NULL,
+                details JSONB,
+                ip_address INET,
+                user_agent TEXT,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            ) PARTITION BY RANGE (created_at);
+            
+            -- Create initial partition
+            CREATE TABLE operator_logs_2025_01 PARTITION OF operator_logs 
+                FOR VALUES FROM ('2025-01-01') TO ('2025-02-01');
+        </sql>
+    </changeSet>
+
+    <!-- Fix 2: Create missing fixed_binom_campaigns table -->
+    <changeSet id="fix-2" author="audit-fix" runOnChange="false">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="fixed_binom_campaigns"/>
+            </not>
+        </preConditions>
+        <createTable tableName="fixed_binom_campaigns">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="campaign_id" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="campaign_name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="traffic_source_id" type="BIGINT">
+                <constraints foreignKeyName="fk_fixed_campaigns_traffic_source" references="traffic_sources(id)"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="priority" type="INTEGER" defaultValueNumeric="1"/>
+            <column name="weight" type="INTEGER" defaultValueNumeric="100"/>
+            <column name="geo_targeting" type="VARCHAR(255)"/>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+        </createTable>
+        
+        <createIndex tableName="fixed_binom_campaigns" indexName="idx_fixed_campaigns_active">
+            <column name="active"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Fix 3: Create missing binom_configuration table -->
+    <changeSet id="fix-3" author="audit-fix" runOnChange="false">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="binom_configuration"/>
+            </not>
+        </preConditions>
+        <createTable tableName="binom_configuration">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="config_key" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="config_value" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="updated_by" type="VARCHAR(100)"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Fix 4: Add missing foreign key for binom_campaigns -->
+    <changeSet id="fix-4" author="audit-fix" runOnChange="false">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="fixed_binom_campaigns"/>
+            <columnExists tableName="binom_campaigns" columnName="fixed_campaign_id"/>
+        </preConditions>
+        <addForeignKeyConstraint 
+            baseTableName="binom_campaigns"
+            baseColumnNames="fixed_campaign_id"
+            referencedTableName="fixed_binom_campaigns"
+            referencedColumnNames="id"
+            constraintName="fk_binom_campaigns_fixed_campaign"
+            onDelete="SET NULL"/>
+    </changeSet>
+
+    <!-- Fix 5: Add missing column to binom_campaigns if not exists -->
+    <changeSet id="fix-5" author="audit-fix" runOnChange="false">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="binom_campaigns" columnName="fixed_campaign_id"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="binom_campaigns">
+            <column name="fixed_campaign_id" type="BIGINT"/>
+        </addColumn>
+    </changeSet>
+
+    <!-- Fix 6: Add missing triggers for updated_at -->
+    <changeSet id="fix-6" author="audit-fix" runOnChange="false">
+        <sql>
+            -- Ensure trigger function exists
+            CREATE OR REPLACE FUNCTION update_updated_at_column()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                NEW.updated_at = NOW();
+                RETURN NEW;
+            END;
+            $$ language 'plpgsql';
+            
+            -- Add missing triggers
+            DROP TRIGGER IF EXISTS update_fixed_campaigns_updated_at ON fixed_binom_campaigns;
+            CREATE TRIGGER update_fixed_campaigns_updated_at 
+                BEFORE UPDATE ON fixed_binom_campaigns 
+                FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+        </sql>
+    </changeSet>
+
+    <!-- Fix 7: Create missing views -->
+    <changeSet id="fix-7" author="audit-fix" runOnChange="true">
+        <createView viewName="campaign_assignment_status" replaceIfExists="true">
+            SELECT 
+                fc.campaign_id,
+                fc.campaign_name,
+                fc.geo_targeting,
+                fc.priority,
+                fc.active,
+                COUNT(bc.id) as orders_assigned,
+                SUM(bc.clicks_required) as total_clicks_assigned,
+                SUM(bc.clicks_delivered) as total_clicks_delivered
+            FROM fixed_binom_campaigns fc
+            LEFT JOIN binom_campaigns bc ON fc.campaign_id = bc.campaign_id
+            WHERE fc.active = true
+            GROUP BY fc.id, fc.campaign_id, fc.campaign_name, fc.geo_targeting, fc.priority, fc.active
+            ORDER BY fc.priority
+        </createView>
+    </changeSet>
+
+    <!-- Fix 8: Add migration columns that were missed -->
+    <changeSet id="fix-8" author="audit-fix" runOnChange="false">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="video_processing" columnName="final_url"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="video_processing">
+            <column name="final_url" type="VARCHAR(500)"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="fix-9" author="audit-fix" runOnChange="false">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="services" columnName="geo_targeting"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="services">
+            <column name="geo_targeting" type="VARCHAR(50)" defaultValue="US"/>
+        </addColumn>
+    </changeSet>
+
+    <!-- Fix 10: Add missing columns from migrations -->
+    <changeSet id="fix-10" author="audit-fix" runOnChange="false">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="users" columnName="api_key_hash"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="users">
+            <column name="api_key_hash" type="VARCHAR(256)"/>
+            <column name="api_key_salt" type="VARCHAR(128)"/>
+            <column name="api_key_last_rotated" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="last_api_access" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="total_spent" type="DECIMAL(18,8)" defaultValueNumeric="0"/>
+            <column name="preferred_currency" type="VARCHAR(3)" defaultValue="USD"/>
+            <column name="version" type="BIGINT" defaultValueNumeric="0"/>
+        </addColumn>
+    </changeSet>
+
+    <!-- Fix 11: Add error recovery columns to orders -->
+    <changeSet id="fix-11" author="audit-fix" runOnChange="false">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="orders" columnName="retry_count"/>
+            </not>
+        </preConditions>
+        <sql>
+            -- Add error recovery columns to orders parent table
+            ALTER TABLE orders ADD COLUMN IF NOT EXISTS retry_count INTEGER DEFAULT 0 NOT NULL;
+            ALTER TABLE orders ADD COLUMN IF NOT EXISTS max_retries INTEGER DEFAULT 3 NOT NULL;
+            ALTER TABLE orders ADD COLUMN IF NOT EXISTS last_error_type VARCHAR(100);
+            ALTER TABLE orders ADD COLUMN IF NOT EXISTS last_retry_at TIMESTAMP;
+            ALTER TABLE orders ADD COLUMN IF NOT EXISTS next_retry_at TIMESTAMP;
+            ALTER TABLE orders ADD COLUMN IF NOT EXISTS failure_reason TEXT;
+            ALTER TABLE orders ADD COLUMN IF NOT EXISTS error_stack_trace TEXT;
+            ALTER TABLE orders ADD COLUMN IF NOT EXISTS failed_phase VARCHAR(50);
+            ALTER TABLE orders ADD COLUMN IF NOT EXISTS is_manually_failed BOOLEAN DEFAULT FALSE NOT NULL;
+            ALTER TABLE orders ADD COLUMN IF NOT EXISTS operator_notes TEXT;
+            ALTER TABLE orders ADD COLUMN IF NOT EXISTS version BIGINT DEFAULT 0 NOT NULL;
+        </sql>
+    </changeSet>
+
+    <!-- Fix 12: Add missing indexes from migrations -->
+    <changeSet id="fix-12" author="audit-fix" runOnChange="false">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="users"/>
+        </preConditions>
+        <sql>
+            -- API key performance indexes
+            CREATE INDEX IF NOT EXISTS idx_users_api_key_hash_active 
+                ON users(api_key_hash) 
+                WHERE is_active = true AND api_key_hash IS NOT NULL;
+            
+            CREATE INDEX IF NOT EXISTS idx_users_api_key_lookup 
+                ON users(api_key_hash, is_active) 
+                WHERE api_key_hash IS NOT NULL;
+            
+            CREATE INDEX IF NOT EXISTS idx_users_last_api_access 
+                ON users(last_api_access);
+            
+            CREATE INDEX IF NOT EXISTS idx_users_preferred_currency 
+                ON users(preferred_currency);
+            
+            CREATE INDEX IF NOT EXISTS idx_users_version 
+                ON users(version);
+        </sql>
+    </changeSet>
+
+    <!-- Fix 13: Add missing indexes for orders -->
+    <changeSet id="fix-13" author="audit-fix" runOnChange="false">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="orders"/>
+        </preConditions>
+        <sql>
+            -- Error recovery indexes
+            CREATE INDEX IF NOT EXISTS idx_orders_retry_count ON orders(retry_count);
+            CREATE INDEX IF NOT EXISTS idx_orders_next_retry_at ON orders(next_retry_at);
+            CREATE INDEX IF NOT EXISTS idx_orders_last_error_type ON orders(last_error_type);
+            CREATE INDEX IF NOT EXISTS idx_orders_failed_phase ON orders(failed_phase);
+            CREATE INDEX IF NOT EXISTS idx_orders_is_manually_failed ON orders(is_manually_failed);
+            CREATE INDEX IF NOT EXISTS idx_orders_version ON orders(version);
+            
+            -- Composite indexes
+            CREATE INDEX IF NOT EXISTS idx_orders_user_status ON orders(user_id, status);
+            CREATE INDEX IF NOT EXISTS idx_orders_status_created_at ON orders(status, created_at DESC);
+            
+            -- Partial indexes for performance
+            CREATE INDEX IF NOT EXISTS idx_orders_pending ON orders(created_at) WHERE status = 'PENDING';
+            CREATE INDEX IF NOT EXISTS idx_orders_processing ON orders(created_at) WHERE status = 'PROCESSING';
+            
+            -- Error recovery composite indexes
+            CREATE INDEX IF NOT EXISTS idx_orders_ready_for_retry 
+                ON orders(next_retry_at, is_manually_failed, retry_count) 
+                WHERE next_retry_at IS NOT NULL AND is_manually_failed = FALSE;
+            
+            CREATE INDEX IF NOT EXISTS idx_orders_dead_letter_queue 
+                ON orders(is_manually_failed, retry_count, max_retries, status) 
+                WHERE status = 'HOLDING';
+        </sql>
+    </changeSet>
+
+    <!-- Fix 14: Add missing views from migrations -->
+    <changeSet id="fix-14" author="audit-fix" runOnChange="true">
+        <createView viewName="error_recovery_dashboard" replaceIfExists="true">
+            SELECT 
+                COUNT(*) FILTER (WHERE error_message IS NOT NULL) as total_failed_orders,
+                COUNT(*) FILTER (WHERE error_message IS NOT NULL AND updated_at >= NOW() - INTERVAL '24 hours') as failed_last_24_hours,
+                COUNT(*) FILTER (WHERE error_message IS NOT NULL AND updated_at >= NOW() - INTERVAL '7 days') as failed_last_week,
+                COUNT(*) FILTER (WHERE (is_manually_failed = TRUE OR retry_count >= max_retries) AND status = 'HOLDING') as dead_letter_queue_count,
+                COUNT(*) FILTER (WHERE next_retry_at IS NOT NULL AND next_retry_at > NOW() AND is_manually_failed = FALSE AND retry_count &lt; max_retries) as pending_retries,
+                AVG(retry_count) FILTER (WHERE retry_count > 0) as avg_retry_count,
+                MAX(retry_count) as max_retry_count_seen
+            FROM orders
+        </createView>
+        
+        <createView viewName="error_type_analysis" replaceIfExists="true">
+            SELECT 
+                last_error_type,
+                COUNT(*) as error_count,
+                ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 2) as percentage,
+                AVG(retry_count) as avg_retries,
+                COUNT(*) FILTER (WHERE is_manually_failed = TRUE OR retry_count >= max_retries) as permanent_failures
+            FROM orders 
+            WHERE last_error_type IS NOT NULL
+            GROUP BY last_error_type
+            ORDER BY error_count DESC
+        </createView>
+        
+        <createView viewName="failed_phase_analysis" replaceIfExists="true">
+            SELECT 
+                failed_phase,
+                COUNT(*) as failure_count,
+                ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 2) as percentage,
+                AVG(retry_count) as avg_retries_before_failure
+            FROM orders 
+            WHERE failed_phase IS NOT NULL
+            GROUP BY failed_phase
+            ORDER BY failure_count DESC
+        </createView>
+    </changeSet>
+
+    <!-- Fix 15: Add version columns to other tables -->
+    <changeSet id="fix-15" author="audit-fix" runOnChange="false">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="balance_transactions" columnName="version"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="balance_transactions">
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <createIndex tableName="balance_transactions" indexName="idx_balance_transactions_version">
+            <column name="version"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Fix 16: Default data for binom_configuration (dev context) -->
+    <changeSet id="fix-16" author="audit-fix" context="dev" runOnChange="false">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="binom_configuration"/>
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM binom_configuration WHERE config_key = 'binom_tracker_url'
+            </sqlCheck>
+        </preConditions>
+        <insert tableName="binom_configuration">
+            <column name="config_key" value="binom_tracker_url"/>
+            <column name="config_value" value="https://dev-binom.example.com"/>
+            <column name="description" value="Main Binom tracker URL"/>
+            <column name="updated_by" value="SYSTEM"/>
+        </insert>
+        <insert tableName="binom_configuration">
+            <column name="config_key" value="binom_api_key"/>
+            <column name="config_value" value="dev-api-key-placeholder"/>
+            <column name="description" value="Binom API authentication key"/>
+            <column name="updated_by" value="SYSTEM"/>
+        </insert>
+        <insert tableName="binom_configuration">
+            <column name="config_key" value="default_geo_targeting"/>
+            <column name="config_value" value="US"/>
+            <column name="description" value="Default geo targeting for campaigns"/>
+            <column name="updated_by" value="SYSTEM"/>
+        </insert>
+        <insert tableName="binom_configuration">
+            <column name="config_key" value="campaign_distribution_mode"/>
+            <column name="config_value" value="EQUAL"/>
+            <column name="description" value="How to distribute clicks: EQUAL, WEIGHTED, PRIORITY"/>
+            <column name="updated_by" value="SYSTEM"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

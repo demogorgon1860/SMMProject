@@ -66,8 +66,11 @@ spring:
       connection-test-query: SELECT 1               # Health check query
       leak-detection-threshold: ${DB_LEAK_DETECTION_THRESHOLD:60000}  # 60 seconds
   # ===============================
-  # DATABASE MIGRATION - USING LIQUIBASE ONLY
+  # DATABASE MIGRATION - LIQUIBASE (SINGLE SOURCE OF TRUTH)
   # ===============================
+  # IMPORTANT: Liquibase is the only migration tool. 
+  # Flyway has been completely removed from this project.
+  # All schema changes must go through Liquibase changeSets.
   
   # ===============================
   # LIQUIBASE CONFIGURATION
@@ -76,11 +79,22 @@ spring:
     change-log: classpath:db/changelog/db.changelog-master.xml
     database-change-log-table: databasechangelog
     database-change-log-lock-table: databasechangeloglock
-    enabled: ${LIQUIBASE_SHOULD_RUN:true}
-  
+    enabled: ${SPRING_LIQUIBASE_ENABLED:true}
+    contexts: ${SPRING_LIQUIBASE_CONTEXTS:dev}
+    default-schema: public
+    drop-first: false  # NEVER drop database on startup
+    test-rollback-on-update: false
+    
+  # ===============================
+  # SQL INIT - DISABLED (Using Liquibase)
+  # ===============================
+  sql:
+    init:
+      mode: never  # Disable Spring Boot SQL initialization
+      
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: validate  # ONLY validate, never create/update/drop
       naming:
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
     show-sql: ${HIBERNATE_SHOW_SQL:false}

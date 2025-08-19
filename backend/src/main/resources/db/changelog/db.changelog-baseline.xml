@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- ========================================== -->
+    <!-- Baseline Changelog for Existing Database -->
+    <!-- ========================================== -->
+    <!-- This changelog marks all existing schema objects as already applied -->
+    <!-- It should be run ONCE on existing databases before applying new changes -->
+    
+    <changeSet id="baseline-1" author="system">
+        <tagDatabase tag="baseline_1.0.0"/>
+    </changeSet>
+
+</databaseChangeLog>

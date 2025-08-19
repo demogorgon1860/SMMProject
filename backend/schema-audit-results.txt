@@ -1,0 +1,710 @@
+    audit_section     
+----------------------
+ === TABLES AUDIT ===
+(1 row)
+
+       table_name        |    status    
+-------------------------+--------------
+ balance_deposits        | ✓ Expected
+ balance_transactions    | ✓ Expected
+ binom_campaigns         | ✓ Expected
+ conversion_coefficients | ✓ Expected
+ databasechangelog       | ✓ Expected
+ databasechangeloglock   | ✓ Expected
+ orders                  | ✓ Expected
+ orders_2025_01          | ✓ Expected
+ orders_2025_02          | ✓ Expected
+ pg_stat_statements      | ✗ UNEXPECTED
+ pg_stat_statements_info | ✗ UNEXPECTED
+ services                | ✓ Expected
+ traffic_sources         | ✓ Expected
+ users                   | ✓ Expected
+ video_processing        | ✓ Expected
+ view_stats              | ✓ Expected
+ youtube_accounts        | ✓ Expected
+(17 rows)
+
+     audit_section     
+-----------------------
+ === COLUMNS AUDIT ===
+(1 row)
+
+ table_name |  column_name  |        data_type         | is_nullable |          column_default           
+------------+---------------+--------------------------+-------------+-----------------------------------
+ users      | id            | bigint                   | NO          | nextval('users_id_seq'::regclass)
+ users      | username      | character varying        | NO          | 
+ users      | email         | character varying        | NO          | 
+ users      | password_hash | character varying        | NO          | 
+ users      | api_key       | character varying        | YES         | 
+ users      | balance       | numeric                  | YES         | 0.00
+ users      | role          | USER-DEFINED             | YES         | 'USER'::user_role
+ users      | timezone      | character varying        | YES         | 'UTC'::character varying
+ users      | is_active     | boolean                  | YES         | true
+ users      | created_at    | timestamp with time zone | YES         | now()
+ users      | updated_at    | timestamp with time zone | YES         | now()
+(11 rows)
+
+ table_name |     column_name     |        data_type         | is_nullable |           column_default           
+------------+---------------------+--------------------------+-------------+------------------------------------
+ orders     | id                  | bigint                   | NO          | nextval('orders_id_seq'::regclass)
+ orders     | user_id             | bigint                   | NO          | 
+ orders     | service_id          | bigint                   | NO          | 
+ orders     | link                | character varying        | NO          | 
+ orders     | quantity            | integer                  | NO          | 
+ orders     | charge              | numeric                  | NO          | 
+ orders     | start_count         | integer                  | YES         | 0
+ orders     | remains             | integer                  | YES         | 
+ orders     | status              | USER-DEFINED             | YES         | 'PENDING'::order_status
+ orders     | youtube_video_id    | character varying        | YES         | 
+ orders     | processing_priority | integer                  | YES         | 0
+ orders     | error_message       | text                     | YES         | 
+ orders     | created_at          | timestamp with time zone | NO          | now()
+ orders     | updated_at          | timestamp with time zone | YES         | now()
+(14 rows)
+
+ table_name |  column_name   |        data_type         | is_nullable | column_default 
+------------+----------------+--------------------------+-------------+----------------
+ services   | id             | bigint                   | NO          | 
+ services   | name           | character varying        | NO          | 
+ services   | category       | character varying        | NO          | 
+ services   | min_order      | integer                  | NO          | 
+ services   | max_order      | integer                  | NO          | 
+ services   | price_per_1000 | numeric                  | NO          | 
+ services   | description    | text                     | YES         | 
+ services   | active         | boolean                  | YES         | true
+ services   | created_at     | timestamp with time zone | YES         | now()
+(9 rows)
+
+    table_name    |     column_name     |        data_type         | is_nullable |                column_default                
+------------------+---------------------+--------------------------+-------------+----------------------------------------------
+ video_processing | id                  | bigint                   | NO          | nextval('video_processing_id_seq'::regclass)
+ video_processing | order_id            | bigint                   | NO          | 
+ video_processing | order_created_at    | timestamp with time zone | NO          | 
+ video_processing | original_url        | character varying        | NO          | 
+ video_processing | video_type          | USER-DEFINED             | YES         | 
+ video_processing | clip_created        | boolean                  | YES         | false
+ video_processing | clip_url            | character varying        | YES         | 
+ video_processing | youtube_account_id  | bigint                   | YES         | 
+ video_processing | processing_status   | character varying        | YES         | 'PENDING'::character varying
+ video_processing | processing_attempts | integer                  | YES         | 0
+ video_processing | error_message       | text                     | YES         | 
+ video_processing | metadata            | jsonb                    | YES         | 
+ video_processing | created_at          | timestamp with time zone | YES         | now()
+ video_processing | updated_at          | timestamp with time zone | YES         | now()
+(14 rows)
+
+     audit_section     
+-----------------------
+ === INDEXES AUDIT ===
+(1 row)
+
+ schemaname |        tablename        |                   indexname                   |                                                                                                                     indexdef                                                                                                                      
+------------+-------------------------+-----------------------------------------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ public     | balance_deposits        | balance_deposits_order_id_key                 | CREATE UNIQUE INDEX balance_deposits_order_id_key ON public.balance_deposits USING btree (order_id)
+ public     | balance_deposits        | balance_deposits_pkey                         | CREATE UNIQUE INDEX balance_deposits_pkey ON public.balance_deposits USING btree (id)
+ public     | balance_transactions    | balance_transactions_pkey                     | CREATE UNIQUE INDEX balance_transactions_pkey ON public.balance_transactions USING btree (id)
+ public     | binom_campaigns         | binom_campaigns_campaign_id_key               | CREATE UNIQUE INDEX binom_campaigns_campaign_id_key ON public.binom_campaigns USING btree (campaign_id)
+ public     | binom_campaigns         | binom_campaigns_pkey                          | CREATE UNIQUE INDEX binom_campaigns_pkey ON public.binom_campaigns USING btree (id)
+ public     | conversion_coefficients | conversion_coefficients_pkey                  | CREATE UNIQUE INDEX conversion_coefficients_pkey ON public.conversion_coefficients USING btree (id)
+ public     | orders                  | idx_orders_active_monitoring                  | CREATE INDEX idx_orders_active_monitoring ON ONLY public.orders USING btree (status, updated_at) WHERE (status = ANY (ARRAY['ACTIVE'::order_status, 'HOLDING'::order_status]))
+ public     | orders                  | idx_orders_processing                         | CREATE INDEX idx_orders_processing ON ONLY public.orders USING btree (status, processing_priority DESC) WHERE (status = ANY (ARRAY['PENDING'::order_status, 'IN_PROGRESS'::order_status, 'PROCESSING'::order_status]))
+ public     | orders                  | idx_orders_status                             | CREATE INDEX idx_orders_status ON ONLY public.orders USING btree (status) WHERE (status <> ALL (ARRAY['COMPLETED'::order_status, 'CANCELLED'::order_status]))
+ public     | orders                  | idx_orders_user_id                            | CREATE INDEX idx_orders_user_id ON ONLY public.orders USING btree (user_id, created_at DESC)
+ public     | orders                  | idx_orders_youtube_video_id                   | CREATE INDEX idx_orders_youtube_video_id ON ONLY public.orders USING btree (youtube_video_id) WHERE (youtube_video_id IS NOT NULL)
+ public     | orders                  | orders_pkey                                   | CREATE UNIQUE INDEX orders_pkey ON ONLY public.orders USING btree (id, created_at)
+ public     | orders_2025_01          | orders_2025_01_pkey                           | CREATE UNIQUE INDEX orders_2025_01_pkey ON public.orders_2025_01 USING btree (id, created_at)
+ public     | orders_2025_01          | orders_2025_01_status_idx                     | CREATE INDEX orders_2025_01_status_idx ON public.orders_2025_01 USING btree (status) WHERE (status <> ALL (ARRAY['COMPLETED'::order_status, 'CANCELLED'::order_status]))
+ public     | orders_2025_01          | orders_2025_01_status_processing_priority_idx | CREATE INDEX orders_2025_01_status_processing_priority_idx ON public.orders_2025_01 USING btree (status, processing_priority DESC) WHERE (status = ANY (ARRAY['PENDING'::order_status, 'IN_PROGRESS'::order_status, 'PROCESSING'::order_status]))
+ public     | orders_2025_01          | orders_2025_01_status_updated_at_idx          | CREATE INDEX orders_2025_01_status_updated_at_idx ON public.orders_2025_01 USING btree (status, updated_at) WHERE (status = ANY (ARRAY['ACTIVE'::order_status, 'HOLDING'::order_status]))
+ public     | orders_2025_01          | orders_2025_01_user_id_created_at_idx         | CREATE INDEX orders_2025_01_user_id_created_at_idx ON public.orders_2025_01 USING btree (user_id, created_at DESC)
+ public     | orders_2025_01          | orders_2025_01_youtube_video_id_idx           | CREATE INDEX orders_2025_01_youtube_video_id_idx ON public.orders_2025_01 USING btree (youtube_video_id) WHERE (youtube_video_id IS NOT NULL)
+ public     | orders_2025_02          | orders_2025_02_pkey                           | CREATE UNIQUE INDEX orders_2025_02_pkey ON public.orders_2025_02 USING btree (id, created_at)
+ public     | orders_2025_02          | orders_2025_02_status_idx                     | CREATE INDEX orders_2025_02_status_idx ON public.orders_2025_02 USING btree (status) WHERE (status <> ALL (ARRAY['COMPLETED'::order_status, 'CANCELLED'::order_status]))
+ public     | orders_2025_02          | orders_2025_02_status_processing_priority_idx | CREATE INDEX orders_2025_02_status_processing_priority_idx ON public.orders_2025_02 USING btree (status, processing_priority DESC) WHERE (status = ANY (ARRAY['PENDING'::order_status, 'IN_PROGRESS'::order_status, 'PROCESSING'::order_status]))
+ public     | orders_2025_02          | orders_2025_02_status_updated_at_idx          | CREATE INDEX orders_2025_02_status_updated_at_idx ON public.orders_2025_02 USING btree (status, updated_at) WHERE (status = ANY (ARRAY['ACTIVE'::order_status, 'HOLDING'::order_status]))
+ public     | orders_2025_02          | orders_2025_02_user_id_created_at_idx         | CREATE INDEX orders_2025_02_user_id_created_at_idx ON public.orders_2025_02 USING btree (user_id, created_at DESC)
+ public     | orders_2025_02          | orders_2025_02_youtube_video_id_idx           | CREATE INDEX orders_2025_02_youtube_video_id_idx ON public.orders_2025_02 USING btree (youtube_video_id) WHERE (youtube_video_id IS NOT NULL)
+ public     | services                | services_pkey                                 | CREATE UNIQUE INDEX services_pkey ON public.services USING btree (id)
+ public     | traffic_sources         | traffic_sources_pkey                          | CREATE UNIQUE INDEX traffic_sources_pkey ON public.traffic_sources USING btree (id)
+ public     | traffic_sources         | traffic_sources_source_id_key                 | CREATE UNIQUE INDEX traffic_sources_source_id_key ON public.traffic_sources USING btree (source_id)
+ public     | users                   | idx_users_api_key_active                      | CREATE INDEX idx_users_api_key_active ON public.users USING btree (api_key) WHERE (is_active = true)
+ public     | users                   | idx_users_balance                             | CREATE INDEX idx_users_balance ON public.users USING btree (balance) WHERE (balance > (0)::numeric)
+ public     | users                   | idx_users_created_at                          | CREATE INDEX idx_users_created_at ON public.users USING btree (created_at DESC)
+ public     | users                   | idx_users_role                                | CREATE INDEX idx_users_role ON public.users USING btree (role) WHERE (role <> 'USER'::user_role)
+ public     | users                   | users_api_key_key                             | CREATE UNIQUE INDEX users_api_key_key ON public.users USING btree (api_key)
+ public     | users                   | users_email_key                               | CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)
+ public     | users                   | users_pkey                                    | CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)
+ public     | users                   | users_username_key                            | CREATE UNIQUE INDEX users_username_key ON public.users USING btree (username)
+ public     | video_processing        | video_processing_pkey                         | CREATE UNIQUE INDEX video_processing_pkey ON public.video_processing USING btree (id)
+ public     | view_stats              | view_stats_pkey                               | CREATE UNIQUE INDEX view_stats_pkey ON public.view_stats USING btree (id)
+ public     | youtube_accounts        | youtube_accounts_pkey                         | CREATE UNIQUE INDEX youtube_accounts_pkey ON public.youtube_accounts USING btree (id)
+(38 rows)
+
+       audit_section       
+---------------------------
+ === CONSTRAINTS AUDIT ===
+(1 row)
+
+       table_name        |                   constraint_name                    | constraint_type |     column_name     |              details              
+-------------------------+------------------------------------------------------+-----------------+---------------------+-----------------------------------
+ balance_deposits        | 2200_17214_10_not_null                               | CHECK           |                     | expires_at IS NOT NULL
+ balance_deposits        | 2200_17214_1_not_null                                | CHECK           |                     | id IS NOT NULL
+ balance_deposits        | 2200_17214_2_not_null                                | CHECK           |                     | user_id IS NOT NULL
+ balance_deposits        | 2200_17214_3_not_null                                | CHECK           |                     | order_id IS NOT NULL
+ balance_deposits        | 2200_17214_4_not_null                                | CHECK           |                     | amount_usd IS NOT NULL
+ balance_deposits        | 2200_17214_5_not_null                                | CHECK           |                     | currency IS NOT NULL
+ balance_deposits        | balance_deposits_amount_usd_check                    | CHECK           |                     | ((amount_usd >= 5.00))
+ balance_deposits        | balance_deposits_user_id_fkey                        | FOREIGN KEY     | user_id             | users(id)
+ balance_deposits        | balance_deposits_pkey                                | PRIMARY KEY     | id                  | 
+ balance_deposits        | balance_deposits_order_id_key                        | UNIQUE          | order_id            | 
+ balance_transactions    | 2200_17233_1_not_null                                | CHECK           |                     | id IS NOT NULL
+ balance_transactions    | 2200_17233_2_not_null                                | CHECK           |                     | user_id IS NOT NULL
+ balance_transactions    | 2200_17233_6_not_null                                | CHECK           |                     | amount IS NOT NULL
+ balance_transactions    | 2200_17233_7_not_null                                | CHECK           |                     | balance_before IS NOT NULL
+ balance_transactions    | 2200_17233_8_not_null                                | CHECK           |                     | balance_after IS NOT NULL
+ balance_transactions    | 2200_17233_9_not_null                                | CHECK           |                     | transaction_type IS NOT NULL
+ balance_transactions    | balance_transactions_deposit_id_fkey                 | FOREIGN KEY     | deposit_id          | balance_deposits(id)
+ balance_transactions    | balance_transactions_order_id_order_created_at_fkey  | FOREIGN KEY     | order_id            | orders(created_at)
+ balance_transactions    | balance_transactions_order_id_order_created_at_fkey  | FOREIGN KEY     | order_created_at    | orders(created_at)
+ balance_transactions    | balance_transactions_order_id_order_created_at_fkey  | FOREIGN KEY     | order_created_at    | orders(id)
+ balance_transactions    | balance_transactions_order_id_order_created_at_fkey  | FOREIGN KEY     | order_id            | orders(id)
+ balance_transactions    | balance_transactions_order_id_order_created_at_fkey1 | FOREIGN KEY     | order_created_at    | orders_2025_01(created_at)
+ balance_transactions    | balance_transactions_order_id_order_created_at_fkey1 | FOREIGN KEY     | order_created_at    | orders_2025_01(id)
+ balance_transactions    | balance_transactions_order_id_order_created_at_fkey1 | FOREIGN KEY     | order_id            | orders_2025_01(id)
+ balance_transactions    | balance_transactions_order_id_order_created_at_fkey1 | FOREIGN KEY     | order_id            | orders_2025_01(created_at)
+ balance_transactions    | balance_transactions_order_id_order_created_at_fkey2 | FOREIGN KEY     | order_created_at    | orders_2025_02(id)
+ balance_transactions    | balance_transactions_order_id_order_created_at_fkey2 | FOREIGN KEY     | order_id            | orders_2025_02(created_at)
+ balance_transactions    | balance_transactions_order_id_order_created_at_fkey2 | FOREIGN KEY     | order_created_at    | orders_2025_02(created_at)
+ balance_transactions    | balance_transactions_order_id_order_created_at_fkey2 | FOREIGN KEY     | order_id            | orders_2025_02(id)
+ balance_transactions    | balance_transactions_user_id_fkey                    | FOREIGN KEY     | user_id             | users(id)
+ balance_transactions    | balance_transactions_pkey                            | PRIMARY KEY     | id                  | 
+ binom_campaigns         | 2200_17182_1_not_null                                | CHECK           |                     | id IS NOT NULL
+ binom_campaigns         | 2200_17182_2_not_null                                | CHECK           |                     | order_id IS NOT NULL
+ binom_campaigns         | 2200_17182_3_not_null                                | CHECK           |                     | order_created_at IS NOT NULL
+ binom_campaigns         | 2200_17182_4_not_null                                | CHECK           |                     | campaign_id IS NOT NULL
+ binom_campaigns         | 2200_17182_6_not_null                                | CHECK           |                     | target_url IS NOT NULL
+ binom_campaigns         | 2200_17182_8_not_null                                | CHECK           |                     | coefficient IS NOT NULL
+ binom_campaigns         | 2200_17182_9_not_null                                | CHECK           |                     | clicks_required IS NOT NULL
+ binom_campaigns         | binom_campaigns_order_id_order_created_at_fkey       | FOREIGN KEY     | order_id            | orders(id)
+ binom_campaigns         | binom_campaigns_order_id_order_created_at_fkey       | FOREIGN KEY     | order_created_at    | orders(id)
+ binom_campaigns         | binom_campaigns_order_id_order_created_at_fkey       | FOREIGN KEY     | order_id            | orders(created_at)
+ binom_campaigns         | binom_campaigns_order_id_order_created_at_fkey       | FOREIGN KEY     | order_created_at    | orders(created_at)
+ binom_campaigns         | binom_campaigns_order_id_order_created_at_fkey1      | FOREIGN KEY     | order_created_at    | orders_2025_01(created_at)
+ binom_campaigns         | binom_campaigns_order_id_order_created_at_fkey1      | FOREIGN KEY     | order_id            | orders_2025_01(id)
+ binom_campaigns         | binom_campaigns_order_id_order_created_at_fkey1      | FOREIGN KEY     | order_created_at    | orders_2025_01(id)
+ binom_campaigns         | binom_campaigns_order_id_order_created_at_fkey1      | FOREIGN KEY     | order_id            | orders_2025_01(created_at)
+ binom_campaigns         | binom_campaigns_order_id_order_created_at_fkey2      | FOREIGN KEY     | order_created_at    | orders_2025_02(created_at)
+ binom_campaigns         | binom_campaigns_order_id_order_created_at_fkey2      | FOREIGN KEY     | order_created_at    | orders_2025_02(id)
+ binom_campaigns         | binom_campaigns_order_id_order_created_at_fkey2      | FOREIGN KEY     | order_id            | orders_2025_02(id)
+ binom_campaigns         | binom_campaigns_order_id_order_created_at_fkey2      | FOREIGN KEY     | order_id            | orders_2025_02(created_at)
+ binom_campaigns         | binom_campaigns_traffic_source_id_fkey               | FOREIGN KEY     | traffic_source_id   | traffic_sources(id)
+ binom_campaigns         | binom_campaigns_pkey                                 | PRIMARY KEY     | id                  | 
+ binom_campaigns         | binom_campaigns_campaign_id_key                      | UNIQUE          | campaign_id         | 
+ conversion_coefficients | 2200_17292_1_not_null                                | CHECK           |                     | id IS NOT NULL
+ conversion_coefficients | conversion_coefficients_service_id_fkey              | FOREIGN KEY     | service_id          | services(id)
+ conversion_coefficients | conversion_coefficients_updated_by_fkey              | FOREIGN KEY     | updated_by          | users(id)
+ conversion_coefficients | conversion_coefficients_pkey                         | PRIMARY KEY     | id                  | 
+ orders                  | 2200_17042_13_not_null                               | CHECK           |                     | created_at IS NOT NULL
+ orders                  | 2200_17042_1_not_null                                | CHECK           |                     | id IS NOT NULL
+ orders                  | 2200_17042_2_not_null                                | CHECK           |                     | user_id IS NOT NULL
+ orders                  | 2200_17042_3_not_null                                | CHECK           |                     | service_id IS NOT NULL
+ orders                  | 2200_17042_4_not_null                                | CHECK           |                     | link IS NOT NULL
+ orders                  | 2200_17042_5_not_null                                | CHECK           |                     | quantity IS NOT NULL
+ orders                  | 2200_17042_6_not_null                                | CHECK           |                     | charge IS NOT NULL
+ orders                  | orders_charge_check                                  | CHECK           |                     | ((charge > (0)::numeric))
+ orders                  | orders_charge_check                                  | CHECK           |                     | ((charge > (0)::numeric))
+ orders                  | orders_charge_check                                  | CHECK           |                     | ((charge > (0)::numeric))
+ orders                  | orders_quantity_check                                | CHECK           |                     | ((quantity > 0))
+ orders                  | orders_quantity_check                                | CHECK           |                     | ((quantity > 0))
+ orders                  | orders_quantity_check                                | CHECK           |                     | ((quantity > 0))
+ orders                  | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders                  | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders                  | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders                  | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders                  | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders                  | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders                  | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders                  | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders                  | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders                  | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders                  | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders                  | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders                  | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders                  | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders                  | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders                  | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders                  | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders                  | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders                  | orders_pkey                                          | PRIMARY KEY     | created_at          | 
+ orders                  | orders_pkey                                          | PRIMARY KEY     | id                  | 
+ orders                  | orders_pkey                                          | PRIMARY KEY     | created_at          | 
+ orders                  | orders_pkey                                          | PRIMARY KEY     | id                  | 
+ orders_2025_01          | 2200_17065_13_not_null                               | CHECK           |                     | created_at IS NOT NULL
+ orders_2025_01          | 2200_17065_1_not_null                                | CHECK           |                     | id IS NOT NULL
+ orders_2025_01          | 2200_17065_2_not_null                                | CHECK           |                     | user_id IS NOT NULL
+ orders_2025_01          | 2200_17065_3_not_null                                | CHECK           |                     | service_id IS NOT NULL
+ orders_2025_01          | 2200_17065_4_not_null                                | CHECK           |                     | link IS NOT NULL
+ orders_2025_01          | 2200_17065_5_not_null                                | CHECK           |                     | quantity IS NOT NULL
+ orders_2025_01          | 2200_17065_6_not_null                                | CHECK           |                     | charge IS NOT NULL
+ orders_2025_01          | orders_charge_check                                  | CHECK           |                     | ((charge > (0)::numeric))
+ orders_2025_01          | orders_charge_check                                  | CHECK           |                     | ((charge > (0)::numeric))
+ orders_2025_01          | orders_charge_check                                  | CHECK           |                     | ((charge > (0)::numeric))
+ orders_2025_01          | orders_quantity_check                                | CHECK           |                     | ((quantity > 0))
+ orders_2025_01          | orders_quantity_check                                | CHECK           |                     | ((quantity > 0))
+ orders_2025_01          | orders_quantity_check                                | CHECK           |                     | ((quantity > 0))
+ orders_2025_01          | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders_2025_01          | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders_2025_01          | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders_2025_01          | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders_2025_01          | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders_2025_01          | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders_2025_01          | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders_2025_01          | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders_2025_01          | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders_2025_01          | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders_2025_01          | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders_2025_01          | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders_2025_01          | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders_2025_01          | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders_2025_01          | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders_2025_01          | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders_2025_01          | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders_2025_01          | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders_2025_01          | orders_2025_01_pkey                                  | PRIMARY KEY     | id                  | 
+ orders_2025_01          | orders_2025_01_pkey                                  | PRIMARY KEY     | created_at          | 
+ orders_2025_01          | orders_2025_01_pkey                                  | PRIMARY KEY     | created_at          | 
+ orders_2025_01          | orders_2025_01_pkey                                  | PRIMARY KEY     | id                  | 
+ orders_2025_02          | 2200_17086_13_not_null                               | CHECK           |                     | created_at IS NOT NULL
+ orders_2025_02          | 2200_17086_1_not_null                                | CHECK           |                     | id IS NOT NULL
+ orders_2025_02          | 2200_17086_2_not_null                                | CHECK           |                     | user_id IS NOT NULL
+ orders_2025_02          | 2200_17086_3_not_null                                | CHECK           |                     | service_id IS NOT NULL
+ orders_2025_02          | 2200_17086_4_not_null                                | CHECK           |                     | link IS NOT NULL
+ orders_2025_02          | 2200_17086_5_not_null                                | CHECK           |                     | quantity IS NOT NULL
+ orders_2025_02          | 2200_17086_6_not_null                                | CHECK           |                     | charge IS NOT NULL
+ orders_2025_02          | orders_charge_check                                  | CHECK           |                     | ((charge > (0)::numeric))
+ orders_2025_02          | orders_charge_check                                  | CHECK           |                     | ((charge > (0)::numeric))
+ orders_2025_02          | orders_charge_check                                  | CHECK           |                     | ((charge > (0)::numeric))
+ orders_2025_02          | orders_quantity_check                                | CHECK           |                     | ((quantity > 0))
+ orders_2025_02          | orders_quantity_check                                | CHECK           |                     | ((quantity > 0))
+ orders_2025_02          | orders_quantity_check                                | CHECK           |                     | ((quantity > 0))
+ orders_2025_02          | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders_2025_02          | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders_2025_02          | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders_2025_02          | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders_2025_02          | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders_2025_02          | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders_2025_02          | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders_2025_02          | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders_2025_02          | orders_service_id_fkey                               | FOREIGN KEY     | service_id          | services(id)
+ orders_2025_02          | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders_2025_02          | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders_2025_02          | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders_2025_02          | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders_2025_02          | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders_2025_02          | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders_2025_02          | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders_2025_02          | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders_2025_02          | orders_user_id_fkey                                  | FOREIGN KEY     | user_id             | users(id)
+ orders_2025_02          | orders_2025_02_pkey                                  | PRIMARY KEY     | created_at          | 
+ orders_2025_02          | orders_2025_02_pkey                                  | PRIMARY KEY     | created_at          | 
+ orders_2025_02          | orders_2025_02_pkey                                  | PRIMARY KEY     | id                  | 
+ orders_2025_02          | orders_2025_02_pkey                                  | PRIMARY KEY     | id                  | 
+ services                | 2200_17029_1_not_null                                | CHECK           |                     | id IS NOT NULL
+ services                | 2200_17029_2_not_null                                | CHECK           |                     | name IS NOT NULL
+ services                | 2200_17029_3_not_null                                | CHECK           |                     | category IS NOT NULL
+ services                | 2200_17029_4_not_null                                | CHECK           |                     | min_order IS NOT NULL
+ services                | 2200_17029_5_not_null                                | CHECK           |                     | max_order IS NOT NULL
+ services                | 2200_17029_6_not_null                                | CHECK           |                     | price_per_1000 IS NOT NULL
+ services                | services_check                                       | CHECK           |                     | ((max_order >= min_order))
+ services                | services_check                                       | CHECK           |                     | ((max_order >= min_order))
+ services                | services_min_order_check                             | CHECK           |                     | ((min_order > 0))
+ services                | services_price_per_1000_check                        | CHECK           |                     | ((price_per_1000 > (0)::numeric))
+ services                | services_pkey                                        | PRIMARY KEY     | id                  | 
+ traffic_sources         | 2200_17163_1_not_null                                | CHECK           |                     | id IS NOT NULL
+ traffic_sources         | 2200_17163_2_not_null                                | CHECK           |                     | name IS NOT NULL
+ traffic_sources         | 2200_17163_3_not_null                                | CHECK           |                     | source_id IS NOT NULL
+ traffic_sources         | traffic_sources_weight_check                         | CHECK           |                     | ((weight > 0))
+ traffic_sources         | traffic_sources_pkey                                 | PRIMARY KEY     | id                  | 
+ traffic_sources         | traffic_sources_source_id_key                        | UNIQUE          | source_id           | 
+ users                   | 2200_17004_1_not_null                                | CHECK           |                     | id IS NOT NULL
+ users                   | 2200_17004_2_not_null                                | CHECK           |                     | username IS NOT NULL
+ users                   | 2200_17004_3_not_null                                | CHECK           |                     | email IS NOT NULL
+ users                   | 2200_17004_4_not_null                                | CHECK           |                     | password_hash IS NOT NULL
+ users                   | users_balance_check                                  | CHECK           |                     | ((balance >= (0)::numeric))
+ users                   | users_pkey                                           | PRIMARY KEY     | id                  | 
+ users                   | users_api_key_key                                    | UNIQUE          | api_key             | 
+ users                   | users_email_key                                      | UNIQUE          | email               | 
+ users                   | users_username_key                                   | UNIQUE          | username            | 
+ video_processing        | 2200_17123_1_not_null                                | CHECK           |                     | id IS NOT NULL
+ video_processing        | 2200_17123_2_not_null                                | CHECK           |                     | order_id IS NOT NULL
+ video_processing        | 2200_17123_3_not_null                                | CHECK           |                     | order_created_at IS NOT NULL
+ video_processing        | 2200_17123_4_not_null                                | CHECK           |                     | original_url IS NOT NULL
+ video_processing        | video_processing_order_id_order_created_at_fkey      | FOREIGN KEY     | order_id            | orders(id)
+ video_processing        | video_processing_order_id_order_created_at_fkey      | FOREIGN KEY     | order_created_at    | orders(created_at)
+ video_processing        | video_processing_order_id_order_created_at_fkey      | FOREIGN KEY     | order_id            | orders(created_at)
+ video_processing        | video_processing_order_id_order_created_at_fkey      | FOREIGN KEY     | order_created_at    | orders(id)
+ video_processing        | video_processing_order_id_order_created_at_fkey1     | FOREIGN KEY     | order_id            | orders_2025_01(id)
+ video_processing        | video_processing_order_id_order_created_at_fkey1     | FOREIGN KEY     | order_created_at    | orders_2025_01(id)
+ video_processing        | video_processing_order_id_order_created_at_fkey1     | FOREIGN KEY     | order_created_at    | orders_2025_01(created_at)
+ video_processing        | video_processing_order_id_order_created_at_fkey1     | FOREIGN KEY     | order_id            | orders_2025_01(created_at)
+ video_processing        | video_processing_order_id_order_created_at_fkey2     | FOREIGN KEY     | order_id            | orders_2025_02(id)
+ video_processing        | video_processing_order_id_order_created_at_fkey2     | FOREIGN KEY     | order_created_at    | orders_2025_02(id)
+ video_processing        | video_processing_order_id_order_created_at_fkey2     | FOREIGN KEY     | order_created_at    | orders_2025_02(created_at)
+ video_processing        | video_processing_order_id_order_created_at_fkey2     | FOREIGN KEY     | order_id            | orders_2025_02(created_at)
+ video_processing        | video_processing_pkey                                | PRIMARY KEY     | id                  | 
+ view_stats              | 2200_17264_1_not_null                                | CHECK           |                     | id IS NOT NULL
+ view_stats              | 2200_17264_2_not_null                                | CHECK           |                     | order_id IS NOT NULL
+ view_stats              | 2200_17264_3_not_null                                | CHECK           |                     | order_created_at IS NOT NULL
+ view_stats              | 2200_17264_6_not_null                                | CHECK           |                     | target_views IS NOT NULL
+ view_stats              | view_stats_order_id_order_created_at_fkey            | FOREIGN KEY     | order_id            | orders(id)
+ view_stats              | view_stats_order_id_order_created_at_fkey            | FOREIGN KEY     | order_created_at    | orders(id)
+ view_stats              | view_stats_order_id_order_created_at_fkey            | FOREIGN KEY     | order_id            | orders(created_at)
+ view_stats              | view_stats_order_id_order_created_at_fkey            | FOREIGN KEY     | order_created_at    | orders(created_at)
+ view_stats              | view_stats_order_id_order_created_at_fkey1           | FOREIGN KEY     | order_id            | orders_2025_01(id)
+ view_stats              | view_stats_order_id_order_created_at_fkey1           | FOREIGN KEY     | order_id            | orders_2025_01(created_at)
+ view_stats              | view_stats_order_id_order_created_at_fkey1           | FOREIGN KEY     | order_created_at    | orders_2025_01(created_at)
+ view_stats              | view_stats_order_id_order_created_at_fkey1           | FOREIGN KEY     | order_created_at    | orders_2025_01(id)
+ view_stats              | view_stats_order_id_order_created_at_fkey2           | FOREIGN KEY     | order_created_at    | orders_2025_02(id)
+ view_stats              | view_stats_order_id_order_created_at_fkey2           | FOREIGN KEY     | order_id            | orders_2025_02(id)
+ view_stats              | view_stats_order_id_order_created_at_fkey2           | FOREIGN KEY     | order_id            | orders_2025_02(created_at)
+ view_stats              | view_stats_order_id_order_created_at_fkey2           | FOREIGN KEY     | order_created_at    | orders_2025_02(created_at)
+ view_stats              | view_stats_video_processing_id_fkey                  | FOREIGN KEY     | video_processing_id | video_processing(id)
+ view_stats              | view_stats_pkey                                      | PRIMARY KEY     | id                  | 
+ youtube_accounts        | 2200_17148_1_not_null                                | CHECK           |                     | id IS NOT NULL
+ youtube_accounts        | 2200_17148_2_not_null                                | CHECK           |                     | username IS NOT NULL
+ youtube_accounts        | 2200_17148_3_not_null                                | CHECK           |                     | email IS NOT NULL
+ youtube_accounts        | youtube_accounts_pkey                                | PRIMARY KEY     | id                  | 
+(227 rows)
+
+      audit_section      
+-------------------------
+ === SEQUENCES AUDIT ===
+(1 row)
+
+         sequence_name          | data_type | start_value | minimum_value |    maximum_value    | increment 
+--------------------------------+-----------+-------------+---------------+---------------------+-----------
+ balance_deposits_id_seq        | bigint    | 1           | 1             | 9223372036854775807 | 1
+ balance_transactions_id_seq    | bigint    | 1           | 1             | 9223372036854775807 | 1
+ binom_campaigns_id_seq         | bigint    | 1           | 1             | 9223372036854775807 | 1
+ conversion_coefficients_id_seq | bigint    | 1           | 1             | 9223372036854775807 | 1
+ orders_id_seq                  | bigint    | 1           | 1             | 9223372036854775807 | 1
+ traffic_sources_id_seq         | bigint    | 1           | 1             | 9223372036854775807 | 1
+ users_id_seq                   | bigint    | 1           | 1             | 9223372036854775807 | 1
+ video_processing_id_seq        | bigint    | 1           | 1             | 9223372036854775807 | 1
+ view_stats_id_seq              | bigint    | 1           | 1             | 9223372036854775807 | 1
+ youtube_accounts_id_seq        | bigint    | 1           | 1             | 9223372036854775807 | 1
+(10 rows)
+
+       audit_section        
+----------------------------
+ === CUSTOM TYPES AUDIT ===
+(1 row)
+
+       enum_name        |                                        enum_values                                        
+------------------------+-------------------------------------------------------------------------------------------
+ order_status           | {PENDING,IN_PROGRESS,PROCESSING,ACTIVE,PARTIAL,COMPLETED,CANCELLED,PAUSED,HOLDING,REFILL}
+ payment_status         | {PENDING,PROCESSING,COMPLETED,FAILED,EXPIRED}
+ transaction_type       | {DEPOSIT,ORDER_PAYMENT,REFUND,REFILL}
+ user_role              | {USER,OPERATOR,ADMIN}
+ video_type             | {STANDARD,SHORTS,LIVE}
+ youtube_account_status | {ACTIVE,BLOCKED,SUSPENDED,RATE_LIMITED}
+(6 rows)
+
+     audit_section      
+------------------------
+ === TRIGGERS AUDIT ===
+(1 row)
+
+ trigger_name | table_name | action_timing | event_manipulation | action_statement 
+--------------+------------+---------------+--------------------+------------------
+(0 rows)
+
+      audit_section      
+-------------------------
+ === FUNCTIONS AUDIT ===
+(1 row)
+
+               routine_name                | routine_type |   return_type    
+-------------------------------------------+--------------+------------------
+ gin_btree_consistent                      | FUNCTION     | boolean
+ gin_compare_prefix_anyenum                | FUNCTION     | integer
+ gin_compare_prefix_bit                    | FUNCTION     | integer
+ gin_compare_prefix_bool                   | FUNCTION     | integer
+ gin_compare_prefix_bpchar                 | FUNCTION     | integer
+ gin_compare_prefix_bytea                  | FUNCTION     | integer
+ gin_compare_prefix_char                   | FUNCTION     | integer
+ gin_compare_prefix_cidr                   | FUNCTION     | integer
+ gin_compare_prefix_date                   | FUNCTION     | integer
+ gin_compare_prefix_float4                 | FUNCTION     | integer
+ gin_compare_prefix_float8                 | FUNCTION     | integer
+ gin_compare_prefix_inet                   | FUNCTION     | integer
+ gin_compare_prefix_int2                   | FUNCTION     | integer
+ gin_compare_prefix_int4                   | FUNCTION     | integer
+ gin_compare_prefix_int8                   | FUNCTION     | integer
+ gin_compare_prefix_interval               | FUNCTION     | integer
+ gin_compare_prefix_macaddr                | FUNCTION     | integer
+ gin_compare_prefix_macaddr8               | FUNCTION     | integer
+ gin_compare_prefix_money                  | FUNCTION     | integer
+ gin_compare_prefix_name                   | FUNCTION     | integer
+ gin_compare_prefix_numeric                | FUNCTION     | integer
+ gin_compare_prefix_oid                    | FUNCTION     | integer
+ gin_compare_prefix_text                   | FUNCTION     | integer
+ gin_compare_prefix_time                   | FUNCTION     | integer
+ gin_compare_prefix_timestamp              | FUNCTION     | integer
+ gin_compare_prefix_timestamptz            | FUNCTION     | integer
+ gin_compare_prefix_timetz                 | FUNCTION     | integer
+ gin_compare_prefix_uuid                   | FUNCTION     | integer
+ gin_compare_prefix_varbit                 | FUNCTION     | integer
+ gin_enum_cmp                              | FUNCTION     | integer
+ gin_extract_query_anyenum                 | FUNCTION     | internal
+ gin_extract_query_bit                     | FUNCTION     | internal
+ gin_extract_query_bool                    | FUNCTION     | internal
+ gin_extract_query_bpchar                  | FUNCTION     | internal
+ gin_extract_query_bytea                   | FUNCTION     | internal
+ gin_extract_query_char                    | FUNCTION     | internal
+ gin_extract_query_cidr                    | FUNCTION     | internal
+ gin_extract_query_date                    | FUNCTION     | internal
+ gin_extract_query_float4                  | FUNCTION     | internal
+ gin_extract_query_float8                  | FUNCTION     | internal
+ gin_extract_query_inet                    | FUNCTION     | internal
+ gin_extract_query_int2                    | FUNCTION     | internal
+ gin_extract_query_int4                    | FUNCTION     | internal
+ gin_extract_query_int8                    | FUNCTION     | internal
+ gin_extract_query_interval                | FUNCTION     | internal
+ gin_extract_query_macaddr                 | FUNCTION     | internal
+ gin_extract_query_macaddr8                | FUNCTION     | internal
+ gin_extract_query_money                   | FUNCTION     | internal
+ gin_extract_query_name                    | FUNCTION     | internal
+ gin_extract_query_numeric                 | FUNCTION     | internal
+ gin_extract_query_oid                     | FUNCTION     | internal
+ gin_extract_query_text                    | FUNCTION     | internal
+ gin_extract_query_time                    | FUNCTION     | internal
+ gin_extract_query_timestamp               | FUNCTION     | internal
+ gin_extract_query_timestamptz             | FUNCTION     | internal
+ gin_extract_query_timetz                  | FUNCTION     | internal
+ gin_extract_query_trgm                    | FUNCTION     | internal
+ gin_extract_query_uuid                    | FUNCTION     | internal
+ gin_extract_query_varbit                  | FUNCTION     | internal
+ gin_extract_value_anyenum                 | FUNCTION     | internal
+ gin_extract_value_bit                     | FUNCTION     | internal
+ gin_extract_value_bool                    | FUNCTION     | internal
+ gin_extract_value_bpchar                  | FUNCTION     | internal
+ gin_extract_value_bytea                   | FUNCTION     | internal
+ gin_extract_value_char                    | FUNCTION     | internal
+ gin_extract_value_cidr                    | FUNCTION     | internal
+ gin_extract_value_date                    | FUNCTION     | internal
+ gin_extract_value_float4                  | FUNCTION     | internal
+ gin_extract_value_float8                  | FUNCTION     | internal
+ gin_extract_value_inet                    | FUNCTION     | internal
+ gin_extract_value_int2                    | FUNCTION     | internal
+ gin_extract_value_int4                    | FUNCTION     | internal
+ gin_extract_value_int8                    | FUNCTION     | internal
+ gin_extract_value_interval                | FUNCTION     | internal
+ gin_extract_value_macaddr                 | FUNCTION     | internal
+ gin_extract_value_macaddr8                | FUNCTION     | internal
+ gin_extract_value_money                   | FUNCTION     | internal
+ gin_extract_value_name                    | FUNCTION     | internal
+ gin_extract_value_numeric                 | FUNCTION     | internal
+ gin_extract_value_oid                     | FUNCTION     | internal
+ gin_extract_value_text                    | FUNCTION     | internal
+ gin_extract_value_time                    | FUNCTION     | internal
+ gin_extract_value_timestamp               | FUNCTION     | internal
+ gin_extract_value_timestamptz             | FUNCTION     | internal
+ gin_extract_value_timetz                  | FUNCTION     | internal
+ gin_extract_value_trgm                    | FUNCTION     | internal
+ gin_extract_value_uuid                    | FUNCTION     | internal
+ gin_extract_value_varbit                  | FUNCTION     | internal
+ gin_numeric_cmp                           | FUNCTION     | integer
+ gin_trgm_consistent                       | FUNCTION     | boolean
+ gin_trgm_triconsistent                    | FUNCTION     | "char"
+ gtrgm_compress                            | FUNCTION     | internal
+ gtrgm_consistent                          | FUNCTION     | boolean
+ gtrgm_decompress                          | FUNCTION     | internal
+ gtrgm_distance                            | FUNCTION     | double precision
+ gtrgm_in                                  | FUNCTION     | USER-DEFINED
+ gtrgm_options                             | FUNCTION     | void
+ gtrgm_out                                 | FUNCTION     | cstring
+ gtrgm_penalty                             | FUNCTION     | internal
+ gtrgm_picksplit                           | FUNCTION     | internal
+ gtrgm_same                                | FUNCTION     | internal
+ gtrgm_union                               | FUNCTION     | USER-DEFINED
+ pg_stat_statements                        | FUNCTION     | record
+ pg_stat_statements_info                   | FUNCTION     | record
+ pg_stat_statements_reset                  | FUNCTION     | void
+ set_limit                                 | FUNCTION     | real
+ show_limit                                | FUNCTION     | real
+ show_trgm                                 | FUNCTION     | ARRAY
+ similarity                                | FUNCTION     | real
+ similarity_dist                           | FUNCTION     | real
+ similarity_op                             | FUNCTION     | boolean
+ strict_word_similarity                    | FUNCTION     | real
+ strict_word_similarity_commutator_op      | FUNCTION     | boolean
+ strict_word_similarity_dist_commutator_op | FUNCTION     | real
+ strict_word_similarity_dist_op            | FUNCTION     | real
+ strict_word_similarity_op                 | FUNCTION     | boolean
+ word_similarity                           | FUNCTION     | real
+ word_similarity_commutator_op             | FUNCTION     | boolean
+ word_similarity_dist_commutator_op        | FUNCTION     | real
+ word_similarity_dist_op                   | FUNCTION     | real
+ word_similarity_op                        | FUNCTION     | boolean
+(121 rows)
+
+    audit_section    
+---------------------
+ === VIEWS AUDIT ===
+(1 row)
+
+        view_name        |                                                                                                                                                                                                                                                                                                                                                                    view_definition                                                                                                                                                                                                                                                                                                                                                                    
+-------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ pg_stat_statements      |  SELECT pg_stat_statements.userid,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   +
+                         |     pg_stat_statements.dbid,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         +
+                         |     pg_stat_statements.toplevel,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     +
+                         |     pg_stat_statements.queryid,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      +
+                         |     pg_stat_statements.query,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        +
+                         |     pg_stat_statements.plans,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        +
+                         |     pg_stat_statements.total_plan_time,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              +
+                         |     pg_stat_statements.min_plan_time,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                +
+                         |     pg_stat_statements.max_plan_time,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                +
+                         |     pg_stat_statements.mean_plan_time,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               +
+                         |     pg_stat_statements.stddev_plan_time,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             +
+                         |     pg_stat_statements.calls,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        +
+                         |     pg_stat_statements.total_exec_time,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              +
+                         |     pg_stat_statements.min_exec_time,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                +
+                         |     pg_stat_statements.max_exec_time,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                +
+                         |     pg_stat_statements.mean_exec_time,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               +
+                         |     pg_stat_statements.stddev_exec_time,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             +
+                         |     pg_stat_statements.rows,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         +
+                         |     pg_stat_statements.shared_blks_hit,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              +
+                         |     pg_stat_statements.shared_blks_read,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             +
+                         |     pg_stat_statements.shared_blks_dirtied,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          +
+                         |     pg_stat_statements.shared_blks_written,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          +
+                         |     pg_stat_statements.local_blks_hit,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               +
+                         |     pg_stat_statements.local_blks_read,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              +
+                         |     pg_stat_statements.local_blks_dirtied,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           +
+                         |     pg_stat_statements.local_blks_written,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           +
+                         |     pg_stat_statements.temp_blks_read,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               +
+                         |     pg_stat_statements.temp_blks_written,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            +
+                         |     pg_stat_statements.blk_read_time,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                +
+                         |     pg_stat_statements.blk_write_time,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               +
+                         |     pg_stat_statements.temp_blk_read_time,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           +
+                         |     pg_stat_statements.temp_blk_write_time,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          +
+                         |     pg_stat_statements.wal_records,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  +
+                         |     pg_stat_statements.wal_fpi,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      +
+                         |     pg_stat_statements.wal_bytes,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    +
+                         |     pg_stat_statements.jit_functions,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                +
+                         |     pg_stat_statements.jit_generation_time,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          +
+                         |     pg_stat_statements.jit_inlining_count,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           +
+                         |     pg_stat_statements.jit_inlining_time,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            +
+                         |     pg_stat_statements.jit_optimization_count,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       +
+                         |     pg_stat_statements.jit_optimization_time,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        +
+                         |     pg_stat_statements.jit_emission_count,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           +
+                         |     pg_stat_statements.jit_emission_time                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             +
+                         |    FROM pg_stat_statements(true) pg_stat_statements(userid, dbid, toplevel, queryid, query, plans, total_plan_time, min_plan_time, max_plan_time, mean_plan_time, stddev_plan_time, calls, total_exec_time, min_exec_time, max_exec_time, mean_exec_time, stddev_exec_time, rows, shared_blks_hit, shared_blks_read, shared_blks_dirtied, shared_blks_written, local_blks_hit, local_blks_read, local_blks_dirtied, local_blks_written, temp_blks_read, temp_blks_written, blk_read_time, blk_write_time, temp_blk_read_time, temp_blk_write_time, wal_records, wal_fpi, wal_bytes, jit_functions, jit_generation_time, jit_inlining_count, jit_inlining_time, jit_optimization_count, jit_optimization_time, jit_emission_count, jit_emission_time);
+ pg_stat_statements_info |  SELECT pg_stat_statements_info.dealloc,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             +
+                         |     pg_stat_statements_info.stats_reset                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              +
+                         |    FROM pg_stat_statements_info() pg_stat_statements_info(dealloc, stats_reset);
+(2 rows)
+
+      audit_section       
+--------------------------
+ === PARTITIONS AUDIT ===
+(1 row)
+
+         parent_table         |                partition_name                 |                             partition_bounds                             
+------------------------------+-----------------------------------------------+--------------------------------------------------------------------------
+ idx_orders_active_monitoring | orders_2025_01_status_updated_at_idx          | 
+ idx_orders_active_monitoring | orders_2025_02_status_updated_at_idx          | 
+ idx_orders_processing        | orders_2025_01_status_processing_priority_idx | 
+ idx_orders_processing        | orders_2025_02_status_processing_priority_idx | 
+ idx_orders_status            | orders_2025_01_status_idx                     | 
+ idx_orders_status            | orders_2025_02_status_idx                     | 
+ idx_orders_user_id           | orders_2025_01_user_id_created_at_idx         | 
+ idx_orders_user_id           | orders_2025_02_user_id_created_at_idx         | 
+ idx_orders_youtube_video_id  | orders_2025_01_youtube_video_id_idx           | 
+ idx_orders_youtube_video_id  | orders_2025_02_youtube_video_id_idx           | 
+ orders                       | orders_2025_01                                | FOR VALUES FROM ('2025-01-01 00:00:00+00') TO ('2025-02-01 00:00:00+00')
+ orders                       | orders_2025_02                                | FOR VALUES FROM ('2025-02-01 00:00:00+00') TO ('2025-03-01 00:00:00+00')
+ orders_pkey                  | orders_2025_01_pkey                           | 
+ orders_pkey                  | orders_2025_02_pkey                           | 
+(14 rows)
+
+      audit_section       
+--------------------------
+ === POTENTIAL ISSUES ===
+(1 row)
+
+    issue_type    |    table_name     
+------------------+-------------------
+ Table without PK | databasechangelog
+(1 row)
+
+    issue_type    |               location                
+------------------+---------------------------------------
+ FK without index | binom_campaigns.order_id
+ FK without index | binom_campaigns.order_created_at
+ FK without index | orders_2025_02.user_id
+ FK without index | orders_2025_01.user_id
+ FK without index | orders.user_id
+ FK without index | orders_2025_02.service_id
+ FK without index | orders_2025_01.service_id
+ FK without index | orders.service_id
+ FK without index | orders_2025_02.service_id
+ FK without index | orders_2025_01.service_id
+ FK without index | orders.service_id
+ FK without index | orders_2025_02.user_id
+ FK without index | orders_2025_01.user_id
+ FK without index | orders.user_id
+ FK without index | orders_2025_02.service_id
+ FK without index | orders_2025_01.service_id
+ FK without index | orders.service_id
+ FK without index | orders_2025_02.user_id
+ FK without index | orders_2025_01.user_id
+ FK without index | orders.user_id
+ FK without index | video_processing.order_id
+ FK without index | video_processing.order_created_at
+ FK without index | video_processing.order_id
+ FK without index | video_processing.order_created_at
+ FK without index | video_processing.order_id
+ FK without index | video_processing.order_created_at
+ FK without index | binom_campaigns.traffic_source_id
+ FK without index | binom_campaigns.order_id
+ FK without index | binom_campaigns.order_created_at
+ FK without index | binom_campaigns.order_id
+ FK without index | binom_campaigns.order_created_at
+ FK without index | balance_deposits.user_id
+ FK without index | balance_transactions.user_id
+ FK without index | balance_transactions.deposit_id
+ FK without index | balance_transactions.order_id
+ FK without index | balance_transactions.order_created_at
+ FK without index | balance_transactions.order_id
+ FK without index | balance_transactions.order_created_at
+ FK without index | balance_transactions.order_id
+ FK without index | balance_transactions.order_created_at
+ FK without index | view_stats.video_processing_id
+ FK without index | view_stats.order_id
+ FK without index | view_stats.order_created_at
+ FK without index | view_stats.order_id
+ FK without index | view_stats.order_created_at
+ FK without index | view_stats.order_id
+ FK without index | view_stats.order_created_at
+ FK without index | conversion_coefficients.service_id
+ FK without index | conversion_coefficients.updated_by
+(49 rows)
+
+      audit_section       
+--------------------------
+ === LIQUIBASE STATUS ===
+(1 row)
+
+ total_changesets | total_files |      first_execution       |       last_execution       
+------------------+-------------+----------------------------+----------------------------
+               45 |           3 | 2025-08-18 12:01:10.062524 | 2025-08-18 12:01:10.086765
+(1 row)
+
+                 filename                 | changesets |                                                       changeset_ids                                                       
+------------------------------------------+------------+---------------------------------------------------------------------------------------------------------------------------
+ db/changelog/db.changelog-baseline.xml   |          1 | baseline-1
+ db/changelog/db.changelog-master.xml     |         33 | 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33
+ db/changelog/db.changelog-migrations.xml |         11 | 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110
+(3 rows)
+

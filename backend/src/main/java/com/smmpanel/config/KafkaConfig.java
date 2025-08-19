@@ -187,6 +187,52 @@ public class KafkaConfig {
     }
 
     // ===============================
+    // PAYMENT TOPICS
+    // ===============================
+
+    @Bean
+    public NewTopic paymentConfirmationsTopic() {
+        return TopicBuilder.name("smm.payment.confirmations")
+                .partitions(3)
+                .replicas(1)
+                .configs(
+                        Map.of(
+                                "retention.ms", "2592000000", // 30 days
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy",
+                                "min.insync.replicas", "1")) // Critical for payment data
+                .build();
+    }
+
+    @Bean
+    public NewTopic paymentWebhooksTopic() {
+        return TopicBuilder.name("smm.payment.webhooks")
+                .partitions(3)
+                .replicas(1)
+                .configs(
+                        Map.of(
+                                "retention.ms", "2592000000", // 30 days
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy",
+                                "min.insync.replicas", "1")) // Critical for payment data
+                .build();
+    }
+
+    @Bean
+    public NewTopic paymentRefundsTopic() {
+        return TopicBuilder.name("smm.payment.refunds")
+                .partitions(3)
+                .replicas(1)
+                .configs(
+                        Map.of(
+                                "retention.ms", "2592000000", // 30 days
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy",
+                                "min.insync.replicas", "1")) // Critical for payment data
+                .build();
+    }
+
+    // ===============================
     // DLQ TOPICS
     // ===============================
 
@@ -304,6 +350,48 @@ public class KafkaConfig {
                                 "retention.ms", "2592000000", // 30 days
                                 "cleanup.policy", "delete",
                                 "compression.type", "snappy"))
+                .build();
+    }
+
+    @Bean
+    public NewTopic paymentConfirmationsDlqTopic() {
+        return TopicBuilder.name("smm.payment.confirmations.dlq")
+                .partitions(1)
+                .replicas(1)
+                .configs(
+                        Map.of(
+                                "retention.ms", "2592000000", // 30 days
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy",
+                                "min.insync.replicas", "1")) // Critical for payment data
+                .build();
+    }
+
+    @Bean
+    public NewTopic paymentWebhooksDlqTopic() {
+        return TopicBuilder.name("smm.payment.webhooks.dlq")
+                .partitions(1)
+                .replicas(1)
+                .configs(
+                        Map.of(
+                                "retention.ms", "2592000000", // 30 days
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy",
+                                "min.insync.replicas", "1")) // Critical for payment data
+                .build();
+    }
+
+    @Bean
+    public NewTopic paymentRefundsDlqTopic() {
+        return TopicBuilder.name("smm.payment.refunds.dlq")
+                .partitions(1)
+                .replicas(1)
+                .configs(
+                        Map.of(
+                                "retention.ms", "2592000000", // 30 days
+                                "cleanup.policy", "delete",
+                                "compression.type", "snappy",
+                                "min.insync.replicas", "1")) // Critical for payment data
                 .build();
     }
 

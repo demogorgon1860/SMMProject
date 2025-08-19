@@ -1,6 +1,6 @@
-# CLAUDE.md
+# CLAUDE.md - SMM Panel Development Guide
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+**CRITICAL**: This file provides comprehensive guidance to Claude Code (claude.ai/code) for maximum efficiency when working with this SMM Panel codebase. Follow these instructions exactly for optimal performance and to avoid common pitfalls.
 
 ## Project Overview
 
@@ -48,8 +48,8 @@ cd backend && ./gradlew test jacocoTestReport
 # Apply code formatting (Spotless)
 cd backend && ./gradlew spotlessApply
 
-# Database migration validation
-cd backend && ./gradlew flywayValidate
+# Database migration with Liquibase (NOT Flyway!)
+cd backend && ./gradlew liquibaseUpdate
 
 # Start application with profile
 cd backend && SPRING_PROFILES_ACTIVE=dev ./gradlew bootRun
@@ -120,11 +120,12 @@ docker-compose up -d --scale spring-boot-app=3
 # Access PostgreSQL CLI
 docker-compose exec postgres psql -U smm_admin -d smm_panel
 
-# Run database migrations
-cd backend && ./gradlew flywayMigrate
+# Run database migrations (LIQUIBASE ONLY)
+cd backend && ./gradlew liquibaseUpdate
 
-# Create new migration file
-# Place in: backend/src/main/resources/db/migration/V{version}__{description}.sql
+# Create new migration file (Liquibase format)
+# Place in: backend/src/main/resources/db/changelog/changes/v{version}-{description}.xml
+# Add reference to db.changelog-master.xml
 
 # Backup database
 docker-compose exec postgres pg_dump -U smm_admin smm_panel > backup.sql
@@ -141,13 +142,35 @@ docker-compose exec -T postgres psql -U smm_admin smm_panel < backup.sql
 - **Database**: `init-scripts/` contains SQL initialization scripts
 - **Monitoring**: `prometheus/prometheus.yml`, `grafana/` dashboard configs
 
-## Critical Development Notes
+## ⚠️ CRITICAL WARNINGS - MUST READ FIRST
 
-### Database Management
-- Uses Liquibase for database migrations (not Flyway despite gradle config)
-- Migration files are in `backend/src/main/resources/db/migration/`
-- Always validate migrations before applying: `./gradlew flywayValidate`
-- Fixed campaign data is managed through init scripts in `init-scripts/`
+### 1. Database Migration Tool Confusion
+**ONLY USE LIQUIBASE** - Flyway references in gradle are misleading!
+- ✅ USE: Liquibase migrations in `backend/src/main/resources/db/changelog/`
+- ❌ IGNORE: Flyway files in `backend/src/main/resources/db/migration/` (legacy, not used)
+- Master file: `db.changelog-master.xml`
+- NEVER run `./gradlew flywayMigrate` or `flywayValidate` - these are defunct
+- All schema changes MUST be Liquibase changeSets
+
+### 2. Lombok Compilation Issues
+**CRITICAL**: Lombok requires explicit configuration
+```bash
+# If compilation fails with "cannot find symbol" for getters/setters:
+cd backend && ./gradlew clean build
+```
+- Ensure both compileOnly AND annotationProcessor dependencies are present
+- Check `build.gradle` lines 136-140 for Lombok configuration
+
+### 3. Redis Health Indicator Disabled
+- `RedisHealthIndicator.java` is DISABLED (renamed to `.disabled`)
+- Redis uses Lettuce client, NOT Jedis (despite old references)
+- Monitor Redis connection issues closely in production
+
+### 4. Testing Framework Versions
+- Spring Boot 3.1.7 with JUnit 5 (not JUnit 4)
+- TestContainers 1.19.3 for integration tests
+- Mockito 5.7.0 for mocking
+- ALWAYS verify test annotations match the framework version
 
 ### API Structure
 - REST API base path: `/api`
@@ -236,6 +259,165 @@ docker-compose exec -T postgres psql -U smm_admin smm_panel < backup.sql
 - Docker and Docker Compose required for full development environment
 - Redis, PostgreSQL, and Kafka dependencies managed via Docker Compose
 - Selenium requires Chrome WebDriver for YouTube automation features
+
+## 🔍 Key Files & Directories to Know
+
+### Backend Structure
+```
+backend/
+├── src/main/java/com/smmpanel/
+│   ├── config/           # 60+ configuration classes
+│   ├── controller/       # REST endpoints (20+ controllers)
+│   ├── service/         # Business logic (50+ services)
+│   ├── repository/      # JPA repositories
+│   ├── entity/          # JPA entities
+│   ├── dto/             # Data transfer objects
+│   ├── consumer/        # Kafka consumers
+│   ├── producer/        # Kafka producers
+│   └── health/          # Health indicators (some disabled!)
+├── src/main/resources/
+│   ├── application.yml   # Main config (CHECK FIRST)
+│   ├── application-*.yml # Profile-specific configs
+│   └── db/
+│       ├── changelog/    # ACTIVE Liquibase migrations
+│       └── migration/    # LEGACY Flyway (DO NOT USE)
+└── build.gradle         # Build configuration
+```
+
+### Frontend Structure
+```
+frontend/
+├── src/
+│   ├── components/      # React components
+│   ├── services/        # API service layer
+│   ├── stores/          # Zustand state management
+│   └── types/           # TypeScript interfaces
+├── package.json         # Dependencies
+└── vite.config.ts       # Build configuration
+```
+
+## 🚀 Quick Start Commands
+
+### Start Everything
+```bash
+# Recommended: Use Docker Compose for all services
+docker-compose -f docker-compose.dev.yml up -d
+
+# Check health
+curl http://localhost:8080/api/actuator/health
+```
+
+### Common Tasks
+```bash
+# Fix Lombok issues
+cd backend && ./gradlew clean build
+
+# Run all tests
+cd backend && ./gradlew test
+
+# Apply Liquibase migrations
+cd backend && ./gradlew liquibaseUpdate
+
+# Format code
+cd backend && ./gradlew spotlessApply
+
+# Start frontend dev server
+cd frontend && npm run dev
+```
+
+## 🐛 Common Issues & Solutions
+
+### Issue: Lombok "cannot find symbol" errors
+```bash
+# Solution: Clean and rebuild
+cd backend && ./gradlew clean build
+```
+
+### Issue: Database migrations not applying
+```bash
+# Use Liquibase, NOT Flyway!
+cd backend && ./gradlew liquibaseUpdate
+# Check: backend/src/main/resources/db/changelog/db.changelog-master.xml
+```
+
+### Issue: Redis connection failures
+```bash
+# Check if Redis container is running
+docker-compose ps redis
+# Note: RedisHealthIndicator is disabled, check logs instead
+docker-compose logs redis
+```
+
+### Issue: Kafka consumer not processing messages
+```bash
+# Check consumer groups
+docker-compose exec kafka kafka-consumer-groups.sh --bootstrap-server localhost:9092 --list
+# Consumer group should be: smm-panel-group
+```
+
+## 📝 Code Quality Checklist
+
+**Before ANY commit, run these commands:**
+```bash
+# Backend
+cd backend
+./gradlew clean build        # Compile and check
+./gradlew test               # Run all tests
+./gradlew spotlessApply      # Format code
+
+# Frontend
+cd frontend
+npm run lint:fix             # Fix linting
+npm run type-check           # TypeScript check
+npm test                     # Run tests
+npm run build                # Verify build works
+```
+
+## 🔐 Environment Variables
+
+**Required for production:**
+```bash
+# Database
+DB_PASSWORD=your_secure_password
+DB_HOST=localhost
+DB_PORT=5432
+
+# Redis
+REDIS_PASSWORD=your_redis_password
+
+# JWT
+JWT_SECRET=your_jwt_secret
+
+# External APIs
+BINOM_API_KEY=your_key
+YOUTUBE_API_KEY=your_key
+CRYPTOMUS_API_KEY=your_key
+CRYPTOMUS_API_SECRET=your_secret
+```
+
+## ⚡ Performance Tips
+
+1. **Database**: Always add indexes for frequently queried columns
+2. **Caching**: Use Redis for expensive computations (check if enabled first!)
+3. **Kafka**: Monitor consumer lag, adjust concurrency if needed
+4. **Hibernate**: Enable statistics in dev to find N+1 queries
+5. **API**: Implement pagination for large result sets
+
+## 🎯 Best Practices
+
+### DO's
+✅ Always run `./gradlew clean build` after pulling changes
+✅ Use Liquibase for ALL database changes
+✅ Write tests for new features
+✅ Use DTOs for API communication
+✅ Check logs when debugging
+
+### DON'Ts
+❌ NEVER use Flyway commands
+❌ Don't commit secrets or API keys
+❌ Avoid N+1 queries (use fetch joins)
+❌ Don't skip validation
+❌ Never ignore failing tests
 
 ## Troubleshooting
 

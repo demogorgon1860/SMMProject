@@ -6,13 +6,13 @@ spring:
   # PRODUCTION LIQUIBASE CONFIGURATION
   # ===============================
   liquibase:
-    contexts: prod,all
-    drop-first: false
+    enabled: ${SPRING_LIQUIBASE_ENABLED:true}
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    contexts: prod
+    drop-first: false  # CRITICAL: Never drop in production
     test-rollback-on-update: false
     # Minimal logging for production performance
     verbose: false
-    # Production-specific settings
-    should-run: ${LIQUIBASE_SHOULD_RUN:true}
     rollback-file: /var/log/smm-panel/liquibase-rollback.sql
 
   # ===============================

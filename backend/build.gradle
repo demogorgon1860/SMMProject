@@ -2,7 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.1.7'
     id 'io.spring.dependency-management' version '1.1.4'
-    id 'org.flywaydb.flyway' version '9.22.3'
+    // id 'org.flywaydb.flyway' version '9.22.3' // Disabled - using Liquibase
     id 'org.liquibase.gradle' version '2.2.1'
     id 'jacoco'
     id 'com.diffplug.spotless' version '6.25.0'
@@ -212,40 +212,32 @@ jar {
     archiveClassifier = ''
 }
 
-// Flyway configuration (disabled - migrated to Liquibase)
-flyway {
-    url = "jdbc:postgresql://localhost:5432/smm_panel"
-    user = "smm_admin"
-    password = "dev_password_123"
-    locations = ["classpath:db/migration"]
-    baselineOnMigrate = true
-    validateOnMigrate = true
-}
+// Flyway configuration removed - fully migrated to Liquibase
 
 // Liquibase configuration
 liquibase {
     activities {
         main {
-            changelogFile 'db.changelog-master.xml'
-            url project.findProperty('liquibaseUrl') ?: 'jdbc:postgresql://localhost:5432/smm_panel'
-            username project.findProperty('liquibaseUsername') ?: 'smm_admin'
-            password project.findProperty('liquibasePassword') ?: 'dev_password_123'
+            changelogFile 'src/main/resources/db/changelog/db.changelog-master.xml'
+            url project.findProperty('liquibase.url') ?: 'jdbc:postgresql://localhost:5432/smm_panel'
+            username project.findProperty('liquibase.username') ?: 'smm_admin'
+            password project.findProperty('liquibase.password') ?: 'postgres123'
             driver 'org.postgresql.Driver'
             defaultSchemaName 'public'
-            contexts project.findProperty('liquibaseContexts') ?: 'all'
+            contexts project.findProperty('liquibase.contexts') ?: 'dev'
             outputFile 'logs/liquibase-output.sql'
-            searchPath 'src/main/resources/db/liquibase'
+            searchPath 'src/main/resources'
         }
         
-        dev {
-            changelogFile 'src/main/resources/db/liquibase/db.changelog-master.xml'
-            url project.findProperty('liquibaseUrl') ?: 'jdbc:postgresql://localhost:5432/smm_panel_dev'
-            username project.findProperty('liquibaseUsername') ?: 'smm_admin'
-            password project.findProperty('liquibasePassword') ?: 'dev_password_123'
+        baseline {
+            changelogFile 'src/main/resources/db/changelog/db.changelog-baseline.xml'
+            url project.findProperty('liquibase.url') ?: 'jdbc:postgresql://localhost:5432/smm_panel'
+            username project.findProperty('liquibase.username') ?: 'smm_admin'
+            password project.findProperty('liquibase.password') ?: 'postgres123'
             driver 'org.postgresql.Driver'
-            contexts 'dev,all'
-            testRollbackOnUpdate true
-            outputFile 'logs/liquibase-dev-output.sql'
+            defaultSchemaName 'public'
+            contexts 'baseline'
+            outputFile 'logs/liquibase-baseline-output.sql'
         }
         
         stage {

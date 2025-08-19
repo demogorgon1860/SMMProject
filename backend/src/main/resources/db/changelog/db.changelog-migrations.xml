@@ -1,0 +1,343 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- ========================================== -->
+    <!-- Migrated from Flyway SQL Migrations -->
+    <!-- ========================================== -->
+
+    <!-- V1.1: Add Missing Columns -->
+    <changeSet id="100" author="migration">
+        <addColumn tableName="video_processing">
+            <column name="final_url" type="VARCHAR(500)"/>
+        </addColumn>
+        <addColumn tableName="services">
+            <column name="geo_targeting" type="VARCHAR(50)" defaultValue="US"/>
+        </addColumn>
+    </changeSet>
+
+    <!-- V1.2: Add Security Columns -->
+    <changeSet id="101" author="migration">
+        <addColumn tableName="users">
+            <column name="api_key_hash" type="VARCHAR(256)"/>
+            <column name="api_key_salt" type="VARCHAR(128)"/>
+            <column name="api_key_last_rotated" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="last_api_access" type="TIMESTAMP WITH TIME ZONE"/>
+        </addColumn>
+        
+        <!-- Handle legacy api_key column -->
+        <sql>
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name = 'users' AND column_name = 'api_key'
+                ) THEN
+                    ALTER TABLE users RENAME COLUMN api_key TO api_key_plaintext_deprecated;
+                    ALTER TABLE users ADD CONSTRAINT chk_no_new_plaintext_keys 
+                        CHECK (api_key_plaintext_deprecated IS NULL);
+                END IF;
+            END $$;
+        </sql>
+        
+        <!-- Update balance precision -->
+        <modifyDataType tableName="users" columnName="balance" newDataType="DECIMAL(18,8)"/>
+        <addColumn tableName="users">
+            <column name="total_spent" type="DECIMAL(18,8)" defaultValueNumeric="0"/>
+        </addColumn>
+        
+        <!-- Add security indexes -->
+        <createIndex tableName="users" indexName="idx_users_api_key_hash">
+            <column name="api_key_hash"/>
+        </createIndex>
+        <createIndex tableName="users" indexName="idx_users_last_api_access">
+            <column name="last_api_access"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- V1.3: Add User Preferred Currency -->
+    <changeSet id="102" author="migration">
+        <addColumn tableName="users">
+            <column name="preferred_currency" type="VARCHAR(3)" defaultValue="USD">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <createIndex tableName="users" indexName="idx_users_preferred_currency">
+            <column name="preferred_currency"/>
+        </createIndex>
+        <sql>
+            COMMENT ON COLUMN users.preferred_currency IS 'User''s preferred currency code (ISO 4217) for display purposes';
+        </sql>
+    </changeSet>
+
+    <!-- V1.4: Additional Performance Indexes -->
+    <changeSet id="103" author="migration">
+        <!-- Additional composite indexes not in base changelog -->
+        <createIndex tableName="orders" indexName="idx_orders_user_status">
+            <column name="user_id"/>
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="orders" indexName="idx_orders_status_created_at">
+            <column name="status"/>
+            <column name="created_at" descending="true"/>
+        </createIndex>
+        <createIndex tableName="balance_transactions" indexName="idx_balance_transactions_user_created">
+            <column name="user_id"/>
+            <column name="created_at" descending="true"/>
+        </createIndex>
+        <createIndex tableName="binom_campaigns" indexName="idx_binom_campaigns_status_campaign_id">
+            <column name="status"/>
+            <column name="campaign_id"/>
+        </createIndex>
+        
+        <!-- Partial indexes -->
+        <sql>
+            CREATE INDEX idx_orders_pending ON orders(created_at) WHERE status = 'PENDING';
+            CREATE INDEX idx_orders_processing ON orders(created_at) WHERE status = 'PROCESSING';
+            CREATE INDEX idx_users_active ON users(created_at) WHERE is_active = true;
+            CREATE INDEX idx_binom_campaigns_status_clicks ON binom_campaigns(status, clicks_delivered, clicks_required) 
+                WHERE status = 'ACTIVE';
+        </sql>
+    </changeSet>
+
+    <!-- V1.5: Binom Configuration -->
+    <changeSet id="104" author="migration">
+        <createTable tableName="binom_configuration">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="config_key" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="config_value" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="updated_by" type="VARCHAR(100)"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+        </createTable>
+        
+        <!-- Create campaign assignment status view -->
+        <createView viewName="campaign_assignment_status">
+            SELECT 
+                fc.campaign_id,
+                fc.campaign_name,
+                fc.geo_targeting,
+                fc.priority,
+                fc.active,
+                COUNT(bc.id) as orders_assigned,
+                SUM(bc.clicks_required) as total_clicks_assigned,
+                SUM(bc.clicks_delivered) as total_clicks_delivered
+            FROM fixed_binom_campaigns fc
+            LEFT JOIN binom_campaigns bc ON fc.campaign_id = bc.campaign_id
+            WHERE fc.active = true
+            GROUP BY fc.id, fc.campaign_id, fc.campaign_name, fc.geo_targeting, fc.priority, fc.active
+            ORDER BY fc.priority
+        </createView>
+    </changeSet>
+
+    <!-- V1.5: Default Binom Configuration (context-specific) -->
+    <changeSet id="105" author="migration" context="dev">
+        <insert tableName="binom_configuration">
+            <column name="config_key" value="binom_tracker_url"/>
+            <column name="config_value" value="https://dev-binom.example.com"/>
+            <column name="description" value="Main Binom tracker URL"/>
+            <column name="updated_by" value="SYSTEM"/>
+        </insert>
+        <insert tableName="binom_configuration">
+            <column name="config_key" value="binom_api_key"/>
+            <column name="config_value" value="dev-api-key-placeholder"/>
+            <column name="description" value="Binom API authentication key"/>
+            <column name="updated_by" value="SYSTEM"/>
+        </insert>
+        <insert tableName="binom_configuration">
+            <column name="config_key" value="default_geo_targeting"/>
+            <column name="config_value" value="US"/>
+            <column name="description" value="Default geo targeting for campaigns"/>
+            <column name="updated_by" value="SYSTEM"/>
+        </insert>
+        <insert tableName="binom_configuration">
+            <column name="config_key" value="campaign_distribution_mode"/>
+            <column name="config_value" value="EQUAL"/>
+            <column name="description" value="How to distribute clicks: EQUAL, WEIGHTED, PRIORITY"/>
+            <column name="updated_by" value="SYSTEM"/>
+        </insert>
+    </changeSet>
+
+    <!-- V1.6: Fix API Key Performance -->
+    <changeSet id="106" author="migration">
+        <dropIndex tableName="users" indexName="idx_users_api_key_hash"/>
+        
+        <sql>
+            -- Create optimized partial index for active users with API keys
+            CREATE INDEX idx_users_api_key_hash_active 
+            ON users(api_key_hash) 
+            WHERE is_active = true AND api_key_hash IS NOT NULL;
+            
+            -- Create composite index for API key authentication queries
+            CREATE INDEX idx_users_api_key_lookup 
+            ON users(api_key_hash, is_active) 
+            WHERE api_key_hash IS NOT NULL;
+            
+            COMMENT ON INDEX idx_users_api_key_hash_active IS 
+            'Partial index for API key lookups on active users only - reduces index size and improves performance';
+            
+            COMMENT ON INDEX idx_users_api_key_lookup IS 
+            'Composite index for API key authentication queries - supports hash lookup with active status filtering';
+        </sql>
+    </changeSet>
+
+    <!-- V1.7: Add Optimistic Locking -->
+    <changeSet id="107" author="migration">
+        <addColumn tableName="users">
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="orders">
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="balance_transactions">
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        
+        <createIndex tableName="users" indexName="idx_users_version">
+            <column name="version"/>
+        </createIndex>
+        <createIndex tableName="orders" indexName="idx_orders_version">
+            <column name="version"/>
+        </createIndex>
+        <createIndex tableName="balance_transactions" indexName="idx_balance_transactions_version">
+            <column name="version"/>
+        </createIndex>
+        
+        <sql>
+            COMMENT ON COLUMN users.version IS 'Optimistic locking version counter - incremented on each update';
+            COMMENT ON COLUMN orders.version IS 'Optimistic locking version counter - incremented on each update';
+            COMMENT ON COLUMN balance_transactions.version IS 'Optimistic locking version counter - incremented on each update';
+        </sql>
+    </changeSet>
+
+    <!-- V006: Add Error Recovery Fields -->
+    <changeSet id="108" author="migration">
+        <addColumn tableName="orders">
+            <column name="retry_count" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="max_retries" type="INTEGER" defaultValueNumeric="3">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_error_type" type="VARCHAR(100)"/>
+            <column name="last_retry_at" type="TIMESTAMP"/>
+            <column name="next_retry_at" type="TIMESTAMP"/>
+            <column name="failure_reason" type="TEXT"/>
+            <column name="error_stack_trace" type="TEXT"/>
+            <column name="failed_phase" type="VARCHAR(50)"/>
+            <column name="is_manually_failed" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="operator_notes" type="TEXT"/>
+        </addColumn>
+        
+        <!-- Error recovery indexes -->
+        <createIndex tableName="orders" indexName="idx_orders_retry_count">
+            <column name="retry_count"/>
+        </createIndex>
+        <createIndex tableName="orders" indexName="idx_orders_next_retry_at">
+            <column name="next_retry_at"/>
+        </createIndex>
+        <createIndex tableName="orders" indexName="idx_orders_last_error_type">
+            <column name="last_error_type"/>
+        </createIndex>
+        <createIndex tableName="orders" indexName="idx_orders_failed_phase">
+            <column name="failed_phase"/>
+        </createIndex>
+        <createIndex tableName="orders" indexName="idx_orders_is_manually_failed">
+            <column name="is_manually_failed"/>
+        </createIndex>
+        
+        <!-- Composite indexes for error recovery -->
+        <sql>
+            CREATE INDEX idx_orders_ready_for_retry ON orders(next_retry_at, is_manually_failed, retry_count) 
+            WHERE next_retry_at IS NOT NULL AND is_manually_failed = FALSE;
+            
+            CREATE INDEX idx_orders_dead_letter_queue ON orders(is_manually_failed, retry_count, max_retries, status) 
+            WHERE status = 'HOLDING';
+        </sql>
+        
+        <!-- Create error recovery views -->
+        <createView viewName="error_recovery_dashboard">
+            SELECT 
+                COUNT(*) FILTER (WHERE error_message IS NOT NULL) as total_failed_orders,
+                COUNT(*) FILTER (WHERE error_message IS NOT NULL AND updated_at >= NOW() - INTERVAL '24 hours') as failed_last_24_hours,
+                COUNT(*) FILTER (WHERE error_message IS NOT NULL AND updated_at >= NOW() - INTERVAL '7 days') as failed_last_week,
+                COUNT(*) FILTER (WHERE (is_manually_failed = TRUE OR retry_count >= max_retries) AND status = 'HOLDING') as dead_letter_queue_count,
+                COUNT(*) FILTER (WHERE next_retry_at IS NOT NULL AND next_retry_at > NOW() AND is_manually_failed = FALSE AND retry_count &lt; max_retries) as pending_retries,
+                AVG(retry_count) FILTER (WHERE retry_count > 0) as avg_retry_count,
+                MAX(retry_count) as max_retry_count_seen
+            FROM orders
+        </createView>
+        
+        <createView viewName="error_type_analysis">
+            SELECT 
+                last_error_type,
+                COUNT(*) as error_count,
+                ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 2) as percentage,
+                AVG(retry_count) as avg_retries,
+                COUNT(*) FILTER (WHERE is_manually_failed = TRUE OR retry_count >= max_retries) as permanent_failures
+            FROM orders 
+            WHERE last_error_type IS NOT NULL
+            GROUP BY last_error_type
+            ORDER BY error_count DESC
+        </createView>
+        
+        <createView viewName="failed_phase_analysis">
+            SELECT 
+                failed_phase,
+                COUNT(*) as failure_count,
+                ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 2) as percentage,
+                AVG(retry_count) as avg_retries_before_failure
+            FROM orders 
+            WHERE failed_phase IS NOT NULL
+            GROUP BY failed_phase
+            ORDER BY failure_count DESC
+        </createView>
+    </changeSet>
+
+    <!-- Add missing columns for fixed_binom_campaigns -->
+    <changeSet id="109" author="migration">
+        <addColumn tableName="fixed_binom_campaigns">
+            <column name="priority" type="INTEGER" defaultValueNumeric="1"/>
+            <column name="weight" type="INTEGER" defaultValueNumeric="100"/>
+        </addColumn>
+    </changeSet>
+
+    <!-- Index Usage Monitoring Views -->
+    <changeSet id="110" author="migration">
+        <sql>
+            CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+        </sql>
+        
+        <createView viewName="v_index_usage">
+            SELECT
+                schemaname || '.' || relname AS table,
+                indexrelname AS index,
+                pg_size_pretty(pg_relation_size(i.indexrelid)) AS index_size,
+                idx_scan as index_scans,
+                idx_tup_read as tuples_read,
+                idx_tup_fetch as tuples_fetched
+            FROM pg_stat_user_indexes ui
+            JOIN pg_index i ON ui.indexrelid = i.indexrelid
+            WHERE schemaname NOT IN ('pg_catalog', 'pg_toast')
+            ORDER BY pg_relation_size(i.indexrelid) DESC
+        </createView>
+    </changeSet>
+
+</databaseChangeLog>

@@ -83,8 +83,7 @@ public class BinomClient {
                                     validateResponseBody(responseBody, endpoint, "createCampaign");
 
                                     if (responseBody.containsKey("id")) {
-                                        String campaignId =
-                                                String.valueOf(responseBody.get("id"));
+                                        String campaignId = String.valueOf(responseBody.get("id"));
                                         log.info(
                                                 "Successfully created Binom campaign: {} -> {}",
                                                 request.getName(),
@@ -137,8 +136,7 @@ public class BinomClient {
                                     validateResponseBody(responseBody, endpoint, "createOffer");
 
                                     if (responseBody.containsKey("id")) {
-                                        String offerId =
-                                                String.valueOf(responseBody.get("id"));
+                                        String offerId = String.valueOf(responseBody.get("id"));
                                         log.info(
                                                 "Successfully created Binom offer: {} -> {}",
                                                 request.getName(),
@@ -158,7 +156,9 @@ public class BinomClient {
                                 }));
     }
 
-    /** Assign offer to campaign - Note: In V2, offers are assigned during campaign creation/update */
+    /**
+     * Assign offer to campaign - Note: In V2, offers are assigned during campaign creation/update
+     */
     public AssignOfferResponse assignOfferToCampaign(String campaignId, String offerId) {
         // In Binom V2, offers are assigned via campaign update with paths configuration
         // This is a simplified implementation - proper implementation would update campaign paths
@@ -181,8 +181,9 @@ public class BinomClient {
                                     // Need to send campaign update with offer in paths
                                     Map<String, Object> updateRequest = new java.util.HashMap<>();
                                     updateRequest.put("offerId", offerId);
-                                    
-                                    HttpEntity<Map<String, Object>> entity = new HttpEntity<>(updateRequest, headers);
+
+                                    HttpEntity<Map<String, Object>> entity =
+                                            new HttpEntity<>(updateRequest, headers);
 
                                     log.info(
                                             "Assigning offer {} to campaign {}",
@@ -671,7 +672,8 @@ public class BinomClient {
 
     /** Set click cost for a campaign in Binom */
     public SetClickCostResponse setClickCost(SetClickCostRequest request) {
-        String endpoint = String.format("/public/api/v1/clicks/campaign/%s", request.getCampaignId());
+        String endpoint =
+                String.format("/public/api/v1/clicks/campaign/%s", request.getCampaignId());
         String url =
                 UriComponentsBuilder.fromHttpUrl(apiUrl + endpoint)
                         .queryParam("format", FORMAT_JSON)
@@ -735,19 +737,20 @@ public class BinomClient {
     public boolean campaignExists(String campaignId) {
         try {
             String endpoint = String.format("/public/api/v1/campaign/%s", campaignId);
-            String url = UriComponentsBuilder.fromHttpUrl(apiUrl + endpoint)
-                    .queryParam("format", FORMAT_JSON)
-                    .build()
-                    .toUriString();
-            
+            String url =
+                    UriComponentsBuilder.fromHttpUrl(apiUrl + endpoint)
+                            .queryParam("format", FORMAT_JSON)
+                            .build()
+                            .toUriString();
+
             HttpHeaders headers = new HttpHeaders();
             headers.set(API_KEY_HEADER, apiKey);
             headers.set("User-Agent", "SMM-Panel/1.0");
             HttpEntity<String> entity = new HttpEntity<>("", headers);
-            
-            ResponseEntity<Map> response = restTemplate.exchange(
-                    url, HttpMethod.GET, entity, Map.class);
-            
+
+            ResponseEntity<Map> response =
+                    restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+
             return response.getStatusCode() == HttpStatus.OK;
         } catch (Exception e) {
             log.debug("Campaign {} does not exist: {}", campaignId, e.getMessage());

@@ -16,8 +16,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -26,11 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.annotation.DirtiesContext;
@@ -39,54 +33,43 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Comprehensive integration test for Binom API workflow
- * Tests the complete flow: Campaign creation -> Click/Conversion events -> System consistency
+ * Comprehensive integration test for Binom API workflow Tests the complete flow: Campaign creation
+ * -> Click/Conversion events -> System consistency
  */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@EmbeddedKafka(partitions = 1, brokerProperties = {"listeners=PLAINTEXT://localhost:9092", "port=9092"})
+@EmbeddedKafka(
+        partitions = 1,
+        brokerProperties = {"listeners=PLAINTEXT://localhost:9092", "port=9092"})
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 public class BinomApiFlowIntegrationTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Autowired private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    @Autowired private ObjectMapper objectMapper;
 
-    @MockBean
-    private BinomClient binomClient;
+    @MockBean private BinomClient binomClient;
 
-    @Autowired
-    private BinomService binomService;
+    @Autowired private BinomService binomService;
 
-    @Autowired
-    private OrderRepository orderRepository;
+    @Autowired private OrderRepository orderRepository;
 
-    @Autowired
-    private BinomCampaignRepository binomCampaignRepository;
+    @Autowired private BinomCampaignRepository binomCampaignRepository;
 
-    @Autowired
-    private FixedBinomCampaignRepository fixedBinomCampaignRepository;
+    @Autowired private FixedBinomCampaignRepository fixedBinomCampaignRepository;
 
-    @Autowired
-    private ConversionCoefficientRepository conversionCoefficientRepository;
+    @Autowired private ConversionCoefficientRepository conversionCoefficientRepository;
 
-    @Autowired
-    private ServiceRepository serviceRepository;
+    @Autowired private ServiceRepository serviceRepository;
 
-    @Autowired
-    private UserRepository userRepository;
+    @Autowired private UserRepository userRepository;
 
-    @Autowired
-    private KafkaTemplate<String, Object> kafkaTemplate;
+    @Autowired private KafkaTemplate<String, Object> kafkaTemplate;
 
-    @Autowired
-    private RedisTemplate<String, Object> redisTemplate;
+    @Autowired private RedisTemplate<String, Object> redisTemplate;
 
-    @Autowired
-    private DataSource dataSource;
+    @Autowired private DataSource dataSource;
 
     private Order testOrder;
     private User testUser;
@@ -131,11 +114,11 @@ public class BinomApiFlowIntegrationTest {
         conversionCoefficientRepository.save(coefficient);
 
         // Create 3 fixed campaigns for distribution
-        fixedCampaigns = Arrays.asList(
-                createFixedCampaign("FIXED_CAMP_001", "US", 1),
-                createFixedCampaign("FIXED_CAMP_002", "US", 2),
-                createFixedCampaign("FIXED_CAMP_003", "US", 3)
-        );
+        fixedCampaigns =
+                Arrays.asList(
+                        createFixedCampaign("FIXED_CAMP_001", "US", 1),
+                        createFixedCampaign("FIXED_CAMP_002", "US", 2),
+                        createFixedCampaign("FIXED_CAMP_003", "US", 3));
         fixedBinomCampaignRepository.saveAll(fixedCampaigns);
 
         // Create test order
@@ -160,25 +143,29 @@ public class BinomApiFlowIntegrationTest {
         mockBinomApiResponses();
 
         // Step 2: Create Binom integration (distributes to 3 campaigns)
-        BinomIntegrationRequest integrationRequest = BinomIntegrationRequest.builder()
-                .orderId(testOrder.getId())
-                .targetUrl(TEST_VIDEO_URL)
-                .targetViews(TARGET_VIEWS)
-                .clipCreated(true)
-                .geoTargeting("US")
-                .build();
+        BinomIntegrationRequest integrationRequest =
+                BinomIntegrationRequest.builder()
+                        .orderId(testOrder.getId())
+                        .targetUrl(TEST_VIDEO_URL)
+                        .targetViews(TARGET_VIEWS)
+                        .clipCreated(true)
+                        .geoTargeting("US")
+                        .build();
 
-        BinomIntegrationResponse integrationResponse = binomService.createBinomIntegration(integrationRequest);
+        BinomIntegrationResponse integrationResponse =
+                binomService.createBinomIntegration(integrationRequest);
 
         // Verify campaign creation response
         assertNotNull(integrationResponse);
         assertTrue(integrationResponse.isSuccess(), "Integration should be successful");
         assertEquals(3, integrationResponse.getCampaignsCreated(), "Should create 3 campaigns");
-        assertTrue(integrationResponse.getMessage().contains("3 fixed campaigns"), 
+        assertTrue(
+                integrationResponse.getMessage().contains("3 fixed campaigns"),
                 "Message should confirm 3 campaigns");
 
         // Step 3: Verify database state after campaign creation
-        List<BinomCampaign> createdCampaigns = binomCampaignRepository.findByOrderId(testOrder.getId());
+        List<BinomCampaign> createdCampaigns =
+                binomCampaignRepository.findByOrderId(testOrder.getId());
         assertEquals(3, createdCampaigns.size(), "Should have 3 campaigns in database");
 
         // Verify each campaign has correct configuration
@@ -207,25 +194,31 @@ public class BinomApiFlowIntegrationTest {
         simulateConversionEvent(createdCampaigns.get(2).getCampaignId(), 20);
 
         // Step 6: Get campaign statistics
-        when(binomClient.getCampaignStats(anyString())).thenAnswer(invocation -> {
-            String campaignId = invocation.getArgument(0);
-            if (campaignId.contains("001")) {
-                return createMockStats(campaignId, 50L, 10L);
-            } else if (campaignId.contains("002")) {
-                return createMockStats(campaignId, 75L, 15L);
-            } else {
-                return createMockStats(campaignId, 100L, 20L);
-            }
-        });
+        when(binomClient.getCampaignStats(anyString()))
+                .thenAnswer(
+                        invocation -> {
+                            String campaignId = invocation.getArgument(0);
+                            if (campaignId.contains("001")) {
+                                return createMockStats(campaignId, 50L, 10L);
+                            } else if (campaignId.contains("002")) {
+                                return createMockStats(campaignId, 75L, 15L);
+                            } else {
+                                return createMockStats(campaignId, 100L, 20L);
+                            }
+                        });
 
-        CampaignStatsResponse aggregatedStats = binomService.getCampaignStatsForOrder(testOrder.getId());
-        
+        CampaignStatsResponse aggregatedStats =
+                binomService.getCampaignStatsForOrder(testOrder.getId());
+
         // Verify aggregated statistics
         assertNotNull(aggregatedStats);
         assertEquals(225L, aggregatedStats.getClicks(), "Total clicks should be 225");
         assertEquals(45L, aggregatedStats.getConversions(), "Total conversions should be 45");
-        assertTrue(aggregatedStats.getCampaignId().contains(","), "Should have comma-separated campaign IDs");
-        assertEquals("ACTIVE", aggregatedStats.getStatus(), "Status should be ACTIVE with 3 campaigns");
+        assertTrue(
+                aggregatedStats.getCampaignId().contains(","),
+                "Should have comma-separated campaign IDs");
+        assertEquals(
+                "ACTIVE", aggregatedStats.getStatus(), "Status should be ACTIVE with 3 campaigns");
 
         // Step 7: Verify Kafka message was sent
         verify(kafkaTemplate, atLeastOnce()).send(anyString(), any());
@@ -233,23 +226,32 @@ public class BinomApiFlowIntegrationTest {
         // Step 8: Verify Redis cache consistency
         String cacheKey = "binom:campaign:stats:" + testOrder.getId();
         redisTemplate.opsForValue().set(cacheKey, aggregatedStats);
-        CampaignStatsResponse cachedStats = (CampaignStatsResponse) redisTemplate.opsForValue().get(cacheKey);
+        CampaignStatsResponse cachedStats =
+                (CampaignStatsResponse) redisTemplate.opsForValue().get(cacheKey);
         assertNotNull(cachedStats);
         assertEquals(aggregatedStats.getClicks(), cachedStats.getClicks());
 
         // Step 9: Test campaign status management
         binomService.stopAllCampaignsForOrder(testOrder.getId());
-        List<BinomCampaign> stoppedCampaigns = binomCampaignRepository.findByOrderId(testOrder.getId());
-        stoppedCampaigns.forEach(campaign -> 
-            assertEquals("STOPPED", campaign.getStatus(), "All campaigns should be stopped")
-        );
+        List<BinomCampaign> stoppedCampaigns =
+                binomCampaignRepository.findByOrderId(testOrder.getId());
+        stoppedCampaigns.forEach(
+                campaign ->
+                        assertEquals(
+                                "STOPPED",
+                                campaign.getStatus(),
+                                "All campaigns should be stopped"));
 
         // Resume campaigns
         binomService.resumeAllCampaignsForOrder(testOrder.getId());
-        List<BinomCampaign> resumedCampaigns = binomCampaignRepository.findByOrderId(testOrder.getId());
-        resumedCampaigns.forEach(campaign -> 
-            assertEquals("ACTIVE", campaign.getStatus(), "All campaigns should be active again")
-        );
+        List<BinomCampaign> resumedCampaigns =
+                binomCampaignRepository.findByOrderId(testOrder.getId());
+        resumedCampaigns.forEach(
+                campaign ->
+                        assertEquals(
+                                "ACTIVE",
+                                campaign.getStatus(),
+                                "All campaigns should be active again"));
 
         // Step 10: Verify system consistency
         verifySystemConsistency(testOrder.getId());
@@ -264,30 +266,31 @@ public class BinomApiFlowIntegrationTest {
                 .thenThrow(new RuntimeException("API temporarily unavailable"))
                 .thenReturn(CheckOfferResponse.builder().exists(false).build());
 
-        when(binomClient.createOffer(any())).thenReturn(
-                CreateOfferResponse.builder()
-                        .offerId(TEST_OFFER_ID)
-                        .name("Test Offer")
-                        .url(TEST_VIDEO_URL)
-                        .build()
-        );
+        when(binomClient.createOffer(any()))
+                .thenReturn(
+                        CreateOfferResponse.builder()
+                                .offerId(TEST_OFFER_ID)
+                                .name("Test Offer")
+                                .url(TEST_VIDEO_URL)
+                                .build());
 
         // Mock successful campaign assignment
-        when(binomClient.assignOfferToCampaign(anyString(), anyString())).thenReturn(
-                AssignOfferResponse.builder()
-                        .campaignId("FIXED_CAMP_001")
-                        .offerId(TEST_OFFER_ID)
-                        .status("ASSIGNED")
-                        .build()
-        );
+        when(binomClient.assignOfferToCampaign(anyString(), anyString()))
+                .thenReturn(
+                        AssignOfferResponse.builder()
+                                .campaignId("FIXED_CAMP_001")
+                                .offerId(TEST_OFFER_ID)
+                                .status("ASSIGNED")
+                                .build());
 
-        BinomIntegrationRequest request = BinomIntegrationRequest.builder()
-                .orderId(testOrder.getId())
-                .targetUrl(TEST_VIDEO_URL)
-                .targetViews(TARGET_VIEWS)
-                .clipCreated(true)
-                .geoTargeting("US")
-                .build();
+        BinomIntegrationRequest request =
+                BinomIntegrationRequest.builder()
+                        .orderId(testOrder.getId())
+                        .targetUrl(TEST_VIDEO_URL)
+                        .targetViews(TARGET_VIEWS)
+                        .clipCreated(true)
+                        .geoTargeting("US")
+                        .build();
 
         // First attempt should fail
         BinomIntegrationResponse firstResponse = binomService.createBinomIntegration(request);
@@ -314,48 +317,44 @@ public class BinomApiFlowIntegrationTest {
         campaign = binomCampaignRepository.save(campaign);
 
         // Mock successful event logging (HTTP 200)
-        when(binomClient.getCampaignStats(campaign.getCampaignId())).thenReturn(
-                CampaignStatsResponse.builder()
-                        .campaignId(campaign.getCampaignId())
-                        .clicks(100L)
-                        .conversions(20L)
-                        .status("ACTIVE")
-                        .build()
-        );
+        when(binomClient.getCampaignStats(campaign.getCampaignId()))
+                .thenReturn(
+                        CampaignStatsResponse.builder()
+                                .campaignId(campaign.getCampaignId())
+                                .clicks(100L)
+                                .conversions(20L)
+                                .status("ACTIVE")
+                                .build());
 
         // Get stats to verify HTTP 200 response
         CampaignStatsResponse stats = binomClient.getCampaignStats(campaign.getCampaignId());
-        
+
         // Verify response
         assertNotNull(stats, "Should receive response");
         assertEquals(campaign.getCampaignId(), stats.getCampaignId());
         assertEquals(100L, stats.getClicks());
         assertEquals(20L, stats.getConversions());
-        
+
         // Verify mock was called (confirming HTTP 200 was received)
         verify(binomClient, times(1)).getCampaignStats(campaign.getCampaignId());
     }
 
     private void mockBinomApiResponses() {
         // Mock offer check and creation
-        when(binomClient.checkOfferExists(anyString())).thenReturn(
-                CheckOfferResponse.builder().exists(false).build()
-        );
+        when(binomClient.checkOfferExists(anyString()))
+                .thenReturn(CheckOfferResponse.builder().exists(false).build());
 
-        when(binomClient.createOffer(any())).thenReturn(
-                CreateOfferResponse.builder()
-                        .offerId(TEST_OFFER_ID)
-                        .name("Test Offer")
-                        .url(TEST_VIDEO_URL)
-                        .build()
-        );
+        when(binomClient.createOffer(any()))
+                .thenReturn(
+                        CreateOfferResponse.builder()
+                                .offerId(TEST_OFFER_ID)
+                                .name("Test Offer")
+                                .url(TEST_VIDEO_URL)
+                                .build());
 
         // Mock campaign assignments
-        when(binomClient.assignOfferToCampaign(anyString(), anyString())).thenReturn(
-                AssignOfferResponse.builder()
-                        .status("ASSIGNED")
-                        .build()
-        );
+        when(binomClient.assignOfferToCampaign(anyString(), anyString()))
+                .thenReturn(AssignOfferResponse.builder().status("ASSIGNED").build());
     }
 
     private FixedBinomCampaign createFixedCampaign(String campaignId, String geo, int priority) {
@@ -390,7 +389,8 @@ public class BinomApiFlowIntegrationTest {
         }
     }
 
-    private CampaignStatsResponse createMockStats(String campaignId, Long clicks, Long conversions) {
+    private CampaignStatsResponse createMockStats(
+            String campaignId, Long clicks, Long conversions) {
         return CampaignStatsResponse.builder()
                 .campaignId(campaignId)
                 .clicks(clicks)
@@ -405,11 +405,14 @@ public class BinomApiFlowIntegrationTest {
         // Verify database consistency
         List<BinomCampaign> campaigns = binomCampaignRepository.findByOrderId(orderId);
         assertFalse(campaigns.isEmpty(), "Campaigns should exist in database");
-        
+
         // Verify all campaigns belong to same order
-        campaigns.forEach(campaign -> 
-            assertEquals(orderId, campaign.getOrder().getId(), "All campaigns should belong to same order")
-        );
+        campaigns.forEach(
+                campaign ->
+                        assertEquals(
+                                orderId,
+                                campaign.getOrder().getId(),
+                                "All campaigns should belong to same order"));
 
         // Verify Kafka messages (in production, consumer would process these)
         // This is mocked since we're using @MockBean for KafkaTemplate

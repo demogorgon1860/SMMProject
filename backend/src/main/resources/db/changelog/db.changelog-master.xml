@@ -526,7 +526,7 @@
 
     <!-- Updated At Trigger Function -->
     <changeSet id="27" author="system">
-        <sql>
+        <sql splitStatements="false">
             CREATE OR REPLACE FUNCTION update_updated_at_column()
             RETURNS TRIGGER AS $$
             BEGIN
@@ -559,7 +559,7 @@
 
     <!-- Reset Daily Limits Function -->
     <changeSet id="29" author="system">
-        <sql>
+        <sql splitStatements="false">
             CREATE OR REPLACE FUNCTION reset_daily_limits() RETURNS void AS $$
             BEGIN
                 -- Reset YouTube accounts daily clips
@@ -596,6 +596,7 @@
     </changeSet>
 
     <!-- Development Data (context-specific) -->
+    <!-- Changeset 31 already executed - keeping for history -->
     <changeSet id="31" author="system" context="dev">
         <insert tableName="traffic_sources">
             <column name="name" value="Clickadoo Source 1"/>
@@ -623,40 +624,7 @@
         </insert>
     </changeSet>
 
-    <changeSet id="32" author="system" context="dev">
-        <insert tableName="fixed_binom_campaigns">
-            <column name="campaign_id" value="DEV_CAMPAIGN_001"/>
-            <column name="campaign_name" value="Development Fixed Campaign 1"/>
-            <column name="traffic_source_id" valueNumeric="1"/>
-            <column name="description" value="First fixed campaign for development"/>
-            <column name="active" valueBoolean="true"/>
-        </insert>
-        <insert tableName="fixed_binom_campaigns">
-            <column name="campaign_id" value="DEV_CAMPAIGN_002"/>
-            <column name="campaign_name" value="Development Fixed Campaign 2"/>
-            <column name="traffic_source_id" valueNumeric="2"/>
-            <column name="description" value="Second fixed campaign for development"/>
-            <column name="active" valueBoolean="true"/>
-        </insert>
-        <insert tableName="fixed_binom_campaigns">
-            <column name="campaign_id" value="DEV_CAMPAIGN_003"/>
-            <column name="campaign_name" value="Development Fixed Campaign 3"/>
-            <column name="traffic_source_id" valueNumeric="3"/>
-            <column name="description" value="Third fixed campaign for development"/>
-            <column name="active" valueBoolean="true"/>
-        </insert>
-    </changeSet>
-
-    <!-- Production Fixed Campaigns -->
-    <changeSet id="33" author="system" context="prod">
-        <sql>
-            INSERT INTO fixed_binom_campaigns (campaign_id, campaign_name, traffic_source_id, description) VALUES
-            ('CAMPAIGN_001', 'Fixed Campaign Source 1', 1, 'Primary traffic source'),
-            ('CAMPAIGN_002', 'Fixed Campaign Source 2', 2, 'Secondary traffic source'),
-            ('CAMPAIGN_003', 'Fixed Campaign Source 3', 3, 'Tertiary traffic source')
-            ON CONFLICT (campaign_id) DO NOTHING;
-        </sql>
-    </changeSet>
+    <!-- Changesets 32 and 33 removed - test data not needed as traffic sources and campaigns are created manually -->
 
     <!-- Include additional migrations from Flyway -->
     <include file="db/changelog/db.changelog-migrations.xml"/>

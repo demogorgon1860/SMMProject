@@ -1,5 +1,6 @@
 package com.smmpanel.dto.response;
 
+import java.math.BigDecimal;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -10,11 +11,14 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class OrderStatistics {
-    private long totalOrders;
-    private long pendingOrders;
-    private long activeOrders;
-    private long completedOrders;
-    private long cancelledOrders;
-    private double averageCompletionTime;
-    private double successRate;
+    private Long totalOrders;
+    private Long pendingOrders;
+    private Long processingOrders;
+    private Long completedOrders;
+    private Long cancelledOrders;
+    private Long failedOrders;
+    private BigDecimal totalRevenue;
+    private BigDecimal averageOrderValue;
+    private Double completionRate;
+    private Double successRate;
 }

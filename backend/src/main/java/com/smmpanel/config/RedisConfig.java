@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.lettuce.core.ClientOptions;
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.RedisURI;
 import io.lettuce.core.SocketOptions;
 import java.time.Duration;
 import java.util.HashMap;
@@ -89,6 +91,24 @@ public class RedisConfig implements CachingConfigurer {
                 JsonTypeInfo.As.PROPERTY);
 
         return mapper;
+    }
+
+    /** Redis Client for Bucket4j Rate Limiting */
+    @Bean
+    public RedisClient redisClient() {
+        RedisURI.Builder builder = RedisURI.builder()
+                .withHost(redisHost)
+                .withPort(redisPort)
+                .withDatabase(database);
+        
+        if (redisPassword != null && !redisPassword.isEmpty()) {
+            builder.withPassword(redisPassword.toCharArray());
+        }
+        
+        RedisURI redisUri = builder.build();
+        log.info("Creating RedisClient for rate limiting - host: {}, port: {}, database: {}", 
+                redisHost, redisPort, database);
+        return RedisClient.create(redisUri);
     }
 
     /** Redis Connection Factory with optimized settings */

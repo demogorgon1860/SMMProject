@@ -1,6 +1,5 @@
 package com.smmpanel.service.kafka;
 
-import com.smmpanel.config.KafkaConsumerMemoryConfig;
 import com.smmpanel.dto.kafka.VideoProcessingMessage;
 import com.smmpanel.service.DeadLetterQueueService;
 import com.smmpanel.service.ErrorRecoveryService;
@@ -44,7 +43,6 @@ public class VideoProcessingConsumerService {
     private final ErrorRecoveryService errorRecoveryService;
     private final DeadLetterQueueService deadLetterQueueService;
     private final MemoryMonitoringService memoryMonitoringService;
-    private final KafkaConsumerMemoryConfig memoryConfig;
 
     // TODO restore - MessageIdempotencyService reference temporarily commented out
     // private final MessageIdempotencyService messageIdempotencyService;
@@ -70,16 +68,13 @@ public class VideoProcessingConsumerService {
     @PostConstruct
     public void initialize() {
         // Configure memory settings from properties
-        System.setProperty("kafka.consumer.memory.max", memoryConfig.getHeap().getMaxSize());
-        System.setProperty(
-                "kafka.consumer.memory.initial", memoryConfig.getHeap().getInitialSize());
+        System.setProperty("kafka.consumer.memory.max", "4g");
+        System.setProperty("kafka.consumer.memory.initial", "1g");
 
         // Initialize memory monitoring
         memoryMonitoringService.initialize();
 
-        log.info(
-                "Initialized Kafka consumer with memory settings: {}",
-                memoryMonitoringService.getMemoryUsageSummary().getFormattedSummary());
+        log.info("Initialized Kafka consumer with memory settings: max=4g, initial=1g");
 
         // TODO restore - monitoring service initialization when KafkaMonitoringService is available
         // monitoringService.initializeConsumerGroupMonitoring(

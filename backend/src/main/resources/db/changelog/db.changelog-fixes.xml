@@ -97,6 +97,9 @@
         <preConditions onFail="MARK_RAN">
             <tableExists tableName="fixed_binom_campaigns"/>
             <columnExists tableName="binom_campaigns" columnName="fixed_campaign_id"/>
+            <not>
+                <foreignKeyConstraintExists foreignKeyName="fk_binom_campaigns_fixed_campaign"/>
+            </not>
         </preConditions>
         <addForeignKeyConstraint 
             baseTableName="binom_campaigns"
@@ -121,7 +124,7 @@
 
     <!-- Fix 6: Add missing triggers for updated_at -->
     <changeSet id="fix-6" author="audit-fix" runOnChange="false">
-        <sql>
+        <sql splitStatements="false">
             -- Ensure trigger function exists
             CREATE OR REPLACE FUNCTION update_updated_at_column()
             RETURNS TRIGGER AS $$
@@ -130,7 +133,8 @@
                 RETURN NEW;
             END;
             $$ language 'plpgsql';
-            
+        </sql>
+        <sql>
             -- Add missing triggers
             DROP TRIGGER IF EXISTS update_fixed_campaigns_updated_at ON fixed_binom_campaigns;
             CREATE TRIGGER update_fixed_campaigns_updated_at 
@@ -145,17 +149,17 @@
             SELECT 
                 fc.campaign_id,
                 fc.campaign_name,
-                fc.geo_targeting,
-                fc.priority,
+                ts.geo_targeting,
                 fc.active,
                 COUNT(bc.id) as orders_assigned,
                 SUM(bc.clicks_required) as total_clicks_assigned,
                 SUM(bc.clicks_delivered) as total_clicks_delivered
             FROM fixed_binom_campaigns fc
+            LEFT JOIN traffic_sources ts ON fc.traffic_source_id = ts.id
             LEFT JOIN binom_campaigns bc ON fc.campaign_id = bc.campaign_id
             WHERE fc.active = true
-            GROUP BY fc.id, fc.campaign_id, fc.campaign_name, fc.geo_targeting, fc.priority, fc.active
-            ORDER BY fc.priority
+            GROUP BY fc.id, fc.campaign_id, fc.campaign_name, ts.geo_targeting, fc.active
+            ORDER BY fc.campaign_id
         </createView>
     </changeSet>
 
@@ -170,7 +174,54 @@
             <column name="final_url" type="VARCHAR(500)"/>
         </addColumn>
     </changeSet>
+    
+    <!-- Fix 8a: Add missing audit columns to balance_transactions -->
+    <changeSet id="fix-8a" author="audit-fix" runOnChange="false">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="balance_transactions" columnName="audit_hash"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="balance_transactions">
+            <column name="audit_hash" type="VARCHAR(64)"/>
+            <column name="previous_transaction_hash" type="VARCHAR(64)"/>
+            <column name="transaction_id" type="VARCHAR(100)">
+                <constraints unique="true"/>
+            </column>
+            <column name="reference_id" type="VARCHAR(255)"/>
+            <column name="source_system" type="VARCHAR(50)"/>
+            <column name="ip_address" type="VARCHAR(45)"/>
+            <column name="user_agent" type="VARCHAR(500)"/>
+            <column name="session_id" type="VARCHAR(100)"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="processed_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="reconciled_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="reconciliation_status" type="VARCHAR(50)"/>
+        </addColumn>
+    </changeSet>
 
+    <!-- Fix 8b: Add missing columns to binom_campaigns -->
+    <changeSet id="fix-8b" author="audit-fix" runOnChange="false">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="binom_campaigns" columnName="campaign_name"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="binom_campaigns">
+            <column name="campaign_name" type="VARCHAR(255)"/>
+            <column name="offer_name" type="VARCHAR(255)"/>
+            <column name="conversions" type="INTEGER" defaultValueNumeric="0"/>
+            <column name="cost" type="DECIMAL(10,2)"/>
+            <column name="revenue" type="DECIMAL(10,2)"/>
+            <column name="last_stats_update" type="TIMESTAMP"/>
+            <column name="description" type="TEXT"/>
+            <column name="geo_targeting" type="VARCHAR(50)" defaultValue="US"/>
+            <column name="priority" type="INTEGER"/>
+            <column name="is_fixed_campaign" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true"/>
+        </addColumn>
+    </changeSet>
+    
     <changeSet id="fix-9" author="audit-fix" runOnChange="false">
         <preConditions onFail="MARK_RAN">
             <not>

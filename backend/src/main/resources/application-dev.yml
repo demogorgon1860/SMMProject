@@ -1,0 +1,163 @@
+# ==========================================
+# Development Profile Configuration
+# ==========================================
+# This file overrides values from application.yml for local development
+# No environment variables required - all defaults provided
+
+spring:
+  # Database configuration with local defaults
+  datasource:
+    url: jdbc:postgresql://localhost:5432/smm_panel
+    username: smm_admin
+    password: postgres123  # Default dev password
+    hikari:
+      maximum-pool-size: 20  # Reduced for dev
+      minimum-idle: 5
+  
+  # Redis configuration for local development
+  redis:
+    host: localhost
+    port: 6379
+    password: ""  # No password for local Redis
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+  
+  # Kafka configuration for local development
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: smm-panel-dev-group
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+    producer:
+      retries: 1  # Reduced for dev
+      batch-size: 16384
+  
+  # Liquibase settings for development
+  liquibase:
+    enabled: true
+    contexts: dev
+    drop-first: false  # Never drop database
+    change-log: classpath:db/changelog/db.changelog-master.xml
+  
+  # JPA/Hibernate settings for development
+  jpa:
+    hibernate:
+      ddl-auto: none  # Disable schema validation for now
+    show-sql: true  # Show SQL in console
+    properties:
+      hibernate:
+        format_sql: true  # Format SQL for readability
+        use_sql_comments: true
+        generate_statistics: false  # Set to true for performance debugging
+  
+  # H2 Console (if needed for testing)
+  h2:
+    console:
+      enabled: false  # We're using PostgreSQL
+  
+  # DevTools
+  devtools:
+    restart:
+      enabled: true
+    livereload:
+      enabled: true
+
+# Application-specific configuration
+app:
+  # JWT settings for development
+  jwt:
+    secret: dev-secret-key-for-local-development-only-not-for-production-use-must-be-at-least-64-chars
+    expiration: 86400000  # 24 hours
+    refresh-expiration: 604800000  # 7 days
+  
+  # CORS settings for local frontend
+  cors:
+    allowed-origins: 
+      - http://localhost:3000
+      - http://localhost:5173
+      - http://localhost:8080
+    allowed-methods: "*"
+    allowed-headers: "*"
+    allow-credentials: true
+  
+  # External services (use mock/sandbox versions)
+  binom:
+    api:
+      url: http://localhost:8080/mock/binom  # Mock endpoint
+      key: dev-binom-key
+      timeout: 30000
+  
+  cryptomus:
+    api-url: https://api.cryptomus.com/v1  # Can use sandbox
+    api-key: dev-cryptomus-key
+    api-secret: dev-cryptomus-secret
+    sandbox: true
+  
+  youtube:
+    api-key: dev-youtube-key  # Use restricted key for dev
+
+# Security settings for development
+security:
+  require-ssl: false  # No SSL in local dev
+
+# Management endpoints - all enabled for development
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"  # Expose all endpoints in dev
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+  health:
+    redis:
+      enabled: true
+    db:
+      enabled: true
+    kafka:
+      enabled: true
+
+# Logging configuration for development
+logging:
+  level:
+    root: INFO
+    com.smmpanel: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.kafka: INFO
+    org.apache.kafka: WARN
+    org.springframework.data.redis: DEBUG
+    liquibase: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/smm-panel-dev.log
+    max-size: 10MB
+    max-history: 5
+
+# Server configuration
+server:
+  port: 8080
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: on_param  # Include stacktrace with ?trace=true
+    include-exception: true
+
+# Environment variables that are now optional
+# These values are used if environment variables are not set
+DB_PASSWORD: dev_password_123
+DB_USER: smm_admin
+DB_NAME: smm_panel
+DB_HOST: localhost
+DB_PORT: 5432
+REDIS_PASSWORD: ""
+JWT_SECRET: dev-secret-key-for-local-development-only

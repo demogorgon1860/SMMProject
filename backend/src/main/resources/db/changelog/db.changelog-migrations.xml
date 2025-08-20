@@ -29,7 +29,7 @@
         </addColumn>
         
         <!-- Handle legacy api_key column -->
-        <sql>
+        <sql splitStatements="false">
             DO $$
             BEGIN
                 IF EXISTS (
@@ -40,7 +40,8 @@
                     ALTER TABLE users ADD CONSTRAINT chk_no_new_plaintext_keys 
                         CHECK (api_key_plaintext_deprecated IS NULL);
                 END IF;
-            END $$;
+            END;
+            $$;
         </sql>
         
         <!-- Update balance precision -->
@@ -94,12 +95,24 @@
         </createIndex>
         
         <!-- Partial indexes -->
-        <sql>
-            CREATE INDEX idx_orders_pending ON orders(created_at) WHERE status = 'PENDING';
-            CREATE INDEX idx_orders_processing ON orders(created_at) WHERE status = 'PROCESSING';
-            CREATE INDEX idx_users_active ON users(created_at) WHERE is_active = true;
-            CREATE INDEX idx_binom_campaigns_status_clicks ON binom_campaigns(status, clicks_delivered, clicks_required) 
-                WHERE status = 'ACTIVE';
+        <sql splitStatements="false">
+            DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_orders_pending') THEN
+                    CREATE INDEX idx_orders_pending ON orders(created_at) WHERE status = 'PENDING';
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_orders_processing') THEN
+                    CREATE INDEX idx_orders_processing ON orders(created_at) WHERE status = 'PROCESSING';
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_users_active') THEN
+                    CREATE INDEX idx_users_active ON users(created_at) WHERE is_active = true;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_binom_campaigns_status_clicks') THEN
+                    CREATE INDEX idx_binom_campaigns_status_clicks ON binom_campaigns(status, clicks_delivered, clicks_required) 
+                        WHERE status = 'ACTIVE';
+                END IF;
+            END;
+            $$;
         </sql>
     </changeSet>
 
@@ -125,17 +138,17 @@
             SELECT 
                 fc.campaign_id,
                 fc.campaign_name,
-                fc.geo_targeting,
-                fc.priority,
+                ts.geo_targeting,
                 fc.active,
                 COUNT(bc.id) as orders_assigned,
                 SUM(bc.clicks_required) as total_clicks_assigned,
                 SUM(bc.clicks_delivered) as total_clicks_delivered
             FROM fixed_binom_campaigns fc
+            LEFT JOIN traffic_sources ts ON fc.traffic_source_id = ts.id
             LEFT JOIN binom_campaigns bc ON fc.campaign_id = bc.campaign_id
             WHERE fc.active = true
-            GROUP BY fc.id, fc.campaign_id, fc.campaign_name, fc.geo_targeting, fc.priority, fc.active
-            ORDER BY fc.priority
+            GROUP BY fc.id, fc.campaign_id, fc.campaign_name, ts.geo_targeting, fc.active
+            ORDER BY fc.campaign_id
         </createView>
     </changeSet>
 

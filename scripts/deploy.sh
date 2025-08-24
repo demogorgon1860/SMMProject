@@ -11,10 +11,10 @@ if [ "$ENVIRONMENT" = "production" ]; then
     echo "Production deployment..."
     
     # Pull latest images
-    docker-compose -f docker-compose.prod.yml pull
+    docker-compose -f docker-compose.yml pull
     
     # Deploy with zero downtime
-    docker-compose -f docker-compose.prod.yml up -d --no-deps smm-panel-app
+    docker-compose -f docker-compose.yml up -d --no-deps spring-boot-app
     
     # Wait for health check
     echo "Waiting for application to be healthy..."

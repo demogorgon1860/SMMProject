@@ -9,7 +9,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/smm_panel
     username: smm_admin
-    password: postgres123  # Default dev password
+    password: ${DB_PASSWORD}  # From .env file
     hikari:
       maximum-pool-size: 20  # Reduced for dev
       minimum-idle: 5
@@ -18,7 +18,7 @@ spring:
   redis:
     host: localhost
     port: 6379
-    password: ""  # No password for local Redis
+    password: ${REDIS_PASSWORD}  # From .env file
     timeout: 2000ms
     lettuce:
       pool:
@@ -47,7 +47,7 @@ spring:
   # JPA/Hibernate settings for development
   jpa:
     hibernate:
-      ddl-auto: none  # Disable schema validation for now
+      ddl-auto: none  # Disable schema validation to bypass errors
     show-sql: true  # Show SQL in console
     properties:
       hibernate:
@@ -71,7 +71,7 @@ spring:
 app:
   # JWT settings for development
   jwt:
-    secret: dev-secret-key-for-local-development-only-not-for-production-use-must-be-at-least-64-chars
+    secret: ${JWT_SECRET}  # From .env file
     expiration: 86400000  # 24 hours
     refresh-expiration: 604800000  # 7 days
   
@@ -88,18 +88,20 @@ app:
   # External services (use mock/sandbox versions)
   binom:
     api:
-      url: http://localhost:8080/mock/binom  # Mock endpoint
-      key: dev-binom-key
+      url: ${BINOM_API_URL}  # From .env file
+      key: ${BINOM_API_KEY}  # From .env file
       timeout: 30000
   
   cryptomus:
-    api-url: https://api.cryptomus.com/v1  # Can use sandbox
-    api-key: dev-cryptomus-key
-    api-secret: dev-cryptomus-secret
+    api-url: ${CRYPTOMUS_API_URL}  # From .env file
+    api-key: ${CRYPTOMUS_API_KEY}  # From .env file
+    api-secret: ${CRYPTOMUS_API_SECRET}  # From .env file
+    merchant-id: ${CRYPTOMUS_MERCHANT_ID}  # From .env file
+    webhook-secret: ${CRYPTOMUS_WEBHOOK_SECRET}  # From .env file
     sandbox: true
   
   youtube:
-    api-key: dev-youtube-key  # Use restricted key for dev
+    api-key: ${YOUTUBE_API_KEY}  # From .env file
 
 # Security settings for development
 security:
@@ -114,7 +116,6 @@ management:
   endpoint:
     health:
       show-details: always
-      show-components: always
   health:
     redis:
       enabled: true
@@ -152,12 +153,4 @@ server:
     include-stacktrace: on_param  # Include stacktrace with ?trace=true
     include-exception: true
 
-# Environment variables that are now optional
-# These values are used if environment variables are not set
-DB_PASSWORD: dev_password_123
-DB_USER: smm_admin
-DB_NAME: smm_panel
-DB_HOST: localhost
-DB_PORT: 5432
-REDIS_PASSWORD: ""
-JWT_SECRET: dev-secret-key-for-local-development-only
+# Development profile - all environment variables should be defined in .env file

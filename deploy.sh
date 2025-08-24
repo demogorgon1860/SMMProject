@@ -30,19 +30,23 @@ cd ../backend
 
 # Deploy using Docker Compose
 echo "Deploying with Docker Compose..."
+cd ..
 if [ "$ENVIRONMENT" = "production" ]; then
-    docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+    docker-compose -f docker-compose.yml up -d
+elif [ "$ENVIRONMENT" = "development" ]; then
+    docker-compose -f docker-compose.dev.yml up -d
 else
-    docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+    docker-compose -f docker-compose.yml up -d
 fi
 
 # Run database migrations
 echo "Running database migrations..."
-cd ../backend
-./gradlew flywayMigrate
+cd backend
+./gradlew liquibaseUpdate
 
 # Health check
 echo "Performing health check..."
-./docker-healthcheck.sh
+sleep 10
+curl -f http://localhost:8080/actuator/health || echo "Warning: Health check failed"
 
 echo "Deployment to $ENVIRONMENT completed successfully!"

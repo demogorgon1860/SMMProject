@@ -1,17 +1,72 @@
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
+  scrape_timeout: 10s
 
+# Alert manager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+# Rule files specifies a list of globs. Rules and alerts are read from
+# all matching files.
 rule_files:
-  # - "first_rules.yml"
+  - 'alert.rules'
 
+# A scrape configuration containing exactly one endpoint to scrape.
 scrape_configs:
+  # Self-monitoring
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
 
-  - job_name: 'smm-panel'
-    static_configs:
-      - targets: ['smm-panel-app:8080']
+  # Spring Boot application metrics
+  - job_name: 'smm-backend'
     metrics_path: '/actuator/prometheus'
-    scrape_interval: 10s
+    scrape_interval: 5s
+    static_configs:
+      - targets: ['backend:8080']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __scheme__
+        regex: (.*)
+        replacement: http
+      - source_labels: [__address__]
+        target_label: __metrics_path__
+        regex: (.*)
+        replacement: /actuator/prometheus
+
+  # Node exporter for host metrics
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # Redis metrics
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:9121']
+
+  # Kafka metrics
+  - job_name: 'kafka'
+    static_configs:
+      - targets: ['kafka:7071']
+
+  # JVM metrics
+  - job_name: 'jvm'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['backend:8080']
+
+  # Database metrics
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+
+# Remote write configuration (optional, for long-term storage)
+remote_write:
+  - url: http://thanos:10908/api/v1/receive
+    queue_config:
+      max_samples_per_send: 10000
+      capacity: 50000
+      max_shards: 1000

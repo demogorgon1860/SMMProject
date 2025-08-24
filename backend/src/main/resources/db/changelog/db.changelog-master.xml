@@ -631,5 +631,8 @@
     
     <!-- Include fixes for missing schema elements -->
     <include file="db/changelog/db.changelog-fixes.xml"/>
+    
+    <!-- Include Binom campaign configuration -->
+    <include file="db/changelog/changes/v2024.12-add-binom-campaigns.xml"/>
 
 </databaseChangeLog>

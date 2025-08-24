@@ -17,7 +17,6 @@ import com.smmpanel.repository.jpa.ServiceRepository;
 import com.smmpanel.repository.jpa.UserRepository;
 import com.smmpanel.service.BalanceService;
 import com.smmpanel.service.OrderService;
-import com.smmpanel.service.YouTubeAutomationService;
 import com.smmpanel.service.validation.OrderValidationService;
 import java.math.BigDecimal;
 import java.util.List;
@@ -44,7 +43,6 @@ class OrderProcessingServiceTest {
     @Mock private ServiceRepository serviceRepository;
     @Mock private OrderValidationService validationService;
     @Mock private BalanceService balanceService;
-    @Mock private YouTubeAutomationService youTubeAutomationService;
     @Mock private KafkaTemplate<String, Object> kafkaTemplate;
     @Mock private SecurityContext securityContext;
     @Mock private Authentication authentication;

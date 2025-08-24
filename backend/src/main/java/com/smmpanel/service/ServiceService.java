@@ -17,16 +17,13 @@ public class ServiceService {
 
     private final ServiceRepository serviceRepository;
 
-    @Cacheable(value = "services", cacheManager = "redisCacheManager", key = "'active-services'")
+    @Cacheable(value = "services", key = "'active-services'")
     public List<ServiceResponse> getAllActiveServices() {
         List<Service> services = serviceRepository.findByActiveOrderByIdAsc(true);
         return services.stream().map(this::toServiceResponse).toList();
     }
 
-    @Cacheable(
-            value = "services",
-            cacheManager = "redisCacheManager",
-            key = "'active-services-cached'")
+    @Cacheable(value = "services", key = "'active-services-cached'")
     public List<ServiceResponse> getAllActiveServicesCached() {
         return getAllActiveServices();
     }

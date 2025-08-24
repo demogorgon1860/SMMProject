@@ -1,6 +1,6 @@
 package com.smmpanel.service.order;
 
-import com.smmpanel.dto.binom.BinomCampaignRequest;
+import com.smmpanel.dto.binom.BinomIntegrationResponse;
 import com.smmpanel.entity.*;
 import com.smmpanel.event.OrderCreatedEvent;
 import com.smmpanel.exception.OrderNotFoundException;
@@ -217,17 +217,16 @@ public class OrderProcessingService {
                             .divide(BigDecimal.valueOf(1000), 0, RoundingMode.UP)
                             .intValue();
 
-            BinomCampaignRequest campaignRequest =
-                    BinomCampaignRequest.builder()
-                            .orderId(order.getId())
-                            .targetUrl(targetUrl)
-                            .targetViews(targetViews)
-                            .geoTargeting("US,CA,GB,AU") // Default geo targeting
-                            .build();
+            // Distribute offer across 3 pre-configured campaigns
+            BinomIntegrationResponse response =
+                    binomService.createBinomIntegration(order, targetUrl, true, targetUrl);
 
-            BinomCampaign campaign = binomService.createCampaign(order, targetUrl, true);
-            order.setBinomCampaign(campaign);
-            orderRepository.save(order);
+            if (response.isSuccess()) {
+                log.info(
+                        "Offer distributed to {} campaigns for order {}",
+                        response.getCampaignsCreated(),
+                        order.getId());
+            }
 
         } catch (Exception e) {
             log.error(

@@ -569,18 +569,24 @@ public class YouTubeProcessingService {
         }
     }
 
-    /** LEGACY: Create Binom campaign (YouTubeOrderProcessor compatibility) */
+    /** Distribute offer across pre-configured Binom campaigns */
     private void createBinomCampaignLegacy(Order order) {
         try {
             boolean hasClip = order.getCoefficient().compareTo(new BigDecimal("3.0")) == 0;
 
-            binomService.createCampaign(order, order.getLink(), hasClip);
+            BinomIntegrationResponse response =
+                    binomService.createBinomIntegration(
+                            order, order.getLink(), hasClip, order.getLink());
 
-            log.info("Binom campaign created: orderId={}, hasClip={}", order.getId(), hasClip);
+            log.info(
+                    "Binom offer distributed: orderId={}, hasClip={}, campaigns={}",
+                    order.getId(),
+                    hasClip,
+                    response.getCampaignsCreated());
 
         } catch (Exception e) {
-            log.error("Failed to create Binom campaign: orderId={}", order.getId(), e);
-            throw new RuntimeException("Failed to create Binom campaign", e);
+            log.error("Failed to distribute Binom offer: orderId={}", order.getId(), e);
+            throw new RuntimeException("Failed to distribute Binom offer", e);
         }
     }
 

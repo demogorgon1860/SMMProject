@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <changeSet id="2024-12-27-add-actual-binom-campaigns" author="system">
+        <comment>Add actual Binom campaign configurations</comment>
+        
+        <!-- Clear any existing test data -->
+        <delete tableName="fixed_binom_campaigns"/>
+        
+        <!-- Insert actual Binom campaigns from screenshot -->
+        <insert tableName="fixed_binom_campaigns">
+            <column name="campaign_id" value="1"/>
+            <column name="campaign_name" value="INDIA"/>
+            <column name="geo_targeting" value="IN"/>
+            <column name="weight" valueNumeric="100"/>
+            <column name="priority" valueNumeric="1"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="description" value="India traffic campaign"/>
+            <column name="created_at" valueDate="NOW()"/>
+        </insert>
+        
+        <insert tableName="fixed_binom_campaigns">
+            <column name="campaign_id" value="2"/>
+            <column name="campaign_name" value="Tier 3 + black list"/>
+            <column name="geo_targeting" value="TIER3"/>
+            <column name="weight" valueNumeric="100"/>
+            <column name="priority" valueNumeric="2"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="description" value="Tier 3 countries with blacklist filtering"/>
+            <column name="created_at" valueDate="NOW()"/>
+        </insert>
+        
+        <!-- System now works with 2 campaigns, third one is optional -->
+        <!-- If you add a third campaign in Binom, update this record with its ID and set active=true -->
+    </changeSet>
+
+</databaseChangeLog>

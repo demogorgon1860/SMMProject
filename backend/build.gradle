@@ -48,6 +48,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-aop'
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
     
+    // Environment variables from .env file
+    implementation 'io.github.cdimascio:dotenv-java:3.0.0'
+    
     // Retry and Circuit Breaker
     implementation 'org.springframework.retry:spring-retry'
     implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.1.0'

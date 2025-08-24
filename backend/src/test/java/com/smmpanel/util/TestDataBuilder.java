@@ -1,6 +1,5 @@
 package com.smmpanel.util;
 
-import com.smmpanel.dto.balance.CurrencyConversionRequest;
 import com.smmpanel.dto.request.CreateOrderRequest;
 import com.smmpanel.entity.*;
 import java.math.BigDecimal;
@@ -18,7 +17,6 @@ public class TestDataBuilder {
                 .passwordHash("password")
                 .balance(new BigDecimal("100.00"))
                 .isActive(true)
-                .preferredCurrency("USD")
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now());
     }
@@ -59,21 +57,11 @@ public class TestDataBuilder {
                 .build();
     }
 
-    /** Creates a test currency conversion request */
-    public static CurrencyConversionRequest createTestCurrencyConversionRequest() {
-        return CurrencyConversionRequest.builder()
-                .amount(new BigDecimal("100.00"))
-                .fromCurrency("USD")
-                .toCurrency("EUR")
-                .build();
-    }
-
     /** Creates a test balance deposit */
     public static BalanceDeposit createTestBalanceDeposit() {
         BalanceDeposit deposit = new BalanceDeposit();
         deposit.setUser(createTestUser().build());
-        deposit.setAmountUsd(new BigDecimal("50.00"));
-        deposit.setCurrency("USD");
+        deposit.setAmountUsdt(new BigDecimal("50.00"));
         deposit.setOrderId("test-txn-123");
         deposit.setStatus(PaymentStatus.PENDING);
         deposit.setExpiresAt(LocalDateTime.now().plusHours(1));

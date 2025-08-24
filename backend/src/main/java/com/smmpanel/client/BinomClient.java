@@ -50,58 +50,7 @@ public class BinomClient {
 
     // ...existing code...
 
-    /** Create a new campaign in Binom */
-    public CreateCampaignResponse createCampaign(CreateCampaignRequest request) {
-        String endpoint = "/public/api/v1/campaign";
-        String url =
-                UriComponentsBuilder.fromHttpUrl(apiUrl + endpoint)
-                        .queryParam("format", FORMAT_JSON)
-                        .build()
-                        .toUriString();
-
-        return circuitBreaker.executeSupplier(
-                () ->
-                        writeRetry.executeSupplier(
-                                () -> {
-                                    HttpHeaders headers = new HttpHeaders();
-                                    headers.setContentType(MediaType.APPLICATION_JSON);
-                                    headers.set("User-Agent", "SMM-Panel/1.0");
-                                    headers.set(API_KEY_HEADER, apiKey);
-
-                                    HttpEntity<CreateCampaignRequest> entity =
-                                            new HttpEntity<>(request, headers);
-
-                                    log.info("Creating Binom campaign: {}", request.getName());
-
-                                    ResponseEntity<Map> response =
-                                            restTemplate.exchange(
-                                                    url, HttpMethod.POST, entity, Map.class);
-
-                                    // Enhanced response validation
-                                    validateResponse(response, endpoint, "createCampaign");
-                                    Map<String, Object> responseBody = response.getBody();
-                                    validateResponseBody(responseBody, endpoint, "createCampaign");
-
-                                    if (responseBody.containsKey("id")) {
-                                        String campaignId = String.valueOf(responseBody.get("id"));
-                                        log.info(
-                                                "Successfully created Binom campaign: {} -> {}",
-                                                request.getName(),
-                                                campaignId);
-
-                                        return CreateCampaignResponse.builder()
-                                                .campaignId(campaignId)
-                                                .name(request.getName())
-                                                .status("ACTIVE")
-                                                .build();
-                                    }
-
-                                    throw new BinomApiException(
-                                            "Invalid response: missing id field",
-                                            HttpStatus.OK,
-                                            endpoint);
-                                }));
-    }
+    // Campaign creation removed - campaigns are pre-configured manually in Binom
 
     /** Create a new offer in Binom */
     public CreateOfferResponse createOffer(CreateOfferRequest request) {
@@ -567,6 +516,8 @@ public class BinomClient {
                                                     + response.getBody());
                                 }));
     }
+
+    // Campaign stop/start removed - campaigns remain active, managed manually in Binom
 
     /** Get campaign information from Binom */
     public CampaignInfoResponse getCampaignInfo(String campaignId) {

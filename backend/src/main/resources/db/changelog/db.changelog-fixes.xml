@@ -424,4 +424,18 @@
         </insert>
     </changeSet>
 
+    <!-- Fix 17: Add missing enum values to order_status -->
+    <changeSet id="fix-17" author="runtime-fix" runOnChange="false">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM pg_enum WHERE enumlabel IN ('ERROR', 'SUSPENDED') 
+                AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'order_status')
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            ALTER TYPE order_status ADD VALUE IF NOT EXISTS 'ERROR' AFTER 'REFILL';
+            ALTER TYPE order_status ADD VALUE IF NOT EXISTS 'SUSPENDED' AFTER 'ERROR';
+        </sql>
+    </changeSet>
+
 </databaseChangeLog>

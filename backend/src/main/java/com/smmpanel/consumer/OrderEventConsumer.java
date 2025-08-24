@@ -1,5 +1,6 @@
 package com.smmpanel.consumer;
 
+import com.smmpanel.dto.binom.BinomIntegrationResponse;
 import com.smmpanel.entity.Order;
 import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.event.OrderCreatedEvent;
@@ -138,14 +139,19 @@ public class OrderEventConsumer {
         }
     }
 
-    /** Process Binom campaign creation */
+    /** Process Binom offer assignment to pre-configured campaigns */
     private void processBinomCampaignCreation(Order order) {
         try {
-            // Create Binom campaign
-            binomService.createCampaign(order, order.getLink(), false);
-            log.info("Binom campaign created: orderId={}", order.getId());
+            // Distribute offer across 3 pre-configured campaigns
+            BinomIntegrationResponse response =
+                    binomService.createBinomIntegration(
+                            order, order.getLink(), false, order.getLink());
+            log.info(
+                    "Binom offer distributed: orderId={}, campaigns={}",
+                    order.getId(),
+                    response.getCampaignsCreated());
         } catch (Exception e) {
-            log.error("Binom campaign creation failed: orderId={}", order.getId(), e);
+            log.error("Binom offer distribution failed: orderId={}", order.getId(), e);
             // Update order with error message
             order.setErrorMessage("Failed to create Binom campaign: " + e.getMessage());
             orderRepository.save(order);

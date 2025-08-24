@@ -32,8 +32,8 @@ server:
   http2:
     enabled: true
   tomcat:
-    connection-timeout: PT20S
-    keep-alive-timeout: PT20S
+    connection-timeout: 20000
+    keep-alive-timeout: 20000
     max-connections: 8192
     threads:
       max: 200
@@ -94,7 +94,7 @@ spring:
       
   jpa:
     hibernate:
-      ddl-auto: validate  # ONLY validate, never create/update/drop
+      ddl-auto: none  # Disable validation due to schema mismatch
       naming:
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
     show-sql: ${HIBERNATE_SHOW_SQL:false}
@@ -180,7 +180,7 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
       database: 0
-      timeout: 5000ms
+      timeout: 5000
       # Using Lettuce client instead of Jedis for better performance
       lettuce:
         pool:
@@ -410,13 +410,28 @@ app:
       timeout: 15000
       retry-attempts: 2
     quota:
-      daily-limit: 10000
-      per-100-seconds: 100
+      daily-limit: ${YOUTUBE_QUOTA_DAILY_LIMIT:10000}
+      per-minute-limit: ${YOUTUBE_QUOTA_PER_MINUTE:300}
+      warning-threshold: ${YOUTUBE_QUOTA_WARNING_THRESHOLD:0.8}
+      enabled: ${YOUTUBE_QUOTA_TRACKING_ENABLED:true}
+    cache:
+      ttl: ${YOUTUBE_CACHE_TTL:600}  # 10 minutes default
+      video-stats-ttl: ${YOUTUBE_STATS_CACHE_TTL:300}  # 5 minutes for stats
+      channel-ttl: ${YOUTUBE_CHANNEL_CACHE_TTL:3600}  # 1 hour for channel info
+    clip-creation:
+      enabled: ${YOUTUBE_CLIP_CREATION_ENABLED:true}
+      coefficient: ${YOUTUBE_CLIP_COEFFICIENT:3.0}
+      timeout: ${YOUTUBE_CLIP_TIMEOUT:300000}  # 5 minutes
+      retry-attempts: ${YOUTUBE_CLIP_RETRY_ATTEMPTS:2}
   cryptomus:
     api:
-      url: ${CRYPTOMUS_API_URL:https://api.cryptomus.com/v1}
+      url: ${CRYPTOMUS_API_URL}
+      # Payout API Key for merchant operations
       key: ${CRYPTOMUS_API_KEY}
       secret: ${CRYPTOMUS_API_SECRET}
+    user-api:
+      # User API Key for user operations
+      key: ${CRYPTOMUS_USER_API_KEY}
     webhook:
       secret: ${CRYPTOMUS_WEBHOOK_SECRET}
     merchant-id: ${CRYPTOMUS_MERCHANT_ID}
@@ -541,13 +556,8 @@ app:
   # ===============================
   # ADDITIONAL SERVICE CONFIGURATION
   # ===============================
-  currency:
-    default: ${DEFAULT_CURRENCY:USD}
-    exchange-rate-api:
-      url: ${EXCHANGE_RATE_API_URL:https://api.exchangerate.host/latest}
-      base-currency: ${EXCHANGE_RATE_BASE_CURRENCY:USD}
-      timeout-ms: ${EXCHANGE_RATE_API_TIMEOUT_MS:5000}
-      
+  # All prices and amounts are in USDT
+  
   email:
     enabled: ${EMAIL_ENABLED:false}
     from: ${EMAIL_FROM:noreply@smmpanel.com}
@@ -685,7 +695,6 @@ management:
   endpoint:
     health:
       show-details: when-authorized
-      show-components: always
     kafka:
       enabled: true
   prometheus:

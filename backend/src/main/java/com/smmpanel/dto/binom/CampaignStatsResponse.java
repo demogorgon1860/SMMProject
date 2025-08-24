@@ -28,7 +28,7 @@ public class CampaignStatsResponse {
     private BigDecimal conversionRate;
     private BigDecimal epc;
     private String status;
-    private Long trafficSourceId;
+    // Traffic source removed - campaigns are pre-configured
     private Long affiliateNetworkId;
     private LocalDateTime periodStart;
     private LocalDateTime periodEnd;

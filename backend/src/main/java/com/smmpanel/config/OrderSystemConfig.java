@@ -40,6 +40,8 @@ public class OrderSystemConfig {
         executor.setMaxPoolSize(properties.getThreadPoolSize());
         executor.setQueueCapacity(properties.getBatchSize() * 10);
         executor.setThreadNamePrefix("order-processor-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
         executor.initialize();
         return executor;
     }
@@ -52,6 +54,7 @@ public class OrderSystemConfig {
         scheduler.setThreadNamePrefix("sla-monitor-");
         scheduler.setWaitForTasksToCompleteOnShutdown(true);
         scheduler.setAwaitTerminationSeconds(30);
+        scheduler.initialize();
         return scheduler;
     }
 }

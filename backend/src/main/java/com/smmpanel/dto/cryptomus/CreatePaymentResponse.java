@@ -15,6 +15,7 @@ public class CreatePaymentResponse {
     private String paymentStatus;
     private String url;
     private String address;
+    private String network;
     private String txid;
     private String status;
 }

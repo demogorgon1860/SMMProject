@@ -1,8 +1,6 @@
 package com.smmpanel.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +21,7 @@ import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.kafka.transaction.KafkaTransactionManager;
 
 /** PRODUCTION-READY Kafka Configuration with proper serializers, error handling, and DLQ */
 @Slf4j
@@ -417,6 +416,9 @@ public class KafkaConfig {
         configProps.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 120000);
         configProps.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 30000);
 
+        // Transaction configuration
+        configProps.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "smm-panel-tx");
+
         // JSON Serializer specific configs
         configProps.put(
                 JsonSerializer.TYPE_MAPPINGS,
@@ -427,12 +429,25 @@ public class KafkaConfig {
                         + "notification:java.util.Map,"
                         + "orderStateUpdate:java.util.Map");
 
-        return new DefaultKafkaProducerFactory<>(configProps);
+        DefaultKafkaProducerFactory<String, Object> factory =
+                new DefaultKafkaProducerFactory<>(configProps);
+        factory.setTransactionIdPrefix("smm-panel-tx-");
+        return factory;
     }
 
     @Bean
     public KafkaTemplate<String, Object> kafkaTemplate() {
         return new KafkaTemplate<>(producerFactory());
+    }
+
+    @Bean
+    public KafkaTemplate<String, Object> defaultRetryTopicKafkaTemplate() {
+        return new KafkaTemplate<>(producerFactory());
+    }
+
+    @Bean
+    public KafkaTransactionManager kafkaTransactionManager() {
+        return new KafkaTransactionManager(producerFactory());
     }
 
     @Bean
@@ -556,15 +571,26 @@ public class KafkaConfig {
         return factory;
     }
 
+    /** Payment confirmation container factory for real-time payment processing */
+    @Bean("paymentConfirmationContainerFactory")
+    public ConcurrentKafkaListenerContainerFactory<String, Object>
+            paymentConfirmationContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, Object> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(consumerFactory());
+        factory.setConcurrency(2); // Less concurrency for payment processing
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        factory.getContainerProperties().setSyncCommits(true);
+        factory.getContainerProperties()
+                .setPollTimeout(1000L); // Faster polling for real-time payments
+
+        // Use high priority error handler for critical payment processing
+        factory.setCommonErrorHandler(consumerErrorConfiguration.highPriorityErrorHandler());
+        return factory;
+    }
+
     // ===============================
     // HELPER METHODS
     // ===============================
 
-    @Bean
-    public ObjectMapper kafkaObjectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        return mapper;
-    }
 }

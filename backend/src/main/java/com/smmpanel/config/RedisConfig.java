@@ -96,18 +96,19 @@ public class RedisConfig implements CachingConfigurer {
     /** Redis Client for Bucket4j Rate Limiting */
     @Bean
     public RedisClient redisClient() {
-        RedisURI.Builder builder = RedisURI.builder()
-                .withHost(redisHost)
-                .withPort(redisPort)
-                .withDatabase(database);
-        
+        RedisURI.Builder builder =
+                RedisURI.builder().withHost(redisHost).withPort(redisPort).withDatabase(database);
+
         if (redisPassword != null && !redisPassword.isEmpty()) {
             builder.withPassword(redisPassword.toCharArray());
         }
-        
+
         RedisURI redisUri = builder.build();
-        log.info("Creating RedisClient for rate limiting - host: {}, port: {}, database: {}", 
-                redisHost, redisPort, database);
+        log.info(
+                "Creating RedisClient for rate limiting - host: {}, port: {}, database: {}",
+                redisHost,
+                redisPort,
+                database);
         return RedisClient.create(redisUri);
     }
 
@@ -216,18 +217,11 @@ public class RedisConfig implements CachingConfigurer {
         cacheConfigurations.put("users", defaultConfig.entryTtl(Duration.ofMinutes(15)));
         cacheConfigurations.put("balance", defaultConfig.entryTtl(Duration.ofMinutes(5)));
         cacheConfigurations.put("user-balances", defaultConfig.entryTtl(Duration.ofMinutes(5)));
-        cacheConfigurations.put("userCurrency", defaultConfig.entryTtl(Duration.ofMinutes(30)));
 
         // YouTube-related caches
         cacheConfigurations.put("youtube-views", defaultConfig.entryTtl(Duration.ofMinutes(5)));
         cacheConfigurations.put("youtube-stats", defaultConfig.entryTtl(Duration.ofMinutes(5)));
         cacheConfigurations.put("youtube-accounts", defaultConfig.entryTtl(Duration.ofMinutes(15)));
-
-        // Currency and exchange rate caches
-        cacheConfigurations.put("exchangeRates", defaultConfig.entryTtl(Duration.ofMinutes(30)));
-        cacheConfigurations.put("exchange-rates", defaultConfig.entryTtl(Duration.ofMinutes(30)));
-        cacheConfigurations.put(
-                "conversion-coefficients", defaultConfig.entryTtl(Duration.ofMinutes(45)));
 
         // Order and campaign caches
         cacheConfigurations.put("start_count", defaultConfig.entryTtl(Duration.ofDays(30)));

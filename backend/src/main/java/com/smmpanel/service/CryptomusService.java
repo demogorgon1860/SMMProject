@@ -6,6 +6,7 @@ import com.smmpanel.dto.balance.CreateDepositResponse;
 import com.smmpanel.dto.balance.DepositStatusResponse;
 import com.smmpanel.dto.cryptomus.CreatePaymentRequest;
 import com.smmpanel.dto.cryptomus.CreatePaymentResponse;
+import com.smmpanel.dto.cryptomus.CreateWalletRequest;
 import com.smmpanel.dto.cryptomus.CryptomusWebhook;
 import com.smmpanel.entity.BalanceDeposit;
 import com.smmpanel.entity.PaymentStatus;
@@ -57,11 +58,12 @@ public class CryptomusService {
         CreatePaymentRequest cryptomusRequest =
                 CreatePaymentRequest.builder()
                         .amount(request.getAmount())
-                        .currency("USD")
+                        .currency("USDT")
                         .orderId(orderId)
-                        .callbackUrl("https://yourdomain.com/api/v2/webhooks/cryptomus")
-                        .successUrl("https://yourdomain.com/deposits/success")
-                        .failUrl("https://yourdomain.com/deposits/fail")
+                        .urlCallback("https://yourdomain.com/api/v2/webhooks/cryptomus")
+                        .urlSuccess("https://yourdomain.com/deposits/success")
+                        .urlReturn("https://yourdomain.com/deposits")
+                        .lifetime(1440) // 24 hours in minutes
                         .build();
 
         try {
@@ -72,8 +74,7 @@ public class CryptomusService {
             BalanceDeposit deposit = new BalanceDeposit();
             deposit.setUser(user);
             deposit.setOrderId(orderId);
-            deposit.setAmountUsd(request.getAmount());
-            deposit.setCurrency(request.getCurrency());
+            deposit.setAmountUsdt(request.getAmount());
             deposit.setCryptoAmount(cryptomusResponse.getAmount());
             deposit.setCryptomusPaymentId(cryptomusResponse.getUuid());
             deposit.setPaymentUrl(cryptomusResponse.getUrl());
@@ -92,7 +93,7 @@ public class CryptomusService {
                     .orderId(orderId)
                     .paymentUrl(cryptomusResponse.getUrl())
                     .amount(request.getAmount())
-                    .currency(request.getCurrency())
+                    .currency("USDT")
                     .cryptoAmount(cryptomusResponse.getAmount().toString())
                     .expiresAt(deposit.getExpiresAt())
                     .build();
@@ -118,16 +119,64 @@ public class CryptomusService {
                         .findByOrderIdAndUser(orderId, user)
                         .orElseThrow(() -> new IllegalArgumentException("Deposit not found"));
 
+        // Get real-time status from Cryptomus API
+        try {
+            var paymentInfo = cryptomusClient.getPaymentInfo(null, orderId);
+            if (paymentInfo != null && paymentInfo.getPaymentStatus() != null) {
+                // Update local status based on Cryptomus response
+                updateDepositStatus(deposit, paymentInfo.getPaymentStatus());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to get real-time status from Cryptomus: {}", e.getMessage());
+        }
+
         return DepositStatusResponse.builder()
                 .orderId(deposit.getOrderId())
                 .status(deposit.getStatus().name())
-                .amount(deposit.getAmountUsd())
-                .currency(deposit.getCurrency())
+                .amount(deposit.getAmountUsdt())
+                .currency("USDT")
                 .cryptoAmount(deposit.getCryptoAmount())
                 .createdAt(deposit.getCreatedAt())
                 .confirmedAt(deposit.getConfirmedAt())
                 .expiresAt(deposit.getExpiresAt())
                 .build();
+    }
+
+    private void updateDepositStatus(BalanceDeposit deposit, String status) {
+        PaymentStatus oldStatus = deposit.getStatus();
+        PaymentStatus newStatus = mapCryptomusStatus(status);
+
+        if (oldStatus != newStatus && newStatus != null) {
+            deposit.setStatus(newStatus);
+            if (newStatus == PaymentStatus.COMPLETED && oldStatus != PaymentStatus.COMPLETED) {
+                deposit.setConfirmedAt(LocalDateTime.now());
+                // Add balance if not already added
+                balanceService.addBalance(
+                        deposit.getUser(), deposit.getAmountUsdt(), deposit, "USDT deposit");
+            }
+            depositRepository.save(deposit);
+        }
+    }
+
+    private PaymentStatus mapCryptomusStatus(String status) {
+        switch (status) {
+            case "paid":
+            case "paid_over":
+                return PaymentStatus.COMPLETED;
+            case "process":
+            case "check":
+                return PaymentStatus.PROCESSING;
+            case "fail":
+            case "cancel":
+            case "system_fail":
+                return PaymentStatus.FAILED;
+            case "wait":
+            case "payment_process":
+                return PaymentStatus.PENDING;
+            default:
+                log.warn("Unknown Cryptomus payment status: {}", status);
+                return null;
+        }
     }
 
     public Map<String, Object> getUserDeposits(String username, int page, int size) {
@@ -147,6 +196,86 @@ public class CryptomusService {
         response.put("pageSize", size);
 
         return response;
+    }
+
+    /** Get available payment services and cryptocurrencies */
+    public Map<String, Object> getAvailablePaymentServices() {
+        try {
+            var services = cryptomusClient.getPaymentServices();
+            return Map.of("success", true, "services", services.getServices());
+        } catch (Exception e) {
+            log.error("Failed to get payment services: {}", e.getMessage());
+            return Map.of("success", false, "error", "Failed to fetch payment services");
+        }
+    }
+
+    /** Get payment history for admin */
+    public Map<String, Object> getPaymentHistory(String dateFrom, String dateTo, Integer page) {
+        try {
+            var paymentList = cryptomusClient.getPaymentList(dateFrom, dateTo, page, 50);
+            return Map.of(
+                    "success", true,
+                    "payments", paymentList.getItems(),
+                    "pagination",
+                            Map.of(
+                                    "currentPage", paymentList.getCurrentPage(),
+                                    "perPage", paymentList.getPerPage(),
+                                    "total", paymentList.getTotal()));
+        } catch (Exception e) {
+            log.error("Failed to get payment history: {}", e.getMessage());
+            return Map.of("success", false, "error", "Failed to fetch payment history");
+        }
+    }
+
+    /** Get transaction list for admin */
+    public Map<String, Object> getTransactionList(String dateFrom, String dateTo, String type) {
+        try {
+            var transactions = cryptomusClient.getTransactionList(dateFrom, dateTo, type);
+            return Map.of("success", true, "transactions", transactions.getItems());
+        } catch (Exception e) {
+            log.error("Failed to get transactions: {}", e.getMessage());
+            return Map.of("success", false, "error", "Failed to fetch transactions");
+        }
+    }
+
+    /** Create a static wallet for a user */
+    @Transactional
+    public Map<String, Object> createStaticWallet(
+            String username, String currency, String network) {
+        try {
+            User user =
+                    userRepository
+                            .findByUsername(username)
+                            .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+            String orderId = "WALLET_" + user.getId() + "_" + System.currentTimeMillis();
+
+            var walletRequest =
+                    CreateWalletRequest.builder()
+                            .currency(currency)
+                            .network(network)
+                            .orderId(orderId)
+                            .urlCallback("https://yourdomain.com/api/v2/webhooks/cryptomus/wallet")
+                            .build();
+
+            var walletResponse = cryptomusClient.createWallet(walletRequest);
+
+            // Save wallet info to database if needed
+            // You might want to create a WalletEntity to store static wallets
+
+            return Map.of(
+                    "success",
+                    true,
+                    "wallet",
+                    Map.of(
+                            "address", walletResponse.getAddress(),
+                            "network", walletResponse.getNetwork(),
+                            "currency", walletResponse.getCurrency(),
+                            "url", walletResponse.getUrl()));
+        } catch (Exception e) {
+            log.error("Failed to create static wallet: {}", e.getMessage());
+            return Map.of("success", false, "error", "Failed to create wallet: " + e.getMessage());
+        }
     }
 
     @Transactional
@@ -175,16 +304,13 @@ public class CryptomusService {
 
                     // Add balance to user
                     balanceService.addBalance(
-                            deposit.getUser(),
-                            deposit.getAmountUsd(),
-                            deposit,
-                            "Cryptocurrency deposit");
+                            deposit.getUser(), deposit.getAmountUsdt(), deposit, "USDT deposit");
 
                     log.info(
-                            "Processed deposit {} for user {} amount ${}",
+                            "Processed deposit {} for user {} amount {} USDT",
                             webhook.getOrderId(),
                             deposit.getUser().getUsername(),
-                            deposit.getAmountUsd());
+                            deposit.getAmountUsdt());
                     break;
 
                 case "fail":

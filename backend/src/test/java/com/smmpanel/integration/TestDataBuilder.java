@@ -18,8 +18,7 @@ public class TestDataBuilder {
                 .passwordHash("password")
                 .balance(new BigDecimal("100.00"))
                 .isActive(true)
-                .role(UserRole.USER)
-                .preferredCurrency("USD");
+                .role(UserRole.USER);
     }
 
     /** Build a test service */
@@ -71,8 +70,7 @@ public class TestDataBuilder {
                 .passwordHash("password")
                 .balance(new BigDecimal("1000.00"))
                 .isActive(true)
-                .role(UserRole.ADMIN)
-                .preferredCurrency("USD");
+                .role(UserRole.ADMIN);
     }
 
     /** Build an operator user */
@@ -83,8 +81,7 @@ public class TestDataBuilder {
                 .passwordHash("password")
                 .balance(new BigDecimal("500.00"))
                 .isActive(true)
-                .role(UserRole.OPERATOR)
-                .preferredCurrency("USD");
+                .role(UserRole.OPERATOR);
     }
 
     /** Build a service with specific parameters */

@@ -2,8 +2,8 @@ package com.smmpanel.producer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.concurrent.CompletableFuture;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Component;
@@ -11,12 +11,16 @@ import org.springframework.stereotype.Component;
 /** PRODUCTION-READY Kafka Producers */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class KafkaProducers {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final ObjectMapper objectMapper;
 
-    @org.springframework.beans.factory.annotation.Qualifier("kafkaObjectMapper") private final ObjectMapper objectMapper;
+    @Autowired
+    public KafkaProducers(KafkaTemplate<String, Object> kafkaTemplate, ObjectMapper objectMapper) {
+        this.kafkaTemplate = kafkaTemplate;
+        this.objectMapper = objectMapper;
+    }
 
     /** Send video processing request */
     public void sendVideoProcessingRequest(Long processingId) {

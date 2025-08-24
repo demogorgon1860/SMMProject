@@ -15,7 +15,6 @@ x-common-env: &common-env
   SPRING_SLEUTH_SAMPLER_PROBABILITY: 1.0
   MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics,prometheus
   MANAGEMENT_ENDPOINT_HEALTH_SHOWDETAILS: always
-  MANAGEMENT_ENDPOINT_HEALTH_SHOWCOMPONENTS: always
   MANAGEMENT_HEALTH_REDIS_ENABLED: true
   MANAGEMENT_HEALTH_DB_ENABLED: true
   MANAGEMENT_HEALTH_DISKSPACETHRESHOLD: 10MB
@@ -242,6 +241,8 @@ services:
     restart: unless-stopped
     ports:
       - "8080:8080"
+    env_file:
+      - .env
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-production}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/smm_panel

@@ -47,7 +47,6 @@ class BinomThreeCampaignIntegrationTest {
     @Mock private OrderStateManagementService orderStateManagementService;
 
     private BinomService binomService;
-    private YouTubeAutomationService youTubeAutomationService;
     private OrderService orderService;
 
     private Order testOrder;
@@ -67,17 +66,6 @@ class BinomThreeCampaignIntegrationTest {
                         binomCampaignRepository,
                         fixedBinomCampaignRepository,
                         conversionCoefficientRepository);
-        youTubeAutomationService =
-                new YouTubeAutomationService(
-                        videoProcessingRepository,
-                        youTubeAccountRepository,
-                        orderRepository,
-                        seleniumService,
-                        youTubeService,
-                        binomService,
-                        kafkaTemplate,
-                        videoProcessingProducerService,
-                        orderStateManagementService);
 
         // Create test order
         testOrder = new Order();
@@ -129,26 +117,7 @@ class BinomThreeCampaignIntegrationTest {
                         .build();
         when(binomClient.createOffer(any(CreateOfferRequest.class))).thenReturn(offerResponse);
 
-        // Mock 3 campaign creation responses
-        CreateCampaignResponse[] campaignResponses = {
-            CreateCampaignResponse.builder()
-                    .campaignId("CAMP_001")
-                    .name("Campaign 1")
-                    .status("ACTIVE")
-                    .build(),
-            CreateCampaignResponse.builder()
-                    .campaignId("CAMP_002")
-                    .name("Campaign 2")
-                    .status("ACTIVE")
-                    .build(),
-            CreateCampaignResponse.builder()
-                    .campaignId("CAMP_003")
-                    .name("Campaign 3")
-                    .status("ACTIVE")
-                    .build()
-        };
-        when(binomClient.createCampaign(any(CreateCampaignRequest.class)))
-                .thenReturn(campaignResponses[0], campaignResponses[1], campaignResponses[2]);
+        // Campaigns are pre-configured, no need to mock campaign creation
 
         // Mock offer assignment
         when(binomClient.assignOfferToCampaign(anyString(), anyString()))
@@ -175,19 +144,8 @@ class BinomThreeCampaignIntegrationTest {
         assertEquals("SUCCESS", integrationResponse.getStatus());
         assertEquals(3, integrationResponse.getCampaignsCreated());
 
-        // Verify coefficient distribution across 3 campaigns
-        verify(binomClient, times(3))
-                .createCampaign(
-                        argThat(
-                                campaignRequest -> {
-                                    // Each campaign should get ~333 views with coefficient 3.0 =
-                                    // ~1000 total views
-                                    int expectedViews = (int) (1000.0 / 3.0 * 3.0);
-                                    return Math.abs(
-                                                    campaignRequest.getTargetViews()
-                                                            - expectedViews)
-                                            <= 1;
-                                }));
+        // Verify offer was created
+        verify(binomClient, times(1)).createOffer(any(CreateOfferRequest.class));
 
         // Verify offer assignment to all 3 campaigns
         verify(binomClient, times(3)).assignOfferToCampaign(eq("OFFER_123"), anyString());
@@ -315,10 +273,7 @@ class BinomThreeCampaignIntegrationTest {
         binomService.stopAllCampaignsForOrder(TEST_ORDER_ID);
 
         // Assert - Verify all 3 campaigns were stopped
-        verify(binomClient, times(3)).stopCampaign(anyString());
-        verify(binomClient).stopCampaign("CAMP_001");
-        verify(binomClient).stopCampaign("CAMP_002");
-        verify(binomClient).stopCampaign("CAMP_003");
+        // Campaigns remain active - no stop/start operations needed
 
         // Verify campaigns were marked as inactive
         verify(binomCampaignRepository, times(3))
@@ -360,12 +315,7 @@ class BinomThreeCampaignIntegrationTest {
         CreateOfferResponse offerResponse =
                 CreateOfferResponse.builder().offerId("OFFER_123").build();
         when(binomClient.createOffer(any())).thenReturn(offerResponse);
-        when(binomClient.createCampaign(any()))
-                .thenReturn(
-                        CreateCampaignResponse.builder()
-                                .campaignId("CAMP_001")
-                                .status("ACTIVE")
-                                .build());
+        // Campaigns are pre-configured, no dynamic creation
         when(binomClient.assignOfferToCampaign(anyString(), anyString()))
                 .thenReturn(AssignOfferResponse.builder().status("ASSIGNED").build());
         when(binomCampaignRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -373,25 +323,13 @@ class BinomThreeCampaignIntegrationTest {
         // Act & Assert - Test with clip creation (coefficient 3.0)
         binomService.createBinomIntegration(requestWithClip);
 
-        verify(binomClient, atLeast(3))
-                .createCampaign(
-                        argThat(
-                                request -> {
-                                    // Each campaign: 1500 / 3 * 3.0 = 1500 views per campaign
-                                    int expectedViews = (int) (1500.0 / 3.0 * 3.0);
-                                    return Math.abs(request.getTargetViews() - expectedViews)
-                                            <= 2; // Allow small rounding errors
-                                }));
+        // Verify offers were assigned to campaigns
+        verify(binomClient, atLeast(3)).assignOfferToCampaign(anyString(), anyString());
 
         // Reset mocks for second test
         reset(binomClient, binomCampaignRepository);
         when(binomClient.createOffer(any())).thenReturn(offerResponse);
-        when(binomClient.createCampaign(any()))
-                .thenReturn(
-                        CreateCampaignResponse.builder()
-                                .campaignId("CAMP_002")
-                                .status("ACTIVE")
-                                .build());
+        // Campaigns are pre-configured, no dynamic creation
         when(binomClient.assignOfferToCampaign(anyString(), anyString()))
                 .thenReturn(AssignOfferResponse.builder().status("ASSIGNED").build());
         when(binomCampaignRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -399,14 +337,7 @@ class BinomThreeCampaignIntegrationTest {
         // Act & Assert - Test without clip creation (coefficient 4.0)
         binomService.createBinomIntegration(requestWithoutClip);
 
-        verify(binomClient, atLeast(3))
-                .createCampaign(
-                        argThat(
-                                request -> {
-                                    // Each campaign: 1500 / 3 * 4.0 = 2000 views per campaign
-                                    int expectedViews = (int) (1500.0 / 3.0 * 4.0);
-                                    return Math.abs(request.getTargetViews() - expectedViews)
-                                            <= 2; // Allow small rounding errors
-                                }));
+        // Verify offers were assigned (total 6 assignments - 3 for each test)
+        verify(binomClient, atLeast(3)).assignOfferToCampaign(anyString(), anyString());
     }
 }

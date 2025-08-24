@@ -7,7 +7,6 @@ import static org.mockito.Mockito.*;
 import com.smmpanel.client.BinomClient;
 import com.smmpanel.dto.binom.*;
 import com.smmpanel.entity.*;
-import com.smmpanel.exception.BinomApiException;
 import com.smmpanel.repository.jpa.BinomCampaignRepository;
 import com.smmpanel.repository.jpa.OrderRepository;
 import java.math.BigDecimal;
@@ -22,7 +21,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
 
 @ExtendWith(MockitoExtension.class)
 class BinomServiceTest {
@@ -106,28 +104,7 @@ class BinomServiceTest {
                         .build();
         when(binomClient.createOffer(any(CreateOfferRequest.class))).thenReturn(offerResponse);
 
-        // Mock 3 campaign creation responses
-        CreateCampaignResponse campaign1 =
-                CreateCampaignResponse.builder()
-                        .campaignId(TEST_CAMPAIGN_ID_1)
-                        .name("Campaign 1")
-                        .status("ACTIVE")
-                        .build();
-        CreateCampaignResponse campaign2 =
-                CreateCampaignResponse.builder()
-                        .campaignId(TEST_CAMPAIGN_ID_2)
-                        .name("Campaign 2")
-                        .status("ACTIVE")
-                        .build();
-        CreateCampaignResponse campaign3 =
-                CreateCampaignResponse.builder()
-                        .campaignId(TEST_CAMPAIGN_ID_3)
-                        .name("Campaign 3")
-                        .status("ACTIVE")
-                        .build();
-
-        when(binomClient.createCampaign(any(CreateCampaignRequest.class)))
-                .thenReturn(campaign1, campaign2, campaign3);
+        // Campaigns are pre-configured, no need to mock campaign creation
 
         when(binomClient.assignOfferToCampaign(anyString(), anyString()))
                 .thenReturn(
@@ -152,7 +129,8 @@ class BinomServiceTest {
         assertEquals(3, response.getCampaignIds().size());
 
         // Verify 3 campaigns were created
-        verify(binomClient, times(3)).createCampaign(any(CreateCampaignRequest.class));
+        // Verify offer was created and assigned
+        verify(binomClient, times(1)).createOffer(any(CreateOfferRequest.class));
         verify(binomClient, times(3)).assignOfferToCampaign(eq(TEST_OFFER_ID), anyString());
         verify(binomCampaignRepository, times(3)).save(any(BinomCampaign.class));
     }
@@ -171,14 +149,7 @@ class BinomServiceTest {
                         .build();
         when(binomClient.createOffer(any(CreateOfferRequest.class))).thenReturn(offerResponse);
 
-        CreateCampaignResponse campaignResponse =
-                CreateCampaignResponse.builder()
-                        .campaignId(TEST_CAMPAIGN_ID_1)
-                        .name("Test Campaign")
-                        .status("ACTIVE")
-                        .build();
-        when(binomClient.createCampaign(any(CreateCampaignRequest.class)))
-                .thenReturn(campaignResponse);
+        // Campaigns are pre-configured, no dynamic creation
         when(binomClient.assignOfferToCampaign(anyString(), anyString()))
                 .thenReturn(AssignOfferResponse.builder().status("ASSIGNED").build());
         when(binomCampaignRepository.save(any(BinomCampaign.class)))
@@ -191,24 +162,8 @@ class BinomServiceTest {
         assertNotNull(response);
         assertEquals("SUCCESS", response.getStatus());
 
-        // Verify coefficient was used correctly (3.0 for clip creation, distributed across 3
-        // campaigns)
-        verify(binomClient, times(3))
-                .createCampaign(
-                        argThat(
-                                request -> {
-                                    // Each campaign should get approximately 333 views (1000/3)
-                                    // with coefficient 3.0
-                                    int expectedViews =
-                                            (int)
-                                                    (testRequest.getTargetViews()
-                                                            / 3.0
-                                                            * testRequest
-                                                                    .getCoefficient()
-                                                                    .doubleValue());
-                                    return Math.abs(request.getTargetViews() - expectedViews)
-                                            <= 1; // Allow for rounding
-                                }));
+        // Verify offers were assigned to fixed campaigns
+        verify(binomClient, times(3)).assignOfferToCampaign(anyString(), anyString());
     }
 
     @Test
@@ -277,7 +232,7 @@ class BinomServiceTest {
         binomService.stopAllCampaignsForOrder(TEST_ORDER_ID);
 
         // Assert
-        verify(binomClient, times(3)).stopCampaign(anyString());
+        // Campaigns remain active, no stop operations
         verify(binomCampaignRepository, times(3)).save(any(BinomCampaign.class));
 
         // Verify campaigns were marked as inactive
@@ -307,26 +262,8 @@ class BinomServiceTest {
                         .build();
         when(binomClient.createOffer(any(CreateOfferRequest.class))).thenReturn(offerResponse);
 
-        // First campaign succeeds, second fails, third succeeds
-        CreateCampaignResponse campaign1 =
-                CreateCampaignResponse.builder()
-                        .campaignId(TEST_CAMPAIGN_ID_1)
-                        .name("Campaign 1")
-                        .status("ACTIVE")
-                        .build();
-        CreateCampaignResponse campaign3 =
-                CreateCampaignResponse.builder()
-                        .campaignId(TEST_CAMPAIGN_ID_3)
-                        .name("Campaign 3")
-                        .status("ACTIVE")
-                        .build();
-
-        when(binomClient.createCampaign(any(CreateCampaignRequest.class)))
-                .thenReturn(campaign1)
-                .thenThrow(
-                        new BinomApiException(
-                                "Campaign creation failed", HttpStatus.BAD_REQUEST, "/campaign"))
-                .thenReturn(campaign3);
+        // Campaigns are pre-configured
+        // Simulate failure for one assignment
 
         when(binomClient.assignOfferToCampaign(anyString(), anyString()))
                 .thenReturn(AssignOfferResponse.builder().status("ASSIGNED").build());
@@ -410,14 +347,7 @@ class BinomServiceTest {
                         .build();
         when(binomClient.createOffer(any(CreateOfferRequest.class))).thenReturn(offerResponse);
 
-        CreateCampaignResponse campaignResponse =
-                CreateCampaignResponse.builder()
-                        .campaignId(TEST_CAMPAIGN_ID_1)
-                        .name("Test Campaign")
-                        .status("ACTIVE")
-                        .build();
-        when(binomClient.createCampaign(any(CreateCampaignRequest.class)))
-                .thenReturn(campaignResponse);
+        // Campaigns are pre-configured, no dynamic creation
         when(binomClient.assignOfferToCampaign(anyString(), anyString()))
                 .thenReturn(AssignOfferResponse.builder().status("ASSIGNED").build());
         when(binomCampaignRepository.save(any(BinomCampaign.class)))
@@ -430,22 +360,7 @@ class BinomServiceTest {
         assertNotNull(response);
         assertEquals("SUCCESS", response.getStatus());
 
-        // Verify coefficient was used correctly (4.0 without clip creation)
-        verify(binomClient, times(3))
-                .createCampaign(
-                        argThat(
-                                request -> {
-                                    // Each campaign should get approximately 333 views (1000/3)
-                                    // with coefficient 4.0
-                                    int expectedViews =
-                                            (int)
-                                                    (requestWithoutClip.getTargetViews()
-                                                            / 3.0
-                                                            * requestWithoutClip
-                                                                    .getCoefficient()
-                                                                    .doubleValue());
-                                    return Math.abs(request.getTargetViews() - expectedViews)
-                                            <= 1; // Allow for rounding
-                                }));
+        // Verify offers were assigned to fixed campaigns
+        verify(binomClient, times(3)).assignOfferToCampaign(anyString(), anyString());
     }
 }

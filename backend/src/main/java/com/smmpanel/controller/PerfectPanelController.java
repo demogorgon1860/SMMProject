@@ -131,7 +131,7 @@ public class PerfectPanelController {
                                     order.getStartCount() != null ? order.getStartCount() : 0,
                             "status", mapToPerfectPanelStatus(order.getStatus()),
                             "remains", order.getRemains(),
-                            "currency", "USD" // Perfect Panel expects currency field
+                            "currency", "USDT" // All prices in USDT
                             ));
 
         } catch (Exception e) {
@@ -181,7 +181,7 @@ public class PerfectPanelController {
             BigDecimal balance = user.getBalance();
 
             // CRITICAL: Perfect Panel balance response format
-            return ResponseEntity.ok(Map.of("balance", balance.toString(), "currency", "USD"));
+            return ResponseEntity.ok(Map.of("balance", balance.toString(), "currency", "USDT"));
 
         } catch (Exception e) {
             log.error("Failed to get balance: {}", e.getMessage());
@@ -225,7 +225,7 @@ public class PerfectPanelController {
                                                         : 0,
                                         "status", mapToPerfectPanelStatus(order.getStatus()),
                                         "remains", order.getRemains(),
-                                        "currency", "USD"));
+                                        "currency", "USDT"));
                     } else {
                         results.put(idStr, Map.of("error", "Order not found"));
                     }

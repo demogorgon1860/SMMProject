@@ -14,7 +14,6 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -46,22 +45,23 @@ public class BinomService {
             BigDecimal coefficient = clipCreated ? new BigDecimal("3.0") : new BigDecimal("4.0");
             int targetViews = order.getQuantity();
 
-            // Get exactly 3 fixed campaigns
+            // Get active fixed campaigns (2 or 3)
             List<FixedBinomCampaign> fixedCampaigns = getThreeFixedCampaigns("US");
+            int campaignCount = fixedCampaigns.size();
 
             // Create single offer for all campaigns
             String offerName = generateOfferName(order.getId(), clipCreated);
             String offerId = createOrGetOffer(offerName, targetUrl, "US");
 
-            // Calculate clicks per campaign: total_views * coefficient / 3
+            // Calculate clicks per campaign: total_views * coefficient / campaign_count
             int totalRequiredClicks =
                     BigDecimal.valueOf(targetViews).multiply(coefficient).intValue();
-            int clicksPerCampaign = totalRequiredClicks / 3;
-            int remainingClicks = totalRequiredClicks % 3; // Handle rounding
+            int clicksPerCampaign = totalRequiredClicks / campaignCount;
+            int remainingClicks = totalRequiredClicks % campaignCount; // Handle rounding
 
             List<String> assignedCampaignIds = new ArrayList<>();
 
-            // Distribute offer across 3 fixed campaigns
+            // Distribute offer across fixed campaigns (2 or 3)
             for (int i = 0; i < fixedCampaigns.size(); i++) {
                 FixedBinomCampaign fixedCampaign = fixedCampaigns.get(i);
 
@@ -94,18 +94,19 @@ public class BinomService {
                 }
             }
 
-            if (assignedCampaignIds.size() != 3) {
+            if (assignedCampaignIds.size() != campaignCount) {
                 throw new BinomApiException(
                         String.format(
-                                "Failed to assign to all 3 campaigns. Only %d assignments"
+                                "Failed to assign to all %d campaigns. Only %d assignments"
                                         + " succeeded.",
-                                assignedCampaignIds.size()));
+                                campaignCount, assignedCampaignIds.size()));
             }
 
             log.info(
-                    "Order {} successfully distributed across 3 fixed campaigns - Total clicks: {}"
+                    "Order {} successfully distributed across {} fixed campaigns - Total clicks: {}"
                             + " (coefficient: {})",
                     order.getId(),
+                    campaignCount,
                     totalRequiredClicks,
                     coefficient);
 
@@ -145,26 +146,25 @@ public class BinomService {
         }
     }
 
-    /** CRITICAL: Get exactly 3 fixed campaigns for geo targeting */
+    /** Get active fixed campaigns (2 or 3) for distribution */
     private List<FixedBinomCampaign> getThreeFixedCampaigns(String geoTargeting) {
-        // Get all active fixed campaigns for geo targeting
-        List<FixedBinomCampaign> campaigns =
-                fixedBinomCampaignRepository.findActiveByGeoTargeting(geoTargeting);
+        // Get all active fixed campaigns
+        List<FixedBinomCampaign> campaigns = fixedBinomCampaignRepository.findByActiveTrue();
 
-        if (campaigns.size() < 3) {
-            // Fallback to any active campaigns if geo-specific ones are not enough
-            campaigns = fixedBinomCampaignRepository.findTop3ByActiveTrue(PageRequest.of(0, 3));
+        if (campaigns.isEmpty()) {
+            throw new BinomApiException("No active fixed campaigns found in database");
         }
 
-        if (campaigns.size() != 3) {
+        if (campaigns.size() < 2) {
             throw new BinomApiException(
                     String.format(
-                            "Expected exactly 3 fixed campaigns, found %d. "
-                                    + "This is CRITICAL for Perfect Panel compatibility!",
+                            "At least 2 fixed campaigns required, found %d. "
+                                    + "Please configure campaigns in the database.",
                             campaigns.size()));
         }
 
-        return campaigns;
+        // Return up to 3 campaigns (works with 2 or 3)
+        return campaigns.stream().limit(3).toList();
     }
 
     /** Get conversion coefficient based on service and clip creation */
@@ -598,22 +598,7 @@ public class BinomService {
         }
     }
 
-    public void createRefillCampaign(
-            Order order, String targetUrl, int remainingViews, boolean hasClip) {
-        // Stub: Implement refill logic as needed
-        log.info("Creating refill campaign for order {} (stub)", order.getId());
-    }
-
-    public BinomCampaign createCampaign(Order order, String targetUrl, Boolean hasClip) {
-        // Stub: Implement campaign creation logic as needed
-        log.info("Creating campaign for order {} (stub)", order.getId());
-        return null;
-    }
-
-    private String generateCampaignId(Long orderId, String sourceId) {
-        return String.format(
-                "SMM_ORDER_%d_TRAFFIC_%s_%d", orderId, sourceId, System.currentTimeMillis());
-    }
+    // Campaign creation methods removed - campaigns are pre-configured manually in Binom
 
     // Additional methods required by the interface
     public String createOffer(String name, String url, String geo) {

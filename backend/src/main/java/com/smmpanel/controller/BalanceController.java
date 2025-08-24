@@ -19,7 +19,6 @@ import jakarta.validation.constraints.Min;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -75,10 +74,7 @@ public class BalanceController {
         BigDecimal balance = balanceService.getUserBalance(currentUser.getId());
 
         BalanceResponse response =
-                BalanceResponse.builder()
-                        .balance(balance)
-                        .currency(currentUser.getPreferredCurrency())
-                        .build();
+                BalanceResponse.builder().balance(balance).currency("USDT").build();
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -190,8 +186,8 @@ public class BalanceController {
                                         DepositResponse.builder()
                                                 .id(deposit.getId())
                                                 .orderId(deposit.getOrderId())
-                                                .amount(deposit.getAmountUsd())
-                                                .currency(deposit.getCurrency())
+                                                .amount(deposit.getAmountUsdt())
+                                                .currency("USDT")
                                                 .status(deposit.getStatus().name())
                                                 .createdAt(deposit.getCreatedAt())
                                                 .updatedAt(
@@ -199,7 +195,7 @@ public class BalanceController {
                                                                 ? deposit.getConfirmedAt()
                                                                 : deposit.getCreatedAt())
                                                 .build())
-                        .collect(Collectors.toList());
+                        .toList();
 
         // Create a Page object manually
         Page<DepositResponse> response =

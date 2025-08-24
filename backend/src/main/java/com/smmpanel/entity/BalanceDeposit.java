@@ -35,11 +35,8 @@ public class BalanceDeposit {
     @Column(name = "order_id", unique = true, nullable = false)
     private String orderId;
 
-    @Column(name = "amount_usd", nullable = false, precision = 10, scale = 2)
-    private BigDecimal amountUsd;
-
-    @Column(length = 10)
-    private String currency;
+    @Column(name = "amount_usdt", nullable = false, precision = 10, scale = 2)
+    private BigDecimal amountUsdt;
 
     @Column(name = "crypto_amount", precision = 20, scale = 8)
     private BigDecimal cryptoAmount;

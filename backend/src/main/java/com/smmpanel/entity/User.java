@@ -135,10 +135,6 @@ public class User implements UserDetails {
     @Column(name = "api_key_last_rotated")
     private LocalDateTime apiKeyLastRotated;
 
-    @Column(name = "preferred_currency", length = 3)
-    @Builder.Default
-    private String preferredCurrency = "USD";
-
     @Column(name = "total_spent", precision = 12, scale = 2)
     @Builder.Default
     private BigDecimal totalSpent = BigDecimal.ZERO;

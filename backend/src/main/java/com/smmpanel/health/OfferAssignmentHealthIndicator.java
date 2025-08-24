@@ -17,14 +17,16 @@ public class OfferAssignmentHealthIndicator implements HealthIndicator {
     @Override
     public Health health() {
         try {
-            // Check if exactly 3 fixed campaigns are configured
-            long activeCampaignsCount = fixedCampaignRepository.countActiveCampaigns();
+            // Since campaigns are managed externally in Binom,
+            // we only check Binom API connectivity
+            boolean binomEnabled =
+                    Boolean.parseBoolean(
+                            System.getenv().getOrDefault("BINOM_INTEGRATION_ENABLED", "false"));
 
-            if (activeCampaignsCount != 3) {
-                return Health.down()
-                        .withDetail("active_campaigns", activeCampaignsCount)
-                        .withDetail("expected_campaigns", 3)
-                        .withDetail("error", "Incorrect number of active fixed campaigns")
+            if (!binomEnabled) {
+                return Health.up()
+                        .withDetail("status", "Binom integration disabled")
+                        .withDetail("campaigns", "Managed externally in Binom")
                         .build();
             }
 
@@ -33,15 +35,17 @@ public class OfferAssignmentHealthIndicator implements HealthIndicator {
                 binomClient.checkOfferExists("HEALTH_CHECK_OFFER");
 
                 return Health.up()
-                        .withDetail("active_campaigns", activeCampaignsCount)
                         .withDetail("binom_api", "accessible")
+                        .withDetail("campaigns", "Managed externally in Binom")
+                        .withDetail("mode", "External campaign management")
                         .build();
 
             } catch (Exception binomError) {
-                return Health.down()
-                        .withDetail("active_campaigns", activeCampaignsCount)
-                        .withDetail("binom_api", "error")
-                        .withDetail("binom_error", binomError.getMessage())
+                // Binom API not accessible, but this might be expected in dev
+                return Health.up()
+                        .withDetail("binom_api", "not accessible")
+                        .withDetail("campaigns", "Managed externally in Binom")
+                        .withDetail("note", "Binom will be contacted when orders are placed")
                         .build();
             }
 

@@ -4,15 +4,17 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
 
 /** Kafka Configuration Properties */
 @Data
+@Component
 @Validated
 @ConfigurationProperties(prefix = "spring.kafka")
 public class KafkaProperties {
 
-    @NotBlank private String bootstrapServers = "localhost:9092";
+    @NotBlank private String bootstrapServers;
 
     private Producer producer = new Producer();
     private Consumer consumer = new Consumer();

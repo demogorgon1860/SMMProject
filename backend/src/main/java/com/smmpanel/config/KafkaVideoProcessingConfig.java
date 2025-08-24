@@ -73,7 +73,7 @@ public class KafkaVideoProcessingConfig {
         configs.put("retention.ms", "604800000"); // 7 days retention
         configs.put("segment.ms", "86400000"); // 1 day segments
         configs.put("compression.type", "snappy"); // Efficient compression
-        configs.put("message.max.bytes", "1048576"); // 1MB max message size
+        configs.put("max.message.bytes", "1048576"); // 1MB max message size
 
         topic.configs(configs);
 

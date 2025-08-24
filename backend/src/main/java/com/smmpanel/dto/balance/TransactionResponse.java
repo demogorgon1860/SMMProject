@@ -29,7 +29,7 @@ public class TransactionResponse {
 
     /** Maps a BalanceTransaction entity to TransactionResponse DTO */
     public static TransactionResponse fromEntity(BalanceTransaction transaction) {
-        return fromEntity(transaction, transaction.getUser().getPreferredCurrency());
+        return fromEntity(transaction, "USDT");
     }
 
     public static TransactionResponse fromEntity(BalanceTransaction transaction, String currency) {

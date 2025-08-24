@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-smm_panel}
       POSTGRES_USER: ${POSTGRES_USER:-smm_admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_password_123}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
     ports:
       - "5432:5432"
@@ -40,7 +40,7 @@ services:
     # Development configuration with simpler auth
     command: >
       redis-server /usr/local/etc/redis/redis.conf
-      --requirepass ${REDIS_PASSWORD:-dev_redis_pass}
+      --requirepass ${REDIS_PASSWORD}
       --maxmemory 1gb
       --maxmemory-policy allkeys-lru
       --save 60 1
@@ -49,7 +49,7 @@ services:
     environment:
       REDIS_REPLICATION_MODE: master
     healthcheck:
-      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-dev_redis_pass}", "ping"]
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -359,7 +359,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: admin123
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
       GF_USERS_ALLOW_SIGN_UP: false
     volumes:
       - grafana_data:/var/lib/grafana
@@ -380,28 +380,59 @@ services:
     ports:
       - "8080:8080"
     environment:
-      # Database
+      # Override database host for Docker networking
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      
+      # Spring datasource overrides for Docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      
+      # PostgreSQL container settings
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:-smm_panel}
-      POSTGRES_USER: ${POSTGRES_USER:-smm_admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_password_123}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       
-      # Redis
+      # Redis overrides for Docker
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-dev_redis_pass}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
       
-      # Kafka
+      # Kafka overrides for Docker
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       
-      # Binom
-      BINOM_API_URL: ${BINOM_API_URL:-https://your-binom-tracker.com/api}
-      BINOM_API_KEY: ${BINOM_API_KEY:-your_dev_binom_api_key}
+      # External APIs
+      BINOM_API_URL: ${BINOM_API_URL}
+      BINOM_API_KEY: ${BINOM_API_KEY}
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY}
+      CRYPTOMUS_API_URL: ${CRYPTOMUS_API_URL}
+      CRYPTOMUS_API_KEY: ${CRYPTOMUS_API_KEY}
+      CRYPTOMUS_USER_API_KEY: ${CRYPTOMUS_USER_API_KEY}
+      CRYPTOMUS_API_SECRET: ${CRYPTOMUS_API_SECRET}
+      CRYPTOMUS_WEBHOOK_SECRET: ${CRYPTOMUS_WEBHOOK_SECRET}
+      CRYPTOMUS_MERCHANT_ID: ${CRYPTOMUS_MERCHANT_ID}
+      
+      # Security
+      JWT_SECRET: ${JWT_SECRET}
+      API_KEY_GLOBAL_SALT: ${API_KEY_GLOBAL_SALT}
       
       # Application
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-development}
+      SPRING_PROFILES_ACTIVE: dev
       LOGGING_LEVEL_COM_SMMPANEL: DEBUG
+      
+      # CORS - Spring Boot property naming convention
+      APP_CORS_ALLOWED_ORIGINS: ${CORS_ORIGINS}
+      CORS_ORIGINS: ${CORS_ORIGINS}
       
     volumes:
       - app_logs:/app/logs
@@ -416,7 +447,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3

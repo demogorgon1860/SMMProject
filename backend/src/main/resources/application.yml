@@ -46,12 +46,16 @@ server:
 # SPRING CONFIGURATION
 # ===============================
 spring:
+  # Include Resilience4j configuration
+  config:
+    import: 
+      - optional:classpath:application-resilience4j.yml
   # ===============================
   # DATABASE CONFIGURATION
   # ===============================
   datasource:
     url: >
-      jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:smm_panel}
+      jdbc:postgresql://${DB_HOST:postgres}:${DB_PORT:5432}/${DB_NAME:smm_panel}
     username: ${DB_USER:smm_admin}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
@@ -94,7 +98,7 @@ spring:
       
   jpa:
     hibernate:
-      ddl-auto: none  # Disable validation due to schema mismatch
+      ddl-auto: none  # Disable validation temporarily
       naming:
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
     show-sql: ${HIBERNATE_SHOW_SQL:false}
@@ -144,7 +148,10 @@ spring:
           use_query_cache: ${HIBERNATE_QUERY_CACHE_ENABLED:true}
           region:
             factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
-          provider_class: org.ehcache.jsr107.EhcacheCachingProvider
+        javax:
+          cache:
+            provider: org.ehcache.jsr107.EhcacheCachingProvider
+            uri: classpath:ehcache-config.xml
           
         # ===============================
         # CONNECTION AND TRANSACTION
@@ -176,7 +183,7 @@ spring:
   # ===============================
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
+      host: ${REDIS_HOST:redis}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
       database: 0
@@ -207,7 +214,7 @@ spring:
   # KAFKA CONFIGURATION
   # ===============================
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
     producer:
       key-serializer: >
         org.apache.kafka.common.serialization.StringSerializer
@@ -262,7 +269,7 @@ spring:
         spring.json.use.type.headers: false
         spring.json.value.default.type: java.util.Map
     listener:
-      concurrency: 3
+      concurrency: 1
       type: batch
       poll-timeout: 3000
     retry-topic:
@@ -400,10 +407,28 @@ app:
     # V2 Caching configuration
     cache:
       enabled: ${BINOM_CACHE_ENABLED:true}
+      ttl-minutes: ${BINOM_CACHE_TTL_MINUTES:5}
       campaigns-ttl: ${BINOM_CACHE_CAMPAIGNS_TTL:1800} # 30 minutes
       offers-ttl: ${BINOM_CACHE_OFFERS_TTL:3600} # 1 hour
       statistics-ttl: ${BINOM_CACHE_STATISTICS_TTL:300} # 5 minutes
       landing-pages-ttl: ${BINOM_CACHE_LANDING_PAGES_TTL:7200} # 2 hours
+    # Sync configuration for cached API approach
+    sync:
+      enabled: ${BINOM_SYNC_ENABLED:true}
+      interval-ms: ${BINOM_SYNC_INTERVAL:300000} # 5 minutes
+      batch-size: ${BINOM_SYNC_BATCH_SIZE:100}
+    # Statistics update configuration
+    stats:
+      update-interval-ms: ${BINOM_STATS_UPDATE_INTERVAL:60000} # 1 minute
+  
+  # Scheduling configuration for Binom sync job
+  scheduling:
+    binom-sync:
+      enabled: ${BINOM_SYNC_SCHEDULER_ENABLED:true}
+      interval-minutes: ${BINOM_SYNC_INTERVAL_MINUTES:5}
+      batch-size: ${BINOM_SYNC_BATCH_SIZE:50}
+      auto-pause-enabled: ${BINOM_AUTO_PAUSE_ENABLED:true}
+  
   youtube:
     api:
       key: ${YOUTUBE_API_KEY}
@@ -424,17 +449,18 @@ app:
       timeout: ${YOUTUBE_CLIP_TIMEOUT:300000}  # 5 minutes
       retry-attempts: ${YOUTUBE_CLIP_RETRY_ATTEMPTS:2}
   cryptomus:
+    enabled: ${CRYPTOMUS_ENABLED:true}
     api:
       url: ${CRYPTOMUS_API_URL}
-      # Payout API Key for merchant operations
-      key: ${CRYPTOMUS_API_KEY}
-      secret: ${CRYPTOMUS_API_SECRET}
-    user-api:
       # User API Key for user operations
-      key: ${CRYPTOMUS_USER_API_KEY}
+      user-key: ${CRYPTOMUS_USER_API_KEY}
+      # Payout API Key for payout operations
+      payout-key: ${CRYPTOMUS_PAYOUT_API_KEY}
+      # Merchant-specific fields (optional for simple user accounts)
+      secret: ${CRYPTOMUS_API_SECRET:not-applicable}
     webhook:
-      secret: ${CRYPTOMUS_WEBHOOK_SECRET}
-    merchant-id: ${CRYPTOMUS_MERCHANT_ID}
+      secret: ${CRYPTOMUS_WEBHOOK_SECRET:not-applicable}
+    merchant-id: ${CRYPTOMUS_MERCHANT_ID:not-applicable}
     min-deposit: ${CRYPTOMUS_MIN_DEPOSIT:5.00}
     timeout: 30000
   selenium:
@@ -695,6 +721,7 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+      # show-components property is not available in Spring Boot 3.x
     kafka:
       enabled: true
   prometheus:

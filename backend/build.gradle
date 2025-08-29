@@ -135,6 +135,12 @@ dependencies {
     // API Documentation
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
     
+    // JAXB dependencies for Java 11+ (required for Ehcache XML configuration)
+    implementation 'javax.xml.bind:jaxb-api:2.3.1'
+    implementation 'com.sun.xml.bind:jaxb-core:2.3.0.1'
+    implementation 'com.sun.xml.bind:jaxb-impl:2.3.9'
+    implementation 'javax.activation:activation:1.1.1'
+    
     // LOMBOK - CRITICAL FIX FOR ANNOTATION PROCESSING
     compileOnly 'org.projectlombok:lombok:1.18.30'
     annotationProcessor 'org.projectlombok:lombok:1.18.30'
@@ -221,7 +227,7 @@ jar {
 liquibase {
     activities {
         main {
-            changelogFile 'src/main/resources/db/changelog/db.changelog-master.xml'
+            changelogFile 'db/changelog/db.changelog-master.xml'
             url project.findProperty('liquibase.url') ?: 'jdbc:postgresql://localhost:5432/smm_panel'
             username project.findProperty('liquibase.username') ?: 'smm_admin'
             password project.findProperty('liquibase.password') ?: 'postgres123'

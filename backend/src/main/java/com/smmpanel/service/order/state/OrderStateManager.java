@@ -5,7 +5,7 @@ import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.event.OrderStatusChangedEvent;
 import com.smmpanel.exception.IllegalOrderStateTransitionException;
 import com.smmpanel.repository.jpa.OrderRepository;
-// import com.smmpanel.service.AuditService; // TODO: Re-enable when AuditService is implemented
+import com.smmpanel.service.AuditService;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.Map;
@@ -22,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class OrderStateManager {
 
     private final OrderRepository orderRepository;
-    // private final AuditService auditService; // TODO: Re-enable when AuditService is implemented
+    private final AuditService auditService;
     private final ApplicationEventPublisher eventPublisher;
 
     // Valid state transitions
@@ -112,13 +112,7 @@ public class OrderStateManager {
 
         log.info(message);
 
-        // Log to audit trail
-        // auditService.logOrderStateChange(
-        //     orderId,
-        //     fromStatus.toString(),
-        //     toStatus.toString(),
-        //     "SYSTEM"
-        // ); // TODO: Re-enable when AuditService is implemented
+        // Log to audit trail - method not available in AuditService
     }
 
     private void publishStatusChangeEvent(

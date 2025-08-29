@@ -133,6 +133,7 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+      show-components: when-authorized
   metrics:
     export:
       prometheus:

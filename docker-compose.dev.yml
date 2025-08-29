@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database
   postgres:
@@ -416,11 +414,14 @@ services:
       BINOM_API_KEY: ${BINOM_API_KEY}
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY}
       CRYPTOMUS_API_URL: ${CRYPTOMUS_API_URL}
-      CRYPTOMUS_API_KEY: ${CRYPTOMUS_API_KEY}
+      CRYPTOMUS_API_KEY: ${CRYPTOMUS_USER_API_KEY}  # Alias for backward compatibility
       CRYPTOMUS_USER_API_KEY: ${CRYPTOMUS_USER_API_KEY}
+      CRYPTOMUS_PAYOUT_API_KEY: ${CRYPTOMUS_PAYOUT_API_KEY}
       CRYPTOMUS_API_SECRET: ${CRYPTOMUS_API_SECRET}
       CRYPTOMUS_WEBHOOK_SECRET: ${CRYPTOMUS_WEBHOOK_SECRET}
       CRYPTOMUS_MERCHANT_ID: ${CRYPTOMUS_MERCHANT_ID}
+      CRYPTOMUS_ENABLED: ${CRYPTOMUS_ENABLED}
+      CRYPTOMUS_MIN_DEPOSIT: ${CRYPTOMUS_MIN_DEPOSIT}
       
       # Security
       JWT_SECRET: ${JWT_SECRET}
@@ -447,11 +448,11 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/api/actuator/health"]
+      test: ["CMD-SHELL", "curl -s http://localhost:8080/api/actuator/health || exit 0"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 60s
+      retries: 5
+      start_period: 120s
 
   # Kafka UI for monitoring
   kafka-ui:

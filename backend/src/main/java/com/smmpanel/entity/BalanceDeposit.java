@@ -2,11 +2,13 @@ package com.smmpanel.entity;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.sql.Types;
 import java.time.LocalDateTime;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 
 @Data
 @Entity
@@ -48,6 +50,8 @@ public class BalanceDeposit {
     private String paymentUrl;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "status", columnDefinition = "payment_status")
+    @JdbcTypeCode(Types.OTHER)
     private PaymentStatus status = PaymentStatus.PENDING;
 
     @Column(name = "expires_at", nullable = false)

@@ -11,7 +11,6 @@ import com.smmpanel.repository.jpa.UserRepository;
 import com.smmpanel.service.AuditService;
 import com.smmpanel.service.binom.BinomCampaignService;
 import com.smmpanel.service.order.state.OrderStateManager;
-// import com.smmpanel.service.AuditService; // TODO: Re-enable when AuditService is implemented
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -40,7 +39,7 @@ public class OrderManagementService {
     private final UserRepository userRepository;
     private final OrderStateManager orderStateManager;
     private final BinomCampaignService binomCampaignService;
-    private final AuditService auditService; // Re-enable when AuditService is implemented
+    private final AuditService auditService;
 
     /** Get dashboard statistics for admin panel */
     public DashboardStats getDashboardStats() {

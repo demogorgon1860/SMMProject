@@ -7,7 +7,7 @@ import com.smmpanel.entity.User;
 import com.smmpanel.entity.UserRole;
 import com.smmpanel.exception.UserValidationException;
 import com.smmpanel.repository.jpa.UserRepository;
-// import com.smmpanel.service.AuditService; // TODO: Re-enable when AuditService is implemented
+import com.smmpanel.service.AuditService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -34,8 +34,7 @@ public class UserManagementService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-
-    // private final AuditService auditService; // TODO: Re-enable when AuditService is implemented
+    private final AuditService auditService;
 
     /** Get paginated users with optional filters */
     public Page<UserDto> getUsers(
@@ -82,7 +81,7 @@ public class UserManagementService {
 
         user = userRepository.save(user);
 
-        // auditService.logUserCreation(user); // TODO: Re-enable when AuditService is implemented
+        auditService.logUserCreation(user);
         log.info("Created user: {} with role: {}", user.getUsername(), user.getRole());
 
         return mapToUserDto(user);
@@ -107,7 +106,7 @@ public class UserManagementService {
         if (request.getRole() != null) {
             UserRole oldRole = user.getRole();
             user.setRole(request.getRole());
-            // auditService.logRoleChange(user, oldRole, request.getRole()); // TODO: Re-enable when
+            auditService.logRoleChange(user, oldRole, request.getRole());
             // AuditService is implemented
         }
 
@@ -119,7 +118,7 @@ public class UserManagementService {
             boolean oldActive = user.isActive();
             user.setActive(request.getActive());
             if (oldActive != request.getActive()) {
-                // auditService.logUserStatusChange(user, oldActive, request.getActive()); // TODO:
+                auditService.logUserStatusChange(user, oldActive, request.getActive());
                 // Re-enable when AuditService is implemented
             }
         }
@@ -151,7 +150,7 @@ public class UserManagementService {
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
 
-        // auditService.logUserDeletion(user); // TODO: Re-enable when AuditService is implemented
+        auditService.logUserDeletion(user);
         log.info("Deleted (deactivated) user: {}", user.getUsername());
     }
 
@@ -168,7 +167,7 @@ public class UserManagementService {
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
 
-        // auditService.logApiKeyGeneration(user); // TODO: Re-enable when AuditService is
+        auditService.logApiKeyGeneration(user);
         // implemented
         log.info("Generated new API key for user: {}", user.getUsername());
 
@@ -189,7 +188,7 @@ public class UserManagementService {
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
 
-        // auditService.logApiKeyRevocation(user); // TODO: Re-enable when AuditService is
+        auditService.logApiKeyRevocation(user);
         // implemented
         log.info("Revoked API key for user: {}", user.getUsername());
     }

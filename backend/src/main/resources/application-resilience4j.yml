@@ -1,0 +1,90 @@
+---
+# ===============================
+# RESILIENCE4J CONFIGURATION
+# ===============================
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 30s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+    instances:
+      binom-api:
+        baseConfig: default
+        registerHealthIndicator: true
+        slidingWindowSize: ${BINOM_CB_MIN_CALLS:15}
+        minimumNumberOfCalls: ${BINOM_CB_MIN_CALLS:15}
+        permittedNumberOfCallsInHalfOpenState: 5
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: ${BINOM_CB_WAIT_DURATION_OPEN:PT45S}
+        failureRateThreshold: ${BINOM_CB_FAILURE_RATE_THRESHOLD:45}
+        slowCallRateThreshold: ${BINOM_CB_SLOW_CALL_RATE_THRESHOLD:40}
+        slowCallDurationThreshold: PT10S
+        recordExceptions:
+          - com.smmpanel.exception.BinomApiException
+          - com.smmpanel.exception.BinomTemporaryException
+          - java.net.SocketTimeoutException
+          - java.io.IOException
+        ignoreExceptions:
+          - com.smmpanel.exception.BinomValidationException
+          - com.smmpanel.exception.BinomAuthenticationException
+  
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 1000
+        retryExceptions:
+          - java.io.IOException
+          - java.net.SocketTimeoutException
+    instances:
+      binom-api:
+        baseConfig: default
+        maxAttempts: ${BINOM_RETRY_MAX_ATTEMPTS:4}
+        waitDuration: ${BINOM_RETRY_WAIT_DURATION:PT2S}
+        exponentialBackoffMultiplier: ${BINOM_RETRY_BACKOFF_MULTIPLIER:1.8}
+        retryExceptions:
+          - com.smmpanel.exception.BinomTemporaryException
+          - java.net.SocketTimeoutException
+          - java.io.IOException
+        ignoreExceptions:
+          - com.smmpanel.exception.BinomValidationException
+          - com.smmpanel.exception.BinomAuthenticationException
+  
+  bulkhead:
+    configs:
+      default:
+        maxConcurrentCalls: 25
+        maxWaitDuration: 0
+    instances:
+      binom-api:
+        maxConcurrentCalls: 20
+        maxWaitDuration: 5000
+  
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 30s
+        cancelRunningFuture: true
+    instances:
+      binom-api:
+        timeoutDuration: ${BINOM_API_TIMEOUT:30000}ms
+        cancelRunningFuture: true
+
+# ===============================
+# ACTUATOR CONFIGURATION
+# ===============================
+management:
+  health:
+    circuitbreakers:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true

@@ -11,7 +11,6 @@ import io.github.resilience4j.retry.annotation.Retry;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -46,125 +45,6 @@ public class BinomCampaignService {
 
     @Value("${app.binom.max-campaigns-per-order:5}")
     private int maxCampaignsPerOrder;
-
-    /** Create Binom integration for order - distribute across 3 fixed campaigns */
-    @Transactional
-    @CircuitBreaker(name = "binom-api", fallbackMethod = "createCampaignFallback")
-    @Retry(name = "binom-api")
-    public BinomCampaignResponse createCampaignForOrder(BinomCampaignRequest request) {
-        try {
-            log.info("Creating Binom integration for order: {}", request.getOrderId());
-
-            // Validate order exists and is in correct state
-            Order order = validateOrderForCampaign(request.getOrderId());
-
-            // Get conversion coefficient (3.0 for clips, 4.0 without)
-            BigDecimal coefficient =
-                    getConversionCoefficient(order.getService().getId(), request.isClipCreated());
-
-            // Get exactly 3 fixed campaigns
-            List<FixedBinomCampaign> fixedCampaigns =
-                    getThreeFixedCampaigns(request.getGeoTargeting());
-
-            // Create single offer for all campaigns
-            String offerId = createOrGetOffer(order, request);
-
-            // Calculate clicks per campaign: total_views * coefficient / 3
-            int totalRequiredClicks =
-                    calculateRequiredClicks(request.getTargetViews(), coefficient);
-            int clicksPerCampaign = totalRequiredClicks / 3;
-            int remainingClicks = totalRequiredClicks % 3; // Handle rounding
-
-            List<String> assignedCampaignIds = new ArrayList<>();
-            List<BinomCampaign> createdCampaigns = new ArrayList<>();
-
-            // Distribute offer across 3 fixed campaigns
-            for (int i = 0; i < fixedCampaigns.size(); i++) {
-                FixedBinomCampaign fixedCampaign = fixedCampaigns.get(i);
-
-                // Add remaining clicks to the first campaign to handle rounding
-                int campaignClicks = clicksPerCampaign + (i == 0 ? remainingClicks : 0);
-
-                // Assign offer to this fixed campaign
-                boolean assigned =
-                        assignOfferToFixedCampaign(
-                                offerId,
-                                fixedCampaign.getCampaignId(),
-                                fixedCampaign.getPriority());
-
-                if (assigned) {
-                    // Save campaign record in binom_campaigns table
-                    BinomCampaign campaign =
-                            saveCampaignRecord(
-                                    order,
-                                    fixedCampaign.getCampaignId(),
-                                    offerId,
-                                    campaignClicks,
-                                    request,
-                                    coefficient);
-
-                    createdCampaigns.add(campaign);
-                    assignedCampaignIds.add(fixedCampaign.getCampaignId());
-
-                    auditService.logBinomCampaignCreation(campaign);
-                    log.info(
-                            "Order {} distributed to fixed campaign {} - Required clicks: {}",
-                            order.getId(),
-                            fixedCampaign.getCampaignId(),
-                            campaignClicks);
-                }
-            }
-
-            if (assignedCampaignIds.size() != 3) {
-                throw new BinomApiException(
-                        String.format(
-                                "Failed to assign to all 3 campaigns. Only %d assignments"
-                                        + " succeeded.",
-                                assignedCampaignIds.size()));
-            }
-
-            log.info(
-                    "Successfully distributed order {} across 3 fixed campaigns - Total clicks: {}"
-                            + " (coefficient: {})",
-                    request.getOrderId(),
-                    totalRequiredClicks,
-                    coefficient);
-
-            return BinomCampaignResponse.builder()
-                    .campaignId(String.join(",", assignedCampaignIds))
-                    .offerId(offerId)
-                    .clicksRequired(totalRequiredClicks)
-                    .coefficient(coefficient)
-                    .success(true)
-                    .build();
-
-        } catch (Exception e) {
-            log.error(
-                    "Failed to create Binom integration for order {}: {}",
-                    request.getOrderId(),
-                    e.getMessage());
-            throw new BinomApiException("Campaign integration failed: " + e.getMessage(), e);
-        }
-    }
-
-    /** Fallback method for circuit breaker */
-    public BinomCampaignResponse createCampaignFallback(
-            BinomCampaignRequest request, Exception ex) {
-        log.warn(
-                "Binom API unavailable, using fallback for order {}: {}",
-                request.getOrderId(),
-                ex.getMessage());
-
-        // Store request for retry later
-        storeFailedCampaignRequest(request, ex.getMessage());
-
-        return BinomCampaignResponse.builder()
-                .success(false)
-                .errorMessage(
-                        "Binom API temporarily unavailable. Campaign will be created automatically"
-                                + " when service is restored.")
-                .build();
-    }
 
     /** Get campaign statistics with circuit breaker */
     @CircuitBreaker(name = "binom-api", fallbackMethod = "getCampaignStatsFallback")
@@ -378,40 +258,6 @@ public class BinomCampaignService {
                 .intValue();
     }
 
-    @CircuitBreaker(name = "binom-api")
-    @Retry(name = "binom-api")
-    private String createOrGetOffer(Order order, BinomCampaignRequest request) {
-        String offerName = generateOfferName(order.getId(), request.isClipCreated());
-
-        // Check if offer already exists
-        CheckOfferResponse existingOffer = binomClient.checkOffer(offerName);
-        if (existingOffer.isExists()) {
-            return existingOffer.getOfferId();
-        }
-
-        // Create new offer with updated DTO structure
-        CreateOfferRequest offerRequest =
-                CreateOfferRequest.builder()
-                        .name(offerName)
-                        .url(request.getTargetUrl())
-                        .geoTargeting(
-                                List.of(
-                                        request.getGeoTargeting() != null
-                                                ? request.getGeoTargeting()
-                                                : "US"))
-                        .description("Auto-generated offer for order " + order.getId())
-                        .affiliateNetworkId(1L) // Default affiliate network ID
-                        .type("REDIRECT")
-                        .status("ACTIVE")
-                        .payoutType("CPA")
-                        .requiresApproval(false)
-                        .isArchived(false)
-                        .build();
-
-        CreateOfferResponse response = binomClient.createOffer(offerRequest);
-        return response.getOfferId();
-    }
-
     // NOTE: createBinomCampaign method removed as we now use fixed campaigns instead of creating
     // new ones
 
@@ -439,54 +285,6 @@ public class BinomCampaignService {
         // In V2, resuming a campaign would be done via campaign update
         // For now, we just log the action
         log.info("Campaign {} resume requested - manual update needed in Binom", campaignId);
-    }
-
-    private BinomCampaign saveCampaignRecord(
-            Order order,
-            String campaignId,
-            String offerId,
-            int clicksRequired,
-            BinomCampaignRequest request,
-            BigDecimal coefficient) {
-        BinomCampaign campaign = new BinomCampaign();
-        campaign.setOrder(order);
-        campaign.setCampaignId(campaignId);
-        campaign.setOfferId(offerId);
-        campaign.setClicksRequired(clicksRequired);
-        campaign.setClicksDelivered(0);
-        campaign.setViewsGenerated(0);
-        campaign.setConversions(0);
-        campaign.setCost(BigDecimal.ZERO);
-        campaign.setRevenue(BigDecimal.ZERO);
-        campaign.setCoefficient(coefficient);
-        campaign.setTargetUrl(request.getTargetUrl());
-        campaign.setStatus("ACTIVE");
-        campaign.setActive(true);
-        campaign.setCreatedAt(LocalDateTime.now());
-        campaign.setUpdatedAt(LocalDateTime.now());
-
-        return binomCampaignRepository.save(campaign);
-    }
-
-    // Legacy method for backward compatibility
-    private BinomCampaign saveCampaignRecord(
-            Order order,
-            String campaignId,
-            String offerId,
-            int clicksRequired,
-            BinomCampaignRequest request) {
-        BigDecimal defaultCoeff =
-                request.isClipCreated() ? new BigDecimal("3.0") : new BigDecimal("4.0");
-        return saveCampaignRecord(
-                order, campaignId, offerId, clicksRequired, request, defaultCoeff);
-    }
-
-    private void storeFailedCampaignRequest(BinomCampaignRequest request, String errorMessage) {
-        // Store in database for retry processing
-        // This would be handled by a separate retry service
-        log.info(
-                "Stored failed campaign request for order {} for later retry",
-                request.getOrderId());
     }
 
     private String generateOfferName(Long orderId, boolean clipCreated) {

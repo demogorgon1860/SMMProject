@@ -2,6 +2,7 @@ package com.smmpanel.entity;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.sql.Types;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -12,6 +13,7 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Data
@@ -38,10 +40,12 @@ public class Order {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @BatchSize(size = 25)
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "service_id", nullable = false)
+    @BatchSize(size = 25)
     private Service service;
 
     @Column(nullable = false, length = 500)
@@ -60,6 +64,8 @@ public class Order {
     private Integer remains;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "status", columnDefinition = "order_status")
+    @JdbcTypeCode(Types.OTHER)
     @Builder.Default
     private OrderStatus status = OrderStatus.PENDING;
 
@@ -125,6 +131,29 @@ public class Order {
 
     @Column(name = "operator_notes", columnDefinition = "TEXT")
     private String operatorNotes;
+
+    // ========= NEW BINOM TRACKING FIELDS =========
+
+    @Column(name = "binom_campaign_id", length = 50)
+    private String binomCampaignId; // Comma-separated IDs of 3 campaigns
+
+    @Column(name = "binom_offer_id", length = 50)
+    private String binomOfferId;
+
+    @Column(name = "traffic_status", length = 20)
+    @Builder.Default
+    private String trafficStatus = "PENDING";
+
+    @Column(name = "views_delivered")
+    @Builder.Default
+    private Integer viewsDelivered = 0;
+
+    @Column(name = "cost_incurred", precision = 10, scale = 2)
+    @Builder.Default
+    private BigDecimal costIncurred = BigDecimal.ZERO;
+
+    @Column(name = "budget_limit", precision = 10, scale = 2)
+    private BigDecimal budgetLimit;
 
     /**
      * Optimistic locking version counter - incremented on each update Prevents concurrent

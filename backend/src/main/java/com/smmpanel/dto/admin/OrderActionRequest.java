@@ -16,4 +16,5 @@ public class OrderActionRequest {
 
     private String reason;
     private Integer newStartCount;
+    private Integer newQuantity;
 }

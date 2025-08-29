@@ -634,5 +634,23 @@
     
     <!-- Include Binom campaign configuration -->
     <include file="db/changelog/changes/v2024.12-add-binom-campaigns.xml"/>
+    
+    <!-- Include critical schema fixes -->
+    <include file="db/changelog/changes/v2025.01-critical-schema-fixes.xml"/>
+    
+    <!-- Include test schema fixes -->
+    <include file="db/changelog/changes/v2025.01-fix-test-schema.xml"/>
+    
+    <!-- Include Binom optimization changes -->
+    <include file="db/changelog/changes/v2025.01-binom-optimization.xml"/>
+    
+    <!-- Include urgent database fixes for missing columns and enum issues -->
+    <include file="db/changelog/changes/v2025.01-urgent-database-fixes.xml"/>
+    
+    <!-- Include video processing table fixes -->
+    <include file="db/changelog/changes/v2025.01-video-processing-fixes.xml"/>
+    
+    <!-- Include fix for user column name mismatch -->
+    <include file="db/changelog/changes/v2025.01-fix-user-column-name.xml"/>
 
 </databaseChangeLog>

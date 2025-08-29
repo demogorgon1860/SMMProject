@@ -310,4 +310,12 @@ public interface OrderRepository
                     + "(o.retryCount >= o.maxRetries AND o.status = 'HOLDING') "
                     + "ORDER BY o.updatedAt DESC")
     Page<Order> findOrdersForManualReview(Pageable pageable);
+
+    /** Find orders by status with Binom campaign ID set Used for synchronization with Binom */
+    @Query(
+            "SELECT o FROM Order o "
+                    + "WHERE o.status IN :statuses "
+                    + "AND o.binomCampaignId IS NOT NULL")
+    List<Order> findByStatusInAndBinomCampaignIdNotNull(
+            @Param("statuses") List<OrderStatus> statuses);
 }

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://www.ehcache.org/v3"
+        xsi:schemaLocation="
+            http://www.ehcache.org/v3
+            http://www.ehcache.org/schema/ehcache-core-3.0.xsd">
+
+    <!-- Default cache template -->
+    <cache-template name="default">
+        <expiry>
+            <ttl unit="seconds">300</ttl>
+        </expiry>
+        <resources>
+            <heap unit="entries">1000</heap>
+            <offheap unit="MB">10</offheap>
+        </resources>
+    </cache-template>
+
+    <!-- Entity caches -->
+    <cache alias="com.smmpanel.entity.Service">
+        <expiry>
+            <ttl unit="seconds">3600</ttl>
+        </expiry>
+        <resources>
+            <heap unit="entries">500</heap>
+            <offheap unit="MB">5</offheap>
+        </resources>
+    </cache>
+
+    <cache alias="com.smmpanel.entity.User">
+        <expiry>
+            <ttl unit="seconds">1800</ttl>
+        </expiry>
+        <resources>
+            <heap unit="entries">1000</heap>
+            <offheap unit="MB">10</offheap>
+        </resources>
+    </cache>
+
+    <cache alias="com.smmpanel.entity.ConversionCoefficient">
+        <expiry>
+            <ttl unit="seconds">7200</ttl>
+        </expiry>
+        <resources>
+            <heap unit="entries">200</heap>
+            <offheap unit="MB">2</offheap>
+        </resources>
+    </cache>
+
+    <!-- Query cache -->
+    <cache alias="default-query-results-region">
+        <expiry>
+            <ttl unit="seconds">600</ttl>
+        </expiry>
+        <resources>
+            <heap unit="entries">2000</heap>
+            <offheap unit="MB">20</offheap>
+        </resources>
+    </cache>
+
+    <!-- Update timestamps cache -->
+    <cache alias="default-update-timestamps-region">
+        <expiry>
+            <none/>
+        </expiry>
+        <resources>
+            <heap unit="entries">5000</heap>
+        </resources>
+    </cache>
+
+</config>

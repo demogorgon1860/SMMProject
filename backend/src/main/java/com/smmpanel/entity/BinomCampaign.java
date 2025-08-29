@@ -105,6 +105,14 @@ public class BinomCampaign {
     @Builder.Default
     private Boolean isActive = true;
 
+    // ========= NEW TRACKING FIELDS =========
+
+    @Column(name = "budget_limit", precision = 10, scale = 2)
+    private BigDecimal budgetLimit;
+
+    @Column(name = "pause_reason", length = 255)
+    private String pauseReason;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

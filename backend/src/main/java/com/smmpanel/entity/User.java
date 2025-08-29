@@ -2,6 +2,7 @@ package com.smmpanel.entity;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.sql.Types;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -11,6 +12,7 @@ import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -37,7 +39,7 @@ import org.springframework.security.core.userdetails.UserDetails;
             @Index(name = "idx_users_created_at", columnList = "created_at"),
             @Index(name = "idx_users_api_key_salt", columnList = "api_key_salt"),
             @Index(name = "idx_users_last_login", columnList = "last_login_at"),
-            @Index(name = "idx_users_last_api_access", columnList = "last_api_access_at")
+            @Index(name = "idx_users_last_api_access_at", columnList = "last_api_access_at")
         })
 @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
 @Getter
@@ -85,7 +87,8 @@ public class User implements UserDetails {
     private BigDecimal balance = BigDecimal.ZERO;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "role", nullable = false, length = 20)
+    @Column(name = "role", nullable = false, columnDefinition = "user_role")
+    @JdbcTypeCode(Types.OTHER)
     @Builder.Default
     private UserRole role = UserRole.USER;
 

@@ -109,7 +109,7 @@ public class BinomApiFlowIntegrationTest {
         // Create conversion coefficient
         ConversionCoefficient coefficient = new ConversionCoefficient();
         coefficient.setServiceId(testService.getId());
-        coefficient.setWithoutClip(false);
+        coefficient.setWithoutClip(BigDecimal.valueOf(4.0));
         coefficient.setCoefficient(BigDecimal.valueOf(3.0));
         conversionCoefficientRepository.save(coefficient);
 

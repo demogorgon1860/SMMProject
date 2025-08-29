@@ -103,8 +103,9 @@ public class StartupService implements ApplicationRunner {
             if (coefficientRepository.findByServiceId(serviceId).isEmpty()) {
                 ConversionCoefficient coefficient = new ConversionCoefficient();
                 coefficient.setServiceId(serviceId);
+                coefficient.setCoefficient(new BigDecimal("3.5"));
                 coefficient.setWithClip(new BigDecimal("3.0"));
-                coefficient.setWithoutClip(true);
+                coefficient.setWithoutClip(new BigDecimal("4.0"));
                 coefficientRepository.save(coefficient);
             }
         }

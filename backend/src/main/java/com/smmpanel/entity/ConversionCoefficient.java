@@ -51,13 +51,4 @@ public class ConversionCoefficient {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-
-    // Helper methods for backward compatibility
-    public void setWithoutClip(Boolean withoutClip) {
-        this.withoutClip = withoutClip ? BigDecimal.ONE : BigDecimal.ZERO;
-    }
-
-    public Boolean getWithoutClipAsBoolean() {
-        return withoutClip != null && withoutClip.compareTo(BigDecimal.ZERO) > 0;
-    }
 }

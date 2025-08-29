@@ -123,6 +123,7 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+      show-components: when-authorized
     liquibase:
       enabled: true
   metrics:

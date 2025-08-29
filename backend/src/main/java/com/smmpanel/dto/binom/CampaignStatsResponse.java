@@ -32,4 +32,7 @@ public class CampaignStatsResponse {
     private Long affiliateNetworkId;
     private LocalDateTime periodStart;
     private LocalDateTime periodEnd;
+
+    // New field for tracking views delivered
+    private Long viewsDelivered;
 }

@@ -93,12 +93,14 @@ app:
       timeout: 30000
   
   cryptomus:
+    enabled: ${CRYPTOMUS_ENABLED:true}  # From .env file
     api-url: ${CRYPTOMUS_API_URL}  # From .env file
-    api-key: ${CRYPTOMUS_API_KEY}  # From .env file
-    api-secret: ${CRYPTOMUS_API_SECRET}  # From .env file
-    merchant-id: ${CRYPTOMUS_MERCHANT_ID}  # From .env file
-    webhook-secret: ${CRYPTOMUS_WEBHOOK_SECRET}  # From .env file
-    sandbox: true
+    user-api-key: ${CRYPTOMUS_USER_API_KEY}  # From .env file (Simple User Account)
+    payout-api-key: ${CRYPTOMUS_PAYOUT_API_KEY}  # From .env file (Payout operations)
+    api-secret: ${CRYPTOMUS_API_SECRET:not-applicable}  # Not needed for simple user account
+    merchant-id: ${CRYPTOMUS_MERCHANT_ID:not-applicable}  # Not needed for simple user account
+    webhook-secret: ${CRYPTOMUS_WEBHOOK_SECRET:not-applicable}  # Not needed for simple user account
+    sandbox: false  # Simple user accounts use production mode
   
   youtube:
     api-key: ${YOUTUBE_API_KEY}  # From .env file
@@ -116,6 +118,7 @@ management:
   endpoint:
     health:
       show-details: always
+      # show-components property is not available in Spring Boot 3.x
   health:
     redis:
       enabled: true

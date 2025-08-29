@@ -4,17 +4,24 @@ import com.smmpanel.client.BinomClient;
 import com.smmpanel.dto.binom.*;
 import com.smmpanel.entity.*;
 import com.smmpanel.exception.BinomApiException;
+import com.smmpanel.exception.BinomTemporaryException;
+import com.smmpanel.exception.BinomValidationException;
 import com.smmpanel.repository.jpa.*;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
@@ -37,25 +44,42 @@ public class BinomService {
     private BigDecimal defaultCoefficient;
 
     /** FIXED: Distribute order across exactly 3 fixed Binom campaigns */
-    @Transactional
+    @Transactional(
+            propagation = Propagation.REQUIRES_NEW,
+            isolation = Isolation.READ_COMMITTED,
+            rollbackFor = Exception.class)
+    @CircuitBreaker(name = "binom-api", fallbackMethod = "fallbackCreateBinomIntegration")
+    @Retry(name = "binom-api")
     public BinomIntegrationResponse createBinomIntegration(
             Order order, String videoId, boolean clipCreated, String targetUrl) {
         try {
-            // Calculate coefficient based on clip creation (existing logic)
-            BigDecimal coefficient = clipCreated ? new BigDecimal("3.0") : new BigDecimal("4.0");
-            int targetViews = order.getQuantity();
+            // Input validation
+            validateOrderParameters(order, targetUrl);
+            // Calculate coefficient with proper null safety
+            BigDecimal coefficient = calculateSafeCoefficient(order, clipCreated);
+            Integer targetViews = order.getQuantity();
 
-            // Get active fixed campaigns (2 or 3)
-            List<FixedBinomCampaign> fixedCampaigns = getThreeFixedCampaigns("US");
+            if (targetViews == null || targetViews <= 0) {
+                throw new BinomValidationException("Invalid target views: " + targetViews);
+            }
+
+            // Get active fixed campaigns with proper validation
+            String geoTargeting =
+                    order.getTargetCountry() != null ? order.getTargetCountry() : "US";
+            List<FixedBinomCampaign> fixedCampaigns = getThreeFixedCampaigns(geoTargeting);
             int campaignCount = fixedCampaigns.size();
+
+            if (campaignCount < 2) {
+                throw new BinomApiException(
+                        "Insufficient fixed campaigns available: " + campaignCount);
+            }
 
             // Create single offer for all campaigns
             String offerName = generateOfferName(order.getId(), clipCreated);
             String offerId = createOrGetOffer(offerName, targetUrl, "US");
 
-            // Calculate clicks per campaign: total_views * coefficient / campaign_count
-            int totalRequiredClicks =
-                    BigDecimal.valueOf(targetViews).multiply(coefficient).intValue();
+            // Calculate clicks per campaign with overflow protection
+            int totalRequiredClicks = calculateTotalClicksSafe(targetViews, coefficient);
             int clicksPerCampaign = totalRequiredClicks / campaignCount;
             int remainingClicks = totalRequiredClicks % campaignCount; // Handle rounding
 
@@ -68,39 +92,53 @@ public class BinomService {
                 // Add remaining clicks to the first campaign to handle rounding
                 int campaignClicks = clicksPerCampaign + (i == 0 ? remainingClicks : 0);
 
-                // Assign offer to this fixed campaign
-                boolean assigned =
-                        assignOfferToCampaign(
-                                offerId,
+                try {
+                    // Assign offer to this fixed campaign with error handling
+                    boolean assigned =
+                            assignOfferToCampaign(
+                                    offerId,
+                                    fixedCampaign.getCampaignId(),
+                                    fixedCampaign.getPriority());
+
+                    if (assigned) {
+                        // Save relationship in binom_campaigns table
+                        saveBinomCampaignRecord(
+                                order,
                                 fixedCampaign.getCampaignId(),
-                                fixedCampaign.getPriority());
+                                offerId,
+                                campaignClicks,
+                                targetUrl,
+                                coefficient);
+                        assignedCampaignIds.add(fixedCampaign.getCampaignId());
 
-                if (assigned) {
-                    // Save relationship in binom_campaigns table
-                    saveBinomCampaignRecord(
-                            order,
-                            fixedCampaign.getCampaignId(),
-                            offerId,
-                            campaignClicks,
-                            targetUrl,
-                            coefficient);
-                    assignedCampaignIds.add(fixedCampaign.getCampaignId());
-
-                    log.info(
-                            "Order {} distributed to fixed campaign {} - Required clicks: {}",
+                        log.info(
+                                "Order {} distributed to fixed campaign {} - Required clicks: {}",
+                                order.getId(),
+                                fixedCampaign.getCampaignId(),
+                                campaignClicks);
+                    }
+                } catch (Exception e) {
+                    log.error(
+                            "Failed to assign order {} to campaign {}: {}",
                             order.getId(),
                             fixedCampaign.getCampaignId(),
-                            campaignClicks);
+                            e.getMessage());
+                    // Continue with other campaigns but track the failure
+                    updateOrderErrorInfo(order, "PARTIAL_CAMPAIGN_ASSIGNMENT", e.getMessage());
                 }
             }
 
-            if (assignedCampaignIds.size() != campaignCount) {
+            // Validate minimum campaign assignments (at least 2)
+            if (assignedCampaignIds.size() < 2) {
                 throw new BinomApiException(
                         String.format(
-                                "Failed to assign to all %d campaigns. Only %d assignments"
-                                        + " succeeded.",
-                                campaignCount, assignedCampaignIds.size()));
+                                "Failed minimum campaign requirement. Only %d of %d campaigns"
+                                        + " assigned.",
+                                assignedCampaignIds.size(), campaignCount));
             }
+
+            // Update order with success info
+            updateOrderSuccess(order, assignedCampaignIds, coefficient);
 
             log.info(
                     "Order {} successfully distributed across {} fixed campaigns - Total clicks: {}"
@@ -119,30 +157,151 @@ public class BinomService {
                                     "Order distributed across %d fixed campaigns successfully",
                                     assignedCampaignIds.size()))
                     .build();
+        } catch (BinomValidationException e) {
+            log.error("Validation error for order {}: {}", order.getId(), e.getMessage());
+            updateOrderErrorInfo(order, "VALIDATION_ERROR", e.getMessage());
+            throw e;
+        } catch (BinomTemporaryException e) {
+            log.error("Temporary Binom API error for order {}: {}", order.getId(), e.getMessage());
+            updateOrderErrorInfo(order, "TEMPORARY_ERROR", e.getMessage());
+            throw e;
         } catch (Exception e) {
             log.error(
-                    "Failed to create Binom integration for order {}: {}",
+                    "Unexpected error creating Binom integration for order {}: {}",
                     order.getId(),
-                    e.getMessage());
-            return BinomIntegrationResponse.builder()
-                    .success(false)
-                    .campaignsCreated(0)
-                    .message("Failed to assign to fixed campaigns: " + e.getMessage())
-                    .errorCode("FIXED_CAMPAIGN_ASSIGNMENT_FAILED")
-                    .build();
+                    e.getMessage(),
+                    e);
+            updateOrderErrorInfo(order, "UNEXPECTED_ERROR", e.getMessage());
+            throw new BinomApiException("Failed to create Binom integration: " + e.getMessage(), e);
         }
+    }
+
+    /** Fallback method for circuit breaker */
+    public BinomIntegrationResponse fallbackCreateBinomIntegration(
+            Order order, String videoId, boolean clipCreated, String targetUrl, Exception ex) {
+
+        log.error(
+                "Circuit breaker fallback triggered for order {}: {}",
+                order.getId(),
+                ex.getMessage());
+
+        // Update order with circuit breaker failure
+        updateOrderErrorInfo(order, "CIRCUIT_BREAKER_OPEN", "Binom API temporarily unavailable");
+
+        return BinomIntegrationResponse.builder()
+                .success(false)
+                .campaignsCreated(0)
+                .message("Binom API temporarily unavailable. Please retry later.")
+                .errorCode("CIRCUIT_BREAKER_OPEN")
+                .build();
+    }
+
+    /** Validate order parameters with null checks */
+    private void validateOrderParameters(Order order, String targetUrl) {
+        if (order == null) {
+            throw new BinomValidationException("Order cannot be null");
+        }
+        if (order.getId() == null) {
+            throw new BinomValidationException("Order ID cannot be null");
+        }
+        if (!StringUtils.hasText(targetUrl)) {
+            throw new BinomValidationException("Target URL is required");
+        }
+        if (order.getQuantity() == null || order.getQuantity() <= 0) {
+            throw new BinomValidationException("Order quantity must be positive");
+        }
+    }
+
+    /** Calculate coefficient with proper null handling and boundaries */
+    private BigDecimal calculateSafeCoefficient(Order order, boolean clipCreated) {
+        try {
+            // Try to get coefficient from conversion_coefficients table
+            if (order.getService() != null && order.getService().getId() != null) {
+                Optional<ConversionCoefficient> coefficientOpt =
+                        conversionCoefficientRepository.findByServiceId(order.getService().getId());
+
+                if (coefficientOpt.isPresent()) {
+                    ConversionCoefficient cc = coefficientOpt.get();
+                    BigDecimal coefficient = clipCreated ? cc.getWithClip() : cc.getWithoutClip();
+
+                    // Validate coefficient boundaries
+                    if (coefficient != null
+                            && coefficient.compareTo(BigDecimal.ZERO) > 0
+                            && coefficient.compareTo(new BigDecimal("10.0")) <= 0) {
+                        return coefficient;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Error calculating coefficient, using default: {}", e.getMessage());
+        }
+
+        // Fallback to default
+        return clipCreated ? new BigDecimal("3.0") : new BigDecimal("4.0");
+    }
+
+    /** Calculate total clicks with overflow protection */
+    private int calculateTotalClicksSafe(Integer targetViews, BigDecimal coefficient) {
+        try {
+            BigDecimal result =
+                    BigDecimal.valueOf(targetViews)
+                            .multiply(coefficient)
+                            .setScale(0, RoundingMode.CEILING);
+
+            // Check for integer overflow
+            if (result.compareTo(BigDecimal.valueOf(Integer.MAX_VALUE)) > 0) {
+                throw new BinomValidationException(
+                        "Calculated clicks exceed maximum allowed value");
+            }
+
+            return result.intValue();
+        } catch (ArithmeticException e) {
+            throw new BinomValidationException("Error calculating total clicks: " + e.getMessage());
+        }
+    }
+
+    /** Update order with error information */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    private void updateOrderErrorInfo(Order order, String errorType, String errorMessage) {
+        try {
+            order.setLastErrorType(errorType);
+            order.setErrorMessage(errorMessage);
+            order.setLastRetryAt(LocalDateTime.now());
+            order.setRetryCount(order.getRetryCount() != null ? order.getRetryCount() + 1 : 1);
+
+            // Calculate next retry time with exponential backoff
+            if (order.getRetryCount() < order.getMaxRetries()) {
+                long delaySeconds = (long) Math.pow(2, order.getRetryCount()) * 60;
+                order.setNextRetryAt(LocalDateTime.now().plusSeconds(delaySeconds));
+            }
+
+            orderRepository.save(order);
+        } catch (Exception e) {
+            log.error("Failed to update order error info: {}", e.getMessage());
+        }
+    }
+
+    /** Update order with success information */
+    @Transactional(propagation = Propagation.REQUIRED)
+    private void updateOrderSuccess(Order order, List<String> campaignIds, BigDecimal coefficient) {
+        order.setCoefficient(coefficient);
+        order.setStatus(OrderStatus.PROCESSING);
+        order.setErrorMessage(null);
+        order.setLastErrorType(null);
+        order.setRetryCount(0);
+        orderRepository.save(order);
     }
 
     /** Validate request parameters */
     private void validateRequest(BinomIntegrationRequest request) {
         if (request.getOrderId() == null) {
-            throw new IllegalArgumentException("Order ID is required");
+            throw new BinomValidationException("Order ID is required");
         }
         if (!StringUtils.hasText(request.getTargetUrl())) {
-            throw new IllegalArgumentException("Target URL is required");
+            throw new BinomValidationException("Target URL is required");
         }
         if (request.getTargetViews() == null || request.getTargetViews() <= 0) {
-            throw new IllegalArgumentException("Target views must be positive");
+            throw new BinomValidationException("Target views must be positive");
         }
     }
 
@@ -266,23 +425,31 @@ public class BinomService {
                 System.currentTimeMillis());
     }
 
-    /** Get aggregated campaign statistics for monitoring from 3 campaigns */
+    /**
+     * Get aggregated campaign statistics for monitoring from 3 campaigns Now fetches cost and views
+     * directly from Binom using official API
+     */
     public CampaignStatsResponse getCampaignStatsForOrder(Long orderId) {
         List<BinomCampaign> campaigns = binomCampaignRepository.findByOrderIdAndActiveTrue(orderId);
 
         // Initialize aggregated values
         long totalClicks = 0L;
         long totalConversions = 0L;
+        long totalViews = 0L; // Views/visits from Binom
         BigDecimal totalCost = BigDecimal.ZERO;
         BigDecimal totalRevenue = BigDecimal.ZERO;
         List<String> campaignIds = new ArrayList<>();
         List<String> errors = new ArrayList<>();
 
-        // Aggregate stats from all 3 campaigns
+        // Fetch detailed stats from Binom for all campaigns
         for (BinomCampaign campaign : campaigns) {
             try {
+                // Use getDetailedStats to fetch cost and views directly from Binom
                 CampaignStatsResponse stats =
-                        binomClient.getCampaignStats(campaign.getCampaignId());
+                        binomClient.getDetailedStats(
+                                campaign.getCampaignId(),
+                                null, // Get all-time stats
+                                null);
 
                 totalClicks += stats.getClicks();
                 totalConversions += stats.getConversions();
@@ -293,11 +460,20 @@ public class BinomService {
                                 stats.getRevenue() != null ? stats.getRevenue() : BigDecimal.ZERO);
                 campaignIds.add(campaign.getCampaignId());
 
+                // Update local cache with fetched data
+                campaign.setClicksDelivered(stats.getClicks().intValue());
+                campaign.setCost(stats.getCost());
+                campaign.setLastStatsUpdate(LocalDateTime.now());
+                binomCampaignRepository.save(campaign);
+
+                // Check if campaign should be auto-paused
+                checkAndPauseCampaignIfNeeded(campaign, stats, orderId);
+
                 log.debug(
-                        "Campaign {} stats: {} clicks, {} conversions",
+                        "Campaign {} stats from Binom: {} clicks, cost: {}",
                         campaign.getCampaignId(),
                         stats.getClicks(),
-                        stats.getConversions());
+                        stats.getCost());
 
             } catch (Exception e) {
                 log.error(
@@ -310,20 +486,93 @@ public class BinomService {
         }
 
         log.info(
-                "Aggregated stats for order {}: {} clicks from {} campaigns",
+                "Aggregated stats for order {} from Binom: {} clicks, cost: {} from {} campaigns",
                 orderId,
                 totalClicks,
+                totalCost,
                 campaignIds.size());
 
-        // Return aggregated response maintaining existing structure
+        // Calculate views delivered based on clicks and coefficient
+        Order order = orderRepository.findById(orderId).orElse(null);
+        if (order != null && order.getCoefficient() != null) {
+            totalViews = (long) (totalClicks / order.getCoefficient().doubleValue());
+        }
+
+        // Return aggregated response with Binom data
         return CampaignStatsResponse.builder()
-                .campaignId(String.join(",", campaignIds)) // Comma-separated campaign IDs
+                .campaignId(String.join(",", campaignIds))
                 .clicks(totalClicks)
                 .conversions(totalConversions)
                 .cost(totalCost)
                 .revenue(totalRevenue)
+                .viewsDelivered(totalViews) // Add views delivered
                 .status(campaignIds.size() == 3 ? "ACTIVE" : "PARTIAL")
                 .build();
+    }
+
+    /**
+     * Check if campaign needs to be paused based on views or cost Implements automatic campaign
+     * pause logic
+     */
+    private void checkAndPauseCampaignIfNeeded(
+            BinomCampaign campaign, CampaignStatsResponse stats, Long orderId) {
+        try {
+            Order order = orderRepository.findById(orderId).orElse(null);
+            if (order == null) {
+                return;
+            }
+
+            boolean shouldPause = false;
+            String pauseReason = null;
+
+            // Check views delivered vs quantity
+            if (order.getQuantity() != null && order.getCoefficient() != null) {
+                long viewsDelivered =
+                        (long) (stats.getClicks() / order.getCoefficient().doubleValue());
+                if (viewsDelivered >= order.getQuantity()) {
+                    shouldPause = true;
+                    pauseReason =
+                            String.format(
+                                    "Views target reached: %d >= %d",
+                                    viewsDelivered, order.getQuantity());
+                }
+            }
+
+            // Check cost vs budget limit (if budget_limit is set)
+            if (campaign.getBudgetLimit() != null && stats.getCost() != null) {
+                if (stats.getCost().compareTo(campaign.getBudgetLimit()) >= 0) {
+                    shouldPause = true;
+                    pauseReason =
+                            String.format(
+                                    "Budget limit reached: %s >= %s",
+                                    stats.getCost(), campaign.getBudgetLimit());
+                }
+            }
+
+            // Pause campaign if needed
+            if (shouldPause && "ACTIVE".equals(campaign.getStatus())) {
+                boolean paused = binomClient.pauseCampaign(campaign.getCampaignId());
+                if (paused) {
+                    campaign.setStatus("PAUSED");
+                    campaign.setPauseReason(pauseReason);
+                    campaign.setUpdatedAt(LocalDateTime.now());
+                    binomCampaignRepository.save(campaign);
+
+                    log.info(
+                            "Auto-paused campaign {} for order {}: {}",
+                            campaign.getCampaignId(),
+                            orderId,
+                            pauseReason);
+                } else {
+                    log.warn(
+                            "Failed to auto-pause campaign {} even though limit reached: {}",
+                            campaign.getCampaignId(),
+                            pauseReason);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error checking campaign pause conditions: {}", e.getMessage());
+        }
     }
 
     /** Stop all campaigns for an order - Updated for 3-campaign distribution */
@@ -541,6 +790,82 @@ public class BinomService {
             // Non-standard campaign count
             return String.format(
                     "NONSTANDARD_%d_TOTAL_%d_ACTIVE", allCampaigns.size(), activeCampaigns);
+        }
+    }
+
+    /** Pause a specific campaign */
+    @Transactional
+    public void pauseCampaign(String campaignId) {
+        if (campaignId == null || campaignId.trim().isEmpty()) {
+            log.error("Cannot pause campaign: campaignId is null or empty");
+            throw new IllegalArgumentException("Campaign ID is required");
+        }
+
+        Optional<BinomCampaign> campaignOpt = binomCampaignRepository.findByCampaignId(campaignId);
+        if (campaignOpt.isEmpty()) {
+            log.error("Campaign not found: {}", campaignId);
+            throw new BinomApiException("Campaign not found: " + campaignId);
+        }
+
+        BinomCampaign campaign = campaignOpt.get();
+        String previousStatus = campaign.getStatus();
+
+        try {
+            // Pause campaign in Binom system
+            campaign.setStatus("PAUSED");
+            campaign.setUpdatedAt(LocalDateTime.now());
+            binomCampaignRepository.save(campaign);
+
+            log.info("Paused campaign {} - Status: {} -> PAUSED", campaignId, previousStatus);
+        } catch (Exception e) {
+            log.error("Error pausing campaign {}: {}", campaignId, e.getMessage(), e);
+            throw new BinomApiException("Failed to pause campaign: " + e.getMessage());
+        }
+    }
+
+    /** Get paused campaigns for an order */
+    @Transactional(readOnly = true)
+    public List<BinomCampaign> getPausedCampaignsForOrder(Long orderId) {
+        return binomCampaignRepository.findByOrderId(orderId).stream()
+                .filter(c -> "PAUSED".equals(c.getStatus()))
+                .collect(Collectors.toList());
+    }
+
+    /** Get completed campaigns for an order */
+    @Transactional(readOnly = true)
+    public List<BinomCampaign> getCompletedCampaignsForOrder(Long orderId) {
+        return binomCampaignRepository.findByOrderId(orderId).stream()
+                .filter(c -> "COMPLETED".equals(c.getStatus()))
+                .collect(Collectors.toList());
+    }
+
+    /** Restart a completed campaign */
+    @Transactional
+    public void restartCampaign(String campaignId) {
+        if (campaignId == null || campaignId.trim().isEmpty()) {
+            log.error("Cannot restart campaign: campaignId is null or empty");
+            throw new IllegalArgumentException("Campaign ID is required");
+        }
+
+        Optional<BinomCampaign> campaignOpt = binomCampaignRepository.findByCampaignId(campaignId);
+        if (campaignOpt.isEmpty()) {
+            log.error("Campaign not found: {}", campaignId);
+            throw new BinomApiException("Campaign not found: " + campaignId);
+        }
+
+        BinomCampaign campaign = campaignOpt.get();
+        String previousStatus = campaign.getStatus();
+
+        try {
+            // Restart campaign - reset metrics and set to active
+            campaign.setStatus("ACTIVE");
+            campaign.setUpdatedAt(LocalDateTime.now());
+            binomCampaignRepository.save(campaign);
+
+            log.info("Restarted campaign {} - Status: {} -> ACTIVE", campaignId, previousStatus);
+        } catch (Exception e) {
+            log.error("Error restarting campaign {}: {}", campaignId, e.getMessage(), e);
+            throw new BinomApiException("Failed to restart campaign: " + e.getMessage());
         }
     }
 

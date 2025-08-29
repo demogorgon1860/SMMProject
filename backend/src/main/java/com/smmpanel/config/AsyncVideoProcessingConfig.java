@@ -189,7 +189,8 @@ class VideoProcessingHealthIndicator implements HealthIndicator {
     private double activeThreshold;
 
     public VideoProcessingHealthIndicator(
-            TaskExecutor videoProcessingExecutor, TaskExecutor lightweightAsyncExecutor) {
+            @org.springframework.beans.factory.annotation.Qualifier("videoProcessingExecutor") TaskExecutor videoProcessingExecutor,
+            @org.springframework.beans.factory.annotation.Qualifier("lightweightAsyncExecutor") TaskExecutor lightweightAsyncExecutor) {
         this.videoProcessingExecutor = (ThreadPoolTaskExecutor) videoProcessingExecutor;
         this.lightweightAsyncExecutor = (ThreadPoolTaskExecutor) lightweightAsyncExecutor;
     }
@@ -270,7 +271,8 @@ class AsyncThreadPoolMonitor {
     private final ThreadPoolTaskExecutor lightweightAsyncExecutor;
 
     public AsyncThreadPoolMonitor(
-            TaskExecutor videoProcessingExecutor, TaskExecutor lightweightAsyncExecutor) {
+            @org.springframework.beans.factory.annotation.Qualifier("videoProcessingExecutor") TaskExecutor videoProcessingExecutor,
+            @org.springframework.beans.factory.annotation.Qualifier("lightweightAsyncExecutor") TaskExecutor lightweightAsyncExecutor) {
         this.videoProcessingExecutor = (ThreadPoolTaskExecutor) videoProcessingExecutor;
         this.lightweightAsyncExecutor = (ThreadPoolTaskExecutor) lightweightAsyncExecutor;
     }

@@ -47,24 +47,15 @@ public class AdminController {
 
         switch (request.getAction().toLowerCase()) {
             case "stop":
-                // TODO: Implement stop order functionality
-                return ResponseEntity.badRequest()
-                        .body(
-                                PerfectPanelResponse.error(
-                                        "Stop operation not yet implemented", 400));
+                adminService.pauseOrder(orderId, request.getReason());
+                break;
             case "resume":
             case "start":
-                // TODO: Implement resume/start order functionality
-                return ResponseEntity.badRequest()
-                        .body(
-                                PerfectPanelResponse.error(
-                                        "Resume/Start operation not yet implemented", 400));
+                adminService.resumeOrder(orderId);
+                break;
             case "refill":
-                // TODO: Implement refill order functionality
-                return ResponseEntity.badRequest()
-                        .body(
-                                PerfectPanelResponse.error(
-                                        "Refill operation not yet implemented", 400));
+                adminService.refillOrder(orderId, request.getNewQuantity());
+                break;
             case "cancel":
                 adminService.cancelOrder(orderId, request.getReason());
                 break;

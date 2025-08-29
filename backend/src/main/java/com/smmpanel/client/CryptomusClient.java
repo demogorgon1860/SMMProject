@@ -46,17 +46,19 @@ public class CryptomusClient {
     @Value("${app.cryptomus.api.url:https://api.cryptomus.com/v2}")
     private String apiUrlV2;
 
-    // Payout API Key for merchant operations
-    @Value(
-            "${app.cryptomus.api.key:zB1UiXASO3b2Xft6m0DWKyVlRZOyt94f1J7Ohrz3Ww7Ydj1JpVzpxqMUXsizC4uhGV88PUGq8jKE7D6r4l7u9DAWMkCPCG5bFEGY2Lj1KGRTSyrv7i4LM3PuskBQqaU4}")
-    private String payoutApiKey;
-
     // User API Key for user operations
-    @Value("${app.cryptomus.user-api.key:4c78f99554d3cd5c969fe8f0ed37cdc39ebe1089}")
+    @Value("${app.cryptomus.api.user-key}")
     private String userApiKey;
 
-    @Value("${app.cryptomus.merchant-id:your-merchant-id}")
+    // Payout API Key for payout operations
+    @Value("${app.cryptomus.api.payout-key}")
+    private String payoutApiKey;
+
+    @Value("${app.cryptomus.merchant-id:not-applicable}")
     private String merchantId;
+
+    @Value("${app.cryptomus.api.secret:not-applicable}")
+    private String apiSecret;
 
     /** POST /v1/payment - Creates an invoice for crypto payment */
     public CreatePaymentResponse createPayment(CreatePaymentRequest request) {

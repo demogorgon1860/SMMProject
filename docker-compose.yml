@@ -1,6 +1,5 @@
 # docker-compose.yml
 # Production-ready infrastructure for SMM Panel
-version: '3.9'
 
 # Environment variables can be set in .env file
 x-common-env: &common-env
@@ -9,8 +8,8 @@ x-common-env: &common-env
   SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-smm_panel}
   SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-smm_admin}
   SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
-  SPRING_REDIS_HOST: redis
-  SPRING_REDIS_PORT: 6379
+  SPRING_DATA_REDIS_HOST: redis
+  SPRING_DATA_REDIS_PORT: 6379
   SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
   SPRING_SLEUTH_SAMPLER_PROBABILITY: 1.0
   MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics,prometheus
@@ -248,8 +247,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/smm_panel
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-smm_admin}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
-      SPRING_REDIS_HOST: redis
-      SPRING_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       JAVA_OPTS: "-Xms2g -Xmx4g -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
     volumes:

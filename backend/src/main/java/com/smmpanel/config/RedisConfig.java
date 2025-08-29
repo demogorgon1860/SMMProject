@@ -227,7 +227,15 @@ public class RedisConfig implements CachingConfigurer {
         cacheConfigurations.put("start_count", defaultConfig.entryTtl(Duration.ofDays(30)));
         cacheConfigurations.put("assignedCampaigns", defaultConfig.entryTtl(Duration.ofHours(2)));
 
-        // Binom-related caches
+        // Binom-related caches with cached API approach
+        cacheConfigurations.put("binomCampaigns", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+        cacheConfigurations.put("binomOffers", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+        cacheConfigurations.put("binomStats", defaultConfig.entryTtl(Duration.ofMinutes(1)));
+        cacheConfigurations.put("binomLandings", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+        cacheConfigurations.put(
+                "binomTrafficSources", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+
+        // Legacy cache names for backward compatibility
         cacheConfigurations.put("binom-campaigns", defaultConfig.entryTtl(Duration.ofMinutes(30)));
         cacheConfigurations.put("binom-offers", defaultConfig.entryTtl(Duration.ofHours(1)));
         cacheConfigurations.put("binom-statistics", defaultConfig.entryTtl(Duration.ofMinutes(5)));

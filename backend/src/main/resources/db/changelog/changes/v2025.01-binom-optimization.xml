@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.4.xsd">
+
+    <changeSet id="2025.01-binom-optimization-01" author="system">
+        <comment>Add Binom tracking fields to orders table</comment>
+        
+        <!-- Add new columns for Binom integration -->
+        <addColumn tableName="orders">
+            <column name="binom_campaign_id" type="VARCHAR(50)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        
+        <addColumn tableName="orders">
+            <column name="binom_offer_id" type="VARCHAR(50)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        
+        <addColumn tableName="orders">
+            <column name="traffic_status" type="VARCHAR(20)" defaultValue="PENDING">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        
+        <addColumn tableName="orders">
+            <column name="views_delivered" type="INTEGER" defaultValue="0">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        
+        <addColumn tableName="orders">
+            <column name="cost_incurred" type="DECIMAL(10,2)" defaultValue="0.00">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        
+        <addColumn tableName="orders">
+            <column name="budget_limit" type="DECIMAL(10,2)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="2025.01-binom-optimization-02" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="binom_campaigns" columnName="cost"/>
+            </not>
+        </preConditions>
+        <comment>Add cost field to binom_campaigns table</comment>
+        <addColumn tableName="binom_campaigns">
+            <column name="cost" type="DECIMAL(10,2)" defaultValue="0.00">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+    
+    <changeSet id="2025.01-binom-optimization-02b" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="binom_campaigns" columnName="budget_limit"/>
+            </not>
+        </preConditions>
+        <comment>Add budget_limit field to binom_campaigns table</comment>
+        <addColumn tableName="binom_campaigns">
+            <column name="budget_limit" type="DECIMAL(10,2)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+    
+    <changeSet id="2025.01-binom-optimization-02c" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="binom_campaigns" columnName="revenue"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="binom_campaigns">
+            <column name="revenue" type="DECIMAL(10,2)" defaultValue="0.00">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+    
+    <changeSet id="2025.01-binom-optimization-02d" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="binom_campaigns" columnName="conversions"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="binom_campaigns">
+            <column name="conversions" type="INTEGER" defaultValue="0">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+    
+    <changeSet id="2025.01-binom-optimization-02e" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="binom_campaigns" columnName="last_stats_update"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="binom_campaigns">
+            <column name="last_stats_update" type="TIMESTAMP">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+    
+    <changeSet id="2025.01-binom-optimization-02f" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="binom_campaigns" columnName="pause_reason"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="binom_campaigns">
+            <column name="pause_reason" type="VARCHAR(255)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="2025.01-binom-optimization-03" author="system">
+        <comment>Add indexes for performance optimization</comment>
+        
+        <createIndex tableName="orders" indexName="idx_orders_binom_campaign_id">
+            <column name="binom_campaign_id"/>
+        </createIndex>
+        
+        <createIndex tableName="orders" indexName="idx_orders_traffic_status">
+            <column name="traffic_status"/>
+        </createIndex>
+        
+        <createIndex tableName="binom_campaigns" indexName="idx_binom_campaigns_last_stats_update">
+            <column name="last_stats_update"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="2025.01-binom-optimization-04" author="system">
+        <comment>Create sync_jobs table for scheduled synchronization tracking</comment>
+        
+        <createTable tableName="binom_sync_jobs">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="job_type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="started_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="completed_at" type="TIMESTAMP">
+                <constraints nullable="true"/>
+            </column>
+            <column name="orders_synced" type="INTEGER" defaultValue="0">
+                <constraints nullable="true"/>
+            </column>
+            <column name="campaigns_synced" type="INTEGER" defaultValue="0">
+                <constraints nullable="true"/>
+            </column>
+            <column name="campaigns_paused" type="INTEGER" defaultValue="0">
+                <constraints nullable="true"/>
+            </column>
+            <column name="error_count" type="INTEGER" defaultValue="0">
+                <constraints nullable="true"/>
+            </column>
+            <column name="error_message" type="TEXT">
+                <constraints nullable="true"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        
+        <createIndex tableName="binom_sync_jobs" indexName="idx_sync_jobs_status">
+            <column name="status"/>
+        </createIndex>
+        
+        <createIndex tableName="binom_sync_jobs" indexName="idx_sync_jobs_started_at">
+            <column name="started_at"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="2025.01-binom-optimization-05" author="system">
+        <comment>Migrate existing data to new structure</comment>
+        
+        <sql>
+            -- Update orders with aggregated campaign IDs from binom_campaigns
+            UPDATE orders o
+            SET binom_campaign_id = (
+                SELECT STRING_AGG(bc.campaign_id, ',')
+                FROM binom_campaigns bc
+                WHERE bc.order_id = o.id
+                GROUP BY bc.order_id
+            )
+            WHERE EXISTS (
+                SELECT 1 FROM binom_campaigns bc WHERE bc.order_id = o.id
+            );
+            
+            -- Set traffic_status based on order status
+            UPDATE orders
+            SET traffic_status = CASE
+                WHEN status = 'COMPLETED' THEN 'DELIVERED'
+                WHEN status IN ('PROCESSING', 'ACTIVE', 'IN_PROGRESS') THEN 'RUNNING'
+                WHEN status IN ('CANCELLED', 'HOLDING') THEN 'FAILED'
+                ELSE 'PENDING'
+            END;
+            
+            -- Migrate views_delivered from campaigns
+            UPDATE orders o
+            SET views_delivered = COALESCE((
+                SELECT SUM(bc.views_generated)
+                FROM binom_campaigns bc
+                WHERE bc.order_id = o.id
+            ), 0);
+        </sql>
+    </changeSet>
+
+    <changeSet id="2025.01-binom-optimization-06" author="system">
+        <comment>Drop redundant columns after migration (can be rolled back)</comment>
+        
+        <!-- First drop the view that depends on clicks_required -->
+        <dropView viewName="campaign_assignment_status"/>
+        
+        <!-- Drop the index that depends on clicks_required -->
+        <dropIndex tableName="binom_campaigns" indexName="idx_binom_campaigns_status_clicks"/>
+        
+        <!-- Now safe to drop the columns as they are tracked directly from Binom -->
+        <dropColumn tableName="binom_campaigns" columnName="clicks_required"/>
+        <dropColumn tableName="binom_campaigns" columnName="views_generated"/>
+        
+        <!-- Mark as deprecated but don't drop yet for safety -->
+        <sql>
+            COMMENT ON TABLE fixed_binom_campaigns IS 'DEPRECATED - Will be removed in next major version';
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

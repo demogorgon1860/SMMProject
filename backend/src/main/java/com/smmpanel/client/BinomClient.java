@@ -5,6 +5,7 @@ import com.smmpanel.dto.binom.*;
 import com.smmpanel.exception.BinomApiException;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -15,7 +16,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
-/** PRODUCTION-READY Binom API Client with proper error handling and retry logic */
+/**
+ * Official Binom v2 API Client - Refactored to use documented API format Uses /index.php?action=...
+ * endpoints as per Binom v2 documentation Maintains backward compatibility while following official
+ * API structure
+ */
 @Slf4j
 @Component
 public class BinomClient {
@@ -52,12 +57,17 @@ public class BinomClient {
 
     // Campaign creation removed - campaigns are pre-configured manually in Binom
 
-    /** Create a new offer in Binom */
+    /**
+     * Create a new offer in Binom using official v2 API Uses action=offer_create as per
+     * documentation
+     */
     public CreateOfferResponse createOffer(CreateOfferRequest request) {
-        String endpoint = "/public/api/v1/offer";
         String url =
-                UriComponentsBuilder.fromHttpUrl(apiUrl + endpoint)
-                        .queryParam("format", FORMAT_JSON)
+                UriComponentsBuilder.fromHttpUrl(apiUrl + "/index.php")
+                        .queryParam("api_key", apiKey)
+                        .queryParam("action", "offer_create")
+                        .queryParam("name", request.getName())
+                        .queryParam("url", request.getUrl())
                         .build()
                         .toUriString();
 
@@ -80,6 +90,7 @@ public class BinomClient {
                                                     url, HttpMethod.POST, entity, Map.class);
 
                                     // Enhanced response validation
+                                    String endpoint = "/index.php?action=offer_create";
                                     validateResponse(response, endpoint, "createOffer");
                                     Map<String, Object> responseBody = response.getBody();
                                     validateResponseBody(responseBody, endpoint, "createOffer");
@@ -245,9 +256,8 @@ public class BinomClient {
                         readRetry.executeSupplier(
                                 () -> {
                                     HttpHeaders headers = new HttpHeaders();
-                                    headers.setContentType(MediaType.APPLICATION_JSON);
-                                    headers.set("User-Agent", "SMM-Panel/1.0");
-                                    headers.set(API_KEY_HEADER, apiKey);
+                                    headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+                                    headers.set("User-Agent", "SMM-Panel/2.0");
 
                                     HttpEntity<String> entity = new HttpEntity<>("", headers);
 
@@ -289,12 +299,15 @@ public class BinomClient {
                                 }));
     }
 
-    /** Get campaign statistics */
+    /**
+     * Get campaign statistics using official Binom v2 stats API Uses action=stats endpoint as per
+     * documentation
+     */
     public CampaignStatsResponse getCampaignStats(String campaignId) {
-        String endpoint = "/public/api/v1/stats";
         String url =
-                UriComponentsBuilder.fromHttpUrl(apiUrl + endpoint)
-                        .queryParam("format", FORMAT_JSON)
+                UriComponentsBuilder.fromHttpUrl(apiUrl + "/index.php")
+                        .queryParam("api_key", apiKey)
+                        .queryParam("action", "stats")
                         .queryParam("entity_name", "campaign")
                         .queryParam("id[]", campaignId)
                         .build()
@@ -305,9 +318,8 @@ public class BinomClient {
                         readRetry.executeSupplier(
                                 () -> {
                                     HttpHeaders headers = new HttpHeaders();
-                                    headers.setContentType(MediaType.APPLICATION_JSON);
-                                    headers.set("User-Agent", "SMM-Panel/1.0");
-                                    headers.set(API_KEY_HEADER, apiKey);
+                                    headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+                                    headers.set("User-Agent", "SMM-Panel/2.0");
 
                                     HttpEntity<String> entity = new HttpEntity<>("", headers);
 
@@ -364,9 +376,8 @@ public class BinomClient {
                         readRetry.executeSupplier(
                                 () -> {
                                     HttpHeaders headers = new HttpHeaders();
-                                    headers.setContentType(MediaType.APPLICATION_JSON);
-                                    headers.set("User-Agent", "SMM-Panel/1.0");
-                                    headers.set(API_KEY_HEADER, apiKey);
+                                    headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+                                    headers.set("User-Agent", "SMM-Panel/2.0");
 
                                     HttpEntity<String> entity = new HttpEntity<>("", headers);
 
@@ -534,9 +545,8 @@ public class BinomClient {
                         readRetry.executeSupplier(
                                 () -> {
                                     HttpHeaders headers = new HttpHeaders();
-                                    headers.setContentType(MediaType.APPLICATION_JSON);
-                                    headers.set("User-Agent", "SMM-Panel/1.0");
-                                    headers.set(API_KEY_HEADER, apiKey);
+                                    headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+                                    headers.set("User-Agent", "SMM-Panel/2.0");
 
                                     HttpEntity<String> entity = new HttpEntity<>("", headers);
 
@@ -947,9 +957,8 @@ public class BinomClient {
                         readRetry.executeSupplier(
                                 () -> {
                                     HttpHeaders headers = new HttpHeaders();
-                                    headers.setContentType(MediaType.APPLICATION_JSON);
-                                    headers.set("User-Agent", "SMM-Panel/1.0");
-                                    headers.set(API_KEY_HEADER, apiKey);
+                                    headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+                                    headers.set("User-Agent", "SMM-Panel/2.0");
 
                                     HttpEntity<String> entity = new HttpEntity<>("", headers);
 
@@ -1002,5 +1011,169 @@ public class BinomClient {
                                 }));
     }
 
-    // Campaign pause/resume methods removed - use campaign update API with status field if needed
+    /**
+     * Update campaign status (pause/resume) using official Binom v2 campaign_update API Action:
+     * campaign_update
+     */
+    public boolean updateCampaignStatus(String campaignId, String status) {
+        try {
+            String url =
+                    UriComponentsBuilder.fromHttpUrl(apiUrl + "/index.php")
+                            .queryParam("api_key", apiKey)
+                            .queryParam("action", "campaign_update")
+                            .queryParam("id", campaignId)
+                            .queryParam("status", status)
+                            .build()
+                            .toUriString();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+            headers.set("User-Agent", "SMM-Panel/2.0");
+
+            HttpEntity<String> entity = new HttpEntity<>("", headers);
+
+            log.info("Updating campaign {} status to: {}", campaignId, status);
+
+            ResponseEntity<Map> response =
+                    restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                Map<String, Object> body = response.getBody();
+                if (!body.containsKey("error")) {
+                    log.info("Successfully updated campaign {} status to {}", campaignId, status);
+                    return true;
+                }
+            }
+
+            return false;
+        } catch (Exception e) {
+            log.error("Failed to update campaign {} status: {}", campaignId, e.getMessage());
+            return false;
+        }
+    }
+
+    /** Pause campaign - convenience method */
+    public boolean pauseCampaign(String campaignId) {
+        return updateCampaignStatus(campaignId, "paused");
+    }
+
+    /** Resume campaign - convenience method */
+    public boolean resumeCampaign(String campaignId) {
+        return updateCampaignStatus(campaignId, "active");
+    }
+
+    /** Get campaigns list using official Binom v2 campaigns API Action: campaigns */
+    public Map<String, Object> getCampaigns(List<String> campaignIds) {
+        try {
+            UriComponentsBuilder builder =
+                    UriComponentsBuilder.fromHttpUrl(apiUrl + "/index.php")
+                            .queryParam("api_key", apiKey)
+                            .queryParam("action", "campaigns");
+
+            if (campaignIds != null && !campaignIds.isEmpty()) {
+                for (String id : campaignIds) {
+                    builder.queryParam("id[]", id);
+                }
+            }
+
+            String url = builder.build().toUriString();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+            headers.set("User-Agent", "SMM-Panel/2.0");
+
+            HttpEntity<String> entity = new HttpEntity<>("", headers);
+
+            ResponseEntity<Map> response =
+                    restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                return response.getBody();
+            }
+
+            return new HashMap<>();
+        } catch (Exception e) {
+            log.error("Failed to fetch campaigns: {}", e.getMessage());
+            return new HashMap<>();
+        }
+    }
+
+    /**
+     * Get detailed stats with cost and views from Binom Uses official stats API with extended
+     * parameters
+     */
+    public CampaignStatsResponse getDetailedStats(
+            String campaignId, String dateFrom, String dateTo) {
+        try {
+            String url =
+                    UriComponentsBuilder.fromHttpUrl(apiUrl + "/index.php")
+                            .queryParam("api_key", apiKey)
+                            .queryParam("action", "stats")
+                            .queryParam("entity_name", "campaign")
+                            .queryParam("id[]", campaignId)
+                            .queryParam("date_from", dateFrom != null ? dateFrom : "")
+                            .queryParam("date_to", dateTo != null ? dateTo : "")
+                            .build()
+                            .toUriString();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+            headers.set("User-Agent", "SMM-Panel/2.0");
+
+            HttpEntity<String> entity = new HttpEntity<>("", headers);
+
+            ResponseEntity<Map> response =
+                    restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                Map<String, Object> body = response.getBody();
+
+                // Parse the response according to Binom v2 stats format
+                if (body.containsKey("data")) {
+                    Map<String, Object> data = (Map<String, Object>) body.get("data");
+                    if (data.containsKey(campaignId)) {
+                        Map<String, Object> campaignData =
+                                (Map<String, Object>) data.get(campaignId);
+
+                        return CampaignStatsResponse.builder()
+                                .campaignId(campaignId)
+                                .clicks(getLongValue(campaignData, "clicks", 0L))
+                                .conversions(getLongValue(campaignData, "conversions", 0L))
+                                .cost(BigDecimal.valueOf(getDoubleValue(campaignData, "cost", 0.0)))
+                                .revenue(
+                                        BigDecimal.valueOf(
+                                                getDoubleValue(campaignData, "revenue", 0.0)))
+                                .status("ACTIVE")
+                                .build();
+                    }
+                }
+            }
+
+            // Return empty stats if not found
+            return CampaignStatsResponse.builder()
+                    .campaignId(campaignId)
+                    .clicks(0L)
+                    .conversions(0L)
+                    .cost(BigDecimal.ZERO)
+                    .revenue(BigDecimal.ZERO)
+                    .status("NO_DATA")
+                    .build();
+
+        } catch (Exception e) {
+            log.error(
+                    "Failed to get detailed stats for campaign {}: {}", campaignId, e.getMessage());
+            throw new BinomApiException("Failed to get campaign stats", e);
+        }
+    }
+
+    private Long getLongValue(Map<String, Object> map, String key, Long defaultValue) {
+        Object value = map.get(key);
+        if (value == null) return defaultValue;
+        if (value instanceof Number) return ((Number) value).longValue();
+        try {
+            return Long.parseLong(value.toString());
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
+    }
 }

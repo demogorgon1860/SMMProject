@@ -243,6 +243,78 @@ public class AdminService {
         log.info("Manually completed order {}", orderId);
     }
 
+    @Transactional
+    public void pauseOrder(Long orderId, String reason) {
+        Order order =
+                orderRepository
+                        .findById(orderId)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("Order not found: " + orderId));
+
+        // Only active orders can be paused
+        if (order.getStatus() != OrderStatus.ACTIVE) {
+            throw new IllegalStateException(
+                    "Order must be ACTIVE to pause. Current status: " + order.getStatus());
+        }
+
+        order.setStatus(OrderStatus.PAUSED);
+        orderRepository.save(order);
+
+        log.info("Paused order {} with reason: {}", orderId, reason);
+    }
+
+    @Transactional
+    public void resumeOrder(Long orderId) {
+        Order order =
+                orderRepository
+                        .findById(orderId)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("Order not found: " + orderId));
+
+        // Only paused orders can be resumed
+        if (order.getStatus() != OrderStatus.PAUSED) {
+            throw new IllegalStateException(
+                    "Order must be PAUSED to resume. Current status: " + order.getStatus());
+        }
+
+        order.setStatus(OrderStatus.ACTIVE);
+        orderRepository.save(order);
+
+        log.info("Resumed order {}", orderId);
+    }
+
+    @Transactional
+    public void refillOrder(Long orderId, Integer newQuantity) {
+        Order order =
+                orderRepository
+                        .findById(orderId)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("Order not found: " + orderId));
+
+        // Only completed or partial orders can be refilled
+        if (order.getStatus() != OrderStatus.COMPLETED
+                && order.getStatus() != OrderStatus.PARTIAL) {
+            throw new IllegalStateException(
+                    "Order must be COMPLETED or PARTIAL to refill. Current status: "
+                            + order.getStatus());
+        }
+
+        // Update quantity if provided
+        if (newQuantity != null && newQuantity > 0) {
+            int additionalQuantity = newQuantity;
+            order.setQuantity(order.getQuantity() + additionalQuantity);
+            order.setRemains(order.getRemains() + additionalQuantity);
+        } else {
+            // Refill with original quantity
+            order.setRemains(order.getQuantity());
+        }
+
+        order.setStatus(OrderStatus.ACTIVE);
+        orderRepository.save(order);
+
+        log.info("Refilled order {} with quantity: {}", orderId, newQuantity);
+    }
+
     @Transactional(readOnly = true)
     public List<CoefficientDto> getConversionCoefficients() {
         return coefficientRepository.findAll().stream()
@@ -262,7 +334,7 @@ public class AdminService {
                                         new IllegalArgumentException(
                                                 "Coefficient not found for service: " + serviceId));
         coefficient.setWithClip(request.getWithClip());
-        coefficient.setWithoutClip(request.getWithoutClip().compareTo(BigDecimal.ZERO) > 0);
+        coefficient.setWithoutClip(request.getWithoutClip());
         coefficient.setUpdatedBy(currentUsername);
         coefficient.setUpdatedAt(LocalDateTime.now());
         coefficient = coefficientRepository.save(coefficient);
@@ -530,11 +602,6 @@ public class AdminService {
     private void stopOrder(Long orderId, String reason) {
         // Implementation moved to OrderProcessingService
         throw new UnsupportedOperationException("Use OrderProcessingService.stopOrder()");
-    }
-
-    private void resumeOrder(Long orderId) {
-        // Implementation moved to OrderProcessingService
-        throw new UnsupportedOperationException("Use OrderProcessingService.resumeOrder()");
     }
 
     private BigDecimal calculateRefundAmount(Order order) {

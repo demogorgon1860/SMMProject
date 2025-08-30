@@ -1,14 +1,12 @@
 # Runtime stage - using pre-built JAR
-FROM eclipse-temurin:17-jre-jammy
+FROM eclipse-temurin:17-jre-alpine
 
 # Install curl for health checks and dumb-init for signal handling
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl dumb-init && \
-    rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache curl dumb-init
 
 # Add non-root user
-RUN addgroup --system appgroup && \
-    adduser --system --no-create-home --shell /bin/false --ingroup appgroup appuser && \
+RUN addgroup -S appgroup && \
+    adduser -S -H -s /bin/false -G appgroup appuser && \
     mkdir -p /app && \
     chown -R appuser:appgroup /app
 

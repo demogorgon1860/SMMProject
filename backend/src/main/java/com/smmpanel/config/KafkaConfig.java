@@ -480,12 +480,19 @@ public class KafkaConfig {
         configProps.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class);
         configProps.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         configProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-        configProps.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 500);
+        configProps.put(
+                ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 25); // Reduced from 500 for stability
         configProps.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, 1);
-        configProps.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
-        configProps.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 30000);
-        configProps.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 3000);
-        configProps.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 300000);
+        configProps.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 1000); // Increased from 500
+        configProps.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 45000); // Increased from 30000
+        configProps.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 15000); // Increased from 3000
+        configProps.put(
+                ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 600000); // Increased from 300000
+
+        // Partition assignment strategy for stability
+        configProps.put(
+                ConsumerConfig.PARTITION_ASSIGNMENT_STRATEGY_CONFIG,
+                "org.apache.kafka.clients.consumer.CooperativeStickyAssignor");
 
         // JSON Deserializer specific configs
         configProps.put(
@@ -506,7 +513,11 @@ public class KafkaConfig {
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory() {
+    public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
+            @org.springframework.beans.factory.annotation.Autowired(required = false)
+                    @org.springframework.beans.factory.annotation.Qualifier(
+                            "kafkaListenerTaskExecutor")
+                    org.springframework.core.task.AsyncTaskExecutor kafkaListenerTaskExecutor) {
         ConcurrentKafkaListenerContainerFactory<String, Object> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
@@ -514,6 +525,11 @@ public class KafkaConfig {
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
         factory.getContainerProperties().setSyncCommits(true);
         factory.getContainerProperties().setPollTimeout(3000L);
+
+        // Use dedicated task executor if available
+        if (kafkaListenerTaskExecutor != null) {
+            factory.getContainerProperties().setListenerTaskExecutor(kafkaListenerTaskExecutor);
+        }
 
         // Configure enhanced error handler with comprehensive retry and DLQ support
         factory.setCommonErrorHandler(consumerErrorConfiguration.defaultKafkaErrorHandler());
@@ -523,7 +539,12 @@ public class KafkaConfig {
     /** Specialized container factory for dead letter queue processing */
     @Bean("deadLetterQueueKafkaListenerContainerFactory")
     public ConcurrentKafkaListenerContainerFactory<String, Object>
-            deadLetterQueueKafkaListenerContainerFactory() {
+            deadLetterQueueKafkaListenerContainerFactory(
+                    @org.springframework.beans.factory.annotation.Autowired(required = false)
+                            @org.springframework.beans.factory.annotation.Qualifier(
+                                    "dlqKafkaListenerTaskExecutor")
+                            org.springframework.core.task.AsyncTaskExecutor
+                                    dlqKafkaListenerTaskExecutor) {
         ConcurrentKafkaListenerContainerFactory<String, Object> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
@@ -531,6 +552,11 @@ public class KafkaConfig {
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
         factory.getContainerProperties().setSyncCommits(true);
         factory.getContainerProperties().setPollTimeout(5000L);
+
+        // Use dedicated DLQ task executor if available
+        if (dlqKafkaListenerTaskExecutor != null) {
+            factory.getContainerProperties().setListenerTaskExecutor(dlqKafkaListenerTaskExecutor);
+        }
 
         // Use specialized DLQ error handler
         factory.setCommonErrorHandler(consumerErrorConfiguration.deadLetterQueueErrorHandler());

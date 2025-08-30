@@ -85,6 +85,9 @@ create_topic "smm.order.state.updates.dlq" 1 1 \
 create_topic "smm.video.processing.dlq" 1 1 \
     "--config retention.ms=2592000000 --config compression.type=snappy"
 
+create_topic "video.processing.dlq" 1 1 \
+    "--config retention.ms=2592000000 --config compression.type=snappy"
+
 create_topic "smm.video.processing.retry.dlq" 1 1 \
     "--config retention.ms=2592000000 --config compression.type=snappy"
 

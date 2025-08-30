@@ -3,38 +3,12 @@
     xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
-        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
 
-    <changeSet id="2025.01-fix-user-column-name" author="system">
-        <comment>Fix column name mismatch for last_api_access field in users table</comment>
-        
-        <!-- Rename the column from last_api_access to last_api_access_at -->
-        <renameColumn 
-            tableName="users"
-            oldColumnName="last_api_access"
-            newColumnName="last_api_access_at"
-            columnDataType="timestamp with time zone"/>
-            
-        <!-- Drop the old index -->
-        <dropIndex tableName="users" indexName="idx_users_last_api_access"/>
-        
-        <!-- Create new index with updated column name -->
-        <createIndex tableName="users" indexName="idx_users_last_api_access_at">
-            <column name="last_api_access_at"/>
-        </createIndex>
-        
-        <rollback>
-            <!-- Rollback: rename column back -->
-            <dropIndex tableName="users" indexName="idx_users_last_api_access_at"/>
-            <renameColumn 
-                tableName="users"
-                oldColumnName="last_api_access_at"
-                newColumnName="last_api_access"
-                columnDataType="timestamp with time zone"/>
-            <createIndex tableName="users" indexName="idx_users_last_api_access">
-                <column name="last_api_access"/>
-            </createIndex>
-        </rollback>
-    </changeSet>
-
+    <!-- ========================================== -->
+    <!-- USER COLUMN NAME FIXES - January 2025 -->
+    <!-- ========================================== -->
+    <!-- NOTE: All changesets in this file have been consolidated into v2025.01-critical-schema-fixes.xml -->
+    <!-- This file is kept for reference only and contains no active changesets. -->
+    
 </databaseChangeLog>

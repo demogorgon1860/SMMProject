@@ -15,22 +15,20 @@
         <insert tableName="fixed_binom_campaigns">
             <column name="campaign_id" value="1"/>
             <column name="campaign_name" value="INDIA"/>
-            <column name="geo_targeting" value="IN"/>
             <column name="weight" valueNumeric="100"/>
             <column name="priority" valueNumeric="1"/>
             <column name="active" valueBoolean="true"/>
-            <column name="description" value="India traffic campaign"/>
+            <column name="description" value="India traffic campaign (geo: IN)"/>
             <column name="created_at" valueDate="NOW()"/>
         </insert>
         
         <insert tableName="fixed_binom_campaigns">
             <column name="campaign_id" value="2"/>
             <column name="campaign_name" value="Tier 3 + black list"/>
-            <column name="geo_targeting" value="TIER3"/>
             <column name="weight" valueNumeric="100"/>
             <column name="priority" valueNumeric="2"/>
             <column name="active" valueBoolean="true"/>
-            <column name="description" value="Tier 3 countries with blacklist filtering"/>
+            <column name="description" value="Tier 3 countries with blacklist filtering (geo: TIER3)"/>
             <column name="created_at" valueDate="NOW()"/>
         </insert>
         

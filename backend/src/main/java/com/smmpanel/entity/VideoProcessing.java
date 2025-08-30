@@ -1,12 +1,10 @@
 package com.smmpanel.entity;
 
 import jakarta.persistence.*;
-import java.sql.Types;
 import java.time.LocalDateTime;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Data
@@ -44,7 +42,6 @@ public class VideoProcessing {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "video_type", columnDefinition = "video_type")
-    @JdbcTypeCode(Types.OTHER)
     private VideoType videoType;
 
     @Column(name = "clip_created")

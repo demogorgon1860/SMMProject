@@ -20,6 +20,7 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Order Event Consumer Processes order events from Kafka asynchronously */
@@ -74,7 +75,7 @@ public class OrderEventConsumer {
             autoCreateTopics = "true",
             concurrency = "2")
     @KafkaListener(topics = "smm.order.state.updates", groupId = "order-status-group")
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void processOrderStatusChangedEvent(
             @Payload OrderStatusChangedEvent event,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,

@@ -2,14 +2,12 @@ package com.smmpanel.entity;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
-import java.sql.Types;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Data
@@ -72,7 +70,6 @@ public class BalanceTransaction {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "transaction_type", nullable = false, columnDefinition = "transaction_type")
-    @JdbcTypeCode(Types.OTHER)
     private TransactionType transactionType;
 
     @Column(columnDefinition = "TEXT")

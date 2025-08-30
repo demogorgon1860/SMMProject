@@ -2,13 +2,11 @@ package com.smmpanel.entity;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
-import java.sql.Types;
 import java.time.LocalDateTime;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
 
 @Data
 @Entity
@@ -51,7 +49,6 @@ public class BalanceDeposit {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", columnDefinition = "payment_status")
-    @JdbcTypeCode(Types.OTHER)
     private PaymentStatus status = PaymentStatus.PENDING;
 
     @Column(name = "expires_at", nullable = false)
@@ -59,6 +56,18 @@ public class BalanceDeposit {
 
     @Column(name = "confirmed_at")
     private LocalDateTime confirmedAt;
+
+    @Column(name = "confirmed_amount", precision = 10, scale = 2)
+    private BigDecimal confirmedAmount;
+
+    @Column(name = "failed_at")
+    private LocalDateTime failedAt;
+
+    @Column(name = "refunded_at")
+    private LocalDateTime refundedAt;
+
+    @Column(name = "refund_amount", precision = 10, scale = 2)
+    private BigDecimal refundAmount;
 
     @Column(name = "webhook_data", columnDefinition = "JSONB")
     private String webhookData;

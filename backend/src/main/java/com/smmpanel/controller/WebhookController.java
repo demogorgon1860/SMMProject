@@ -1,5 +1,7 @@
 package com.smmpanel.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.smmpanel.client.CryptomusClient;
 import com.smmpanel.dto.cryptomus.CryptomusWebhook;
 import com.smmpanel.service.CryptomusService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,13 +19,39 @@ import org.springframework.web.bind.annotation.*;
 public class WebhookController {
 
     private final CryptomusService cryptomusService;
+    private final CryptomusClient cryptomusClient;
+    private final ObjectMapper objectMapper;
 
     @PostMapping("/cryptomus")
     public ResponseEntity<Map<String, String>> handleCryptomusWebhook(
-            @RequestBody CryptomusWebhook webhook, HttpServletRequest request) {
+            @RequestBody CryptomusWebhook webhook,
+            @RequestHeader(value = "X-Signature", required = false) String signature,
+            HttpServletRequest request) {
 
         try {
             log.info("Received Cryptomus webhook for order: {}", webhook.getOrderId());
+
+            // Verify webhook signature for security
+            if (signature != null) {
+                String webhookData = objectMapper.writeValueAsString(webhook);
+                boolean isValid = cryptomusClient.verifyWebhook(signature, webhookData);
+
+                if (!isValid) {
+                    log.warn("Invalid webhook signature for order: {}", webhook.getOrderId());
+                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                            .body(Map.of("status", "error", "message", "Invalid signature"));
+                }
+
+                log.debug(
+                        "Webhook signature verified successfully for order: {}",
+                        webhook.getOrderId());
+            } else {
+                log.warn(
+                        "No signature provided in webhook request for order: {}",
+                        webhook.getOrderId());
+                // In production, you should reject unsigned webhooks
+                // For now, log warning but continue processing
+            }
 
             // Process the webhook
             cryptomusService.processWebhook(webhook);

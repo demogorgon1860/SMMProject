@@ -2,7 +2,6 @@ package com.smmpanel.entity;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
-import java.sql.Types;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -13,11 +12,13 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Data
 @Entity
+@BatchSize(size = 20)
 @Table(
         name = "orders",
         indexes = {
@@ -41,11 +42,13 @@ public class Order {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     @BatchSize(size = 25)
+    @Fetch(FetchMode.SELECT)
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "service_id", nullable = false)
     @BatchSize(size = 25)
+    @Fetch(FetchMode.SELECT)
     private Service service;
 
     @Column(nullable = false, length = 500)
@@ -63,9 +66,8 @@ public class Order {
 
     private Integer remains;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = com.smmpanel.converter.OrderStatusConverter.class)
     @Column(name = "status", columnDefinition = "order_status")
-    @JdbcTypeCode(Types.OTHER)
     @Builder.Default
     private OrderStatus status = OrderStatus.PENDING;
 

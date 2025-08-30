@@ -15,4 +15,9 @@ public interface BalanceDepositRepository extends JpaRepository<BalanceDeposit, 
     Optional<BalanceDeposit> findByOrderIdAndUser(String orderId, User user);
 
     Page<BalanceDeposit> findByUserOrderByCreatedAtDesc(User user, Pageable pageable);
+
+    // Find by payment ID (maps to orderId which stores transaction IDs)
+    default Optional<BalanceDeposit> findByPaymentId(String paymentId) {
+        return findByOrderId(paymentId);
+    }
 }

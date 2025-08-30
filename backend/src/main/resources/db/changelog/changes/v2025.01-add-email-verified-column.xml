@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="2025.01-add-email-verified-column" author="system">
+        <comment>Add email_verified column to users table</comment>
+        
+        <addColumn tableName="users">
+            <column name="email_verified" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        
+        <!-- Set existing users as verified to avoid breaking existing functionality -->
+        <update tableName="users">
+            <column name="email_verified" valueBoolean="true"/>
+            <where>email IS NOT NULL</where>
+        </update>
+        
+        <!-- Make column not nullable after setting defaults -->
+        <addNotNullConstraint tableName="users" columnName="email_verified" defaultNullValue="false"/>
+        
+        <rollback>
+            <dropColumn tableName="users" columnName="email_verified"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -34,7 +35,7 @@ public class OfferAssignmentService {
     // In-memory cache for assignment statuses
     private final Map<Long, String> assignmentStatusCache = new ConcurrentHashMap<>();
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRED)
     public OfferAssignmentResponse assignOfferToFixedCampaigns(OfferAssignmentRequest request) {
         log.info("Starting offer assignment for order: {}", request.getOrderId());
 

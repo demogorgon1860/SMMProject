@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.cache.CacheManager;
@@ -33,6 +34,7 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.data.redis.connection.lettuce.LettucePoolingClientConfiguration;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
@@ -60,8 +62,27 @@ public class RedisConfig implements CachingConfigurer {
     @Value("${spring.data.redis.database:0}")
     private int database;
 
-    @Value("${spring.data.redis.timeout:5000ms}")
+    @Value("${spring.data.redis.timeout:2000ms}")
     private Duration timeout;
+
+    // Connection pool configuration
+    @Value("${spring.data.redis.lettuce.pool.max-active:10}")
+    private int maxActive;
+
+    @Value("${spring.data.redis.lettuce.pool.max-idle:8}")
+    private int maxIdle;
+
+    @Value("${spring.data.redis.lettuce.pool.min-idle:2}")
+    private int minIdle;
+
+    @Value("${spring.data.redis.lettuce.pool.max-wait:-1ms}")
+    private Duration maxWait;
+
+    @Value("${spring.data.redis.lettuce.pool.time-between-eviction-runs:60s}")
+    private Duration timeBetweenEvictionRuns;
+
+    @Value("${spring.data.redis.lettuce.shutdown-timeout:100ms}")
+    private Duration shutdownTimeout;
 
     @Value("${spring.cache.redis.key-prefix:smm:cache:}")
     private String keyPrefix;
@@ -112,7 +133,7 @@ public class RedisConfig implements CachingConfigurer {
         return RedisClient.create(redisUri);
     }
 
-    /** Redis Connection Factory with optimized settings */
+    /** Redis Connection Factory with optimized settings and connection pooling */
     @Bean
     public LettuceConnectionFactory redisConnectionFactory() {
         RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration();
@@ -124,10 +145,22 @@ public class RedisConfig implements CachingConfigurer {
             redisConfig.setPassword(redisPassword);
         }
 
+        // Configure connection pool
+        GenericObjectPoolConfig<?> poolConfig = new GenericObjectPoolConfig<>();
+        poolConfig.setMaxTotal(maxActive);
+        poolConfig.setMaxIdle(maxIdle);
+        poolConfig.setMinIdle(minIdle);
+        poolConfig.setMaxWait(maxWait);
+        poolConfig.setTimeBetweenEvictionRuns(timeBetweenEvictionRuns);
+        poolConfig.setTestOnBorrow(true);
+        poolConfig.setTestWhileIdle(true);
+        poolConfig.setTestOnReturn(false);
+        poolConfig.setBlockWhenExhausted(true);
+
         // Configure Lettuce client options for production
         SocketOptions socketOptions =
                 SocketOptions.builder()
-                        .connectTimeout(timeout != null ? timeout : Duration.ofSeconds(5))
+                        .connectTimeout(timeout != null ? timeout : Duration.ofSeconds(2))
                         .keepAlive(true)
                         .tcpNoDelay(true)
                         .build();
@@ -139,14 +172,25 @@ public class RedisConfig implements CachingConfigurer {
                         .disconnectedBehavior(ClientOptions.DisconnectedBehavior.REJECT_COMMANDS)
                         .build();
 
+        // Build client configuration with connection pooling
         LettuceClientConfiguration clientConfig =
-                LettuceClientConfiguration.builder()
+                LettucePoolingClientConfiguration.builder()
+                        .poolConfig(poolConfig)
                         .clientOptions(clientOptions)
-                        .commandTimeout(timeout != null ? timeout : Duration.ofSeconds(5))
+                        .commandTimeout(timeout != null ? timeout : Duration.ofSeconds(2))
+                        .shutdownTimeout(shutdownTimeout)
                         .build();
 
         LettuceConnectionFactory factory = new LettuceConnectionFactory(redisConfig, clientConfig);
         factory.setValidateConnection(true);
+        factory.setShareNativeConnection(false); // Important for connection pooling
+
+        log.info(
+                "Redis connection factory configured with pool - maxActive: {}, maxIdle: {},"
+                        + " minIdle: {}",
+                maxActive,
+                maxIdle,
+                minIdle);
 
         return factory;
     }

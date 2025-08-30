@@ -19,6 +19,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -52,7 +53,7 @@ public class BinomSyncScheduler {
 
     /** Main synchronization job Runs every N minutes (configurable) */
     @Scheduled(fixedDelayString = "${app.scheduling.binom-sync.interval-minutes:5}000")
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRED)
     public void syncBinomCampaigns() {
         LocalDateTime startTime = LocalDateTime.now();
         Long jobId = createSyncJobRecord("BINOM_SYNC", "RUNNING");

@@ -209,7 +209,7 @@ public class OrderService {
     }
 
     /** CRITICAL: Refill order with API key */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRED)
     public void refillOrderWithApiKey(Long orderId, String apiKey) {
         User user =
                 userRepository
@@ -236,7 +236,7 @@ public class OrderService {
     }
 
     /** CRITICAL: Cancel order with API key */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRED)
     public void cancelOrderWithApiKey(Long orderId, String apiKey) {
         User user =
                 userRepository
@@ -552,7 +552,7 @@ public class OrderService {
      * CRITICAL: Update order progress using campaign data from 3-campaign distribution This method
      * aggregates data from all campaigns and updates order accordingly
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRED)
     public void updateOrderProgressFromCampaigns(Long orderId) {
         try {
             Order order = orderRepository.findById(orderId).orElse(null);
@@ -640,7 +640,7 @@ public class OrderService {
      * CRITICAL: Monitor and update all active orders using 3-campaign distribution data This method
      * should be called periodically to sync order status with campaign performance
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRED)
     public void monitorActiveOrdersFromCampaigns() {
         try {
             List<Order> activeOrders = orderRepository.findByStatus(OrderStatus.ACTIVE);

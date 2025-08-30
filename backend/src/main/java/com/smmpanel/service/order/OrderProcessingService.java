@@ -18,6 +18,7 @@ import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /** PRODUCTION-READY Order Processing Service with complete workflow */
@@ -56,7 +57,7 @@ public class OrderProcessingService {
     }
 
     /** Main order processing workflow */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRED)
     public void processNewOrder(Long orderId) {
         Order order =
                 orderRepository
@@ -112,7 +113,7 @@ public class OrderProcessingService {
     }
 
     /** Pause order processing */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRED)
     public void pauseOrder(Long orderId, String reason) {
         try {
             Order order =
@@ -143,7 +144,7 @@ public class OrderProcessingService {
         }
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRED)
     public void handleClipCreationCompleted(Long videoProcessingId) {
         VideoProcessing videoProcessing = videoProcessingService.getById(videoProcessingId);
         Order order = videoProcessing.getOrder();
@@ -179,7 +180,7 @@ public class OrderProcessingService {
     /**
      * Complete order processing (called after successful video processing and Binom integration)
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRED)
     public void completeOrderProcessing(Long orderId) {
         try {
             Order order =
@@ -255,7 +256,7 @@ public class OrderProcessingService {
     }
 
     /** Handle order processing failure */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleOrderProcessingFailure(Long orderId, Exception error) {
         try {
             Order order = orderRepository.findById(orderId).orElse(null);

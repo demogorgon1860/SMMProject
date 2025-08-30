@@ -6,45 +6,49 @@
                         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
 
     <!-- ========================================== -->
-    <!-- CRITICAL SCHEMA FIXES - January 2025 -->
+    <!-- CONSOLIDATED CRITICAL SCHEMA FIXES - January 2025 -->
+    <!-- This file consolidates all fixes from: -->
+    <!-- - v2025.01-critical-schema-fixes.xml -->
+    <!-- - v2025.01-fix-test-schema.xml -->
+    <!-- - v2025.01-urgent-database-fixes.xml -->
+    <!-- - v2025.01-video-processing-fixes.xml -->
+    <!-- - v2025.01-fix-user-column-name.xml -->
     <!-- ========================================== -->
     
-    <!-- 1. Fix services table missing columns -->
-    <changeSet id="2025.01-1" author="system">
+    <!-- ============ SERVICES TABLE FIXES ============ -->
+    <changeSet id="2025.01-services-1" author="system">
         <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="services" columnName="updated_at"/>
-            </not>
+            <not><columnExists tableName="services" columnName="updated_at"/></not>
         </preConditions>
         <addColumn tableName="services">
             <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
         </addColumn>
     </changeSet>
 
-    <changeSet id="2025.01-2" author="system">
+    <changeSet id="2025.01-services-2" author="system">
         <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="services" columnName="start_count_100"/>
-            </not>
+            <not><columnExists tableName="services" columnName="start_count_100"/></not>
         </preConditions>
         <addColumn tableName="services">
             <column name="start_count_100" type="INTEGER"/>
         </addColumn>
     </changeSet>
 
-    <changeSet id="2025.01-3" author="system">
+    <changeSet id="2025.01-services-3" author="system">
         <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="services" columnName="geo_targeting"/>
-            </not>
+            <not><columnExists tableName="services" columnName="geo_targeting"/></not>
         </preConditions>
         <addColumn tableName="services">
             <column name="geo_targeting" type="VARCHAR(50)" defaultValue="US"/>
         </addColumn>
     </changeSet>
 
-    <!-- Add trigger for services updated_at -->
-    <changeSet id="2025.01-4" author="system">
+    <changeSet id="2025.01-services-trigger" author="system">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                SELECT COUNT(*) FROM pg_proc WHERE proname = 'update_updated_at_column'
+            </sqlCheck>
+        </preConditions>
         <sql>
             DROP TRIGGER IF EXISTS update_services_updated_at ON services;
             CREATE TRIGGER update_services_updated_at BEFORE UPDATE ON services 
@@ -52,26 +56,24 @@
         </sql>
     </changeSet>
 
-    <!-- 2. Fix conversion_coefficients table -->
-    <!-- Drop the broken foreign key constraint first -->
-    <changeSet id="2025.01-5" author="system">
+    <!-- ============ CONVERSION COEFFICIENTS TABLE FIXES ============ -->
+    <changeSet id="2025.01-coefficients-1" author="system">
         <preConditions onFail="MARK_RAN">
             <foreignKeyConstraintExists foreignKeyName="fk_coefficients_updated_by"/>
         </preConditions>
         <dropForeignKeyConstraint baseTableName="conversion_coefficients" constraintName="fk_coefficients_updated_by"/>
     </changeSet>
 
-    <!-- Change updated_by column from BIGINT to VARCHAR(100) -->
-    <changeSet id="2025.01-6" author="system">
+    <changeSet id="2025.01-coefficients-2" author="system">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="conversion_coefficients" columnName="updated_by"/>
+        </preConditions>
         <modifyDataType tableName="conversion_coefficients" columnName="updated_by" newDataType="VARCHAR(100)"/>
     </changeSet>
 
-    <!-- Add coefficient column if missing -->
-    <changeSet id="2025.01-7" author="system">
+    <changeSet id="2025.01-coefficients-3" author="system">
         <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="conversion_coefficients" columnName="coefficient"/>
-            </not>
+            <not><columnExists tableName="conversion_coefficients" columnName="coefficient"/></not>
         </preConditions>
         <addColumn tableName="conversion_coefficients">
             <column name="coefficient" type="DECIMAL(4,2)" defaultValueNumeric="3.0">
@@ -80,12 +82,9 @@
         </addColumn>
     </changeSet>
 
-    <!-- Add created_at column if missing -->
-    <changeSet id="2025.01-8" author="system">
+    <changeSet id="2025.01-coefficients-4" author="system">
         <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="conversion_coefficients" columnName="created_at"/>
-            </not>
+            <not><columnExists tableName="conversion_coefficients" columnName="created_at"/></not>
         </preConditions>
         <addColumn tableName="conversion_coefficients">
             <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
@@ -94,270 +93,423 @@
         </addColumn>
     </changeSet>
 
-    <!-- 3. Fix operator_logs table ip_address column -->
-    <changeSet id="2025.01-9" author="system">
+    <!-- ============ OPERATOR LOGS TABLE FIXES ============ -->
+    <changeSet id="2025.01-operator-logs-1" author="system">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="operator_logs" columnName="ip_address"/>
+        </preConditions>
         <sql>
             -- Convert INET to VARCHAR(255) while preserving data
-            ALTER TABLE operator_logs ALTER COLUMN ip_address TYPE VARCHAR(255) USING ip_address::text;
+            ALTER TABLE operator_logs ADD COLUMN IF NOT EXISTS ip_address_new VARCHAR(255);
+            UPDATE operator_logs SET ip_address_new = CAST(ip_address AS VARCHAR(255)) WHERE ip_address IS NOT NULL;
+            ALTER TABLE operator_logs DROP COLUMN ip_address;
+            ALTER TABLE operator_logs RENAME COLUMN ip_address_new TO ip_address;
         </sql>
     </changeSet>
 
-    <!-- 4. Fix orders table - add missing columns -->
-    <changeSet id="2025.01-10" author="system">
+    <!-- ============ ORDERS TABLE COMPREHENSIVE FIXES ============ -->
+    <changeSet id="2025.01-orders-coefficient" author="system">
         <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="orders" columnName="coefficient"/>
-            </not>
+            <not><columnExists tableName="orders" columnName="coefficient"/></not>
         </preConditions>
         <addColumn tableName="orders">
-            <column name="coefficient" type="DECIMAL(5,2)"/>
+            <column name="coefficient" type="DECIMAL(10,2)" defaultValueNumeric="3.0"/>
         </addColumn>
     </changeSet>
 
-    <changeSet id="2025.01-11" author="system">
+    <changeSet id="2025.01-orders-order-id" author="system">
         <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="orders" columnName="order_id"/>
-            </not>
+            <not><columnExists tableName="orders" columnName="order_id"/></not>
         </preConditions>
         <addColumn tableName="orders">
-            <column name="order_id" type="VARCHAR(50)"/>
+            <column name="order_id" type="VARCHAR(100)"/>
+        </addColumn>
+    </changeSet>
+    
+    <!-- Create unique constraint including partition key -->
+    <changeSet id="2025.01-orders-order-id-unique" author="system">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="orders" columnName="order_id"/>
+            <not>
+                <indexExists indexName="uk_orders_order_id_created_at"/>
+            </not>
+        </preConditions>
+        <sql>
+            -- For partitioned tables, unique constraints must include all partition keys
+            -- We'll use a unique index instead which works across partitions
+            CREATE UNIQUE INDEX uk_orders_order_id_created_at ON orders (order_id, created_at);
+        </sql>
+    </changeSet>
+
+    <changeSet id="2025.01-orders-target-country" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="orders" columnName="target_country"/></not>
+        </preConditions>
+        <addColumn tableName="orders">
+            <column name="target_country" type="VARCHAR(50)"/>
         </addColumn>
     </changeSet>
 
-    <changeSet id="2025.01-12" author="system">
+    <changeSet id="2025.01-orders-target-views" author="system">
         <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="orders" columnName="target_country"/>
-            </not>
-        </preConditions>
-        <addColumn tableName="orders">
-            <column name="target_country" type="VARCHAR(10)"/>
-        </addColumn>
-    </changeSet>
-
-    <changeSet id="2025.01-13" author="system">
-        <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="orders" columnName="target_views"/>
-            </not>
+            <not><columnExists tableName="orders" columnName="target_views"/></not>
         </preConditions>
         <addColumn tableName="orders">
             <column name="target_views" type="INTEGER"/>
         </addColumn>
     </changeSet>
 
-    <!-- 5. Add error recovery columns to orders table -->
-    <changeSet id="2025.01-14" author="system">
+    <changeSet id="2025.01-orders-error-recovery" author="system">
         <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="orders" columnName="retry_count"/>
-            </not>
+            <not><columnExists tableName="orders" columnName="retry_count"/></not>
         </preConditions>
         <addColumn tableName="orders">
             <column name="retry_count" type="INTEGER" defaultValueNumeric="0"/>
-        </addColumn>
-    </changeSet>
-
-    <changeSet id="2025.01-15" author="system">
-        <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="orders" columnName="max_retries"/>
-            </not>
-        </preConditions>
-        <addColumn tableName="orders">
             <column name="max_retries" type="INTEGER" defaultValueNumeric="3"/>
-        </addColumn>
-    </changeSet>
-
-    <changeSet id="2025.01-16" author="system">
-        <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="orders" columnName="last_error_type"/>
-            </not>
-        </preConditions>
-        <addColumn tableName="orders">
             <column name="last_error_type" type="VARCHAR(100)"/>
-        </addColumn>
-    </changeSet>
-
-    <changeSet id="2025.01-17" author="system">
-        <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="orders" columnName="last_retry_at"/>
-            </not>
-        </preConditions>
-        <addColumn tableName="orders">
             <column name="last_retry_at" type="TIMESTAMP WITH TIME ZONE"/>
-        </addColumn>
-    </changeSet>
-
-    <changeSet id="2025.01-18" author="system">
-        <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="orders" columnName="next_retry_at"/>
-            </not>
-        </preConditions>
-        <addColumn tableName="orders">
             <column name="next_retry_at" type="TIMESTAMP WITH TIME ZONE"/>
-        </addColumn>
-    </changeSet>
-
-    <changeSet id="2025.01-19" author="system">
-        <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="orders" columnName="failure_reason"/>
-            </not>
-        </preConditions>
-        <addColumn tableName="orders">
             <column name="failure_reason" type="TEXT"/>
-        </addColumn>
-    </changeSet>
-
-    <changeSet id="2025.01-20" author="system">
-        <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="orders" columnName="error_stack_trace"/>
-            </not>
-        </preConditions>
-        <addColumn tableName="orders">
             <column name="error_stack_trace" type="TEXT"/>
-        </addColumn>
-    </changeSet>
-
-    <changeSet id="2025.01-21" author="system">
-        <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="orders" columnName="failed_phase"/>
-            </not>
-        </preConditions>
-        <addColumn tableName="orders">
             <column name="failed_phase" type="VARCHAR(50)"/>
-        </addColumn>
-    </changeSet>
-
-    <changeSet id="2025.01-22" author="system">
-        <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="orders" columnName="is_manually_failed"/>
-            </not>
-        </preConditions>
-        <addColumn tableName="orders">
             <column name="is_manually_failed" type="BOOLEAN" defaultValueBoolean="false"/>
         </addColumn>
     </changeSet>
 
-    <changeSet id="2025.01-23" author="system">
+    <changeSet id="2025.01-orders-operator-notes" author="system">
         <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="orders" columnName="operator_notes"/>
-            </not>
+            <not><columnExists tableName="orders" columnName="operator_notes"/></not>
         </preConditions>
         <addColumn tableName="orders">
             <column name="operator_notes" type="TEXT"/>
+            <column name="prioritized_by" type="VARCHAR(100)"/>
+            <column name="priority_reason" type="VARCHAR(255)"/>
+            <column name="processing_priority" type="INTEGER" defaultValueNumeric="0"/>
         </addColumn>
     </changeSet>
 
-    <!-- 6. Add version column for optimistic locking -->
-    <changeSet id="2025.01-24" author="system">
+    <changeSet id="2025.01-orders-version" author="system">
         <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="orders" columnName="version"/>
-            </not>
+            <not><columnExists tableName="orders" columnName="version"/></not>
         </preConditions>
         <addColumn tableName="orders">
-            <column name="version" type="BIGINT" defaultValueNumeric="0"/>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
         </addColumn>
     </changeSet>
 
-    <!-- 7. Create unique index for order_id across all partitions -->
-    <changeSet id="2025.01-25" author="system">
+    <changeSet id="2025.01-orders-unique-trigger" author="system">
         <preConditions onFail="MARK_RAN">
-            <columnExists tableName="orders" columnName="order_id"/>
+            <sqlCheck expectedResult="1">
+                SELECT COUNT(*) FROM pg_proc WHERE proname = 'generate_order_id'
+            </sqlCheck>
         </preConditions>
-        <sql splitStatements="false">
-            -- Create a function to ensure order_id uniqueness across partitions
-            CREATE OR REPLACE FUNCTION ensure_order_id_unique()
-            RETURNS TRIGGER AS $$
-            BEGIN
-                IF NEW.order_id IS NOT NULL THEN
-                    IF EXISTS (
-                        SELECT 1 FROM orders 
-                        WHERE order_id = NEW.order_id 
-                        AND (id != NEW.id OR NEW.id IS NULL)
-                    ) THEN
-                        RAISE EXCEPTION 'Duplicate order_id: %', NEW.order_id;
-                    END IF;
-                END IF;
-                RETURN NEW;
-            END;
-            $$ LANGUAGE plpgsql;
-        </sql>
         <sql>
-            -- Create trigger on orders table
-            DROP TRIGGER IF EXISTS check_order_id_unique ON orders;
-            CREATE TRIGGER check_order_id_unique
-                BEFORE INSERT OR UPDATE ON orders
-                FOR EACH ROW
-                EXECUTE FUNCTION ensure_order_id_unique();
+            DROP TRIGGER IF EXISTS set_order_id ON orders;
+            CREATE TRIGGER set_order_id BEFORE INSERT ON orders
+                FOR EACH ROW EXECUTE FUNCTION generate_order_id();
         </sql>
     </changeSet>
 
-    <!-- 8. Create index on order_id for better performance -->
-    <changeSet id="2025.01-26" author="system">
+    <changeSet id="2025.01-orders-index" author="system">
         <preConditions onFail="MARK_RAN">
-            <not>
-                <indexExists indexName="idx_orders_order_id"/>
-            </not>
+            <not><indexExists tableName="orders" indexName="idx_orders_order_id"/></not>
         </preConditions>
-        <createIndex tableName="orders" indexName="idx_orders_order_id" unique="false">
+        <createIndex tableName="orders" indexName="idx_orders_order_id">
             <column name="order_id"/>
         </createIndex>
     </changeSet>
 
-    <!-- 9. Add missing user columns -->
-    <changeSet id="2025.01-27" author="system">
+    <!-- ============ USERS TABLE COMPREHENSIVE FIXES ============ -->
+    <changeSet id="2025.01-users-currency" author="system">
         <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="users" columnName="preferred_currency"/>
-            </not>
+            <not><columnExists tableName="users" columnName="preferred_currency"/></not>
         </preConditions>
         <addColumn tableName="users">
-            <column name="preferred_currency" type="VARCHAR(10)" defaultValue="USD"/>
+            <column name="preferred_currency" type="VARCHAR(3)" defaultValue="USD"/>
         </addColumn>
     </changeSet>
 
-    <changeSet id="2025.01-28" author="system">
+    <changeSet id="2025.01-users-2fa" author="system">
         <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="users" columnName="two_factor_enabled"/>
-            </not>
+            <not><columnExists tableName="users" columnName="two_factor_enabled"/></not>
         </preConditions>
         <addColumn tableName="users">
             <column name="two_factor_enabled" type="BOOLEAN" defaultValueBoolean="false"/>
-        </addColumn>
-    </changeSet>
-
-    <changeSet id="2025.01-29" author="system">
-        <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="users" columnName="two_factor_secret"/>
-            </not>
-        </preConditions>
-        <addColumn tableName="users">
             <column name="two_factor_secret" type="VARCHAR(255)"/>
         </addColumn>
     </changeSet>
 
-    <!-- 10. Create outbox_events table if missing -->
-    <changeSet id="2025.01-30" author="system">
+    <changeSet id="2025.01-users-login-tracking" author="system">
         <preConditions onFail="MARK_RAN">
-            <not>
-                <tableExists tableName="outbox_events"/>
-            </not>
+            <not><columnExists tableName="users" columnName="last_login_at"/></not>
+        </preConditions>
+        <addColumn tableName="users">
+            <column name="last_login_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="2025.01-users-api-tracking" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="users" columnName="last_api_access_at"/></not>
+        </preConditions>
+        <addColumn tableName="users">
+            <column name="last_api_access_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="2025.01-users-api-key-management" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="users" columnName="api_key_hash"/></not>
+        </preConditions>
+        <addColumn tableName="users">
+            <column name="api_key_hash" type="VARCHAR(64)">
+                <constraints unique="true"/>
+            </column>
+            <column name="api_key_salt" type="VARCHAR(64)"/>
+            <column name="api_key_last_rotated" type="TIMESTAMP WITH TIME ZONE"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="2025.01-users-account-locking" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="users" columnName="account_locked"/></not>
+        </preConditions>
+        <addColumn tableName="users">
+            <column name="account_locked" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="locked_until" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="failed_login_attempts" type="INTEGER" defaultValueNumeric="0"/>
+            <column name="failed_attempts" type="INTEGER" defaultValueNumeric="0"/>
+            <column name="lock_time" type="TIMESTAMP WITH TIME ZONE"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="2025.01-users-spending-tracking" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="users" columnName="total_spent"/></not>
+        </preConditions>
+        <addColumn tableName="users">
+            <column name="total_spent" type="DECIMAL(12,2)" defaultValueNumeric="0.00"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="2025.01-users-password-management" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="users" columnName="password_changed_at"/></not>
+        </preConditions>
+        <addColumn tableName="users">
+            <column name="password_changed_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="2025.01-users-version" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="users" columnName="version"/></not>
+        </preConditions>
+        <addColumn tableName="users">
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <!-- ============ VIDEO PROCESSING TABLE COMPREHENSIVE FIXES ============ -->
+    <changeSet id="2025.01-video-processing-status" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="video_processing" columnName="status"/></not>
+        </preConditions>
+        <addColumn tableName="video_processing">
+            <column name="status" type="VARCHAR(50)" defaultValue="PENDING">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="2025.01-video-processing-video-info" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="video_processing" columnName="video_id"/></not>
+        </preConditions>
+        <addColumn tableName="video_processing">
+            <column name="video_id" type="VARCHAR(100)"/>
+        </addColumn>
+    </changeSet>
+    
+    <changeSet id="2025.01-video-processing-video-type" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="video_processing" columnName="video_type"/></not>
+        </preConditions>
+        <addColumn tableName="video_processing">
+            <column name="video_type" type="video_type"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="2025.01-video-processing-attempts" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="video_processing" columnName="processing_attempts"/></not>
+        </preConditions>
+        <addColumn tableName="video_processing">
+            <column name="processing_attempts" type="INTEGER" defaultValueNumeric="0"/>
+            <column name="retry_count" type="INTEGER" defaultValueNumeric="0"/>
+            <column name="max_retries" type="INTEGER" defaultValueNumeric="3"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="2025.01-video-processing-youtube-account" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="video_processing" columnName="youtube_account_id"/></not>
+        </preConditions>
+        <addColumn tableName="video_processing">
+            <column name="youtube_account_id" type="BIGINT"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="2025.01-video-processing-timestamps" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="video_processing" columnName="last_processed_at"/></not>
+        </preConditions>
+        <addColumn tableName="video_processing">
+            <column name="last_processed_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="last_error_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="completed_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="2025.01-video-processing-error-tracking" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not><columnExists tableName="video_processing" columnName="error_message"/></not>
+        </preConditions>
+        <addColumn tableName="video_processing">
+            <column name="error_message" type="TEXT"/>
+            <column name="processing_duration_ms" type="BIGINT"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="2025.01-video-processing-indexes" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not><indexExists tableName="video_processing" indexName="idx_video_processing_status"/></not>
+        </preConditions>
+        <createIndex tableName="video_processing" indexName="idx_video_processing_status">
+            <column name="status"/>
+        </createIndex>
+        <createIndex tableName="video_processing" indexName="idx_video_processing_created_at">
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- ============ BINOM CAMPAIGNS TABLE FIXES ============ -->
+    <changeSet id="2025.01-binom-campaigns-geo" author="system">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="binom_campaigns"/>
+            <not><columnExists tableName="binom_campaigns" columnName="geo_targeting"/></not>
+        </preConditions>
+        <addColumn tableName="binom_campaigns">
+            <column name="geo_targeting" type="VARCHAR(50)"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="2025.01-binom-campaigns-weight" author="system">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="binom_campaigns"/>
+            <not><columnExists tableName="binom_campaigns" columnName="weight"/></not>
+        </preConditions>
+        <addColumn tableName="binom_campaigns">
+            <column name="weight" type="INTEGER" defaultValueNumeric="1"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="2025.01-binom-campaigns-priority" author="system">
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="binom_campaigns"/>
+            <not><columnExists tableName="binom_campaigns" columnName="priority"/></not>
+        </preConditions>
+        <addColumn tableName="binom_campaigns">
+            <column name="priority" type="INTEGER" defaultValueNumeric="0"/>
+        </addColumn>
+    </changeSet>
+
+    <!-- ============ ORDER STATUS ENUM FIXES ============ -->
+    <changeSet id="2025.01-order-status-enum-error" author="system">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM pg_enum 
+                WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'order_status')
+                AND enumlabel = 'ERROR'
+            </sqlCheck>
+        </preConditions>
+        <sql>ALTER TYPE order_status ADD VALUE IF NOT EXISTS 'ERROR' AFTER 'CANCELLED';</sql>
+    </changeSet>
+
+    <changeSet id="2025.01-order-status-enum-suspended" author="system">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM pg_enum 
+                WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'order_status')
+                AND enumlabel = 'SUSPENDED'
+            </sqlCheck>
+        </preConditions>
+        <sql>ALTER TYPE order_status ADD VALUE IF NOT EXISTS 'SUSPENDED' AFTER 'ERROR';</sql>
+    </changeSet>
+
+    <!-- ============ BALANCE TRANSACTIONS TABLE ============ -->
+    <changeSet id="2025.01-balance-transactions-table" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="balance_transactions"/></not>
+        </preConditions>
+        <createTable tableName="balance_transactions">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="amount" type="DECIMAL(12,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="balance_before" type="DECIMAL(12,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="balance_after" type="DECIMAL(12,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="transaction_type" type="transaction_type">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reference_type" type="VARCHAR(50)"/>
+            <column name="reference_id" type="VARCHAR(100)"/>
+            <column name="description" type="TEXT"/>
+            <column name="currency" type="VARCHAR(3)" defaultValue="USD"/>
+            <column name="session_id" type="VARCHAR(100)"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        
+        <addForeignKeyConstraint 
+            baseTableName="balance_transactions" 
+            baseColumnNames="user_id"
+            referencedTableName="users" 
+            referencedColumnNames="id"
+            constraintName="fk_balance_transactions_user_id"/>
+            
+        <createIndex tableName="balance_transactions" indexName="idx_balance_transactions_user_id">
+            <column name="user_id"/>
+        </createIndex>
+        <createIndex tableName="balance_transactions" indexName="idx_balance_transactions_created_at">
+            <column name="created_at"/>
+        </createIndex>
+        <createIndex tableName="balance_transactions" indexName="idx_balance_transactions_type">
+            <column name="transaction_type"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- ============ OUTBOX EVENTS TABLE ============ -->
+    <changeSet id="2025.01-outbox-events-table" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not><tableExists tableName="outbox_events"/></not>
         </preConditions>
         <createTable tableName="outbox_events">
-            <column name="id" type="BIGSERIAL">
+            <column name="id" type="UUID">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
             <column name="aggregate_id" type="VARCHAR(255)">
@@ -372,52 +524,41 @@
             <column name="payload" type="JSONB">
                 <constraints nullable="false"/>
             </column>
-            <column name="processed" type="BOOLEAN" defaultValueBoolean="false"/>
-            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+            <column name="metadata" type="JSONB"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
             <column name="processed_at" type="TIMESTAMP WITH TIME ZONE"/>
         </createTable>
-    </changeSet>
-
-    <!-- 11. Add indexes for outbox_events -->
-    <changeSet id="2025.01-31" author="system">
-        <preConditions onFail="MARK_RAN">
-            <tableExists tableName="outbox_events"/>
-        </preConditions>
-        <createIndex tableName="outbox_events" indexName="idx_outbox_events_unprocessed">
-            <column name="processed"/>
+        
+        <createIndex tableName="outbox_events" indexName="idx_outbox_events_created_at">
             <column name="created_at"/>
+        </createIndex>
+        <createIndex tableName="outbox_events" indexName="idx_outbox_events_processed_at">
+            <column name="processed_at"/>
+        </createIndex>
+        <createIndex tableName="outbox_events" indexName="idx_outbox_events_aggregate">
+            <column name="aggregate_type"/>
+            <column name="aggregate_id"/>
         </createIndex>
     </changeSet>
 
-    <!-- 12. Create partitions for January 2025 if needed -->
-    <changeSet id="2025.01-32" author="system">
-        <sql splitStatements="false">
-            -- Create orders partition for January 2025 if not exists
+    <!-- ============ OUTBOX EVENTS NOTE ============ -->
+    <!-- Note: outbox_events table is not partitioned in current implementation -->
+    <!-- If partitioning is needed in the future, the table would need to be recreated with PARTITION BY clause -->
+
+    <!-- ============ FINAL COMPLETION MARKER ============ -->
+    <changeSet id="2025.01-consolidated-completion-tag" author="system">
+        <tagDatabase tag="v2025.01-consolidated-critical-fixes"/>
+    </changeSet>
+    
+    <changeSet id="2025.01-consolidated-completion-log" author="system">
+        <sql>
+            -- Log the completion of all consolidated critical fixes
             DO $$
             BEGIN
-                IF NOT EXISTS (
-                    SELECT 1 FROM pg_tables 
-                    WHERE tablename = 'orders_2025_01' 
-                    AND schemaname = 'public'
-                ) THEN
-                    CREATE TABLE orders_2025_01 PARTITION OF orders 
-                        FOR VALUES FROM ('2025-01-01') TO ('2025-02-01');
-                END IF;
-            END$$;
-        </sql>
-        <sql splitStatements="false">
-            -- Create operator_logs partition for January 2025 if not exists
-            DO $$
-            BEGIN
-                IF NOT EXISTS (
-                    SELECT 1 FROM pg_tables 
-                    WHERE tablename = 'operator_logs_2025_01' 
-                    AND schemaname = 'public'
-                ) THEN
-                    CREATE TABLE operator_logs_2025_01 PARTITION OF operator_logs 
-                        FOR VALUES FROM ('2025-01-01') TO ('2025-02-01');
-                END IF;
-            END$$;
+                RAISE NOTICE 'Consolidated critical schema fixes for January 2025 completed successfully';
+            END $$;
         </sql>
     </changeSet>
 

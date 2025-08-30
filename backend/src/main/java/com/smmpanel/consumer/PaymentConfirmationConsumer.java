@@ -1,7 +1,20 @@
 package com.smmpanel.consumer;
 
 import com.smmpanel.dto.payment.PaymentConfirmationDto;
+import com.smmpanel.entity.BalanceDeposit;
+import com.smmpanel.entity.Order;
+import com.smmpanel.entity.OrderStatus;
+import com.smmpanel.entity.PaymentStatus;
+import com.smmpanel.entity.User;
+import com.smmpanel.repository.jpa.BalanceDepositRepository;
+import com.smmpanel.repository.jpa.OrderRepository;
+import com.smmpanel.repository.jpa.UserRepository;
+import com.smmpanel.service.BalanceService;
+import com.smmpanel.service.NotificationService;
+import com.smmpanel.service.OrderService;
 import com.smmpanel.service.kafka.MessageDeduplicationService;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -10,6 +23,7 @@ import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -23,8 +37,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class PaymentConfirmationConsumer {
 
     private final MessageDeduplicationService deduplicationService;
-
-    // Add payment processing services as needed
+    private final BalanceService balanceService;
+    private final OrderService orderService;
+    private final NotificationService notificationService;
+    private final UserRepository userRepository;
+    private final OrderRepository orderRepository;
+    private final BalanceDepositRepository balanceDepositRepository;
 
     /**
      * Process payment confirmations in real-time Prioritizes latency over throughput for immediate
@@ -34,7 +52,7 @@ public class PaymentConfirmationConsumer {
             topics = "smm.payment.confirmations",
             groupId = "smm-payment-confirmations-realtime-group",
             containerFactory = "paymentConfirmationContainerFactory")
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void processPaymentConfirmation(
             @Payload PaymentConfirmationDto confirmation,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
@@ -100,7 +118,7 @@ public class PaymentConfirmationConsumer {
             topics = "smm.payment.webhooks",
             groupId = "smm-payment-webhooks-group",
             containerFactory = "paymentConfirmationContainerFactory")
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void processPaymentWebhook(
             @Payload java.util.Map<String, Object> webhookData,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
@@ -152,7 +170,7 @@ public class PaymentConfirmationConsumer {
             topics = "smm.payment.refunds",
             groupId = "smm-payment-refunds-group",
             containerFactory = "paymentConfirmationContainerFactory")
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void processPaymentRefund(
             @Payload java.util.Map<String, Object> refundData,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
@@ -205,51 +223,195 @@ public class PaymentConfirmationConsumer {
 
     /** Internal method to process payment confirmation */
     private void processPaymentConfirmationInternal(PaymentConfirmationDto confirmation) {
-        // Implementation would include:
-        // 1. Update user balance
-        // 2. Update order status if related to order
-        // 3. Send confirmation notification
-        // 4. Log transaction for audit
-        // 5. Update payment status in database
-
         log.debug(
                 "Processing payment confirmation internally: transactionId={}",
                 confirmation.getTransactionId());
 
-        // TODO: Implement actual payment processing logic
-        // This is where you would integrate with:
-        // - BalanceService to update user balance
-        // - OrderService to update order payment status
-        // - NotificationService to send confirmation
-        // - AuditService to log transaction
+        // 1. Find the balance deposit by transaction ID
+        BalanceDeposit deposit =
+                balanceDepositRepository
+                        .findByPaymentId(confirmation.getTransactionId())
+                        .orElse(null);
+
+        if (deposit == null) {
+            log.warn("No deposit found for transaction ID: {}", confirmation.getTransactionId());
+            return;
+        }
+
+        // 2. Check if already processed
+        if (deposit.getStatus() == PaymentStatus.COMPLETED) {
+            log.info(
+                    "Payment already processed for transaction: {}",
+                    confirmation.getTransactionId());
+            return;
+        }
+
+        // 3. Get the user
+        User user = deposit.getUser();
+        if (user == null) {
+            log.error("User not found for deposit: {}", deposit.getId());
+            return;
+        }
+
+        // 4. Update user balance
+        BigDecimal amount = confirmation.getAmount();
+        balanceService.addToBalance(
+                user,
+                amount,
+                String.format(
+                        "Deposit confirmed - Transaction: %s", confirmation.getTransactionId()));
+
+        // 5. Update deposit status
+        deposit.setStatus(PaymentStatus.COMPLETED);
+        deposit.setConfirmedAt(LocalDateTime.now());
+        deposit.setConfirmedAmount(amount);
+        balanceDepositRepository.save(deposit);
+
+        // 6. If this deposit is related to an order, update order status
+        if (confirmation.getOrderId() != null) {
+            updateOrderStatusOnPayment(confirmation.getOrderId().toString(), confirmation);
+        }
+
+        // 7. Send confirmation notification
+        notificationService.sendPaymentConfirmation(
+                user, confirmation.getTransactionId(), amount, confirmation.getCurrency());
+
+        // 8. Log success
+        log.info(
+                "Successfully processed payment confirmation for user {} with amount {} {}",
+                user.getUsername(),
+                amount,
+                confirmation.getCurrency());
+    }
+
+    /** Helper method to update order status on payment confirmation */
+    private void updateOrderStatusOnPayment(String orderId, PaymentConfirmationDto confirmation) {
+        try {
+            Long orderIdLong = Long.parseLong(orderId);
+            Order order = orderRepository.findById(orderIdLong).orElse(null);
+
+            if (order == null) {
+                log.warn("Order not found for ID: {}", orderId);
+                return;
+            }
+
+            // Update order status if it's in PENDING state
+            if (order.getStatus() == OrderStatus.PENDING) {
+                order.setStatus(OrderStatus.ACTIVE);
+                order.setUpdatedAt(LocalDateTime.now());
+                orderRepository.save(order);
+
+                log.info("Order {} status updated to ACTIVE after payment confirmation", orderId);
+            }
+        } catch (NumberFormatException e) {
+            log.error("Invalid order ID format: {}", orderId);
+        } catch (Exception e) {
+            log.error("Error updating order status for order {}: {}", orderId, e.getMessage());
+        }
     }
 
     /** Internal method to process payment webhook */
     private void processPaymentWebhookInternal(java.util.Map<String, Object> webhookData) {
-        // Implementation would include:
-        // 1. Validate webhook signature
-        // 2. Parse webhook data
-        // 3. Update payment status
-        // 4. Trigger appropriate business logic
-
         log.debug(
                 "Processing payment webhook internally: webhookId={}",
                 webhookData.get("webhookId"));
 
-        // TODO: Implement webhook processing logic
+        // Extract key data from webhook
+        String transactionId = (String) webhookData.get("payment_id");
+        String status = (String) webhookData.get("status");
+        BigDecimal amount = new BigDecimal(webhookData.get("amount").toString());
+        String currency = (String) webhookData.get("currency");
+        String orderId = (String) webhookData.get("order_id");
+
+        // Create a PaymentConfirmationDto from webhook data
+        PaymentConfirmationDto confirmation =
+                PaymentConfirmationDto.builder()
+                        .transactionId(transactionId)
+                        .amount(amount)
+                        .currency(currency)
+                        .orderId(orderId != null ? Long.parseLong(orderId) : null)
+                        .status(status)
+                        .paymentMethod((String) webhookData.get("payment_method"))
+                        .confirmedAt(LocalDateTime.now())
+                        .build();
+
+        // Process based on status
+        if ("paid".equalsIgnoreCase(status) || "completed".equalsIgnoreCase(status)) {
+            // Process successful payment
+            processPaymentConfirmationInternal(confirmation);
+        } else if ("cancelled".equalsIgnoreCase(status) || "failed".equalsIgnoreCase(status)) {
+            // Handle failed payment
+            handleFailedPayment(transactionId, status);
+        }
+    }
+
+    /** Handle failed payment */
+    private void handleFailedPayment(String transactionId, String status) {
+        BalanceDeposit deposit =
+                balanceDepositRepository.findByPaymentId(transactionId).orElse(null);
+
+        if (deposit != null) {
+            deposit.setStatus(PaymentStatus.FAILED);
+            deposit.setFailedAt(LocalDateTime.now());
+            balanceDepositRepository.save(deposit);
+
+            log.info(
+                    "Payment marked as failed for transaction: {} with status: {}",
+                    transactionId,
+                    status);
+        }
     }
 
     /** Internal method to process payment refund */
     private void processPaymentRefundInternal(java.util.Map<String, Object> refundData) {
-        // Implementation would include:
-        // 1. Validate refund request
-        // 2. Update user balance (subtract refunded amount)
-        // 3. Update order status to refunded
-        // 4. Send refund notification
-        // 5. Log refund for audit
-
         log.debug("Processing payment refund internally: refundId={}", refundData.get("refundId"));
 
-        // TODO: Implement refund processing logic
+        String transactionId = (String) refundData.get("transaction_id");
+        String orderId = (String) refundData.get("order_id");
+        BigDecimal refundAmount = new BigDecimal(refundData.get("amount").toString());
+        String reason = (String) refundData.getOrDefault("reason", "Refund requested");
+
+        // 1. Find the original deposit
+        BalanceDeposit deposit =
+                balanceDepositRepository.findByPaymentId(transactionId).orElse(null);
+
+        if (deposit == null) {
+            log.warn("No deposit found for refund transaction ID: {}", transactionId);
+            return;
+        }
+
+        User user = deposit.getUser();
+
+        // 2. Process refund amount
+        balanceService.refund(user, refundAmount, null, reason);
+
+        // 3. Update deposit status
+        deposit.setStatus(PaymentStatus.REFUNDED);
+        deposit.setRefundedAt(LocalDateTime.now());
+        deposit.setRefundAmount(refundAmount);
+        balanceDepositRepository.save(deposit);
+
+        // 4. Update order status if applicable
+        if (orderId != null) {
+            try {
+                Long orderIdLong = Long.parseLong(orderId);
+                Order order = orderRepository.findById(orderIdLong).orElse(null);
+                if (order != null) {
+                    order.setStatus(OrderStatus.CANCELLED);
+                    order.setUpdatedAt(LocalDateTime.now());
+                    orderRepository.save(order);
+                }
+            } catch (Exception e) {
+                log.error("Error updating order status for refund: {}", e.getMessage());
+            }
+        }
+
+        // 5. Send refund notification
+        notificationService.sendRefundNotification(user, transactionId, refundAmount, reason);
+
+        log.info(
+                "Successfully processed refund for user {} with amount {}",
+                user.getUsername(),
+                refundAmount);
     }
 }

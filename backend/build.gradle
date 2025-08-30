@@ -13,8 +13,14 @@ apply from: 'gradle/performance-testing.gradle'
 
 group = 'com.smmpanel'
 version = '1.0.0'
-sourceCompatibility = '17'
-targetCompatibility = '17'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+    sourceCompatibility = '17'
+    targetCompatibility = '17'
+}
 
 configurations {
     compileOnly {
@@ -34,6 +40,13 @@ repositories {
     maven { 
         url = uri('https://repo.spring.io/milestone')
         name = 'SpringMilestone'
+    }
+}
+
+// Dependency management for TestContainers
+dependencyManagement {
+    imports {
+        mavenBom "org.testcontainers:testcontainers-bom:1.19.3"
     }
 }
 
@@ -59,7 +72,6 @@ dependencies {
     
     // Kafka
     implementation 'org.springframework.kafka:spring-kafka'
-    testImplementation 'org.springframework.kafka:spring-kafka-test'
     
     // Redis - Using Lettuce client (better performance, non-blocking I/O)
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
@@ -155,16 +167,25 @@ dependencies {
     // Development tools
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     
-    // Testing - add these lines
+    // Testing dependencies - Compatible with Spring Boot 3.1.7
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation 'org.springframework.kafka:spring-kafka-test'
+    
+    // TestContainers - version 1.19.3 is compatible with Spring Boot 3.1.7
     testImplementation 'org.testcontainers:junit-jupiter:1.19.3'
     testImplementation 'org.testcontainers:testcontainers:1.19.3'
     testImplementation 'org.testcontainers:postgresql:1.19.3'
     testImplementation 'org.testcontainers:kafka:1.19.3'
+    
+    // JUnit Platform (JUnit 5)
     testImplementation 'org.junit.platform:junit-platform-suite:1.10.1'
     testImplementation 'org.junit.platform:junit-platform-suite-api:1.10.1'
+    
+    // Mocking framework
     testImplementation 'org.mockito:mockito-core:5.7.0'
+    
+    // In-memory database for tests
     testImplementation 'com.h2database:h2:2.2.224'
     
     // H2 for development/test profiles
@@ -183,10 +204,17 @@ compileTestJava {
 // Configure test task for Gradle 9.0 compatibility
 test {
     useJUnitPlatform()
+    
+    // Configure JVM memory to prevent OutOfMemoryError
+    maxHeapSize = '2048m'
+    jvmArgs '-Xmx2048m', '-XX:MaxMetaspaceSize=512m'
+    
+    // Test logging configuration
     testLogging {
         events "passed", "skipped", "failed"
         exceptionFormat "full"
     }
+    
     finalizedBy jacocoTestReport
 }
 

@@ -6,79 +6,9 @@
                         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
 
     <!-- ========================================== -->
-    <!-- FIX TEST SCHEMA ISSUES - January 2025 -->
+    <!-- TEST SCHEMA FIXES - January 2025 -->
     <!-- ========================================== -->
+    <!-- NOTE: All changesets in this file have been consolidated into v2025.01-critical-schema-fixes.xml -->
+    <!-- This file is kept for reference only and contains no active changesets. -->
     
-    <!-- 1. Add geo_targeting column to fixed_binom_campaigns -->
-    <changeSet id="2025.01-test-1" author="system">
-        <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="fixed_binom_campaigns" columnName="geo_targeting"/>
-            </not>
-        </preConditions>
-        <addColumn tableName="fixed_binom_campaigns">
-            <column name="geo_targeting" type="VARCHAR(255)"/>
-        </addColumn>
-    </changeSet>
-
-    <!-- 2. Add weight column to fixed_binom_campaigns if missing -->
-    <changeSet id="2025.01-test-2" author="system">
-        <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="fixed_binom_campaigns" columnName="weight"/>
-            </not>
-        </preConditions>
-        <addColumn tableName="fixed_binom_campaigns">
-            <column name="weight" type="INTEGER" defaultValueNumeric="100"/>
-        </addColumn>
-    </changeSet>
-
-    <!-- 3. Add priority column to fixed_binom_campaigns if missing -->
-    <changeSet id="2025.01-test-3" author="system">
-        <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="fixed_binom_campaigns" columnName="priority"/>
-            </not>
-        </preConditions>
-        <addColumn tableName="fixed_binom_campaigns">
-            <column name="priority" type="INTEGER" defaultValueNumeric="1"/>
-        </addColumn>
-    </changeSet>
-
-    <!-- 4. Add account_locked column to users table -->
-    <changeSet id="2025.01-test-4" author="system">
-        <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="users" columnName="account_locked"/>
-            </not>
-        </preConditions>
-        <addColumn tableName="users">
-            <column name="account_locked" type="BOOLEAN" defaultValueBoolean="false"/>
-        </addColumn>
-    </changeSet>
-
-    <!-- 5. Add locked_until column to users table -->
-    <changeSet id="2025.01-test-5" author="system">
-        <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="users" columnName="locked_until"/>
-            </not>
-        </preConditions>
-        <addColumn tableName="users">
-            <column name="locked_until" type="TIMESTAMP WITH TIME ZONE"/>
-        </addColumn>
-    </changeSet>
-
-    <!-- 6. Add failed_login_attempts column to users table -->
-    <changeSet id="2025.01-test-6" author="system">
-        <preConditions onFail="MARK_RAN">
-            <not>
-                <columnExists tableName="users" columnName="failed_login_attempts"/>
-            </not>
-        </preConditions>
-        <addColumn tableName="users">
-            <column name="failed_login_attempts" type="INTEGER" defaultValueNumeric="0"/>
-        </addColumn>
-    </changeSet>
-
 </databaseChangeLog>

@@ -389,4 +389,77 @@ public class NotificationService {
                 reason,
                 java.time.LocalDateTime.now().format(DATE_FORMATTER));
     }
+
+    /** Send payment confirmation notification */
+    @Async("asyncExecutor")
+    public void sendPaymentConfirmation(
+            User user, String transactionId, BigDecimal amount, String currency) {
+        try {
+            String subject = "Payment Confirmed - Transaction #" + transactionId;
+            String message = buildPaymentConfirmationMessage(transactionId, amount, currency);
+            sendEmailNotification(user, subject, message);
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("userId", user.getId());
+            data.put("transactionId", transactionId);
+            data.put("amount", amount);
+            data.put("currency", currency);
+            sendKafkaNotification("payment.confirmed", user.getId(), data);
+
+            log.info(
+                    "Payment confirmation sent to user {} for transaction {}",
+                    user.getUsername(),
+                    transactionId);
+        } catch (Exception e) {
+            log.error("Failed to send payment confirmation: {}", e.getMessage());
+        }
+    }
+
+    /** Send refund notification */
+    @Async("asyncExecutor")
+    public void sendRefundNotification(
+            User user, String transactionId, BigDecimal amount, String reason) {
+        try {
+            String subject = "Payment Refunded - Transaction #" + transactionId;
+            String message = buildRefundMessage(transactionId, amount, reason);
+            sendEmailNotification(user, subject, message);
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("userId", user.getId());
+            data.put("transactionId", transactionId);
+            data.put("amount", amount);
+            data.put("reason", reason);
+            sendKafkaNotification("payment.refunded", user.getId(), data);
+
+            log.info(
+                    "Refund notification sent to user {} for transaction {}",
+                    user.getUsername(),
+                    transactionId);
+        } catch (Exception e) {
+            log.error("Failed to send refund notification: {}", e.getMessage());
+        }
+    }
+
+    private String buildPaymentConfirmationMessage(
+            String transactionId, BigDecimal amount, String currency) {
+        return String.format(
+                "Your payment has been confirmed successfully.\n\n"
+                        + "Transaction ID: %s\n"
+                        + "Amount: %.2f %s\n"
+                        + "Status: Confirmed\n\n"
+                        + "Your account balance has been updated.\n"
+                        + "Thank you for your payment!",
+                transactionId, amount, currency != null ? currency : "USDT");
+    }
+
+    private String buildRefundMessage(String transactionId, BigDecimal amount, String reason) {
+        return String.format(
+                "Your payment has been refunded.\n\n"
+                        + "Transaction ID: %s\n"
+                        + "Refund Amount: %.2f USDT\n"
+                        + "Reason: %s\n\n"
+                        + "The refund will be processed within 3-5 business days.\n"
+                        + "If you have any questions, please contact support.",
+                transactionId, amount, reason);
+    }
 }

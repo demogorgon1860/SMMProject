@@ -2,6 +2,7 @@ package com.smmpanel.config;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import java.time.Duration;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
@@ -22,8 +23,7 @@ public class RedisProperties {
     @Min(0)
     private int database = 0;
 
-    @Min(1)
-    private int timeout = 5000;
+    private Duration timeout = Duration.ofMillis(5000);
 
     private Jedis jedis = new Jedis();
     private Cache cache = new Cache();

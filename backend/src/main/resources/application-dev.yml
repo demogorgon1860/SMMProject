@@ -22,9 +22,13 @@ spring:
     timeout: 2000ms
     lettuce:
       pool:
-        max-active: 8
+        enabled: true
+        max-active: 10
         max-idle: 8
-        min-idle: 0
+        min-idle: 2
+        max-wait: 2000ms
+        time-between-eviction-runs: 60s
+      shutdown-timeout: 100ms
   
   # Kafka configuration for local development
   kafka:
@@ -33,9 +37,12 @@ spring:
       group-id: smm-panel-dev-group
       auto-offset-reset: earliest
       enable-auto-commit: false
+      max-poll-records: 50  # Reduced to prevent thread exhaustion
     producer:
       retries: 1  # Reduced for dev
       batch-size: 16384
+    listener:
+      concurrency: 3  # Limited concurrency to reduce thread count
   
   # Liquibase settings for development
   liquibase:
@@ -54,6 +61,9 @@ spring:
         format_sql: true  # Format SQL for readability
         use_sql_comments: true
         generate_statistics: false  # Set to true for performance debugging
+        default_batch_fetch_size: 20  # Prevent N+1 queries
+        jdbc:
+          batch_size: 25  # Batch inserts/updates
   
   # H2 Console (if needed for testing)
   h2:
@@ -115,16 +125,33 @@ management:
     web:
       exposure:
         include: "*"  # Expose all endpoints in dev
+      base-path: /actuator
   endpoint:
     health:
       show-details: always
-      # show-components property is not available in Spring Boot 3.x
+      show-components: always
+      probes:
+        enabled: true
+    metrics:
+      enabled: true
+    info:
+      enabled: true
+  metrics:
+    enable:
+      all: true  # Enable all metrics in dev
+    distribution:
+      percentiles-histogram:
+        all: true  # Track all percentiles in dev
   health:
     redis:
       enabled: true
     db:
       enabled: true
     kafka:
+      enabled: true
+    livenessstate:
+      enabled: true
+    readinessstate:
       enabled: true
 
 # Logging configuration for development

@@ -652,5 +652,8 @@
     
     <!-- Include fix for user column name mismatch -->
     <include file="db/changelog/changes/v2025.01-fix-user-column-name.xml"/>
+    
+    <!-- Include fix for email_verified column -->
+    <include file="db/changelog/changes/v2025.01-add-email-verified-column.xml"/>
 
 </databaseChangeLog>

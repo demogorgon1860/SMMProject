@@ -165,7 +165,7 @@ public class YouTubeProcessingService {
 
     /** LEGACY COMPATIBILITY: Process order from event (YouTubeOrderProcessor compatibility) */
     @Async
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRED)
     public void processOrderFromEvent(Long orderId, Long userId) {
         try {
             log.info("Processing YouTube order from event: orderId={}, userId={}", orderId, userId);
@@ -595,7 +595,7 @@ public class YouTubeProcessingService {
     // ========================================
 
     /** Create video processing (VideoProcessingService compatibility) */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRED)
     public VideoProcessing createVideoProcessing(Order order) {
         try {
             log.info("Creating video processing for order: {}", order.getId());
@@ -634,7 +634,7 @@ public class YouTubeProcessingService {
 
     /** Process video asynchronously (VideoProcessingService compatibility) */
     @Async("asyncExecutor")
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     @Retryable(
             value = {Exception.class},
             maxAttempts = 3,

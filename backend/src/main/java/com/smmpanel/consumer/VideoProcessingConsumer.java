@@ -64,28 +64,30 @@ public class VideoProcessingConsumer {
     }
 
     /** Handle order state updates */
-    @KafkaListener(
-            topics = "smm.order.state.updates",
-            groupId = "order-state-group",
-            containerFactory = "kafkaListenerContainerFactory")
-    public void handleOrderStateUpdate(
-            @Payload String message,
-            @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
-            Acknowledgment acknowledgment) {
-
-        try {
-            log.debug("Received order state update: {} from topic: {}", message, topic);
-
-            // Parse message and handle state update
-            // This is for future state management if needed
-
-            acknowledgment.acknowledge();
-
-        } catch (Exception e) {
-            log.error("Failed to process order state update: {}", e.getMessage(), e);
-            throw e;
-        }
-    }
+    // COMMENTED OUT: Duplicate listener - OrderEventConsumer already handles this topic
+    // Keeping OrderEventConsumer.processOrderStatusChangedEvent() as it has more complete logic
+    // @KafkaListener(
+    //         topics = "smm.order.state.updates",
+    //         groupId = "order-state-group",
+    //         containerFactory = "kafkaListenerContainerFactory")
+    // public void handleOrderStateUpdate(
+    //         @Payload String message,
+    //         @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
+    //         Acknowledgment acknowledgment) {
+    //
+    //     try {
+    //         log.debug("Received order state update: {} from topic: {}", message, topic);
+    //
+    //         // Parse message and handle state update
+    //         // This is for future state management if needed
+    //
+    //         acknowledgment.acknowledge();
+    //
+    //     } catch (Exception e) {
+    //         log.error("Failed to process order state update: {}", e.getMessage(), e);
+    //         throw e;
+    //     }
+    // }
 
     /** Handle notification events */
     @KafkaListener(

@@ -2,7 +2,6 @@ package com.smmpanel.entity;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
-import java.sql.Types;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -12,7 +11,6 @@ import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -88,7 +86,6 @@ public class User implements UserDetails {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, columnDefinition = "user_role")
-    @JdbcTypeCode(Types.OTHER)
     @Builder.Default
     private UserRole role = UserRole.USER;
 

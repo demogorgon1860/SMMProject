@@ -6,10 +6,12 @@ import java.math.BigDecimal;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
@@ -22,8 +24,20 @@ public class StartupService implements ApplicationRunner {
     private final ConversionCoefficientRepository coefficientRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @Value("${ADMIN_USERNAME:admin}")
+    private String adminUsername;
+
+    @Value("${ADMIN_EMAIL:admin@smmpanel.local}")
+    private String adminEmail;
+
+    @Value("${ADMIN_PASSWORD:admin123}")
+    private String adminPassword;
+
+    @Value("${ADMIN_INITIAL_BALANCE:1000}")
+    private BigDecimal adminInitialBalance;
+
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRED)
     public void run(ApplicationArguments args) {
         log.info("Starting application initialization...");
 
@@ -37,16 +51,18 @@ public class StartupService implements ApplicationRunner {
     private void createDefaultAdmin() {
         if (userRepository.findByRole(UserRole.ADMIN).isEmpty()) {
             User admin = new User();
-            admin.setUsername("admin");
-            admin.setEmail("admin@smmpanel.local");
-            admin.setPasswordHash(passwordEncoder.encode("admin123"));
+            admin.setUsername(adminUsername);
+            admin.setEmail(adminEmail);
+            admin.setPasswordHash(passwordEncoder.encode(adminPassword));
             admin.setRole(UserRole.ADMIN);
-            admin.setBalance(BigDecimal.valueOf(1000)); // Starting balance
+            admin.setBalance(adminInitialBalance);
             admin.setApiKey("sk_admin_" + UUID.randomUUID().toString().replace("-", ""));
             admin.setActive(true);
 
             userRepository.save(admin);
-            log.info("Created default admin user: admin / admin123");
+            log.info(
+                    "Created default admin user: {} (password configured via environment)",
+                    adminUsername);
         }
     }
 

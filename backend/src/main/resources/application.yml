@@ -111,7 +111,7 @@ spring:
         # ===============================
         # HIBERNATE STATISTICS CONFIGURATION
         # ===============================
-        generate_statistics: ${HIBERNATE_STATISTICS:true}
+        generate_statistics: ${HIBERNATE_STATISTICS:false}  # Disabled to reduce logs
         
         # ===============================
         # JDBC BATCH CONFIGURATION
@@ -129,7 +129,7 @@ spring:
         # ===============================
         order_inserts: true
         order_updates: true
-        default_batch_fetch_size: ${HIBERNATE_DEFAULT_BATCH_FETCH_SIZE:16}
+        default_batch_fetch_size: ${HIBERNATE_DEFAULT_BATCH_FETCH_SIZE:20}
         max_fetch_depth: 3
         enable_lazy_load_no_trans: false
         
@@ -187,21 +187,21 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
       database: 0
-      timeout: 5000
-      # Using Lettuce client instead of Jedis for better performance
+      timeout: 2000ms
+      # Using Lettuce client with optimized connection pooling
       lettuce:
         pool:
           enabled: true
-          max-active: 50
-          max-idle: 20
-          min-idle: 5
+          max-active: 10
+          max-idle: 8
+          min-idle: 2
           max-wait: 2000ms
-          time-between-eviction-runs: 30s
+          time-between-eviction-runs: 60s
         cluster:
           refresh:
             adaptive: true
             period: 30s
-        shutdown-timeout: 2000ms
+        shutdown-timeout: 100ms
   cache:
     type: redis
     redis:
@@ -248,7 +248,7 @@ spring:
       auto-offset-reset: earliest
       enable-auto-commit: false
       isolation-level: read-committed
-      max-poll-records: 500
+      max-poll-records: 50
       fetch-min-bytes: 1
       fetch-max-wait-ms: 500
       session-timeout-ms: 30000
@@ -269,9 +269,10 @@ spring:
         spring.json.use.type.headers: false
         spring.json.value.default.type: java.util.Map
     listener:
-      concurrency: 1
+      concurrency: 1  # Reduced from 3 to prevent thread exhaustion
       type: batch
       poll-timeout: 3000
+      ack-mode: batch  # Batch acknowledgment for better performance
     retry-topic:
       attempts: 3
       delay: 1000
@@ -305,13 +306,13 @@ spring:
   task:
     execution:
       pool:
-        core-size: 8
-        max-size: 20
+        core-size: 20  # Increased from 8 to handle Kafka listeners
+        max-size: 50   # Increased from 20 to handle peak load
         queue-capacity: 1000
       thread-name-prefix: sms-async-
     scheduling:
       pool:
-        size: 5
+        size: 10  # Increased from 5
       thread-name-prefix: sms-scheduled-
 
 # ===============================
@@ -716,29 +717,48 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus,loggers,kafka
+        include: health,info,metrics,prometheus,loggers,kafka,env,threaddump,heapdump
       base-path: /actuator
+    jmx:
+      exposure:
+        include: "*"
   endpoint:
     health:
       show-details: when-authorized
-      # show-components property is not available in Spring Boot 3.x
+      probes:
+        enabled: true
+    metrics:
+      enabled: true
+    info:
+      enabled: true
     kafka:
       enabled: true
   prometheus:
     metrics:
       export:
         enabled: true
+  metrics:
+    enable:
+      jvm: true
+      process: true
+      system: true
+      tomcat: true
+      kafka: true
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        payment.processing.time: true
   health:
     livenessstate:
-      enabled: "true"
+      enabled: true
     readinessstate:
-      enabled: "true"
-    db:
-      enabled: "true"
+      enabled: true
     redis:
-      enabled: "true"
+      enabled: true
+    db:
+      enabled: true
     kafka:
-      enabled: "true"
+      enabled: true
 
 # ===============================
 # APPLICATION INFO

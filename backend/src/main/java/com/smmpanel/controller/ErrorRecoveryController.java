@@ -1,13 +1,13 @@
 package com.smmpanel.controller;
 
+import com.smmpanel.dto.result.DeadLetterQueueStats;
+import com.smmpanel.dto.result.DlqOperationResult;
+import com.smmpanel.dto.result.ErrorRecoveryStats;
+import com.smmpanel.dto.result.ManualRetryResult;
 import com.smmpanel.entity.Order;
 import com.smmpanel.repository.jpa.OrderRepository;
-import com.smmpanel.service.DeadLetterQueueService;
-import com.smmpanel.service.DeadLetterQueueStats;
-import com.smmpanel.service.DlqOperationResult;
-import com.smmpanel.service.ErrorRecoveryService;
-import com.smmpanel.service.ErrorRecoveryStats;
-import com.smmpanel.service.ManualRetryResult;
+import com.smmpanel.service.kafka.DeadLetterQueueService;
+import com.smmpanel.service.kafka.ErrorRecoveryService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;

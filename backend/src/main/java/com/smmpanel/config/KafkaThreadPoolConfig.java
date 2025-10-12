@@ -13,7 +13,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
  * configuration provides separate thread pools for different types of Kafka processing.
  */
 @Slf4j
-@Configuration
+@Configuration("kafkaThreadPoolConfig")
 public class KafkaThreadPoolConfig {
 
     /**
@@ -26,10 +26,11 @@ public class KafkaThreadPoolConfig {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
 
         // Core threads = (number of topics * concurrency per topic) + buffer
-        // We have approximately 20 topics with concurrency of 1-3 each
-        executor.setCorePoolSize(100); // Sufficient for all consumers
-        executor.setMaxPoolSize(200); // Can scale up during peak load
-        executor.setQueueCapacity(1000); // Large queue for message buffering
+        // With increased concurrency: ~15 consumers * avg 8 concurrency = ~120 threads
+        // Adding generous buffer for startup and DLQ processing
+        executor.setCorePoolSize(50); // OPTIMIZED: Realistic for Windows/WSL2
+        executor.setMaxPoolSize(100); // OPTIMIZED: Realistic for Windows/WSL2
+        executor.setQueueCapacity(500); // OPTIMIZED: Realistic queue size
         executor.setThreadNamePrefix("kafka-listener-");
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(60);

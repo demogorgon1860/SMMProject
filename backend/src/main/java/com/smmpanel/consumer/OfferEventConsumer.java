@@ -3,15 +3,16 @@ package com.smmpanel.consumer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smmpanel.dto.binom.OfferAssignmentRequest;
-import com.smmpanel.service.OfferAssignmentService;
+import com.smmpanel.service.integration.BinomService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.annotation.RetryableTopic;
+import org.springframework.kafka.retrytopic.TopicSuffixingStrategy;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 
 /** Consumer for offer assignment events */
@@ -20,24 +21,27 @@ import org.springframework.stereotype.Component;
 // Removed Lombok constructor to use explicit constructor with @Qualifier
 public class OfferEventConsumer {
 
-    private final OfferAssignmentService offerAssignmentService;
+    private final BinomService binomService;
     private final ObjectMapper objectMapper;
 
     public OfferEventConsumer(
-            OfferAssignmentService offerAssignmentService,
+            BinomService binomService,
             @org.springframework.beans.factory.annotation.Qualifier("redisObjectMapper") ObjectMapper objectMapper) {
-        this.offerAssignmentService = offerAssignmentService;
+        this.binomService = binomService;
         this.objectMapper = objectMapper;
     }
 
+    @RetryableTopic(
+            attempts = "3",
+            backoff = @Backoff(delay = 2000, multiplier = 2.0),
+            autoCreateTopics = "true",
+            topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_INDEX_VALUE,
+            dltStrategy = org.springframework.kafka.retrytopic.DltStrategy.FAIL_ON_ERROR,
+            include = {Exception.class})
     @KafkaListener(
             topics = "smm.offer.assignments",
             groupId = "offer-assignment-group",
             containerFactory = "kafkaListenerContainerFactory")
-    @Retryable(
-            value = {Exception.class},
-            maxAttempts = 3,
-            backoff = @Backoff(delay = 3000))
     public void handleOfferAssignment(
             @Payload String message,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
@@ -57,7 +61,7 @@ public class OfferEventConsumer {
                     objectMapper.readValue(message, OfferAssignmentRequest.class);
 
             // Process the assignment
-            offerAssignmentService.assignOfferToFixedCampaigns(request);
+            binomService.assignOfferToFixedCampaigns(request);
 
             // Acknowledge successful processing
             acknowledgment.acknowledge();
@@ -66,9 +70,12 @@ public class OfferEventConsumer {
 
         } catch (JsonProcessingException e) {
             log.error("Failed to parse offer assignment JSON: {}", e.getMessage(), e);
+            // Don't retry JSON parsing errors - send straight to DLT
+            acknowledgment.acknowledge();
             throw new RuntimeException("Failed to parse offer assignment", e);
         } catch (Exception e) {
             log.error("Failed to process offer assignment: {}", e.getMessage(), e);
+            // Let RetryableTopic handle retries via retry topics
             throw e;
         }
     }

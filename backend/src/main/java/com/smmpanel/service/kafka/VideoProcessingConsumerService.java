@@ -1,11 +1,10 @@
 package com.smmpanel.service.kafka;
 
 import com.smmpanel.dto.kafka.VideoProcessingMessage;
-import com.smmpanel.service.DeadLetterQueueService;
-import com.smmpanel.service.ErrorRecoveryService;
-import com.smmpanel.service.OrderStateManagementService;
-import com.smmpanel.service.YouTubeProcessingService;
+import com.smmpanel.service.monitoring.KafkaMonitoringService;
 import com.smmpanel.service.monitoring.MemoryMonitoringService;
+import com.smmpanel.service.order.OrderStateManagementService;
+import com.smmpanel.service.video.YouTubeProcessingService;
 import jakarta.annotation.PostConstruct;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -44,8 +43,7 @@ public class VideoProcessingConsumerService {
     private final DeadLetterQueueService deadLetterQueueService;
     private final MemoryMonitoringService memoryMonitoringService;
 
-    // TODO restore - MessageIdempotencyService reference temporarily commented out
-    // private final MessageIdempotencyService messageIdempotencyService;
+    private final MessageIdempotencyService messageIdempotencyService;
 
     @Value("${app.kafka.video-processing.consumer.processing-timeout:300000}")
     private long processingTimeoutMs;
@@ -55,8 +53,7 @@ public class VideoProcessingConsumerService {
 
     private final TransactionTemplate transactionTemplate;
 
-    // TODO restore - KafkaMonitoringService reference temporarily commented out
-    // private final KafkaMonitoringService monitoringService;
+    private final KafkaMonitoringService kafkaMonitoringService;
 
     // Metrics tracking
     private final AtomicLong messagesReceived = new AtomicLong(0);
@@ -79,19 +76,19 @@ public class VideoProcessingConsumerService {
         // TODO restore - monitoring service initialization when KafkaMonitoringService is available
         // monitoringService.initializeConsumerGroupMonitoring(
         //     "${app.kafka.video-processing.consumer.group-id:video-processing-group}",
-        //     "${app.kafka.video-processing.topic:video.processing.queue}"
+        //     "${app.kafka.video-processing.topic:smm.video.processing}"
         // );
     }
 
     @KafkaListener(
-            topics = "${app.kafka.video-processing.topic:video.processing.queue}",
+            topics = "${app.kafka.video-processing.topic:smm.video.processing}",
             groupId = "${app.kafka.video-processing.consumer.group-id:video-processing-group}",
             containerFactory = "videoProcessingKafkaListenerContainerFactory")
     public void processVideoMessage(
             @Payload VideoProcessingMessage message,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
-            @Header("kafka_receivedMessageKey") String key,
+            @Header(value = KafkaHeaders.RECEIVED_KEY, required = false) String key,
             @Header(KafkaHeaders.OFFSET) long offset,
             Acknowledgment acknowledgment) {
 
@@ -101,11 +98,16 @@ public class VideoProcessingConsumerService {
         stopWatch.start();
 
         // Check idempotency first
-        // TODO restore - messageIdempotencyService when available
-        if (false /* messageIdempotencyService.isDuplicate(message.getMessageId(), message.getTimestamp()) */) {
+        String messageId =
+                message.getMessageId() != null
+                        ? message.getMessageId()
+                        : String.format(
+                                "%s-%d-%d", message.getOrderId(), message.getTimestamp(), offset);
+
+        if (messageIdempotencyService.isDuplicate(messageId)) {
             log.info(
                     "Skipping duplicate message: messageId={}, orderId={}",
-                    message.getMessageId(),
+                    messageId,
                     message.getOrderId());
             acknowledgment.acknowledge();
             return;
@@ -152,6 +154,7 @@ public class VideoProcessingConsumerService {
                         stopWatch.getTotalTimeMillis());
 
                 messagesProcessed.incrementAndGet();
+                messageIdempotencyService.markAsProcessed(messageId);
                 acknowledgment.acknowledge();
 
             } else {

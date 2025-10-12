@@ -4,15 +4,14 @@ import com.smmpanel.entity.Order;
 import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.event.OrderStatusChangedEvent;
 import com.smmpanel.repository.jpa.OrderRepository;
+import com.smmpanel.service.notification.AlertService;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -24,7 +23,7 @@ public class SLAMonitoringService {
 
     private final OrderRepository orderRepository;
 
-    @Qualifier("monitoringAlertService") private final AlertService alertService;
+    private final AlertService alertService;
 
     private final MeterRegistry meterRegistry;
 
@@ -43,13 +42,16 @@ public class SLAMonitoringService {
 
         if (!delayedOrders.isEmpty()) {
             alertService.sendAlert(
-                    AlertLevel.WARNING,
+                    "SLA Violation - Order Processing",
                     String.format(
-                            "%d orders exceeding processing SLA (%d minutes)",
-                            delayedOrders.size(), ORDER_PROCESSING_SLA.toMinutes()),
-                    Map.of(
-                            "order_ids",
-                            delayedOrders.stream().map(Order::getId).collect(Collectors.toList())));
+                            "%d orders exceeding processing SLA (%d minutes). Order IDs: %s",
+                            delayedOrders.size(),
+                            ORDER_PROCESSING_SLA.toMinutes(),
+                            delayedOrders.stream()
+                                    .map(Order::getId)
+                                    .map(String::valueOf)
+                                    .collect(Collectors.joining(", "))),
+                    AlertLevel.WARNING.name());
 
             // Update metrics
             meterRegistry.gauge("orders.sla.processing.violations", delayedOrders.size());
@@ -70,15 +72,16 @@ public class SLAMonitoringService {
 
         if (!delayedActiveOrders.isEmpty()) {
             alertService.sendAlert(
-                    AlertLevel.CRITICAL,
+                    "Critical SLA Violation - Order Completion",
                     String.format(
-                            "%d orders exceeding completion SLA (%d hours)",
-                            delayedActiveOrders.size(), ORDER_COMPLETION_SLA.toHours()),
-                    Map.of(
-                            "order_ids",
+                            "%d orders exceeding completion SLA (%d hours). Order IDs: %s",
+                            delayedActiveOrders.size(),
+                            ORDER_COMPLETION_SLA.toHours(),
                             delayedActiveOrders.stream()
                                     .map(Order::getId)
-                                    .collect(Collectors.toList())));
+                                    .map(String::valueOf)
+                                    .collect(Collectors.joining(", "))),
+                    AlertLevel.CRITICAL.name());
 
             // Auto-escalate long-delayed orders
             delayedActiveOrders.stream()
@@ -104,14 +107,15 @@ public class SLAMonitoringService {
 
             if (successRate < SUCCESS_RATE_THRESHOLD) {
                 alertService.sendAlert(
-                        AlertLevel.CRITICAL,
+                        "Critical: Order Success Rate Below Threshold",
                         String.format(
-                                "Order success rate below threshold: %.2f%% (threshold: %.2f%%)",
-                                successRate * 100, SUCCESS_RATE_THRESHOLD * 100),
-                        Map.of(
-                                "total_orders", totalOrders,
-                                "successful_orders", successfulOrders,
-                                "success_rate", successRate));
+                                "Order success rate below threshold: %.2f%% (threshold: %.2f%%)."
+                                        + " Total: %d, Successful: %d",
+                                successRate * 100,
+                                SUCCESS_RATE_THRESHOLD * 100,
+                                totalOrders,
+                                successfulOrders),
+                        AlertLevel.CRITICAL.name());
             }
         }
     }
@@ -154,14 +158,11 @@ public class SLAMonitoringService {
 
         if (userOrderCount > SUSPICIOUS_ORDERS_THRESHOLD) {
             alertService.sendAlert(
-                    AlertLevel.WARNING,
+                    "Suspicious Activity Detected",
                     String.format(
-                            "User %d has placed %d orders in the last hour",
-                            order.getUser().getId(), userOrderCount),
-                    Map.of(
-                            "user_id", order.getUser().getId(),
-                            "order_count", userOrderCount,
-                            "last_order_id", order.getId()));
+                            "User %d has placed %d orders in the last hour. Last order: %d",
+                            order.getUser().getId(), userOrderCount, order.getId()),
+                    AlertLevel.WARNING.name());
         }
     }
 
@@ -171,17 +172,13 @@ public class SLAMonitoringService {
             orderRepository.save(order);
 
             alertService.sendAlert(
-                    AlertLevel.CRITICAL,
+                    "Order Escalation",
                     String.format(
-                            "Order %d escalated due to extended delay (%.1f hours)",
+                            "Order %d escalated due to extended delay (%.1f hours). Status: %s",
                             order.getId(),
-                            Duration.between(order.getCreatedAt(), LocalDateTime.now()).toHours()),
-                    Map.of(
-                            "order_id", order.getId(),
-                            "status", order.getStatus(),
-                            "hours_since_creation",
-                                    Duration.between(order.getCreatedAt(), LocalDateTime.now())
-                                            .toHours()));
+                            Duration.between(order.getCreatedAt(), LocalDateTime.now()).toHours(),
+                            order.getStatus()),
+                    AlertLevel.CRITICAL.name());
 
             log.warn("Order {} escalated due to extended delay", order.getId());
 

@@ -21,8 +21,7 @@
 # ===============================
 server:
   port: 8080
-  servlet:
-    context-path: /api
+  # context-path removed - paths are now explicit in controllers
   compression:
     enabled: true
     mime-types: >
@@ -50,6 +49,13 @@ spring:
   config:
     import: 
       - optional:classpath:application-resilience4j.yml
+  # Application startup configuration
+  main:
+    lazy-initialization: false  # Ensure all beans are initialized at startup
+    allow-bean-definition-overriding: false  # Prevent accidental bean overrides
+    web-application-type: servlet
+  lifecycle:
+    timeout-per-shutdown-phase: 30s  # Grace period for shutdown
   # ===============================
   # DATABASE CONFIGURATION
   # ===============================
@@ -60,15 +66,19 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
-      # Connection pool sizing - adjust based on your PostgreSQL max_connections
-      # Default PostgreSQL max_connections is typically 100-200
-      maximum-pool-size: ${DB_MAX_POOL_SIZE:50}      # Max active connections
-      minimum-idle: ${DB_MIN_IDLE:10}                # Min idle connections
-      connection-timeout: ${DB_CONNECTION_TIMEOUT:20000}    # 20 seconds
+      # Connection pool sizing - Optimized for Windows/WSL2 environment
+      # PostgreSQL max_connections should be set to 200 for this configuration
+      maximum-pool-size: ${DB_MAX_POOL_SIZE:100}      # OPTIMIZED: Realistic for Windows/WSL2
+      minimum-idle: ${DB_MIN_IDLE:30}                 # Keep 1/3 connections ready
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}    # 30 seconds (increased)
+      validation-timeout: ${DB_VALIDATION_TIMEOUT:5000}     # 5 seconds (added)
       idle-timeout: ${DB_IDLE_TIMEOUT:600000}        # 10 minutes
-      max-lifetime: ${DB_MAX_LIFETIME:1800000}       # 30 minutes
+      max-lifetime: ${DB_MAX_LIFETIME:1800000}       # 30 minutes (must be < DB wait_timeout)
       connection-test-query: SELECT 1               # Health check query
       leak-detection-threshold: ${DB_LEAK_DETECTION_THRESHOLD:60000}  # 60 seconds
+      pool-name: SMM-HikariPool                     # Named pool for monitoring
+      register-mbeans: true                         # Enable JMX monitoring
+      connection-init-sql: "SET statement_timeout = 30000"  # 30 second query timeout
   # ===============================
   # DATABASE MIGRATION - LIQUIBASE (SINGLE SOURCE OF TRUTH)
   # ===============================
@@ -98,15 +108,21 @@ spring:
       
   jpa:
     hibernate:
-      ddl-auto: none  # Disable validation temporarily
+      ddl-auto: none  ## Disable schema validation completely
       naming:
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
-    show-sql: ${HIBERNATE_SHOW_SQL:false}
+    show-sql: ${SHOW_SQL:false}  # Set to true only for debugging
     properties:
       hibernate:
+        # Explicitly set PostgreSQL dialect for Hibernate 6
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: ${HIBERNATE_FORMAT_SQL:false}
         use_sql_comments: ${HIBERNATE_SQL_COMMENTS:false}
+        types:
+          print:
+            banner: false
+        # PostgreSQL enum type handling
+        default_schema: public
         
         # ===============================
         # HIBERNATE STATISTICS CONFIGURATION
@@ -121,6 +137,7 @@ spring:
           batch_versioned_data: true
           fetch_size: ${HIBERNATE_FETCH_SIZE:50}
           time_zone: UTC
+          use_get_generated_keys: true  # PostgreSQL enum type handling
           lob:
             non_contextual_creation: true
         
@@ -188,13 +205,15 @@ spring:
       password: ${REDIS_PASSWORD:}
       database: 0
       timeout: 2000ms
-      # Using Lettuce client with optimized connection pooling
+      # Using Lettuce client with optimized configuration
       lettuce:
+        # Share native connection (best for single Redis instance per Stack Overflow)
+        share-native-connection: true
         pool:
           enabled: true
           max-active: 10
           max-idle: 8
-          min-idle: 2
+          min-idle: 0           # Set to 0 per best practice
           max-wait: 2000ms
           time-between-eviction-runs: 60s
         cluster:
@@ -202,6 +221,14 @@ spring:
             adaptive: true
             period: 30s
         shutdown-timeout: 100ms
+        # Client options for better reliability
+        client-options:
+          auto-reconnect: true
+          ping-before-activate-connection: true
+        # Socket options for performance
+        socket-options:
+          keep-alive: true
+          tcp-no-delay: true    # Reduce latency
   cache:
     type: redis
     redis:
@@ -209,6 +236,45 @@ spring:
       key-prefix: "smm:cache:"
       use-key-prefix: true
       cache-null-values: false
+
+  # ===============================
+  # OAUTH2 CLIENT CONFIGURATION
+  # ===============================
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:}
+            client-secret: ${GOOGLE_CLIENT_SECRET:}
+            scope:
+              - email
+              - profile
+              - openid
+            redirect-uri: "{baseUrl}/login/oauth2/code/google"
+            authorization-grant-type: authorization_code
+            client-name: Google
+          github:
+            client-id: ${GITHUB_CLIENT_ID:}
+            client-secret: ${GITHUB_CLIENT_SECRET:}
+            scope:
+              - user:email
+              - read:user
+            redirect-uri: "{baseUrl}/login/oauth2/code/github"
+            authorization-grant-type: authorization_code
+            client-name: GitHub
+        provider:
+          google:
+            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+            token-uri: https://oauth2.googleapis.com/token
+            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+            user-name-attribute: sub
+            jwk-set-uri: https://www.googleapis.com/oauth2/v3/certs
+          github:
+            authorization-uri: https://github.com/login/oauth/authorize
+            token-uri: https://github.com/login/oauth/access_token
+            user-info-uri: https://api.github.com/user
+            user-name-attribute: id
 
   # ===============================
   # KAFKA CONFIGURATION
@@ -222,16 +288,18 @@ spring:
         org.springframework.kafka.support.serializer.JsonSerializer
       acks: all
       retries: 3
-      batch-size: 16384
-      linger-ms: 1
+      batch-size: 32768  # Increased for better throughput
+      linger-ms: 10     # Batch messages for 10ms for better throughput
       buffer-memory: 33554432
       transaction-id-prefix: smm-panel-tx-
       properties:
         enable.idempotence: "true"
-        compression.type: snappy
+        compression.type: gzip
         delivery.timeout.ms: 120000
         request.timeout.ms: 30000
         max.in.flight.requests.per.connection: 5
+        client.id: smm-panel-producer
+        metrics.recording.level: INFO
         spring.json.type.mapping: >
           order:com.smmpanel.entity.Order,
           videoProcessing:com.smmpanel.entity.VideoProcessing,
@@ -253,12 +321,15 @@ spring:
       fetch-max-wait-ms: 500
       session-timeout-ms: 30000
       heartbeat-interval-ms: 3000
-      max-poll-interval-ms: 300000
+      max-poll-interval-ms: 900000  # 15 minutes - allows 3 orders @ 5min each concurrently
       properties:
         spring.deserializer.value.delegate.class: >
           org.springframework.kafka.support.serializer.JsonDeserializer
         spring.json.trusted.packages: >
           com.smmpanel.entity,com.smmpanel.dto,com.smmpanel.event,java.util
+        partition.assignment.strategy: org.apache.kafka.clients.consumer.RangeAssignor
+        client.id: smm-panel-consumer
+        metrics.recording.level: INFO
         spring.json.type.mapping: >
           order:com.smmpanel.entity.Order,
           videoProcessing:com.smmpanel.entity.VideoProcessing,
@@ -269,10 +340,12 @@ spring:
         spring.json.use.type.headers: false
         spring.json.value.default.type: java.util.Map
     listener:
-      concurrency: 1  # Reduced from 3 to prevent thread exhaustion
+      concurrency: 8  # Optimized for high throughput with proper thread pool sizing
       type: batch
       poll-timeout: 3000
       ack-mode: batch  # Batch acknowledgment for better performance
+      missing-topics-fatal: false  # Continue even if topics don't exist yet
+      idle-event-interval: 30000  # Send idle events every 30 seconds
     retry-topic:
       attempts: 3
       delay: 1000
@@ -288,7 +361,7 @@ spring:
     error:
       threshold: ${KAFKA_ERROR_THRESHOLD:0.05}
     dead-letter-queue:
-      topic: ${KAFKA_DLQ_TOPIC:video.processing.dlq}
+      topic: ${KAFKA_DLQ_TOPIC:smm.video.processing.dlq}
 
   # ===============================
   # FILE UPLOAD CONFIGURATION
@@ -306,13 +379,13 @@ spring:
   task:
     execution:
       pool:
-        core-size: 20  # Increased from 8 to handle Kafka listeners
-        max-size: 50   # Increased from 20 to handle peak load
-        queue-capacity: 1000
+        core-size: 50  # Increased for high concurrency operations
+        max-size: 100  # Doubled to handle increased load
+        queue-capacity: 2000  # Increased queue capacity
       thread-name-prefix: sms-async-
     scheduling:
       pool:
-        size: 10  # Increased from 5
+        size: 20  # Increased for more scheduled tasks
       thread-name-prefix: sms-scheduled-
 
 # ===============================
@@ -340,9 +413,32 @@ app:
     allowed-origins: >
       ${CORS_ORIGINS:http://localhost:3000,https://demo.perfectpanel.com}
     allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
-    allowed-headers: "*"
+    allowed-headers: "Authorization,Content-Type,X-API-Key,Accept,Origin"
     allow-credentials: true
     max-age: 3600
+
+  # ===============================
+  # OAUTH2 CONFIGURATION
+  # ===============================
+  oauth2:
+    enabled: ${OAUTH2_ENABLED:true}
+    providers:
+      google:
+        client-id: ${GOOGLE_CLIENT_ID:}
+        client-secret: ${GOOGLE_CLIENT_SECRET:}
+        redirect-uri: "{baseUrl}/login/oauth2/code/google"
+        scope:
+          - email
+          - profile
+      github:
+        client-id: ${GITHUB_CLIENT_ID:}
+        client-secret: ${GITHUB_CLIENT_SECRET:}
+        redirect-uri: "{baseUrl}/login/oauth2/code/github"
+        scope:
+          - user:email
+          - read:user
+    success-redirect-url: ${OAUTH2_SUCCESS_URL:http://localhost:3000/dashboard}
+    failure-redirect-url: ${OAUTH2_FAILURE_URL:http://localhost:3000/login?error=oauth2}
 
   # ===============================
   # RATE LIMITING CONFIGURATION
@@ -350,13 +446,13 @@ app:
   rate-limit:
     enabled: true
     orders:
-      per-minute: 10
-      per-hour: 100
-    api:
-      per-minute: 60
+      per-minute: 100
       per-hour: 1000
+    api:
+      per-minute: 300
+      per-hour: 10000
     auth:
-      per-minute: 5
+      per-minute: 60
 
   # ===============================
   # EXTERNAL API CONFIGURATIONS
@@ -366,6 +462,10 @@ app:
       # Binom V2 API Configuration
       url: ${BINOM_API_URL}
       key: ${BINOM_API_KEY}
+      username: ${BINOM_USERNAME:}
+      password: ${BINOM_PASSWORD:}
+    tracking:
+      url: ${BINOM_TRACKING_URL:https://youtubershop.top}
       timeout: ${BINOM_API_TIMEOUT:30000}
       retry-attempts: ${BINOM_RETRY_ATTEMPTS:3}
       # V2 specific endpoints
@@ -453,27 +553,17 @@ app:
     enabled: ${CRYPTOMUS_ENABLED:true}
     api:
       url: ${CRYPTOMUS_API_URL}
-      # User API Key for user operations
+      ## User API Key for operations
       user-key: ${CRYPTOMUS_USER_API_KEY}
-      # Payout API Key for payout operations
+      ## Payout API Key for payout operations
       payout-key: ${CRYPTOMUS_PAYOUT_API_KEY}
-      # Merchant-specific fields (optional for simple user accounts)
+      ## Merchant-specific fields (optional for simple user accounts)
       secret: ${CRYPTOMUS_API_SECRET:not-applicable}
     webhook:
       secret: ${CRYPTOMUS_WEBHOOK_SECRET:not-applicable}
     merchant-id: ${CRYPTOMUS_MERCHANT_ID:not-applicable}
     min-deposit: ${CRYPTOMUS_MIN_DEPOSIT:5.00}
     timeout: 30000
-  selenium:
-    driver:
-      path: ${SELENIUM_DRIVER_PATH:/usr/local/bin/chromedriver}
-    headless: "true"
-    timeout:
-      page-load: 30
-      implicit: 10
-    max-concurrent-sessions: 5
-    hub:
-      url: "http://localhost:4444/wd/hub"
 
   # ===============================
   # CACHING CONFIGURATION
@@ -581,6 +671,21 @@ app:
       slow-query-threshold: ${CONNECTION_POOL_SLOW_QUERY_THRESHOLD:5000}
       
   # ===============================
+  # SELENIUM CONFIGURATION
+  # ===============================
+  selenium:
+    hub:
+      url: ${SELENIUM_HUB_URL:http://localhost:4444/wd/hub}
+      timeout: ${SELENIUM_HUB_TIMEOUT:300000}
+    browser:
+      headless: ${SELENIUM_HEADLESS:false}
+    retry:
+      attempts: ${SELENIUM_RETRY_ATTEMPTS:3}
+    profiles:
+      path: ${SELENIUM_PROFILES_PATH:./selenium-profiles}
+    test-mode: ${TEST_MODE:false}
+      
+  # ===============================
   # ADDITIONAL SERVICE CONFIGURATION
   # ===============================
   # All prices and amounts are in USDT
@@ -649,6 +754,23 @@ resilience4j:
         failure-rate-threshold: 40
         slow-call-duration-threshold: PT8S
         wait-duration-in-open-state: PT1M
+      # Cryptomus API Circuit Breaker
+      cryptomus-api:
+        failure-rate-threshold: ${CRYPTOMUS_CB_FAILURE_RATE_THRESHOLD:50}
+        slow-call-rate-threshold: ${CRYPTOMUS_CB_SLOW_CALL_RATE_THRESHOLD:40}
+        slow-call-duration-threshold: ${CRYPTOMUS_CB_SLOW_CALL_DURATION:PT5S}
+        wait-duration-in-open-state: ${CRYPTOMUS_CB_WAIT_DURATION_OPEN:PT30S}
+        minimum-number-of-calls: ${CRYPTOMUS_CB_MIN_CALLS:10}
+        sliding-window-size: ${CRYPTOMUS_CB_SLIDING_WINDOW_SIZE:20}
+        sliding-window-type: COUNT_BASED
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        record-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.client.ResourceAccessException
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
   retry:
     instances:
       # Binom V2 API Retry - Enhanced configuration
@@ -682,6 +804,16 @@ resilience4j:
       payment-api:
         max-attempts: 2
         wait-duration: PT3S
+      # Cryptomus API Retry
+      cryptomus-api:
+        max-attempts: ${CRYPTOMUS_RETRY_MAX_ATTEMPTS:3}
+        wait-duration: ${CRYPTOMUS_RETRY_WAIT_DURATION:PT2S}
+        exponential-backoff-multiplier: 2.0
+        retry-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
   # Binom V2 Bulkhead configuration
   bulkhead:
     instances:
@@ -714,6 +846,17 @@ resilience4j:
 # MONITORING & OBSERVABILITY
 # ===============================
 management:
+  tracing:
+    enabled: false  # Disable OpenTelemetry tracing
+    sampling:
+      probability: 0.0  # Disable all tracing
+  otlp:
+    metrics:
+      export:
+        enabled: false  # Disable OTLP metrics export
+    tracing:
+      endpoint: ""  # Disable OTLP exporter
+      enabled: false  # Explicitly disable OTLP tracing
   endpoints:
     web:
       exposure:
@@ -779,9 +922,12 @@ logging:
   level:
     root: INFO
     com.smmpanel: DEBUG
-    org.springframework.security: WARN
-    org.hibernate.SQL: WARN
-    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.hibernate.type: TRACE
+    org.springframework.orm.jpa: DEBUG
+    org.springframework.transaction: DEBUG
   pattern:
     console: >
       "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

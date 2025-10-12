@@ -19,6 +19,8 @@ public interface BalanceTransactionRepository extends JpaRepository<BalanceTrans
 
     Page<BalanceTransaction> findByUserId(Long userId, Pageable pageable);
 
+    Page<BalanceTransaction> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
+
     Page<BalanceTransaction> findByUser_UsernameOrderByCreatedAtDesc(
             String username, Pageable pageable);
 

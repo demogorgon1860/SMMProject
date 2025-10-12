@@ -80,7 +80,7 @@ class ErrorRecoveryProperties {
 
     @lombok.Data
     public static class DeadLetterQueue {
-        private String topic = "video.processing.dlq";
+        private String topic = "smm.video.processing.dlq";
         private int retentionDays = 30;
         private int maxEntries = 10000;
         private String cleanupCron = "0 2 * * * *"; // Daily at 2 AM

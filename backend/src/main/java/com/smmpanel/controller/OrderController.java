@@ -2,13 +2,16 @@ package com.smmpanel.controller;
 
 import com.smmpanel.dto.request.BulkOrderRequest;
 import com.smmpanel.dto.request.CreateOrderRequest;
+import com.smmpanel.dto.request.MassOrderRequest;
 import com.smmpanel.dto.response.BulkOperationResult;
 import com.smmpanel.dto.response.HealthStatus;
+import com.smmpanel.dto.response.MassOrderResponse;
 import com.smmpanel.dto.response.OrderResponse;
 import com.smmpanel.dto.response.OrderStatistics;
 import com.smmpanel.dto.response.PerfectPanelResponse;
-import com.smmpanel.service.OrderService;
-import com.smmpanel.service.RateLimitService;
+import com.smmpanel.service.core.RateLimitService;
+import com.smmpanel.service.order.MassOrderService;
+import com.smmpanel.service.order.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -47,6 +50,7 @@ public class OrderController {
 
     private final OrderService orderService;
     private final RateLimitService rateLimitService;
+    private final MassOrderService massOrderService;
 
     /** Create a new order with comprehensive validation */
     @PostMapping
@@ -235,6 +239,77 @@ public class OrderController {
                         .data(result)
                         .success(true)
                         .message("Bulk operation completed")
+                        .build();
+
+        return ResponseEntity.ok(response);
+    }
+
+    /** Create mass orders (multiple orders at once) */
+    @PostMapping("/mass")
+    @Operation(
+            summary = "Create mass orders",
+            description = "Create multiple orders at once from text input",
+            responses = {
+                @ApiResponse(responseCode = "201", description = "Orders created successfully"),
+                @ApiResponse(responseCode = "400", description = "Validation error"),
+                @ApiResponse(responseCode = "402", description = "Insufficient balance"),
+                @ApiResponse(responseCode = "429", description = "Rate limit exceeded")
+            })
+    public ResponseEntity<PerfectPanelResponse<MassOrderResponse>> createMassOrder(
+            @Valid @RequestBody MassOrderRequest request, Principal principal) {
+
+        // Apply rate limiting per user
+        rateLimitService.checkRateLimit(principal.getName(), "mass_order");
+
+        log.info("Creating mass order for user: {}", principal.getName());
+
+        MassOrderResponse massOrderResponse =
+                massOrderService.processMassOrder(request, principal.getName());
+
+        // Perfect Panel compatible response format
+        PerfectPanelResponse<MassOrderResponse> response =
+                PerfectPanelResponse.<MassOrderResponse>builder()
+                        .data(massOrderResponse)
+                        .success(massOrderResponse.getFailedOrders() == 0)
+                        .message(
+                                String.format(
+                                        "Processed %d orders: %d successful, %d failed",
+                                        massOrderResponse.getTotalOrders(),
+                                        massOrderResponse.getSuccessfulOrders(),
+                                        massOrderResponse.getFailedOrders()))
+                        .build();
+
+        return ResponseEntity.status(201).body(response);
+    }
+
+    /** Preview mass orders without creating them */
+    @PostMapping("/mass/preview")
+    @Operation(
+            summary = "Preview mass orders",
+            description = "Preview and validate mass orders without creating them",
+            responses = {
+                @ApiResponse(responseCode = "200", description = "Preview generated successfully"),
+                @ApiResponse(responseCode = "400", description = "Validation error")
+            })
+    public ResponseEntity<PerfectPanelResponse<MassOrderResponse>> previewMassOrder(
+            @Valid @RequestBody MassOrderRequest request, Principal principal) {
+
+        log.info("Previewing mass order for user: {}", principal.getName());
+
+        MassOrderResponse previewResponse =
+                massOrderService.previewMassOrder(request, principal.getName());
+
+        // Perfect Panel compatible response format
+        PerfectPanelResponse<MassOrderResponse> response =
+                PerfectPanelResponse.<MassOrderResponse>builder()
+                        .data(previewResponse)
+                        .success(true)
+                        .message(
+                                String.format(
+                                        "Preview: %d valid orders, %d errors, Total cost: %.2f",
+                                        previewResponse.getSuccessfulOrders(),
+                                        previewResponse.getFailedOrders(),
+                                        previewResponse.getTotalCost()))
                         .build();
 
         return ResponseEntity.ok(response);

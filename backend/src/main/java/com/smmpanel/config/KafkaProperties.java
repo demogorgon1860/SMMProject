@@ -70,14 +70,14 @@ public class KafkaProperties {
         private String valueDeserializer =
                 "org.springframework.kafka.support.serializer.ErrorHandlingDeserializer";
 
-        @NotBlank private String groupId = "smm-panel-group";
+        @NotBlank private String groupId; // Loaded from spring.kafka.consumer.group-id
 
         @NotBlank private String autoOffsetReset = "earliest";
 
         private boolean enableAutoCommit = false;
 
         @Min(1)
-        private int maxPollRecords = 500;
+        private int maxPollRecords = 50; // Reduced to match KafkaConfig
 
         @Min(1)
         private int fetchMinBytes = 1;

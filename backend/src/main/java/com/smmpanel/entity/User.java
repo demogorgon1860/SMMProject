@@ -1,5 +1,6 @@
 package com.smmpanel.entity;
 
+import io.hypersistence.utils.hibernate.type.basic.PostgreSQLEnumType;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -11,6 +12,7 @@ import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -45,12 +47,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(
-        exclude = {
-            "passwordHash",
-            "apiKey",
-            "apiKeyHash"
-        }) // Exclude sensitive fields from toString
+@ToString(exclude = {"passwordHash", "apiKeyHash"}) // Exclude sensitive fields from toString
 @Slf4j
 public class User implements UserDetails {
 
@@ -68,14 +65,8 @@ public class User implements UserDetails {
     private String passwordHash;
 
     /**
-     * SECURITY IMPROVEMENT: Store raw API key temporarily for response This is only set when
-     * generating new keys and should be nulled after response
-     */
-    @Transient private String apiKey;
-
-    /**
-     * SECURITY IMPROVEMENT: Store hashed API key for lookup This is what's actually stored in
-     * database and used for authentication
+     * SECURITY: Only store hashed API key in database Raw API keys should never be stored in the
+     * entity They should only exist temporarily in the service layer during generation
      */
     @Column(name = "api_key_hash", unique = true, length = 64)
     private String apiKeyHash;
@@ -85,6 +76,7 @@ public class User implements UserDetails {
     private BigDecimal balance = BigDecimal.ZERO;
 
     @Enumerated(EnumType.STRING)
+    @Type(value = PostgreSQLEnumType.class)
     @Column(name = "role", nullable = false, columnDefinition = "user_role")
     @Builder.Default
     private UserRole role = UserRole.USER;
@@ -165,18 +157,20 @@ public class User implements UserDetails {
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @BatchSize(size = 25)
     @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
+    @Singular
     private List<Order> orders;
 
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @BatchSize(size = 20)
     @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
+    @Singular("balanceTransaction")
     private List<BalanceTransaction> balanceTransactions;
 
     // Spring Security UserDetails implementation
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
+        return java.util.Arrays.asList(new SimpleGrantedAuthority("ROLE_" + role.name()));
     }
 
     @Override

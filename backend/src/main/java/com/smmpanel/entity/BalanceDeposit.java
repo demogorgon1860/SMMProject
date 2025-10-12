@@ -1,5 +1,6 @@
 package com.smmpanel.entity;
 
+import io.hypersistence.utils.hibernate.type.basic.PostgreSQLEnumType;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -7,6 +8,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Type;
 
 @Data
 @Entity
@@ -48,6 +50,7 @@ public class BalanceDeposit {
     private String paymentUrl;
 
     @Enumerated(EnumType.STRING)
+    @Type(value = PostgreSQLEnumType.class)
     @Column(name = "status", columnDefinition = "payment_status")
     private PaymentStatus status = PaymentStatus.PENDING;
 

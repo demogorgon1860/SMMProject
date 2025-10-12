@@ -300,15 +300,21 @@ public class KafkaConsumerErrorConfiguration {
     private String getDlqTopicName(String originalTopic) {
         return switch (originalTopic) {
             case "smm.order.processing" -> "smm.order.processing.dlq";
+            case "smm.order.progress" -> "smm.order.progress.dlq"; // Added missing DLQ
             case "smm.video.processing" -> "smm.video.processing.dlq";
-            case "smm.youtube.processing" -> "smm.youtube.processing.dlq";
+                // Removed: case "smm.youtube.processing" - topic deleted, no producer/consumer
             case "smm.offer.assignments" -> "smm.offer.assignments.dlq";
-            case "smm.offer.assignment.events" -> "smm.offer.assignments.dlq";
+                // Removed: case "smm.offer.assignment.events" - deprecated
             case "smm.order.refund" -> "smm.order.refund.dlq";
-            case "smm.binom.campaign.creation" -> "smm.binom.campaign.creation.dlq";
+                // Removed: case "smm.binom.campaign.creation" - topic deleted, no producer/consumer
             case "smm.video.processing.retry" -> "smm.video.processing.retry.dlq";
             case "smm.order.state.updates" -> "smm.order.state.updates.dlq";
             case "smm.notifications" -> "smm.notifications.dlq";
+            case "smm.monitoring.alerts" -> "smm.monitoring.alerts.dlq"; // For external monitoring
+            case "smm.payment.confirmations" ->
+                    "smm.payment.confirmations.dlq"; // Added missing DLQ
+            case "smm.payment.webhooks" -> "smm.payment.webhooks.dlq"; // Added missing DLQ
+            case "smm.payment.refunds" -> "smm.payment.refunds.dlq"; // Added missing DLQ
             default -> originalTopic + ".dlq";
         };
     }

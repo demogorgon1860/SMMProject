@@ -51,13 +51,13 @@ public class JwtService {
         final Date expiryDate = new Date(now.getTime() + expiration);
 
         return Jwts.builder()
-                .setClaims(extraClaims)
-                .setSubject(subject)
-                .setIssuer(jwtConfig.getJwtIssuer())
-                .setIssuedAt(now)
-                .setNotBefore(now) // Ensure token can't be used before now
-                .setExpiration(expiryDate)
-                .signWith(jwtSecretKey, SignatureAlgorithm.HS512)
+                .claims(extraClaims)
+                .subject(subject)
+                .issuer(jwtConfig.getJwtIssuer())
+                .issuedAt(now)
+                .notBefore(now) // Ensure token can't be used before now
+                .expiration(expiryDate)
+                .signWith(jwtSecretKey)
                 .compact();
     }
 

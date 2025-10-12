@@ -19,7 +19,7 @@ public class OfferAssignmentAspect {
 
     @Around(
             "execution(*"
-                + " com.smmpanel.service.OfferAssignmentService.assignOfferToFixedCampaigns(..))")
+                + " com.smmpanel.service.integration.BinomService.assignOfferToFixedCampaigns(..))")
     public Object logOfferAssignment(ProceedingJoinPoint joinPoint) throws Throwable {
         Timer.Sample sample = metrics.startAssignmentTimer();
 

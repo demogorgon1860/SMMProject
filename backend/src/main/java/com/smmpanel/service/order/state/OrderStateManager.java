@@ -5,7 +5,7 @@ import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.event.OrderStatusChangedEvent;
 import com.smmpanel.exception.IllegalOrderStateTransitionException;
 import com.smmpanel.repository.jpa.OrderRepository;
-import com.smmpanel.service.AuditService;
+import com.smmpanel.service.core.AuditService;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.Map;

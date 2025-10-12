@@ -37,6 +37,27 @@
         </resources>
     </cache>
 
+    <!-- Collection caches for User entity -->
+    <cache alias="com.smmpanel.entity.User.orders">
+        <expiry>
+            <ttl unit="seconds">1800</ttl>
+        </expiry>
+        <resources>
+            <heap unit="entries">2000</heap>
+            <offheap unit="MB">15</offheap>
+        </resources>
+    </cache>
+
+    <cache alias="com.smmpanel.entity.User.balanceTransactions">
+        <expiry>
+            <ttl unit="seconds">1800</ttl>
+        </expiry>
+        <resources>
+            <heap unit="entries">2000</heap>
+            <offheap unit="MB">15</offheap>
+        </resources>
+    </cache>
+
     <cache alias="com.smmpanel.entity.ConversionCoefficient">
         <expiry>
             <ttl unit="seconds">7200</ttl>

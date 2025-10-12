@@ -1,12 +1,15 @@
 package com.smmpanel.scheduler;
 
 import com.smmpanel.client.BinomClient;
-import com.smmpanel.dto.binom.CampaignStatsResponse;
-import com.smmpanel.entity.BinomCampaign;
+import com.smmpanel.client.BinomClient.OfferClickStats;
+import com.smmpanel.client.BinomClient.RemoveOfferResponse;
+// BinomCampaign removed - using dynamic campaign connections
 import com.smmpanel.entity.Order;
 import com.smmpanel.entity.OrderStatus;
-import com.smmpanel.repository.jpa.BinomCampaignRepository;
+// BinomCampaignRepository removed - using dynamic campaign connections
 import com.smmpanel.repository.jpa.OrderRepository;
+import com.smmpanel.service.integration.YouTubeService;
+import com.smmpanel.service.integration.YouTubeService.VideoStatistics;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -16,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -37,8 +41,10 @@ public class BinomSyncScheduler {
 
     private final BinomClient binomClient;
     private final OrderRepository orderRepository;
-    private final BinomCampaignRepository binomCampaignRepository;
+    // BinomCampaignRepository removed - using dynamic campaign connections
     private final JdbcTemplate jdbcTemplate;
+    private final YouTubeService youTubeService;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     @Value("${app.scheduling.binom-sync.interval-minutes:5}")
     private int syncIntervalMinutes;
@@ -51,24 +57,48 @@ public class BinomSyncScheduler {
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-    /** Main synchronization job Runs every N minutes (configurable) */
-    @Scheduled(fixedDelayString = "${app.scheduling.binom-sync.interval-minutes:5}000")
-    @Transactional(propagation = Propagation.REQUIRED)
-    public void syncBinomCampaigns() {
+    /** Main synchronization job - Runs every 15 seconds for real-time click tracking */
+    @Scheduled(fixedDelay = 15000)
+    public void syncBinomCampaigns() { // NO @Transactional here
+        try {
+            // Check if database is accessible before running sync
+            if (!isDatabaseAccessible()) {
+                log.warn("Database not accessible, skipping Binom sync");
+                return;
+            }
+            processBinomSync();
+        } catch (Exception e) {
+            log.error("Error in Binom sync: ", e);
+        }
+    }
+
+    private boolean isDatabaseAccessible() {
+        try {
+            jdbcTemplate.queryForObject("SELECT 1", Integer.class);
+            return true;
+        } catch (Exception e) {
+            log.debug("Database connectivity check failed: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW) // Isolated transaction
+    protected void processBinomSync() {
         LocalDateTime startTime = LocalDateTime.now();
         Long jobId = createSyncJobRecord("BINOM_SYNC", "RUNNING");
 
         AtomicInteger ordersProcessed = new AtomicInteger(0);
-        AtomicInteger campaignsProcessed = new AtomicInteger(0);
-        AtomicInteger campaignsPaused = new AtomicInteger(0);
+        AtomicInteger offersTracked = new AtomicInteger(0);
         AtomicInteger errors = new AtomicInteger(0);
 
         try {
             log.info("Starting Binom synchronization job");
 
-            // Get all active orders with Binom campaigns
+            // Get all active orders with Binom offer ID (direct campaign connection)
+            // Changed: Now using binomOfferId instead of binomCampaignId since campaigns are
+            // connected directly
             List<Order> activeOrders =
-                    orderRepository.findByStatusInAndBinomCampaignIdNotNull(
+                    orderRepository.findByStatusInAndBinomOfferIdNotNull(
                             List.of(
                                     OrderStatus.PROCESSING,
                                     OrderStatus.ACTIVE,
@@ -83,7 +113,10 @@ public class BinomSyncScheduler {
 
                 for (Order order : batch) {
                     try {
-                        syncOrderCampaigns(order, campaignsProcessed, campaignsPaused);
+                        boolean tracked = syncOrderOfferStats(order);
+                        if (tracked) {
+                            offersTracked.incrementAndGet();
+                        }
                         ordersProcessed.incrementAndGet();
                     } catch (Exception e) {
                         log.error("Error syncing order {}: {}", order.getId(), e.getMessage());
@@ -100,16 +133,15 @@ public class BinomSyncScheduler {
                     jobId,
                     "COMPLETED",
                     ordersProcessed.get(),
-                    campaignsProcessed.get(),
-                    campaignsPaused.get(),
+                    offersTracked.get(),
+                    0, // No campaign pausing anymore
                     errors.get(),
                     null);
 
             log.info(
-                    "Binom sync completed: {} orders, {} campaigns processed, {} paused, {} errors",
+                    "Binom sync completed: {} orders processed, {} offers tracked, {} errors",
                     ordersProcessed.get(),
-                    campaignsProcessed.get(),
-                    campaignsPaused.get(),
+                    offersTracked.get(),
                     errors.get());
 
         } catch (Exception e) {
@@ -118,174 +150,164 @@ public class BinomSyncScheduler {
                     jobId,
                     "FAILED",
                     ordersProcessed.get(),
-                    campaignsProcessed.get(),
-                    campaignsPaused.get(),
+                    offersTracked.get(),
+                    0,
                     errors.get(),
                     e.getMessage());
         }
     }
 
-    /** Sync campaigns for a single order */
-    private void syncOrderCampaigns(
-            Order order, AtomicInteger campaignsProcessed, AtomicInteger campaignsPaused) {
-        // Get all campaigns for this order
-        List<BinomCampaign> campaigns = binomCampaignRepository.findByOrderId(order.getId());
+    /** Sync offer stats for a single order */
+    private boolean syncOrderOfferStats(Order order) {
+        String offerId = order.getBinomOfferId();
 
-        if (campaigns.isEmpty()) {
-            log.warn(
-                    "No campaigns found for order {} despite binomCampaignId being set",
-                    order.getId());
-            return;
+        if (offerId == null) {
+            log.debug("Order {} has no offer ID, skipping sync", order.getId());
+            return false;
         }
 
-        BigDecimal totalCost = BigDecimal.ZERO;
-        long totalClicks = 0L;
-        long totalViews = 0L;
-
-        for (BinomCampaign campaign : campaigns) {
-            try {
-                // Skip already paused campaigns
-                if ("PAUSED".equals(campaign.getStatus())) {
-                    continue;
-                }
-
-                // Fetch stats from Binom
-                CampaignStatsResponse stats =
-                        binomClient.getDetailedStats(campaign.getCampaignId(), null, null);
-
-                // Update campaign with latest stats
-                campaign.setClicksDelivered(stats.getClicks().intValue());
-                campaign.setConversions(
-                        stats.getConversions() != null ? stats.getConversions().intValue() : 0);
-                campaign.setCost(stats.getCost());
-                campaign.setRevenue(stats.getRevenue());
-                campaign.setLastStatsUpdate(LocalDateTime.now());
-
-                // Accumulate totals
-                totalCost =
-                        totalCost.add(stats.getCost() != null ? stats.getCost() : BigDecimal.ZERO);
-                totalClicks += stats.getClicks();
-
-                // Calculate views based on coefficient
-                if (order.getCoefficient() != null
-                        && order.getCoefficient().compareTo(BigDecimal.ZERO) > 0) {
-                    long campaignViews =
-                            (long) (stats.getClicks() / order.getCoefficient().doubleValue());
-                    totalViews += campaignViews;
-                }
-
-                // Check if campaign should be paused
-                if (autoPauseEnabled && shouldPauseCampaign(campaign, stats, order)) {
-                    pauseCampaign(campaign, order, stats);
-                    campaignsPaused.incrementAndGet();
-                }
-
-                binomCampaignRepository.save(campaign);
-                campaignsProcessed.incrementAndGet();
-
-                log.debug(
-                        "Synced campaign {} for order {}: {} clicks, cost: {}",
-                        campaign.getCampaignId(),
-                        order.getId(),
-                        stats.getClicks(),
-                        stats.getCost());
-
-            } catch (Exception e) {
-                log.error(
-                        "Failed to sync campaign {} for order {}: {}",
-                        campaign.getCampaignId(),
-                        order.getId(),
-                        e.getMessage());
-            }
-        }
-
-        // Update order with aggregated stats
-        updateOrderStats(order, totalViews, totalCost);
-    }
-
-    /** Check if campaign should be paused based on limits */
-    private boolean shouldPauseCampaign(
-            BinomCampaign campaign, CampaignStatsResponse stats, Order order) {
-        // Check views delivered vs quantity
-        if (order.getQuantity() != null && order.getCoefficient() != null) {
-            long viewsDelivered = (long) (stats.getClicks() / order.getCoefficient().doubleValue());
-            if (viewsDelivered >= order.getQuantity()) {
-                campaign.setPauseReason(
-                        String.format(
-                                "Views target reached: %d >= %d",
-                                viewsDelivered, order.getQuantity()));
-                return true;
-            }
-        }
-
-        // Check cost vs budget limit
-        if (campaign.getBudgetLimit() != null && stats.getCost() != null) {
-            if (stats.getCost().compareTo(campaign.getBudgetLimit()) >= 0) {
-                campaign.setPauseReason(
-                        String.format(
-                                "Budget limit reached: %s >= %s",
-                                stats.getCost(), campaign.getBudgetLimit()));
-                return true;
-            }
-        }
-
-        // Check order-level budget limit
-        if (order.getBudgetLimit() != null && order.getCostIncurred() != null) {
-            BigDecimal projectedCost =
-                    order.getCostIncurred()
-                            .add(stats.getCost() != null ? stats.getCost() : BigDecimal.ZERO);
-            if (projectedCost.compareTo(order.getBudgetLimit()) >= 0) {
-                campaign.setPauseReason(
-                        String.format(
-                                "Order budget limit reached: %s >= %s",
-                                projectedCost, order.getBudgetLimit()));
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /** Pause a campaign in Binom */
-    private void pauseCampaign(BinomCampaign campaign, Order order, CampaignStatsResponse stats) {
         try {
-            boolean paused = binomClient.pauseCampaign(campaign.getCampaignId());
-            if (paused) {
-                campaign.setStatus("PAUSED");
-                campaign.setUpdatedAt(LocalDateTime.now());
-                log.info(
-                        "Auto-paused campaign {} for order {}: {}",
-                        campaign.getCampaignId(),
-                        order.getId(),
-                        campaign.getPauseReason());
-            } else {
-                log.warn("Failed to pause campaign {} in Binom", campaign.getCampaignId());
+            // Check which of campaigns 1, 3, 4 have this offer
+            List<String> campaignsWithOffer = binomClient.getCampaignsWithOffer(offerId);
+
+            if (campaignsWithOffer.isEmpty()) {
+                log.debug(
+                        "Offer {} not found in any campaign for order {}", offerId, order.getId());
+                return false;
             }
+
+            // Get offer statistics using the report API
+            OfferClickStats offerStats = binomClient.getOfferClickStatistics(offerId);
+
+            if (offerStats != null && offerStats.getClicks() > 0) {
+                long totalClicks = offerStats.getClicks();
+
+                log.info(
+                        "Sync for order {} (offer {}): {} campaigns have offer, {} clicks",
+                        order.getId(),
+                        offerId,
+                        campaignsWithOffer.size(),
+                        totalClicks);
+
+                // Update order stats with clicks and check for immediate removal
+                updateOrderStats(order, totalClicks, BigDecimal.ZERO, campaignsWithOffer);
+                return true;
+            }
+
+            log.debug("No click stats available for offer {} (order {})", offerId, order.getId());
+            return false;
+
         } catch (Exception e) {
-            log.error("Error pausing campaign {}: {}", campaign.getCampaignId(), e.getMessage());
+            log.error("Failed to sync offer stats for order {}: {}", order.getId(), e.getMessage());
+            return false;
         }
     }
 
     /** Update order with aggregated stats */
-    private void updateOrderStats(Order order, long totalViews, BigDecimal totalCost) {
-        order.setViewsDelivered((int) totalViews);
+    private void updateOrderStats(
+            Order order, long totalClicks, BigDecimal totalCost, List<String> campaignsWithOffer) {
+        // Track clicks directly - no conversion to views during tracking
+
+        // Calculate target clicks needed
+        long targetClicks = 0;
+        if (order.getQuantity() != null
+                && order.getCoefficient() != null
+                && order.getCoefficient().compareTo(BigDecimal.ZERO) > 0) {
+            targetClicks = Math.round(order.getQuantity() * order.getCoefficient().doubleValue());
+        }
+
+        log.info(
+                "Order {} tracking: {} clicks received (target: {} clicks for {} views with"
+                        + " coefficient {})",
+                order.getId(),
+                totalClicks,
+                targetClicks,
+                order.getQuantity(),
+                order.getCoefficient());
+
+        // Store clicks count temporarily (for tracking purposes)
+        order.setViewsDelivered((int) (totalClicks / order.getCoefficient().doubleValue()));
         order.setCostIncurred(totalCost);
 
-        // Update traffic status based on progress
-        if (order.getQuantity() != null && totalViews >= order.getQuantity()) {
-            order.setTrafficStatus("DELIVERED");
+        // Calculate early pull threshold to prevent overshoot
+        // Pull at 95% of target to account for clicks that accumulate during the 15-second interval
+        long earlyPullThreshold = (long) (targetClicks * 0.95);
+
+        // Check if we've reached the early pull threshold
+        if (targetClicks > 0 && totalClicks >= earlyPullThreshold) {
+            // Threshold reached - immediately remove offers from campaigns
+            log.info(
+                    "Order {} reached early pull threshold (95% of target): {} clicks (target: {})"
+                            + " - removing offer {} from campaigns immediately",
+                    order.getId(), totalClicks, targetClicks, order.getBinomOfferId());
+
+            // IMMEDIATELY remove offers from Binom campaigns to stop traffic
+            boolean removalSuccessful = false;
+            if (campaignsWithOffer != null && !campaignsWithOffer.isEmpty()) {
+                try {
+                    RemoveOfferResponse removeResponse =
+                            binomClient.removeOfferFromCampaigns(
+                                    order.getBinomOfferId(), campaignsWithOffer);
+                    log.info(
+                            "Successfully removed offer {} from campaigns for order {}: {}",
+                            order.getBinomOfferId(),
+                            order.getId(),
+                            removeResponse.getMessage());
+                    removalSuccessful = removeResponse.isSuccess();
+                } catch (Exception e) {
+                    log.error(
+                            "Failed to remove offer {} from campaigns for order {}: {}",
+                            order.getBinomOfferId(),
+                            order.getId(),
+                            e.getMessage());
+                }
+            }
+
+            // After removal, check YouTube for final count (second startCount)
+            if (removalSuccessful && order.getYoutubeVideoId() != null) {
+                try {
+                    // Wait a moment for YouTube to update
+                    Thread.sleep(2000);
+
+                    VideoStatistics stats =
+                            youTubeService.getVideoStatistics(order.getYoutubeVideoId());
+                    Long viewCount = stats != null ? stats.getViewCount() : null;
+                    int secondStartCount = viewCount != null ? viewCount.intValue() : 0;
+                    int firstStartCount = order.getStartCount() != null ? order.getStartCount() : 0;
+                    int actualViewsDelivered = secondStartCount - firstStartCount;
+
+                    log.info(
+                            "Order {} completed - Final YouTube count: {} actual views delivered "
+                                    + "(second count: {} - first count: {})",
+                            order.getId(),
+                            actualViewsDelivered,
+                            secondStartCount,
+                            firstStartCount);
+
+                    // Store actual views delivered from YouTube
+                    order.setViewsDelivered(actualViewsDelivered);
+                } catch (Exception e) {
+                    log.error(
+                            "Failed to get final YouTube stats for order {}: {}",
+                            order.getId(),
+                            e.getMessage());
+                }
+            }
+
             order.setStatus(OrderStatus.COMPLETED);
-        } else if (totalViews > 0) {
-            order.setTrafficStatus("RUNNING");
+            // Clear Redis cache when completed
+            redisTemplate.delete("order:current:" + order.getId());
+            redisTemplate.delete("order:monitoring:" + order.getId());
         }
+        // Note: Removed traffic_status updates as they're not meaningful
 
         order.setUpdatedAt(LocalDateTime.now());
         orderRepository.save(order);
 
         log.debug(
-                "Updated order {} stats: {} views delivered, cost: {}",
+                "Updated order {} stats: {} views delivered from Binom, cost: {}",
                 order.getId(),
-                totalViews,
+                order.getViewsDelivered(),
                 totalCost);
     }
 

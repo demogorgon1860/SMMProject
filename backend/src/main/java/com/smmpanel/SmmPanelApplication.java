@@ -17,7 +17,14 @@ import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-@SpringBootApplication
+@SpringBootApplication(
+        exclude = {
+            org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+                    .class,
+            org.springframework.boot.actuate.autoconfigure.tracing.otlp.OtlpAutoConfiguration.class,
+            org.springframework.boot.actuate.autoconfigure.metrics.export.otlp
+                    .OtlpMetricsExportAutoConfiguration.class
+        })
 @EnableCaching
 @EnableAsync
 @EnableScheduling

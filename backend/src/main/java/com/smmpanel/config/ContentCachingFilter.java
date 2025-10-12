@@ -8,11 +8,10 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
-import org.springframework.stereotype.Component;
 import org.springframework.web.util.ContentCachingRequestWrapper;
 import org.springframework.web.util.ContentCachingResponseWrapper;
 
-@Component
+// @Component  // TEMPORARILY DISABLED - causing UnsupportedOperationException with Spring Security
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class ContentCachingFilter extends HttpFilter {
 

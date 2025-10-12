@@ -89,13 +89,13 @@ public class CryptomusClient {
                                                         url, HttpMethod.POST, entity, Map.class);
 
                                         if (response.getStatusCode() == HttpStatus.OK) {
-                                            Map<String, Object> responseBody = response.getBody();
+                                            Map<String, Object> responseBody =
+                                                    getResponseBodyAsMap(response);
 
                                             if (responseBody != null
                                                     && responseBody.containsKey("result")) {
                                                 Map<String, Object> result =
-                                                        (Map<String, Object>)
-                                                                responseBody.get("result");
+                                                        safeCastToMap(responseBody.get("result"));
 
                                                 return CreatePaymentResponse.builder()
                                                         .uuid((String) result.get("uuid"))
@@ -168,11 +168,11 @@ public class CryptomusClient {
 
                                         if (response.getStatusCode() == HttpStatus.OK
                                                 && response.getBody() != null) {
-                                            Map<String, Object> responseBody = response.getBody();
+                                            Map<String, Object> responseBody =
+                                                    getResponseBodyAsMap(response);
                                             if (responseBody.containsKey("result")) {
                                                 Map<String, Object> result =
-                                                        (Map<String, Object>)
-                                                                responseBody.get("result");
+                                                        safeCastToMap(responseBody.get("result"));
                                                 return PaymentInfoResponse.builder()
                                                         .uuid((String) result.get("uuid"))
                                                         .orderId((String) result.get("order_id"))
@@ -264,11 +264,11 @@ public class CryptomusClient {
 
                                         if (response.getStatusCode() == HttpStatus.OK
                                                 && response.getBody() != null) {
-                                            Map<String, Object> responseBody = response.getBody();
+                                            Map<String, Object> responseBody =
+                                                    getResponseBodyAsMap(response);
                                             if (responseBody.containsKey("result")) {
                                                 List<Map<String, Object>> services =
-                                                        (List<Map<String, Object>>)
-                                                                responseBody.get("result");
+                                                        safeCastToList(responseBody.get("result"));
                                                 return PaymentServicesResponse.builder()
                                                         .services(services)
                                                         .build();
@@ -318,13 +318,13 @@ public class CryptomusClient {
                                                         url, HttpMethod.POST, entity, Map.class);
 
                                         if (response.getStatusCode() == HttpStatus.OK) {
-                                            Map<String, Object> responseBody = response.getBody();
+                                            Map<String, Object> responseBody =
+                                                    getResponseBodyAsMap(response);
 
                                             if (responseBody != null
                                                     && responseBody.containsKey("result")) {
                                                 Map<String, Object> result =
-                                                        (Map<String, Object>)
-                                                                responseBody.get("result");
+                                                        safeCastToMap(responseBody.get("result"));
 
                                                 return CreateWalletResponse.builder()
                                                         .walletUuid(
@@ -395,18 +395,16 @@ public class CryptomusClient {
 
                                         if (response.getStatusCode() == HttpStatus.OK
                                                 && response.getBody() != null) {
-                                            Map<String, Object> responseBody = response.getBody();
+                                            Map<String, Object> responseBody =
+                                                    getResponseBodyAsMap(response);
                                             if (responseBody.containsKey("result")) {
                                                 Map<String, Object> result =
-                                                        (Map<String, Object>)
-                                                                responseBody.get("result");
+                                                        safeCastToMap(responseBody.get("result"));
 
                                                 List<Map<String, Object>> items =
-                                                        (List<Map<String, Object>>)
-                                                                result.get("items");
+                                                        safeCastToList(result.get("items"));
                                                 Map<String, Object> paginate =
-                                                        (Map<String, Object>)
-                                                                result.get("paginate");
+                                                        safeCastToMap(result.get("paginate"));
 
                                                 return PaymentListResponse.builder()
                                                         .items(items)
@@ -479,15 +477,14 @@ public class CryptomusClient {
 
                                         if (response.getStatusCode() == HttpStatus.OK
                                                 && response.getBody() != null) {
-                                            Map<String, Object> responseBody = response.getBody();
+                                            Map<String, Object> responseBody =
+                                                    getResponseBodyAsMap(response);
                                             if (responseBody.containsKey("result")) {
                                                 Map<String, Object> result =
-                                                        (Map<String, Object>)
-                                                                responseBody.get("result");
+                                                        safeCastToMap(responseBody.get("result"));
 
                                                 List<Map<String, Object>> items =
-                                                        (List<Map<String, Object>>)
-                                                                result.get("items");
+                                                        safeCastToList(result.get("items"));
 
                                                 return TransactionListResponse.builder()
                                                         .items(items)
@@ -517,5 +514,26 @@ public class CryptomusClient {
             log.error("Failed to verify webhook signature: {}", e.getMessage());
             return false;
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> safeCastToMap(Object obj) {
+        if (obj instanceof Map) {
+            return (Map<String, Object>) obj;
+        }
+        return new HashMap<>();
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> safeCastToList(Object obj) {
+        if (obj instanceof List) {
+            return (List<Map<String, Object>>) obj;
+        }
+        return List.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> getResponseBodyAsMap(ResponseEntity<Map> response) {
+        return response.getBody();
     }
 }

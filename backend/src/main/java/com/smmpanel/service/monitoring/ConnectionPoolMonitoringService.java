@@ -1,6 +1,6 @@
 package com.smmpanel.service.monitoring;
 
-import com.smmpanel.service.AlertService;
+import com.smmpanel.service.notification.AlertService;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
 import io.micrometer.core.instrument.MeterRegistry;

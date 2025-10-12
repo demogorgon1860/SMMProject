@@ -67,12 +67,15 @@ yarn-error.log*
 frontend/dist/
 frontend/build/
 
-# Environment files
+# Environment files - CRITICAL: Never commit these!
 .env
+.env.*
+!.env.example
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+*.env
 
 # Logs
 logs
@@ -182,3 +185,43 @@ gradle-app.setting
 # Test reports
 test-results/
 reports/
+
+# API Keys and Credentials - NEVER commit these!
+**/credentials.json
+**/client_secret*.json
+**/*_secret.json
+**/service-account*.json
+*.p12
+*.pem
+*.key
+*.cert
+*.crt
+
+# YouTube API specific
+youtube-api-key.txt
+youtube_credentials.json
+youtube_oauth.json
+.youtube_token_cache/
+
+# Google Cloud credentials
+gcp-key.json
+google-credentials.json
+application_default_credentials.json
+
+# Sensitive configuration files
+secrets.yml
+secrets.yaml
+secrets.properties
+config/secrets/*
+credentials/*
+
+# Private keys and certificates
+*.keystore
+*.jks
+*.pfx
+private_key.pem
+public_key.pem
+
+# Selenium browser profiles - contains lock files incompatible with Windows Git
+selenium-profiles/
+backend/nul

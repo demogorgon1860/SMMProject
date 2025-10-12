@@ -30,11 +30,14 @@ public class KafkaHealthIndicator implements HealthIndicator {
             List.of(
                     "smm.order.processing",
                     "smm.video.processing",
-                    "smm.youtube.processing",
-                    "smm.binom.campaign.creation",
+                    // "smm.youtube.processing", // Removed - no producer/consumer exists
+                    "smm.payment.confirmations",
+                    "smm.payment.refunds",
+                    // "smm.binom.campaign.creation", // Removed - no producer/consumer exists
                     "smm.offer.assignments",
                     "smm.order.state.updates",
-                    "smm.notifications");
+                    "smm.notifications", // Note: For external consumers
+                    "smm.monitoring.alerts"); // Note: For external monitoring systems
 
     @Override
     public Health health() {

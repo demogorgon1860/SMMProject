@@ -1,10 +1,12 @@
 package com.smmpanel.entity;
 
+import io.hypersistence.utils.hibernate.type.basic.PostgreSQLEnumType;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Data
@@ -41,6 +43,7 @@ public class VideoProcessing {
     private String videoId;
 
     @Enumerated(EnumType.STRING)
+    @Type(value = PostgreSQLEnumType.class)
     @Column(name = "video_type", columnDefinition = "video_type")
     private VideoType videoType;
 
@@ -48,8 +51,9 @@ public class VideoProcessing {
     @Builder.Default
     private Boolean clipCreated = false;
 
-    @Column(name = "status", nullable = false, length = 32)
     @Enumerated(EnumType.STRING)
+    @Type(value = PostgreSQLEnumType.class)
+    @Column(name = "status", nullable = false, columnDefinition = "video_processing_status")
     @Builder.Default
     private VideoProcessingStatus status = VideoProcessingStatus.PENDING;
 

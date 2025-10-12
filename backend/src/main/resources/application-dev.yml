@@ -5,20 +5,25 @@
 # No environment variables required - all defaults provided
 
 spring:
+  # Disable OAuth2 client in development if client IDs not provided
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration
+  
   # Database configuration with local defaults
   datasource:
-    url: jdbc:postgresql://localhost:5432/smm_panel
-    username: smm_admin
-    password: ${DB_PASSWORD}  # From .env file
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:smm_panel}
+    username: ${DB_USER:smm_admin}
+    password: ${DB_PASSWORD}  # From .env file, no hardcoded fallback
     hikari:
       maximum-pool-size: 20  # Reduced for dev
       minimum-idle: 5
   
   # Redis configuration for local development
   redis:
-    host: localhost
-    port: 6379
-    password: ${REDIS_PASSWORD}  # From .env file
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}  # From .env file, empty default for local dev
     timeout: 2000ms
     lettuce:
       pool:
@@ -32,17 +37,27 @@ spring:
   
   # Kafka configuration for local development
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
-      group-id: smm-panel-dev-group
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:smm-panel-group}  # Use same group across all envs
       auto-offset-reset: earliest
       enable-auto-commit: false
       max-poll-records: 50  # Reduced to prevent thread exhaustion
+      properties:
+        session.timeout.ms: 10000
+        request.timeout.ms: 5000
     producer:
       retries: 1  # Reduced for dev
       batch-size: 16384
+      properties:
+        max.block.ms: 5000  # Don't block too long on startup
     listener:
       concurrency: 3  # Limited concurrency to reduce thread count
+    admin:
+      fail-fast: false  # Don't fail on startup if Kafka is not available
+      properties:
+        request.timeout.ms: 5000
+        default.api.timeout.ms: 5000
   
   # Liquibase settings for development
   liquibase:
@@ -54,10 +69,11 @@ spring:
   # JPA/Hibernate settings for development
   jpa:
     hibernate:
-      ddl-auto: none  # Disable schema validation to bypass errors
+      ddl-auto: none  ## Disable schema validation
     show-sql: true  # Show SQL in console
     properties:
       hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect  # Explicit dialect
         format_sql: true  # Format SQL for readability
         use_sql_comments: true
         generate_statistics: false  # Set to true for performance debugging
@@ -103,14 +119,17 @@ app:
       timeout: 30000
   
   cryptomus:
-    enabled: ${CRYPTOMUS_ENABLED:true}  # From .env file
-    api-url: ${CRYPTOMUS_API_URL}  # From .env file
-    user-api-key: ${CRYPTOMUS_USER_API_KEY}  # From .env file (Simple User Account)
-    payout-api-key: ${CRYPTOMUS_PAYOUT_API_KEY}  # From .env file (Payout operations)
-    api-secret: ${CRYPTOMUS_API_SECRET:not-applicable}  # Not needed for simple user account
-    merchant-id: ${CRYPTOMUS_MERCHANT_ID:not-applicable}  # Not needed for simple user account
-    webhook-secret: ${CRYPTOMUS_WEBHOOK_SECRET:not-applicable}  # Not needed for simple user account
-    sandbox: false  # Simple user accounts use production mode
+    enabled: ${CRYPTOMUS_ENABLED:true}  ## From .env file
+    api:
+      url: ${CRYPTOMUS_API_URL:https://api.cryptomus.com}  ## From .env file
+      user-key: ${CRYPTOMUS_USER_API_KEY:test-user-key}  ## From .env file (Simple User Account)
+      payout-key: ${CRYPTOMUS_PAYOUT_API_KEY:test-payout-key}  ## From .env file (Payout operations)
+      secret: ${CRYPTOMUS_API_SECRET:not-applicable}  ## Not needed for simple user account
+    webhook:
+      secret: ${CRYPTOMUS_WEBHOOK_SECRET:not-applicable}  ## Not needed for simple user account
+    merchant-id: ${CRYPTOMUS_MERCHANT_ID:not-applicable}  ## Not needed for simple user account
+    sandbox: false  ## Simple user accounts use production mode
+    min-deposit: 5.00  ## Minimum deposit amount
   
   youtube:
     api-key: ${YOUTUBE_API_KEY}  # From .env file
@@ -153,6 +172,13 @@ management:
       enabled: true
     readinessstate:
       enabled: true
+    circuitbreakers:
+      enabled: true
+  # Set initial liveness and readiness states
+  server:
+    shutdown: graceful
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
 
 # Logging configuration for development
 logging:

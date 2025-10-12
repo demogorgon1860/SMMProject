@@ -38,7 +38,7 @@ public class ManagementProperties {
         @Data
         public static class Health {
             private String showDetails = "when-authorized";
-            private boolean showComponents = true;
+            private String showComponents = "always";
         }
     }
 

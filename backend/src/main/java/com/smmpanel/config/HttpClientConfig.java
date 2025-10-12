@@ -8,10 +8,12 @@ import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.core5.util.Timeout;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -33,22 +35,33 @@ public class HttpClientConfig {
     private final ExchangeFilterFunction webClientTraceIdFilter;
 
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(3);
-    private static final Duration READ_TIMEOUT = Duration.ofSeconds(5);
-    private static final Duration WRITE_TIMEOUT = Duration.ofSeconds(5);
-    private static final int MAX_CONNECTIONS = 50;
-    private static final int MAX_CONNECTIONS_PER_ROUTE = 20;
+    private static final Duration READ_TIMEOUT =
+            Duration.ofSeconds(10); // Increased for external APIs
+    private static final Duration WRITE_TIMEOUT =
+            Duration.ofSeconds(10); // Increased for external APIs
+    private static final int MAX_CONNECTIONS = 200; // Increased for high concurrency
+    private static final int MAX_CONNECTIONS_PER_ROUTE = 50; // Increased per route limit
 
     @Bean
     @Primary
     public RestTemplate restTemplate() {
+        ConnectionConfig connectionConfig =
+                ConnectionConfig.custom()
+                        .setConnectTimeout(Timeout.ofMilliseconds(CONNECT_TIMEOUT.toMillis()))
+                        .setSocketTimeout(Timeout.ofMilliseconds(READ_TIMEOUT.toMillis()))
+                        .build();
+
         PoolingHttpClientConnectionManager connectionManager =
-                new PoolingHttpClientConnectionManager();
-        connectionManager.setMaxTotal(MAX_CONNECTIONS);
-        connectionManager.setDefaultMaxPerRoute(MAX_CONNECTIONS_PER_ROUTE);
+                PoolingHttpClientConnectionManagerBuilder.create()
+                        .setMaxConnTotal(MAX_CONNECTIONS)
+                        .setMaxConnPerRoute(MAX_CONNECTIONS_PER_ROUTE)
+                        .setDefaultConnectionConfig(connectionConfig)
+                        .build();
 
         RequestConfig requestConfig =
                 RequestConfig.custom()
-                        .setConnectTimeout(Timeout.ofMilliseconds(CONNECT_TIMEOUT.toMillis()))
+                        .setConnectionRequestTimeout(
+                                Timeout.ofMilliseconds(CONNECT_TIMEOUT.toMillis()))
                         .setResponseTimeout(Timeout.ofMilliseconds(READ_TIMEOUT.toMillis()))
                         .build();
 
@@ -104,7 +117,8 @@ public class HttpClientConfig {
 
     @Bean("binomRestTemplate")
     public RestTemplate binomRestTemplate() {
-        return createCustomRestTemplate("Binom");
+        // Binom needs higher limits for bulk operations
+        return createCustomRestTemplateWithLimits("Binom", 100, 30);
     }
 
     @Bean("exchangeRateRestTemplate")
@@ -127,15 +141,77 @@ public class HttpClientConfig {
         return createCustomWebClient("ExchangeRate");
     }
 
-    private RestTemplate createCustomRestTemplate(String clientName) {
+    @Bean("youtubeRestTemplate")
+    public RestTemplate youtubeRestTemplate() {
+        // YouTube API needs specific connection limits
+        return createCustomRestTemplateWithLimits("YouTube", 50, 20);
+    }
+
+    private RestTemplate createCustomRestTemplateWithLimits(
+            String clientName, int maxTotal, int maxPerRoute) {
+        ConnectionConfig connectionConfig =
+                ConnectionConfig.custom()
+                        .setConnectTimeout(Timeout.ofMilliseconds(CONNECT_TIMEOUT.toMillis()))
+                        .setSocketTimeout(Timeout.ofMilliseconds(READ_TIMEOUT.toMillis()))
+                        .build();
+
         PoolingHttpClientConnectionManager connectionManager =
-                new PoolingHttpClientConnectionManager();
-        connectionManager.setMaxTotal(MAX_CONNECTIONS);
-        connectionManager.setDefaultMaxPerRoute(MAX_CONNECTIONS_PER_ROUTE);
+                PoolingHttpClientConnectionManagerBuilder.create()
+                        .setMaxConnTotal(maxTotal)
+                        .setMaxConnPerRoute(maxPerRoute)
+                        .setDefaultConnectionConfig(connectionConfig)
+                        .build();
 
         RequestConfig requestConfig =
                 RequestConfig.custom()
+                        .setConnectionRequestTimeout(
+                                Timeout.ofMilliseconds(CONNECT_TIMEOUT.toMillis()))
+                        .setResponseTimeout(Timeout.ofMilliseconds(READ_TIMEOUT.toMillis()))
+                        .build();
+
+        CloseableHttpClient httpClient =
+                HttpClients.custom()
+                        .setConnectionManager(connectionManager)
+                        .setDefaultRequestConfig(requestConfig)
+                        .setUserAgent("SMM-Panel/" + clientName + "/1.0")
+                        .build();
+
+        HttpComponentsClientHttpRequestFactory factory =
+                new HttpComponentsClientHttpRequestFactory(httpClient);
+
+        RestTemplate restTemplate = new RestTemplate(factory);
+        restTemplate.setInterceptors(Collections.singletonList(traceIdInterceptor));
+
+        log.info(
+                "{} RestTemplate configured with maxTotal: {}, maxPerRoute: {}, connect timeout:"
+                        + " {}ms, read timeout: {}ms",
+                clientName,
+                maxTotal,
+                maxPerRoute,
+                CONNECT_TIMEOUT.toMillis(),
+                READ_TIMEOUT.toMillis());
+
+        return restTemplate;
+    }
+
+    private RestTemplate createCustomRestTemplate(String clientName) {
+        ConnectionConfig connectionConfig =
+                ConnectionConfig.custom()
                         .setConnectTimeout(Timeout.ofMilliseconds(CONNECT_TIMEOUT.toMillis()))
+                        .setSocketTimeout(Timeout.ofMilliseconds(READ_TIMEOUT.toMillis()))
+                        .build();
+
+        PoolingHttpClientConnectionManager connectionManager =
+                PoolingHttpClientConnectionManagerBuilder.create()
+                        .setMaxConnTotal(MAX_CONNECTIONS)
+                        .setMaxConnPerRoute(MAX_CONNECTIONS_PER_ROUTE)
+                        .setDefaultConnectionConfig(connectionConfig)
+                        .build();
+
+        RequestConfig requestConfig =
+                RequestConfig.custom()
+                        .setConnectionRequestTimeout(
+                                Timeout.ofMilliseconds(CONNECT_TIMEOUT.toMillis()))
                         .setResponseTimeout(Timeout.ofMilliseconds(READ_TIMEOUT.toMillis()))
                         .build();
 

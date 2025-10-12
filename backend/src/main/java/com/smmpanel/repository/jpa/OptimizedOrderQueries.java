@@ -30,7 +30,6 @@ public interface OptimizedOrderQueries {
                     + "JOIN FETCH o.user u "
                     + "JOIN FETCH o.service s "
                     + "LEFT JOIN FETCH o.videoProcessing vp "
-                    + "LEFT JOIN FETCH o.binomCampaigns bc "
                     + "WHERE o.createdAt >= :since "
                     + "ORDER BY o.createdAt DESC")
     List<Order> findRecentOrdersForDashboard(
@@ -112,7 +111,6 @@ public interface OptimizedOrderQueries {
                     + "JOIN FETCH o.user u "
                     + "JOIN FETCH o.service s "
                     + "LEFT JOIN FETCH o.videoProcessing vp "
-                    + "LEFT JOIN FETCH o.binomCampaigns bc "
                     + "WHERE u.id = :userId "
                     + "AND o.createdAt BETWEEN :startDate AND :endDate "
                     + "ORDER BY o.createdAt DESC")

@@ -1,5 +1,6 @@
 package com.smmpanel.entity;
 
+import io.hypersistence.utils.hibernate.type.basic.PostgreSQLEnumType;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -8,6 +9,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Data
@@ -69,6 +71,7 @@ public class BalanceTransaction {
     private String sessionId;
 
     @Enumerated(EnumType.STRING)
+    @Type(value = PostgreSQLEnumType.class)
     @Column(name = "transaction_type", nullable = false, columnDefinition = "transaction_type")
     private TransactionType transactionType;
 

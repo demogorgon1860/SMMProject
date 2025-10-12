@@ -6,7 +6,7 @@ import com.smmpanel.entity.Service;
 import com.smmpanel.entity.User;
 import com.smmpanel.repository.jpa.ServiceRepository;
 import com.smmpanel.repository.jpa.UserRepository;
-import com.smmpanel.service.YouTubeService;
+import com.smmpanel.service.integration.YouTubeService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Optional;

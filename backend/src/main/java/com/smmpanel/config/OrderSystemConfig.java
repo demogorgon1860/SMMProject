@@ -21,7 +21,6 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
     FraudDetectionProperties.class,
     AppProperties.class,
     KafkaProperties.class,
-    RedisProperties.class,
     DatabaseProperties.class,
     JpaProperties.class,
     ServerProperties.class,

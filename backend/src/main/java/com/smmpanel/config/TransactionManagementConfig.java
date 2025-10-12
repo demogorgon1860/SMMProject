@@ -29,8 +29,8 @@ public class TransactionManagementConfig {
         JpaTransactionManager transactionManager = new JpaTransactionManager();
         transactionManager.setEntityManagerFactory(entityManagerFactory);
 
-        // Set transaction timeout (30 seconds for balance operations)
-        transactionManager.setDefaultTimeout(30);
+        // Set transaction timeout (180 seconds for video processing with Selenium)
+        transactionManager.setDefaultTimeout(180);
 
         // Enable nested transactions for complex operations
         transactionManager.setNestedTransactionAllowed(true);
@@ -39,7 +39,7 @@ public class TransactionManagementConfig {
         transactionManager.setFailEarlyOnGlobalRollbackOnly(true);
 
         log.info(
-                "Enhanced transaction manager configured with 30s timeout and nested transaction"
+                "Enhanced transaction manager configured with 180s timeout and nested transaction"
                         + " support");
         return transactionManager;
     }

@@ -38,8 +38,16 @@ public class RateLimitConfig {
     @Bean
     public BucketConfiguration defaultRateLimitConfig() {
         return BucketConfiguration.builder()
-                .addLimit(Bandwidth.simple(100, Duration.ofMinutes(1)))
-                .addLimit(Bandwidth.simple(1000, Duration.ofHours(1)))
+                .addLimit(
+                        Bandwidth.builder()
+                                .capacity(100)
+                                .refillGreedy(100, Duration.ofMinutes(1))
+                                .build())
+                .addLimit(
+                        Bandwidth.builder()
+                                .capacity(1000)
+                                .refillGreedy(1000, Duration.ofHours(1))
+                                .build())
                 .build();
     }
 
@@ -47,13 +55,19 @@ public class RateLimitConfig {
     public BucketConfiguration orderRateLimitConfig() {
         return BucketConfiguration.builder()
                 .addLimit(
-                        Bandwidth.simple(
-                                appProperties.getRateLimit().getOrders().getPerMinute(),
-                                Duration.ofMinutes(1)))
+                        Bandwidth.builder()
+                                .capacity(appProperties.getRateLimit().getOrders().getPerMinute())
+                                .refillGreedy(
+                                        appProperties.getRateLimit().getOrders().getPerMinute(),
+                                        Duration.ofMinutes(1))
+                                .build())
                 .addLimit(
-                        Bandwidth.simple(
-                                appProperties.getRateLimit().getOrders().getPerHour(),
-                                Duration.ofHours(1)))
+                        Bandwidth.builder()
+                                .capacity(appProperties.getRateLimit().getOrders().getPerHour())
+                                .refillGreedy(
+                                        appProperties.getRateLimit().getOrders().getPerHour(),
+                                        Duration.ofHours(1))
+                                .build())
                 .build();
     }
 
@@ -61,13 +75,19 @@ public class RateLimitConfig {
     public BucketConfiguration apiRateLimitConfig() {
         return BucketConfiguration.builder()
                 .addLimit(
-                        Bandwidth.simple(
-                                appProperties.getRateLimit().getApi().getPerMinute(),
-                                Duration.ofMinutes(1)))
+                        Bandwidth.builder()
+                                .capacity(appProperties.getRateLimit().getApi().getPerMinute())
+                                .refillGreedy(
+                                        appProperties.getRateLimit().getApi().getPerMinute(),
+                                        Duration.ofMinutes(1))
+                                .build())
                 .addLimit(
-                        Bandwidth.simple(
-                                appProperties.getRateLimit().getApi().getPerHour(),
-                                Duration.ofHours(1)))
+                        Bandwidth.builder()
+                                .capacity(appProperties.getRateLimit().getApi().getPerHour())
+                                .refillGreedy(
+                                        appProperties.getRateLimit().getApi().getPerHour(),
+                                        Duration.ofHours(1))
+                                .build())
                 .build();
     }
 
@@ -75,13 +95,19 @@ public class RateLimitConfig {
     public BucketConfiguration authRateLimitConfig() {
         return BucketConfiguration.builder()
                 .addLimit(
-                        Bandwidth.simple(
-                                appProperties.getRateLimit().getAuth().getPerMinute(),
-                                Duration.ofMinutes(1)))
+                        Bandwidth.builder()
+                                .capacity(appProperties.getRateLimit().getAuth().getPerMinute())
+                                .refillGreedy(
+                                        appProperties.getRateLimit().getAuth().getPerMinute(),
+                                        Duration.ofMinutes(1))
+                                .build())
                 .addLimit(
-                        Bandwidth.simple(
-                                appProperties.getRateLimit().getAuth().getPerMinute() * 5,
-                                Duration.ofHours(1)))
+                        Bandwidth.builder()
+                                .capacity(appProperties.getRateLimit().getAuth().getPerMinute() * 5)
+                                .refillGreedy(
+                                        appProperties.getRateLimit().getAuth().getPerMinute() * 5,
+                                        Duration.ofHours(1))
+                                .build())
                 .build();
     }
 }

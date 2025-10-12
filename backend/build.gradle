@@ -8,6 +8,24 @@ plugins {
     id 'com.diffplug.spotless' version '6.25.0'
 }
 
+// Load .env file if it exists
+def envFile = file('../.env')
+if (envFile.exists()) {
+    println "Loading environment variables from: ${envFile.absolutePath}"
+    envFile.readLines().each { line ->
+        if (!line.startsWith('#') && line.contains('=')) {
+            def (key, value) = line.split('=', 2)
+            key = key.trim()
+            value = value.trim()
+            // Set as system property for the build
+            System.setProperty(key, value)
+            // Also set as project property
+            project.ext[key] = value
+        }
+    }
+    println "Loaded ${System.properties.findAll { it.key.toString().startsWith('DB_') }.size()} DB-related environment variables from .env"
+}
+
 // Apply performance testing configuration
 apply from: 'gradle/performance-testing.gradle'
 
@@ -20,6 +38,11 @@ java {
     }
     sourceCompatibility = '17'
     targetCompatibility = '17'
+}
+
+// Enable parameter name retention for better debugging and Spring integration
+tasks.withType(JavaCompile) {
+    options.compilerArgs += '-parameters'
 }
 
 configurations {
@@ -86,8 +109,10 @@ dependencies {
     
     // Database
     implementation 'org.postgresql:postgresql'
-    // Keep hibernate-types-60 but it's compatible with Hibernate 6.x series
-    implementation 'com.vladmihalcea:hibernate-types-60:2.21.1'
+    // Hibernate Types for Hibernate 6.2.x (Spring Boot 3.1.7)
+    implementation 'io.hypersistence:hypersistence-utils-hibernate-62:3.6.1'
+    // Alternative: Use the vladmihalcea package (same library, different package name)
+    // implementation 'com.vladmihalcea:hibernate-types-60:2.21.1'
     implementation 'org.liquibase:liquibase-core'
     
     // Liquibase runtime dependencies
@@ -141,11 +166,43 @@ dependencies {
     
     // JSON Processing
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+    
+    // MessagePack for efficient Redis serialization
+    implementation 'org.msgpack:jackson-dataformat-msgpack:0.9.6'
+    implementation 'org.msgpack:msgpack-core:0.9.6'
+    
+    // Micrometer Tracing for distributed tracing with complete OpenTelemetry dependencies
+    implementation 'io.micrometer:micrometer-tracing-bridge-otel:1.2.0'
+    implementation 'io.opentelemetry:opentelemetry-exporter-otlp:1.32.0'
+    implementation 'io.opentelemetry:opentelemetry-sdk-trace:1.32.0'
+    implementation 'io.opentelemetry:opentelemetry-sdk:1.32.0'
+    implementation 'io.opentelemetry:opentelemetry-api:1.32.0'
+    implementation 'io.opentelemetry:opentelemetry-exporter-otlp-common:1.32.0'
+    implementation 'io.opentelemetry:opentelemetry-exporter-common:1.32.0'
+    implementation 'io.opentelemetry:opentelemetry-sdk-common:1.32.0'
+    implementation 'io.opentelemetry:opentelemetry-semconv:1.25.0-alpha'
+    implementation 'io.opentelemetry.instrumentation:opentelemetry-spring-boot-starter:1.32.0-alpha'
+    
     // Updated for Hibernate 6.x compatibility
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-hibernate6'
     
     // API Documentation
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
+    
+    // Spring State Machine for Order Workflow Management
+    implementation 'org.springframework.statemachine:spring-statemachine-core:4.0.0'
+    implementation 'org.springframework.statemachine:spring-statemachine-data-jpa:4.0.0'
+    implementation 'org.springframework.statemachine:spring-statemachine-starter:4.0.0'
+    
+    // OAuth2 Client for Google and GitHub Login
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+    implementation 'org.springframework.security:spring-security-oauth2-jose'
+    
+    // WebSocket for Real-time Updates
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+    implementation 'org.webjars:webjars-locator-core'
+    implementation 'org.webjars:sockjs-client:1.5.1'
+    implementation 'org.webjars:stomp-websocket:2.3.4'
     
     // JAXB dependencies for Java 11+ (required for Ehcache XML configuration)
     implementation 'javax.xml.bind:jaxb-api:2.3.1'
@@ -195,6 +252,7 @@ dependencies {
 // Configure annotation processing for Gradle 9.0 compatibility
 tasks.withType(JavaCompile).configureEach {
     options.annotationProcessorPath = configurations.annotationProcessor
+    options.compilerArgs += ['-Xlint:deprecation', '-Xlint:unchecked']
 }
 
 compileTestJava {
@@ -243,6 +301,24 @@ springBoot {
     buildInfo()
 }
 
+// Configure bootRun to load .env file
+bootRun {
+    // Load .env file for Spring Boot runtime
+    doFirst {
+        def envFileForBoot = file('../.env')
+        if (envFileForBoot.exists()) {
+            println "Loading .env file from: ${envFileForBoot.absolutePath}"
+            envFileForBoot.readLines().each { line ->
+                if (!line.startsWith('#') && line.contains('=')) {
+                    def (key, value) = line.split('=', 2)
+                    environment key.trim(), value.trim()
+                }
+            }
+            println "Loaded ${environment.size()} environment variables from .env"
+        }
+    }
+}
+
 // Disable plain JAR for Spring Boot
 jar {
     enabled = false
@@ -256,9 +332,9 @@ liquibase {
     activities {
         main {
             changelogFile 'db/changelog/db.changelog-master.xml'
-            url project.findProperty('liquibase.url') ?: 'jdbc:postgresql://localhost:5432/smm_panel'
-            username project.findProperty('liquibase.username') ?: 'smm_admin'
-            password project.findProperty('liquibase.password') ?: 'postgres123'
+            url project.findProperty('liquibase.url') ?: System.getProperty('DB_URL') ?: 'jdbc:postgresql://localhost:5432/smm_panel'
+            username project.findProperty('liquibase.username') ?: System.getProperty('DB_USER') ?: 'smm_admin'
+            password project.findProperty('liquibase.password') ?: System.getProperty('DB_PASSWORD') ?: 'changeme'
             driver 'org.postgresql.Driver'
             defaultSchemaName 'public'
             contexts project.findProperty('liquibase.contexts') ?: 'dev'
@@ -267,10 +343,10 @@ liquibase {
         }
         
         baseline {
-            changelogFile 'src/main/resources/db/changelog/db.changelog-baseline.xml'
-            url project.findProperty('liquibase.url') ?: 'jdbc:postgresql://localhost:5432/smm_panel'
-            username project.findProperty('liquibase.username') ?: 'smm_admin'
-            password project.findProperty('liquibase.password') ?: 'postgres123'
+            changelogFile 'db/changelog/db.changelog-baseline.xml'
+            url project.findProperty('liquibase.url') ?: System.getProperty('DB_URL') ?: 'jdbc:postgresql://localhost:5432/smm_panel'
+            username project.findProperty('liquibase.username') ?: System.getProperty('DB_USER') ?: 'smm_admin'
+            password project.findProperty('liquibase.password') ?: System.getProperty('DB_PASSWORD') ?: 'changeme'
             driver 'org.postgresql.Driver'
             defaultSchemaName 'public'
             contexts 'baseline'
@@ -278,10 +354,10 @@ liquibase {
         }
         
         stage {
-            changelogFile 'src/main/resources/db/liquibase/db.changelog-master.xml'
+            changelogFile 'db/changelog/db.changelog-master.xml'
             url project.findProperty('liquibaseUrlStage') ?: 'jdbc:postgresql://localhost:5432/smm_panel_stage'
             username project.findProperty('liquibaseUsernameStage') ?: 'smm_admin'
-            password project.findProperty('liquibasePasswordStage') ?: 'stage_password_123'
+            password project.findProperty('liquibasePasswordStage') ?: System.getenv('DB_PASSWORD_STAGE') ?: 'changeme'
             driver 'org.postgresql.Driver'
             contexts 'stage,all'
             testRollbackOnUpdate true
@@ -289,7 +365,7 @@ liquibase {
         }
         
         prod {
-            changelogFile 'src/main/resources/db/liquibase/db.changelog-master.xml'
+            changelogFile 'db/changelog/db.changelog-master.xml'
             url project.findProperty('liquibaseUrlProd') ?: System.getenv('DB_URL')
             username project.findProperty('liquibaseUsernameProd') ?: System.getenv('DB_USER')
             password project.findProperty('liquibasePasswordProd') ?: System.getenv('DB_PASSWORD')
@@ -301,4 +377,13 @@ liquibase {
     }
     
     runList = project.findProperty('runList') ?: 'main'
+}
+
+// Debug task to verify environment variables
+task debugEnv {
+    doLast {
+        println "DB_PASSWORD from System.getProperty: ${System.getProperty('DB_PASSWORD')}"
+        println "DB_USER from System.getProperty: ${System.getProperty('DB_USER')}"
+        println "DB_URL from System.getProperty: ${System.getProperty('DB_URL')}"
+    }
 }

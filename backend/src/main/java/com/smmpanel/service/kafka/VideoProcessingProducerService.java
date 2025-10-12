@@ -4,7 +4,6 @@ import com.smmpanel.dto.kafka.VideoProcessingMessage;
 import java.time.LocalDateTime;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -23,12 +22,16 @@ import org.springframework.stereotype.Service;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class VideoProcessingProducerService {
 
     private final KafkaTemplate<String, VideoProcessingMessage> kafkaTemplate;
 
-    @Value("${app.kafka.video-processing.topic:video.processing.queue}")
+    public VideoProcessingProducerService(
+            @org.springframework.beans.factory.annotation.Qualifier("videoProcessingKafkaTemplate") KafkaTemplate<String, VideoProcessingMessage> kafkaTemplate) {
+        this.kafkaTemplate = kafkaTemplate;
+    }
+
+    @Value("${app.kafka.video-processing.topic:smm.video.processing}")
     private String videoProcessingTopic;
 
     @Value("${app.kafka.video-processing.producer.timeout:30000}")

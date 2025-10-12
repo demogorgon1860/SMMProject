@@ -2,6 +2,7 @@ package com.smmpanel.repository.jpa;
 
 import com.smmpanel.entity.User;
 import com.smmpanel.entity.UserRole;
+import jakarta.persistence.LockModeType;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -9,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -36,6 +38,11 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     // OPTIMIZED: Uses partial index idx_users_api_key_hash_active for better performance
     @Query("SELECT u FROM User u WHERE u.apiKeyHash = :hash AND u.isActive = true")
     Optional<User> findByApiKeyHashAndIsActiveTrue(@Param("hash") String hash);
+
+    // Pessimistic locking for balance operations to prevent race conditions
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT u FROM User u WHERE u.id = :id")
+    Optional<User> findByIdWithLock(@Param("id") Long id);
 
     // ADDED: Missing custom query methods
     @Query(
@@ -72,4 +79,8 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
             @Param("active") Boolean active,
             @Param("minBalance") BigDecimal minBalance,
             Pageable pageable);
+
+    // Find all active users with API keys for validation
+    @Query("SELECT u FROM User u WHERE u.isActive = true AND u.apiKeyHash IS NOT NULL")
+    List<User> findAllByIsActiveTrue();
 }

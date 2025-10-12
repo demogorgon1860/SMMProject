@@ -1,15 +1,14 @@
 package com.smmpanel.consumer;
 
-import com.smmpanel.dto.binom.BinomIntegrationResponse;
 import com.smmpanel.entity.Order;
 import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.event.OrderCreatedEvent;
 import com.smmpanel.event.OrderStatusChangedEvent;
 import com.smmpanel.producer.OrderEventProducer;
 import com.smmpanel.repository.jpa.OrderRepository;
-import com.smmpanel.service.BinomService;
-import com.smmpanel.service.MessageProcessingService;
-import com.smmpanel.service.YouTubeService;
+import com.smmpanel.service.core.MessageProcessingService;
+import com.smmpanel.service.integration.YouTubeService;
+import com.smmpanel.service.kafka.MessageIdempotencyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -31,9 +30,9 @@ public class OrderEventConsumer {
 
     private final OrderRepository orderRepository;
     private final YouTubeService youTubeService;
-    private final BinomService binomService;
     private final OrderEventProducer orderEventProducer;
     private final MessageProcessingService messageProcessingService;
+    private final MessageIdempotencyService deduplicationService;
 
     /** Process order created events with RetryTopic and DLT */
     @RetryableTopic(
@@ -44,26 +43,45 @@ public class OrderEventConsumer {
             dltStrategy = org.springframework.kafka.retrytopic.DltStrategy.FAIL_ON_ERROR,
             concurrency = "2")
     @KafkaListener(topics = "smm.order.processing", groupId = "smm-order-processing-group")
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void processOrderCreatedEvent(
             @Payload OrderCreatedEvent event,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
             @Header(KafkaHeaders.OFFSET) long offset) {
 
+        // Generate unique message ID for idempotency
+        String messageId = deduplicationService.generateMessageId(topic, partition, offset);
+        Long orderId = event.getOrderId();
+
         log.info(
                 "Processing order created event: orderId={}, userId={}, topic={},"
                         + " partition={}, offset={}",
-                event.getOrderId(),
+                orderId,
                 event.getUserId(),
                 topic,
                 partition,
                 offset);
 
         try {
+            // Check for duplicate processing
+            if (deduplicationService.isOrderEventAlreadyProcessed(messageId, orderId)) {
+                log.warn(
+                        "Duplicate order event detected, skipping: orderId={}, messageId={}",
+                        orderId,
+                        messageId);
+                return;
+            }
+
+            // Process the order
             processOrderCreatedEventInternal(event);
-            log.info("Successfully processed order created event: orderId={}", event.getOrderId());
+
+            // Mark as processed after successful processing
+            deduplicationService.markOrderEventAsProcessed(messageId, orderId);
+
+            log.info("Successfully processed order created event: orderId={}", orderId);
         } catch (Exception e) {
-            log.error("Failed to process order created event: orderId={}", event.getOrderId(), e);
+            log.error("Failed to process order created event: orderId={}", orderId, e);
             throw e; // Let RetryTopic handle retries and DLT
         }
     }
@@ -82,10 +100,14 @@ public class OrderEventConsumer {
             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
             @Header(KafkaHeaders.OFFSET) long offset) {
 
+        // Generate unique message ID for idempotency
+        String messageId = deduplicationService.generateMessageId(topic, partition, offset);
+        Long orderId = event.getOrder().getId();
+
         log.info(
                 "Processing order status changed event: orderId={}, oldStatus={}, newStatus={},"
                         + " topic={}, partition={}, offset={}",
-                event.getOrder().getId(),
+                orderId,
                 event.getOldStatus(),
                 event.getNewStatus(),
                 topic,
@@ -93,6 +115,14 @@ public class OrderEventConsumer {
                 offset);
 
         try {
+            // Check for duplicate processing
+            if (deduplicationService.isOrderEventAlreadyProcessed(messageId, orderId)) {
+                log.warn(
+                        "Duplicate order status event detected, skipping: orderId={}, messageId={}",
+                        orderId,
+                        messageId);
+                return;
+            }
             // Handle status-specific logic
             switch (event.getNewStatus()) {
                 case ACTIVE:
@@ -108,11 +138,16 @@ public class OrderEventConsumer {
                     log.debug("No specific handling for status: {}", event.getNewStatus());
             }
 
+            // Mark as processed after successful handling
+            deduplicationService.markOrderEventAsProcessed(messageId, orderId);
+
+            log.info(
+                    "Successfully processed order status changed event: orderId={}, newStatus={}",
+                    orderId,
+                    event.getNewStatus());
+
         } catch (Exception e) {
-            log.error(
-                    "Failed to process order status changed event: orderId={}",
-                    event.getOrder().getId(),
-                    e);
+            log.error("Failed to process order status changed event: orderId={}", orderId, e);
             throw e; // Let Kafka retry or send to DLQ
         }
     }
@@ -137,26 +172,6 @@ public class OrderEventConsumer {
         } catch (Exception e) {
             log.error("YouTube verification failed: orderId={}", order.getId(), e);
             // Don't fail the entire process, continue with default values
-        }
-    }
-
-    /** Process Binom offer assignment to pre-configured campaigns */
-    private void processBinomCampaignCreation(Order order) {
-        try {
-            // Distribute offer across 3 pre-configured campaigns
-            BinomIntegrationResponse response =
-                    binomService.createBinomIntegration(
-                            order, order.getLink(), false, order.getLink());
-            log.info(
-                    "Binom offer distributed: orderId={}, campaigns={}",
-                    order.getId(),
-                    response.getCampaignsCreated());
-        } catch (Exception e) {
-            log.error("Binom offer distribution failed: orderId={}", order.getId(), e);
-            // Update order with error message
-            order.setErrorMessage("Failed to create Binom campaign: " + e.getMessage());
-            orderRepository.save(order);
-            throw e; // Let Kafka retry
         }
     }
 
@@ -208,9 +223,6 @@ public class OrderEventConsumer {
 
         // Process YouTube verification
         processYouTubeVerification(order);
-
-        // Process Binom campaign creation
-        processBinomCampaignCreation(order);
 
         // Update order status to ACTIVE
         updateOrderStatus(order, OrderStatus.ACTIVE);

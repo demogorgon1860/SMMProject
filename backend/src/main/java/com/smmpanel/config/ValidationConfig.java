@@ -4,6 +4,7 @@ import jakarta.validation.Validator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 import org.springframework.validation.beanvalidation.MethodValidationPostProcessor;
 
@@ -37,9 +38,11 @@ public class ValidationConfig {
 
     /** Enable method-level validation */
     @Bean
-    public MethodValidationPostProcessor methodValidationPostProcessor() {
+    @Lazy(false)
+    public MethodValidationPostProcessor methodValidationPostProcessor(
+            LocalValidatorFactoryBean validator) {
         MethodValidationPostProcessor processor = new MethodValidationPostProcessor();
-        processor.setValidator(validator());
+        processor.setValidator(validator);
 
         log.info("Method-level validation enabled for controller and service layers");
 

@@ -3,6 +3,7 @@ package com.smmpanel.config;
 import io.jsonwebtoken.security.Keys;
 import javax.crypto.SecretKey;
 import lombok.Data;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,9 +13,15 @@ import org.springframework.context.annotation.Configuration;
 @Data
 public class JwtConfig {
 
+    @Value("${JWT_SECRET}")
     private String secret;
-    private long jwtExpirationMs = 86400000;
-    private long refreshExpirationMs = 604800000;
+
+    @Value("${JWT_EXPIRATION_MS:86400000}")
+    private long jwtExpirationMs;
+
+    @Value("${JWT_REFRESH_EXPIRATION_MS:604800000}")
+    private long refreshExpirationMs;
+
     private String jwtIssuer = "SMM-Panel";
 
     @Bean

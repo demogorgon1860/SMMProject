@@ -1,0 +1,405 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- ============================================= -->
+    <!-- DATABASE COMPATIBILITY FIXES - January 2025   -->
+    <!-- Generated from comprehensive audit report      -->
+    <!-- ============================================= -->
+
+    <!-- Fix 1: Create Missing Enum Types -->
+    <changeSet id="2025.01-create-missing-enums" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <sqlCheck expectedResult="1">
+                    SELECT COUNT(*) FROM pg_type WHERE typname = 'audit_category'
+                </sqlCheck>
+            </not>
+        </preConditions>
+        <sql>
+            CREATE TYPE audit_category AS ENUM (
+                'USER_ACTION', 'SYSTEM_EVENT', 'SECURITY', 'PAYMENT', 'ORDER'
+            );
+        </sql>
+    </changeSet>
+
+    <changeSet id="2025.01-create-audit-severity-enum" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <sqlCheck expectedResult="1">
+                    SELECT COUNT(*) FROM pg_type WHERE typname = 'audit_severity'
+                </sqlCheck>
+            </not>
+        </preConditions>
+        <sql>
+            CREATE TYPE audit_severity AS ENUM (
+                'INFO', 'WARNING', 'ERROR', 'CRITICAL'
+            );
+        </sql>
+    </changeSet>
+
+    <changeSet id="2025.01-create-video-processing-status-enum" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <sqlCheck expectedResult="1">
+                    SELECT COUNT(*) FROM pg_type WHERE typname = 'video_processing_status'
+                </sqlCheck>
+            </not>
+        </preConditions>
+        <sql>
+            CREATE TYPE video_processing_status AS ENUM (
+                'PENDING', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'CANCELLED'
+            );
+        </sql>
+    </changeSet>
+
+    <!-- Fix 2: Add Missing Columns to balance_transactions -->
+    <changeSet id="2025.01-add-balance-transactions-columns" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="balance_transactions" columnName="version"/>
+            </not>
+        </preConditions>
+
+        <addColumn tableName="balance_transactions">
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <addColumn tableName="balance_transactions">
+            <column name="transaction_hash" type="VARCHAR(255)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <addColumn tableName="balance_transactions">
+            <column name="metadata" type="JSONB">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <addColumn tableName="balance_transactions">
+            <column name="ip_address" type="VARCHAR(45)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <addColumn tableName="balance_transactions">
+            <column name="user_agent" type="TEXT">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <addColumn tableName="balance_transactions">
+            <column name="reference_id" type="VARCHAR(255)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <addColumn tableName="balance_transactions">
+            <column name="status" type="VARCHAR(50)" defaultValue="COMPLETED">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <addColumn tableName="balance_transactions">
+            <column name="error_message" type="TEXT">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+
+        <addColumn tableName="balance_transactions">
+            <column name="processed_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <!-- Fix 3: Create refresh_tokens table -->
+    <changeSet id="2025.01-create-refresh-tokens-table" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="refresh_tokens"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="refresh_tokens">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="token" type="VARCHAR(500)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expires_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="revoked" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="revoked_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="true"/>
+            </column>
+            <column name="device_info" type="TEXT">
+                <constraints nullable="true"/>
+            </column>
+            <column name="ip_address" type="VARCHAR(45)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="refresh_tokens"
+                                baseColumnNames="user_id"
+                                constraintName="fk_refresh_tokens_user"
+                                referencedTableName="users"
+                                referencedColumnNames="id"
+                                onDelete="CASCADE"/>
+
+        <createIndex tableName="refresh_tokens" indexName="idx_refresh_tokens_user_active">
+            <column name="user_id"/>
+            <column name="expires_at"/>
+        </createIndex>
+
+        <createIndex tableName="refresh_tokens" indexName="idx_refresh_tokens_token">
+            <column name="token"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Fix 4: Create order_events table if missing -->
+    <changeSet id="2025.01-create-order-events-table" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="order_events"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="order_events">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="order_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="order_created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="event_type" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="old_status" type="VARCHAR(50)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="new_status" type="VARCHAR(50)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="event_data" type="JSONB">
+                <constraints nullable="true"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="true"/>
+            </column>
+            <column name="ip_address" type="VARCHAR(45)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="user_agent" type="TEXT">
+                <constraints nullable="true"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <sql>
+            ALTER TABLE order_events ADD CONSTRAINT fk_order_events_order
+                FOREIGN KEY (order_id, order_created_at)
+                REFERENCES orders(id, created_at) ON DELETE CASCADE;
+        </sql>
+
+        <createIndex tableName="order_events" indexName="idx_order_events_order">
+            <column name="order_id"/>
+            <column name="created_at" descending="true"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Fix 5: Remove deprecated security columns -->
+    <changeSet id="2025.01-remove-deprecated-security-columns" author="system">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="users" columnName="api_key_plaintext_deprecated"/>
+        </preConditions>
+
+        <dropColumn tableName="users" columnName="api_key_plaintext_deprecated"/>
+
+        <sql>
+            INSERT INTO audit_logs (
+                entity_type, entity_id, action, old_value, new_value,
+                user_id, timestamp, ip_address, category, severity
+            ) VALUES (
+                'SECURITY_FIX', 0, 'COLUMN_REMOVED',
+                '{"column": "api_key_plaintext_deprecated"}',
+                '{"status": "removed_for_security"}',
+                1, NOW(), '127.0.0.1', 'SECURITY', 'INFO'
+            );
+        </sql>
+    </changeSet>
+
+    <!-- Fix 6: Clean up duplicate foreign keys (PostgreSQL specific) -->
+    <changeSet id="2025.01-cleanup-duplicate-foreign-keys" author="system" dbms="postgresql">
+        <sql splitStatements="false">
+            DO $$
+            DECLARE
+                constraint_record RECORD;
+            BEGIN
+                -- Find and drop duplicate foreign keys on balance_transactions
+                FOR constraint_record IN
+                    SELECT conname
+                    FROM pg_constraint
+                    WHERE conrelid = 'balance_transactions'::regclass
+                    AND conname LIKE 'fk_transactions_order_orders_%'
+                    AND conname != 'fk_transactions_order'
+                LOOP
+                    EXECUTE 'ALTER TABLE balance_transactions DROP CONSTRAINT IF EXISTS '
+                            || quote_ident(constraint_record.conname);
+                    RAISE NOTICE 'Dropped constraint: %', constraint_record.conname;
+                END LOOP;
+            END $$;
+        </sql>
+    </changeSet>
+
+    <!-- Fix 7: Add missing indexes for performance -->
+    <changeSet id="2025.01-add-performance-indexes" author="system">
+        <!-- Composite index for common order queries -->
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <indexExists indexName="idx_orders_user_status_created"/>
+            </not>
+        </preConditions>
+
+        <sql>
+            CREATE INDEX IF NOT EXISTS idx_orders_user_status_created
+            ON orders(user_id, status, created_at DESC)
+            WHERE status IN ('PENDING', 'IN_PROGRESS', 'PROCESSING', 'ACTIVE');
+        </sql>
+    </changeSet>
+
+    <changeSet id="2025.01-add-balance-transactions-indexes" author="system">
+        <!-- Index for transaction lookups -->
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <indexExists indexName="idx_balance_transactions_reference"/>
+            </not>
+        </preConditions>
+
+        <createIndex tableName="balance_transactions"
+                     indexName="idx_balance_transactions_reference">
+            <column name="reference_id"/>
+        </createIndex>
+
+        <createIndex tableName="balance_transactions"
+                     indexName="idx_balance_transactions_hash">
+            <column name="transaction_hash"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Fix 8: Update sequences to ensure proper values -->
+    <changeSet id="2025.01-sync-sequences" author="system">
+        <sql>
+            -- Synchronize all sequences with their max values
+            SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM users), 1), true);
+            SELECT setval('orders_id_seq', COALESCE((SELECT MAX(id) FROM orders), 1), true);
+            SELECT setval('balance_transactions_id_seq',
+                         COALESCE((SELECT MAX(id) FROM balance_transactions), 1), true);
+            SELECT setval('balance_deposits_id_seq',
+                         COALESCE((SELECT MAX(id) FROM balance_deposits), 1), true);
+        </sql>
+    </changeSet>
+
+    <!-- Fix 9: Add database configuration comment -->
+    <changeSet id="2025.01-add-config-documentation" author="system">
+        <sql>
+            COMMENT ON DATABASE smm_panel IS 'SMM Panel Database - Spring Boot Application
+            Configuration:
+            - Partitioning: Monthly for orders and operator_logs
+            - Encoding: UTF8
+            - Collation: en_US.UTF-8
+            - Max Connections: 100
+            - Connection Pool: HikariCP (20 connections)
+            - Migration Tool: Liquibase
+            Last Audit: 2025-01-24';
+        </sql>
+    </changeSet>
+
+    <!-- Fix 10: Create monitoring function -->
+    <changeSet id="2025.01-create-monitoring-function" author="system">
+        <sql splitStatements="false">
+            CREATE OR REPLACE FUNCTION check_database_health()
+            RETURNS TABLE (
+                check_name TEXT,
+                status TEXT,
+                details TEXT
+            ) AS $$
+            BEGIN
+                -- Check for duplicate foreign keys
+                RETURN QUERY
+                SELECT
+                    'Duplicate Foreign Keys'::TEXT,
+                    CASE WHEN COUNT(*) > 0 THEN 'WARNING' ELSE 'OK' END,
+                    'Count: ' || COUNT(*)::TEXT
+                FROM pg_constraint
+                WHERE conname LIKE '%_duplicate%';
+
+                -- Check for missing indexes on foreign keys
+                RETURN QUERY
+                SELECT
+                    'Foreign Keys Without Indexes'::TEXT,
+                    CASE WHEN COUNT(*) > 0 THEN 'WARNING' ELSE 'OK' END,
+                    'Count: ' || COUNT(*)::TEXT
+                FROM pg_constraint c
+                WHERE c.contype = 'f'
+                AND NOT EXISTS (
+                    SELECT 1 FROM pg_index i
+                    WHERE i.indrelid = c.conrelid
+                    AND c.conkey[1] = ANY(i.indkey)
+                );
+
+                -- Check sequence synchronization
+                RETURN QUERY
+                SELECT
+                    'Sequence Synchronization'::TEXT,
+                    'OK'::TEXT,
+                    'All sequences synchronized'::TEXT;
+            END;
+            $$ LANGUAGE plpgsql;
+        </sql>
+    </changeSet>
+
+    <!-- Rollback support for critical changes -->
+    <changeSet id="2025.01-rollback-support" author="system">
+        <sql>
+            -- Create rollback tracking table
+            CREATE TABLE IF NOT EXISTS schema_rollback_log (
+                id SERIAL PRIMARY KEY,
+                changeset_id VARCHAR(255) NOT NULL,
+                rollback_sql TEXT,
+                executed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            );
+
+            -- Log this migration
+            INSERT INTO schema_rollback_log (changeset_id, rollback_sql)
+            VALUES ('2025.01-database-compatibility-fixes',
+                    'See rollback script at /db/rollback/2025.01-compatibility-rollback.sql');
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

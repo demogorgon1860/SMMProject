@@ -24,4 +24,9 @@ public class AdminOrderDto {
     private String status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    // Additional fields for admin view
+    private String orderName; // Format: "{startCount} views"
+    private String binomOfferId; // Binom offer ID for this order
+    private String youtubeVideoId; // YouTube video ID if available
 }

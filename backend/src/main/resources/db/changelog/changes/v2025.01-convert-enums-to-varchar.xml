@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- ========================================== -->
+    <!-- Convert PostgreSQL ENUMs to VARCHAR with CHECK constraints -->
+    <!-- This fixes Hibernate enum type casting issues -->
+    <!-- ========================================== -->
+    
+    <changeSet id="2025.01-convert-user-role-enum" author="system">
+        <comment>Convert user_role enum to VARCHAR with CHECK constraint</comment>
+        
+        <!-- Drop the partial index that uses enum type comparison -->
+        <sql>
+            DROP INDEX IF EXISTS idx_users_role;
+        </sql>
+        
+        <!-- Convert the column type from enum to VARCHAR -->
+        <sql>
+            ALTER TABLE users 
+            ALTER COLUMN role TYPE VARCHAR(20) 
+            USING role::text;
+        </sql>
+        
+        <!-- Recreate the index with VARCHAR comparison -->
+        <sql>
+            CREATE INDEX idx_users_role ON users(role) WHERE role != 'USER';
+        </sql>
+        
+        <!-- Add CHECK constraint to validate values -->
+        <sql>
+            ALTER TABLE users
+            ADD CONSTRAINT users_role_check 
+            CHECK (role IN ('USER', 'OPERATOR', 'ADMIN'));
+        </sql>
+        
+        <rollback>
+            <sql>
+                ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+                ALTER TABLE users ALTER COLUMN role TYPE user_role USING role::user_role;
+            </sql>
+        </rollback>
+    </changeSet>
+    
+    <changeSet id="2025.01-convert-order-status-enum" author="system">
+        <comment>Convert order_status enum to VARCHAR with CHECK constraint</comment>
+        
+        <!-- Drop view that depends on the enum type -->
+        <sql>
+            DROP VIEW IF EXISTS error_recovery_dashboard;
+        </sql>
+        
+        <!-- Drop all partial indexes that use enum type comparisons -->
+        <sql>
+            DROP INDEX IF EXISTS idx_orders_active_monitoring;
+            DROP INDEX IF EXISTS idx_orders_dead_letter_queue;
+            DROP INDEX IF EXISTS idx_orders_pending;
+            DROP INDEX IF EXISTS idx_orders_processing;
+            DROP INDEX IF EXISTS idx_orders_status;
+            DROP INDEX IF EXISTS idx_orders_status_created_at;
+            DROP INDEX IF EXISTS idx_orders_user_status;
+        </sql>
+        
+        <!-- Convert the column type from enum to VARCHAR -->
+        <sql>
+            ALTER TABLE orders 
+            ALTER COLUMN status TYPE VARCHAR(20) 
+            USING status::text;
+        </sql>
+        
+        <!-- Recreate the view with VARCHAR comparisons -->
+        <sql>
+            CREATE VIEW error_recovery_dashboard AS
+            SELECT 
+                COUNT(*) FILTER (WHERE error_message IS NOT NULL) AS total_failed_orders,
+                COUNT(*) FILTER (WHERE error_message IS NOT NULL AND updated_at >= (NOW() - INTERVAL '24 hours')) AS failed_last_24_hours,
+                COUNT(*) FILTER (WHERE error_message IS NOT NULL AND updated_at >= (NOW() - INTERVAL '7 days')) AS failed_last_week,
+                COUNT(*) FILTER (WHERE (is_manually_failed = true OR retry_count >= max_retries) AND status = 'HOLDING') AS dead_letter_queue_count,
+                COUNT(*) FILTER (WHERE next_retry_at IS NOT NULL AND next_retry_at > NOW() AND is_manually_failed = false AND retry_count &lt; max_retries) AS pending_retries,
+                AVG(retry_count) FILTER (WHERE retry_count > 0) AS avg_retry_count,
+                MAX(retry_count) AS max_retry_count_seen
+            FROM orders;
+        </sql>
+        
+        <!-- Recreate the indexes with VARCHAR comparisons -->
+        <sql>
+            CREATE INDEX idx_orders_active_monitoring ON orders(status, updated_at) 
+                WHERE status IN ('ACTIVE', 'HOLDING');
+            CREATE INDEX idx_orders_dead_letter_queue ON orders(is_manually_failed, retry_count, max_retries, status) 
+                WHERE status = 'HOLDING';
+            CREATE INDEX idx_orders_pending ON orders(created_at) 
+                WHERE status = 'PENDING';
+            CREATE INDEX idx_orders_processing ON orders(status, processing_priority DESC) 
+                WHERE status IN ('PENDING', 'IN_PROGRESS', 'PROCESSING');
+            CREATE INDEX idx_orders_status ON orders(status) 
+                WHERE status NOT IN ('COMPLETED', 'CANCELLED');
+            CREATE INDEX idx_orders_status_created_at ON orders(status, created_at DESC);
+            CREATE INDEX idx_orders_user_status ON orders(user_id, status);
+        </sql>
+        
+        <!-- Add CHECK constraint to validate values -->
+        <sql>
+            ALTER TABLE orders
+            ADD CONSTRAINT orders_status_check 
+            CHECK (status IN (
+                'PENDING', 'IN_PROGRESS', 'PROCESSING', 'ACTIVE', 
+                'PARTIAL', 'COMPLETED', 'CANCELLED', 'PAUSED', 
+                'HOLDING', 'REFILL', 'ERROR', 'SUSPENDED'
+            ));
+        </sql>
+        
+        <rollback>
+            <sql>
+                ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check;
+                ALTER TABLE orders ALTER COLUMN status TYPE order_status USING status::order_status;
+            </sql>
+        </rollback>
+    </changeSet>
+    
+    <!-- Convert other enum columns if they exist -->
+    <changeSet id="2025.01-convert-video-type-enum" author="system">
+        <!-- Check if video_processing table has video_type column -->
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="video_processing" columnName="video_type"/>
+        </preConditions>
+        
+        <comment>Convert video_type enum to VARCHAR with CHECK constraint</comment>
+        
+        <sql>
+            ALTER TABLE video_processing 
+            ALTER COLUMN video_type TYPE VARCHAR(20) 
+            USING video_type::text;
+        </sql>
+        
+        <sql>
+            ALTER TABLE video_processing
+            ADD CONSTRAINT video_processing_video_type_check 
+            CHECK (video_type IN ('STANDARD', 'SHORTS', 'LIVE'));
+        </sql>
+        
+        <rollback>
+            <sql>
+                ALTER TABLE video_processing DROP CONSTRAINT IF EXISTS video_processing_video_type_check;
+                ALTER TABLE video_processing ALTER COLUMN video_type TYPE video_type USING video_type::video_type;
+            </sql>
+        </rollback>
+    </changeSet>
+    
+    <changeSet id="2025.01-convert-payment-status-enum" author="system">
+        <!-- Check if balance_deposits table exists and has payment_status column -->
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="balance_deposits"/>
+            <columnExists tableName="balance_deposits" columnName="payment_status"/>
+        </preConditions>
+        
+        <comment>Convert payment_status enum to VARCHAR with CHECK constraint</comment>
+        
+        <sql>
+            ALTER TABLE balance_deposits 
+            ALTER COLUMN payment_status TYPE VARCHAR(20) 
+            USING payment_status::text;
+        </sql>
+        
+        <sql>
+            ALTER TABLE balance_deposits
+            ADD CONSTRAINT balance_deposits_payment_status_check 
+            CHECK (payment_status IN ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'EXPIRED'));
+        </sql>
+        
+        <rollback>
+            <sql>
+                ALTER TABLE balance_deposits DROP CONSTRAINT IF EXISTS balance_deposits_payment_status_check;
+                ALTER TABLE balance_deposits ALTER COLUMN payment_status TYPE payment_status USING payment_status::payment_status;
+            </sql>
+        </rollback>
+    </changeSet>
+    
+    <changeSet id="2025.01-convert-transaction-type-enum" author="system">
+        <!-- Check if balance_transactions table has transaction_type column -->
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="balance_transactions" columnName="transaction_type"/>
+        </preConditions>
+        
+        <comment>Convert transaction_type enum to VARCHAR with CHECK constraint</comment>
+        
+        <sql>
+            ALTER TABLE balance_transactions 
+            ALTER COLUMN transaction_type TYPE VARCHAR(20) 
+            USING transaction_type::text;
+        </sql>
+        
+        <sql>
+            ALTER TABLE balance_transactions
+            ADD CONSTRAINT balance_transactions_transaction_type_check 
+            CHECK (transaction_type IN ('DEPOSIT', 'ORDER_PAYMENT', 'REFUND', 'REFILL'));
+        </sql>
+        
+        <rollback>
+            <sql>
+                ALTER TABLE balance_transactions DROP CONSTRAINT IF EXISTS balance_transactions_transaction_type_check;
+                ALTER TABLE balance_transactions ALTER COLUMN transaction_type TYPE transaction_type USING transaction_type::transaction_type;
+            </sql>
+        </rollback>
+    </changeSet>
+    
+    <changeSet id="2025.01-convert-youtube-account-status-enum" author="system">
+        <!-- Check if youtube_accounts table has status column -->
+        <preConditions onFail="MARK_RAN">
+            <tableExists tableName="youtube_accounts"/>
+            <columnExists tableName="youtube_accounts" columnName="status"/>
+        </preConditions>
+        
+        <comment>Convert youtube_account_status enum to VARCHAR with CHECK constraint</comment>
+        
+        <sql>
+            ALTER TABLE youtube_accounts 
+            ALTER COLUMN status TYPE VARCHAR(20) 
+            USING status::text;
+        </sql>
+        
+        <sql>
+            ALTER TABLE youtube_accounts
+            ADD CONSTRAINT youtube_accounts_status_check 
+            CHECK (status IN ('ACTIVE', 'BLOCKED', 'SUSPENDED', 'RATE_LIMITED'));
+        </sql>
+        
+        <rollback>
+            <sql>
+                ALTER TABLE youtube_accounts DROP CONSTRAINT IF EXISTS youtube_accounts_status_check;
+                ALTER TABLE youtube_accounts ALTER COLUMN status TYPE youtube_account_status USING status::youtube_account_status;
+            </sql>
+        </rollback>
+    </changeSet>
+    
+    <!-- Drop the enum types after conversion (optional, can keep for rollback) -->
+    <changeSet id="2025.01-drop-unused-enum-types" author="system">
+        <comment>Drop PostgreSQL enum types after conversion to VARCHAR</comment>
+        
+        <!-- We keep the types for potential rollback -->
+        <sql>
+            -- Types are kept for rollback capability
+            -- If you want to drop them permanently, uncomment:
+            -- DROP TYPE IF EXISTS user_role;
+            -- DROP TYPE IF EXISTS order_status;
+            -- DROP TYPE IF EXISTS video_type;
+            -- DROP TYPE IF EXISTS payment_status;
+            -- DROP TYPE IF EXISTS transaction_type;
+            -- DROP TYPE IF EXISTS youtube_account_status;
+        </sql>
+        
+        <rollback>
+            <!-- Types still exist, no action needed -->
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -3,8 +3,8 @@ package com.smmpanel.controller;
 import com.smmpanel.dto.binom.AssignedCampaignInfo;
 import com.smmpanel.dto.binom.OfferAssignmentRequest;
 import com.smmpanel.dto.binom.OfferAssignmentResponse;
-import com.smmpanel.service.OfferAssignmentService;
-import com.smmpanel.service.OfferEventProducer;
+import com.smmpanel.service.integration.BinomService;
+import com.smmpanel.service.kafka.OfferEventProducer;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.*;
         description = "API для назначения офферов на фиксированные кампании")
 public class OfferAssignmentController {
 
-    private final OfferAssignmentService offerAssignmentService;
+    private final BinomService binomService;
 
     @Qualifier("kafkaOfferEventProducer") private final OfferEventProducer offerEventProducer;
 
@@ -48,8 +48,7 @@ public class OfferAssignmentController {
         log.info("Received sync offer assignment request for order: {}", request.getOrderId());
 
         try {
-            OfferAssignmentResponse response =
-                    offerAssignmentService.assignOfferToFixedCampaigns(request);
+            OfferAssignmentResponse response = binomService.assignOfferToFixedCampaigns(request);
 
             if ("SUCCESS".equals(response.getStatus())) {
                 return ResponseEntity.ok(response);
@@ -115,8 +114,7 @@ public class OfferAssignmentController {
             @Parameter(description = "ID заказа") @PathVariable Long orderId) {
 
         try {
-            List<AssignedCampaignInfo> campaigns =
-                    offerAssignmentService.getAssignedCampaigns(orderId);
+            List<AssignedCampaignInfo> campaigns = binomService.getAssignedCampaigns(orderId);
             return ResponseEntity.ok(campaigns);
 
         } catch (Exception e) {
@@ -167,7 +165,7 @@ public class OfferAssignmentController {
     @PreAuthorize("hasRole('USER') or hasRole('OPERATOR') or hasRole('ADMIN')")
     public ResponseEntity<String> getAssignmentStatus(@PathVariable Long orderId) {
         try {
-            String status = offerAssignmentService.getAssignmentStatus(orderId);
+            String status = binomService.getAssignmentStatus(orderId);
             return ResponseEntity.ok(status);
         } catch (Exception e) {
             log.error(

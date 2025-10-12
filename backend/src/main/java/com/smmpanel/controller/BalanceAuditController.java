@@ -1,7 +1,7 @@
 package com.smmpanel.controller;
 
-import com.smmpanel.service.BalanceAuditService;
-import com.smmpanel.service.BalanceAuditService.*;
+import com.smmpanel.service.balance.BalanceAuditService;
+import com.smmpanel.service.balance.BalanceAuditService.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;

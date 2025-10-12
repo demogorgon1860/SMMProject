@@ -56,7 +56,7 @@ public class HibernateMonitoringController {
 
             // Basic statistics
             stats.put("statisticsEnabled", statistics.isStatisticsEnabled());
-            stats.put("startTime", statistics.getStartTime());
+            stats.put("startTime", statistics.getStart().toEpochMilli());
 
             // Query statistics
             Map<String, Object> queryStats = new LinkedHashMap<>();

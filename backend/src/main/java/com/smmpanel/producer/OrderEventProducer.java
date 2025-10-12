@@ -1,5 +1,6 @@
 package com.smmpanel.producer;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.smmpanel.event.OrderCreatedEvent;
 import com.smmpanel.event.OrderStatusChangedEvent;
 import java.util.concurrent.CompletableFuture;
@@ -122,9 +123,16 @@ public class OrderEventProducer {
 
     /** Order Processing Event DTO */
     public static class OrderProcessingEvent {
+        @JsonProperty("orderId")
         private Long orderId;
+
+        @JsonProperty("userId")
         private Long userId;
+
+        @JsonProperty("correlationId")
         private String correlationId;
+
+        @JsonProperty("timestamp")
         private Long timestamp;
 
         public OrderProcessingEvent() {}

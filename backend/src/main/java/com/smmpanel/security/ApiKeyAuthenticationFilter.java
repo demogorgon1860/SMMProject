@@ -2,7 +2,7 @@ package com.smmpanel.security;
 
 import com.smmpanel.entity.User;
 import com.smmpanel.repository.jpa.UserRepository;
-import com.smmpanel.service.ApiKeyService;
+import com.smmpanel.service.auth.ApiKeyService;
 import com.smmpanel.service.security.AuthenticationRateLimitService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -10,7 +10,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -66,8 +65,8 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             try {
                 authenticateWithApiKey(request, apiKey);
             } catch (Exception e) {
-                log.error("API key authentication failed: {}", e.getMessage());
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid API key");
+                log.error("API key authentication failed for request: {}", request.getRequestURI());
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication failed");
                 return;
             }
         }
@@ -79,66 +78,65 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         StopWatch stopWatch = new StopWatch("API Key Authentication");
 
         try {
-            stopWatch.start("Hash API Key");
-            String hashedApiKey = apiKeyService.hashApiKeyForLookup(apiKey);
-            stopWatch.stop();
-
             stopWatch.start("Database Lookup");
-            // OPTIMIZED: Uses partial index idx_users_api_key_hash_active for performance
-            Optional<User> userOpt = userRepository.findByApiKeyHashAndIsActiveTrue(hashedApiKey);
+            // Since we use per-user salts, we need to fetch all active users and validate
+            // This is a temporary fix - in production, consider storing a separate lookup hash
+            List<User> activeUsersWithApiKeys =
+                    userRepository.findAllByIsActiveTrue().stream()
+                            .filter(u -> u.getApiKeyHash() != null && u.getApiKeySalt() != null)
+                            .toList();
             stopWatch.stop();
 
-            if (userOpt.isPresent()) {
-                User user = userOpt.get();
+            stopWatch.start("API Key Validation");
+            User authenticatedUser = null;
 
-                stopWatch.start("API Key Validation");
-                // Create rate limiting identifier from IP and API key
-                String clientIdentifier = createClientIdentifier(request, hashedApiKey);
+            for (User user : activeUsersWithApiKeys) {
+                // Create rate limiting identifier
+                String clientIdentifier = createClientIdentifier(request, user.getApiKeyHash());
 
-                // SECURITY: Use enhanced validation with rate limiting
+                // Check if this API key matches this user
                 if (validateApiKeyWithRateLimit(apiKey, user, clientIdentifier)) {
-                    stopWatch.stop();
-
-                    List<SimpleGrantedAuthority> authorities =
-                            List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
-
-                    UsernamePasswordAuthenticationToken authToken =
-                            new UsernamePasswordAuthenticationToken(user, null, authorities);
-
-                    authToken.setDetails(
-                            new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
-
-                    // PERFORMANCE: Log timing details for monitoring
-                    if (log.isDebugEnabled()) {
-                        log.debug(
-                                "Authenticated user {} with API key - Timing: {}",
-                                user.getUsername(),
-                                stopWatch.prettyPrint());
-                    } else {
-                        log.info(
-                                "Authenticated user {} - Total time: {}ms",
-                                user.getUsername(),
-                                stopWatch.getTotalTimeMillis());
-                    }
-
-                    // ASYNC: Track API access without blocking authentication
-                    trackApiAccessAsync(user.getId());
-                } else {
-                    stopWatch.stop();
-                    log.warn(
-                            "API key verification failed for user {} - Timing: {}",
-                            user.getUsername(),
-                            stopWatch.prettyPrint());
-                    throw new SecurityException("API key verification failed");
+                    authenticatedUser = user;
+                    break;
                 }
+            }
+            stopWatch.stop();
+
+            if (authenticatedUser != null) {
+                List<SimpleGrantedAuthority> authorities =
+                        List.of(
+                                new SimpleGrantedAuthority(
+                                        "ROLE_" + authenticatedUser.getRole().name()));
+
+                UsernamePasswordAuthenticationToken authToken =
+                        new UsernamePasswordAuthenticationToken(
+                                authenticatedUser.getUsername(), null, authorities);
+
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+
+                // PERFORMANCE: Log timing details for monitoring
+                if (log.isDebugEnabled()) {
+                    log.debug(
+                            "Authenticated user {} with API key - Timing: {}",
+                            authenticatedUser.getUsername(),
+                            stopWatch.prettyPrint());
+                } else {
+                    log.info(
+                            "Authenticated user {} - Total time: {}ms",
+                            authenticatedUser.getUsername(),
+                            stopWatch.getTotalTimeMillis());
+                }
+
+                // ASYNC: Track API access without blocking authentication
+                trackApiAccessAsync(authenticatedUser.getId());
             } else {
-                // Rate limit even for non-existent API keys
-                String clientIdentifier = createClientIdentifier(request, hashedApiKey);
+                // Rate limit for failed attempts
+                String clientIdentifier = createClientIdentifier(request, apiKey);
                 rateLimitService.recordFailedAttempt(clientIdentifier);
 
                 log.warn(
-                        "Invalid API key provided - Hash lookup time: {}ms",
+                        "Invalid API key provided - Validation time: {}ms",
                         stopWatch.getLastTaskTimeMillis());
                 throw new SecurityException("Invalid API key");
             }

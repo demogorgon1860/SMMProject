@@ -118,12 +118,12 @@ public class QueryCountMonitoringAspect {
     }
 
     /** Monitor specific service methods that are known to cause N+1 issues */
-    @Around("execution(* com.smmpanel.service.OrderService.getUserOrders*(..))")
+    @Around("execution(* com.smmpanel.service.order.OrderService.getUserOrders*(..))")
     public Object monitorOrderServiceQueries(ProceedingJoinPoint joinPoint) throws Throwable {
         return monitorServiceMethodQueries(joinPoint, "OrderService");
     }
 
-    @Around("execution(* com.smmpanel.service.BalanceService.getTransactionHistory*(..))")
+    @Around("execution(* com.smmpanel.service.balance.BalanceService.getTransactionHistory*(..))")
     public Object monitorBalanceServiceQueries(ProceedingJoinPoint joinPoint) throws Throwable {
         return monitorServiceMethodQueries(joinPoint, "BalanceService");
     }

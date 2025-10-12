@@ -2,8 +2,8 @@ package com.smmpanel.controller;
 
 import com.smmpanel.dto.admin.*;
 import com.smmpanel.dto.response.PerfectPanelResponse;
-import com.smmpanel.service.AdminService;
-import com.smmpanel.service.order.OrderProcessingService;
+import com.smmpanel.service.admin.AdminService;
+import com.smmpanel.service.order.OrderService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 public class AdminController {
 
     private final AdminService adminService;
-    private final OrderProcessingService orderProcessingService;
+    private final OrderService orderService;
 
     @GetMapping("/dashboard")
     public ResponseEntity<DashboardStats> getDashboardStats() {
@@ -185,5 +185,67 @@ public class AdminController {
             @PathVariable Long userId, @RequestBody Map<String, String> request) {
         adminService.updateUserRole(userId, request.get("role"));
         return ResponseEntity.noContent().build();
+    }
+
+    // Test Service Endpoints for Frontend Testing
+
+    @GetMapping("/binom/test")
+    public ResponseEntity<Map<String, Object>> testBinomConnection() {
+        return ResponseEntity.ok(adminService.testBinomConnection());
+    }
+
+    @PostMapping("/binom/sync")
+    public ResponseEntity<Map<String, Object>> syncBinomCampaigns() {
+        return ResponseEntity.ok(adminService.syncBinomCampaigns());
+    }
+
+    @PostMapping("/youtube/check-views")
+    public ResponseEntity<Map<String, Object>> checkYouTubeViews(
+            @RequestBody Map<String, String> request) {
+        String videoUrl = request.get("videoUrl");
+        return ResponseEntity.ok(adminService.checkYouTubeViews(videoUrl));
+    }
+
+    @PostMapping("/youtube/test-statistics")
+    public ResponseEntity<Map<String, Object>> testYouTubeStatistics(
+            @RequestBody Map<String, String> request) {
+        String videoUrl = request.get("videoUrl");
+        return ResponseEntity.ok(adminService.testYouTubeStatistics(videoUrl));
+    }
+
+    @PostMapping("/selenium/create-clip")
+    public ResponseEntity<Map<String, Object>> createSeleniumClip(
+            @RequestBody Map<String, Object> request) {
+        String videoUrl = (String) request.get("videoUrl");
+        Integer startTime = (Integer) request.get("startTime");
+        Integer endTime = (Integer) request.get("endTime");
+        return ResponseEntity.ok(adminService.createSeleniumClip(videoUrl, startTime, endTime));
+    }
+
+    @GetMapping("/selenium/clip/{jobId}/status")
+    public ResponseEntity<Map<String, Object>> getClipStatus(@PathVariable String jobId) {
+        return ResponseEntity.ok(adminService.getClipJobStatus(jobId));
+    }
+
+    @GetMapping("/selenium/test-connection")
+    public ResponseEntity<Map<String, Object>> testSeleniumConnection(
+            @RequestParam(required = false) String testUrl) {
+        return ResponseEntity.ok(adminService.testSeleniumConnection(testUrl));
+    }
+
+    @GetMapping("/selenium/accounts")
+    public ResponseEntity<List<Map<String, Object>>> getYouTubeAccounts() {
+        return ResponseEntity.ok(adminService.getAvailableYouTubeAccounts());
+    }
+
+    @PostMapping("/trigger-processing")
+    public ResponseEntity<PerfectPanelResponse> triggerProcessing() {
+        // Manually trigger pending order processing
+        orderService.processPendingYouTubeOrders();
+        return ResponseEntity.ok(
+                PerfectPanelResponse.builder()
+                        .data(Map.of("message", "Processing triggered"))
+                        .success(true)
+                        .build());
     }
 }

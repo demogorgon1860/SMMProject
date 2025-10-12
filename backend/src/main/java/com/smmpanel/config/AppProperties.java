@@ -40,7 +40,7 @@ public class AppProperties {
 
     @Data
     public static class Jwt {
-        @NotBlank private String secret = "your-super-secret-jwt-key-change-in-production";
+        @NotBlank private String secret; // Loaded from JWT_SECRET env var
 
         @Min(1)
         private long expirationMs = 86400000;
@@ -116,9 +116,13 @@ public class AppProperties {
 
         @Data
         public static class Api {
-            @NotBlank private String url = "https://your-binom-domain.com/api";
+            @NotBlank private String url; // Loaded from BINOM_API_URL env var
 
-            @NotBlank private String key = "your-binom-api-key";
+            @NotBlank private String key; // Loaded from BINOM_API_KEY env var
+
+            private String username; // Loaded from BINOM_USERNAME env var
+
+            private String password; // Loaded from BINOM_PASSWORD env var
 
             @Min(1)
             private int timeout = 30000;
@@ -136,7 +140,7 @@ public class AppProperties {
 
         @Data
         public static class Api {
-            @NotBlank private String key = "your-youtube-api-key";
+            @NotBlank private String key; // Loaded from YOUTUBE_API_KEY env var
 
             @Min(1)
             private int timeout = 15000;
@@ -176,16 +180,18 @@ public class AppProperties {
 
         @Data
         public static class Api {
-            @NotBlank private String url = "https://api.cryptomus.com/v1";
+            @NotBlank private String url; // Loaded from CRYPTOMUS_API_URL env var
 
-            @NotBlank private String key = "your-cryptomus-api-key";
+            @NotBlank private String userKey; // Loaded from CRYPTOMUS_USER_API_KEY env var
 
-            @NotBlank private String secret = "your-cryptomus-api-secret";
+            private String payoutKey; // Loaded from CRYPTOMUS_PAYOUT_API_KEY env var
+
+            @NotBlank private String secret; // Loaded from CRYPTOMUS_API_SECRET env var
         }
 
         @Data
         public static class Webhook {
-            @NotBlank private String secret = "your-webhook-secret";
+            @NotBlank private String secret; // Loaded from CRYPTOMUS_WEBHOOK_SECRET env var
         }
     }
 

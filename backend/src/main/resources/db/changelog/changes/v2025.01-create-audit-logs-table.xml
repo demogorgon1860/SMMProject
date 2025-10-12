@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- Create Audit Logs Table -->
+    <changeSet id="audit-logs-1" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="audit_logs"/>
+            </not>
+        </preConditions>
+        <createTable tableName="audit_logs">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            
+            <!-- Entity Information -->
+            <column name="entity_type" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="entity_id" type="BIGINT"/>
+            <column name="entity_identifier" type="VARCHAR(100)"/>
+            
+            <!-- Action Information -->
+            <column name="action" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="category" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="severity" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            
+            <!-- User Information -->
+            <column name="user_id" type="BIGINT"/>
+            <column name="username" type="VARCHAR(100)"/>
+            <column name="user_role" type="VARCHAR(50)"/>
+            
+            <!-- Change Details -->
+            <column name="old_value" type="TEXT"/>
+            <column name="new_value" type="TEXT"/>
+            <column name="changes" type="JSONB"/>
+            <column name="description" type="VARCHAR(500)"/>
+            
+            <!-- Request Information -->
+            <column name="ip_address" type="VARCHAR(45)"/>
+            <column name="user_agent" type="VARCHAR(500)"/>
+            <column name="request_id" type="VARCHAR(100)"/>
+            <column name="session_id" type="VARCHAR(100)"/>
+            <column name="api_key_used" type="VARCHAR(100)"/>
+            
+            <!-- Payment Specific Fields -->
+            <column name="payment_amount" type="DECIMAL(12,2)"/>
+            <column name="payment_currency" type="VARCHAR(10)"/>
+            <column name="payment_method" type="VARCHAR(50)"/>
+            <column name="payment_provider" type="VARCHAR(50)"/>
+            <column name="transaction_id" type="VARCHAR(100)"/>
+            <column name="payment_status" type="VARCHAR(50)"/>
+            
+            <!-- Security Fields -->
+            <column name="risk_score" type="INTEGER"/>
+            <column name="security_flags" type="VARCHAR(500)"/>
+            <column name="is_suspicious" type="BOOLEAN" defaultValueBoolean="false"/>
+            
+            <!-- Metadata -->
+            <column name="metadata" type="JSONB"/>
+            <column name="timestamp" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="execution_time_ms" type="BIGINT"/>
+            
+            <!-- Compliance Fields -->
+            <column name="compliance_checked" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="retention_days" type="INTEGER" defaultValueNumeric="2555"/>
+            <column name="is_pii_redacted" type="BOOLEAN" defaultValueBoolean="false"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Create indexes for audit_logs -->
+    <changeSet id="audit-logs-2" author="system">
+        <createIndex tableName="audit_logs" indexName="idx_audit_entity_type_id">
+            <column name="entity_type"/>
+            <column name="entity_id"/>
+        </createIndex>
+        <createIndex tableName="audit_logs" indexName="idx_audit_user_id">
+            <column name="user_id"/>
+        </createIndex>
+        <createIndex tableName="audit_logs" indexName="idx_audit_action">
+            <column name="action"/>
+        </createIndex>
+        <createIndex tableName="audit_logs" indexName="idx_audit_timestamp">
+            <column name="timestamp"/>
+        </createIndex>
+        <createIndex tableName="audit_logs" indexName="idx_audit_category">
+            <column name="category"/>
+        </createIndex>
+        <createIndex tableName="audit_logs" indexName="idx_audit_severity">
+            <column name="severity"/>
+        </createIndex>
+        <createIndex tableName="audit_logs" indexName="idx_audit_ip_address">
+            <column name="ip_address"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

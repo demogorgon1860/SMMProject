@@ -1,40 +1,31 @@
-# Runtime stage - using pre-built JAR
-FROM eclipse-temurin:17-jre-alpine
+# Simple Dockerfile that uses pre-built JAR
+FROM eclipse-temurin:17-jdk-alpine
 
-# Install curl for health checks and dumb-init for signal handling
-RUN apk add --no-cache curl dumb-init
-
-# Add non-root user
-RUN addgroup -S appgroup && \
-    adduser -S -H -s /bin/false -G appgroup appuser && \
-    mkdir -p /app && \
-    chown -R appuser:appgroup /app
+# Install curl for health checks
+RUN apk add --no-cache curl
 
 WORKDIR /app
 
-# Copy the pre-built JAR
-COPY build/libs/*.jar app.jar
+# Copy JAR directly (assuming it's already built)
+COPY build/libs/backend-1.0.0.jar app.jar
 
-# Switch to non-root user
-USER appuser
+# Set permissions
+RUN chmod +x /app/app.jar
 
-# Container-aware JVM settings
+EXPOSE 8080
+
+# Container-aware JVM settings with Java 17 compatibility
 ENV JAVA_OPTS="-Xms512m -Xmx2g \
-               -XX:+UseG1GC -XX:MaxGCPauseMillis=200 \
+               -XX:+UseG1GC \
+               -XX:MaxGCPauseMillis=200 \
                -XX:+UseContainerSupport \
                -XX:MaxRAMPercentage=75.0 \
-               -XX:InitialRAMPercentage=50.0 \
-               -Djava.security.egd=file:/dev/./urandom"
+               -Djava.security.egd=file:/dev/./urandom \
+               --add-opens java.base/java.nio=ALL-UNNAMED \
+               --add-opens java.base/sun.nio.ch=ALL-UNNAMED"
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8080/actuator/health || exit 1
 
-# Expose port
-EXPOSE 8080
-
-# Use dumb-init to handle signals properly
-ENTRYPOINT ["dumb-init", "--"]
-
-# Run application
-CMD ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]

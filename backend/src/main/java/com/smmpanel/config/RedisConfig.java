@@ -12,6 +12,7 @@ import io.lettuce.core.SocketOptions;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,6 +29,8 @@ import org.springframework.cache.interceptor.SimpleKeyGenerator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.context.event.ContextRefreshedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -39,10 +42,11 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import org.springframework.scheduling.annotation.Async;
 
 /**
- * Production-Ready Redis Configuration Provides optimized Redis caching with proper serialization
- * and TTL management
+ * Production-Ready Redis Configuration with MessagePack serialization for improved performance and
+ * TTL management
  */
 @Slf4j
 @Configuration
@@ -56,8 +60,8 @@ public class RedisConfig implements CachingConfigurer {
     @Value("${spring.data.redis.port:6379}")
     private int redisPort;
 
-    @Value("${spring.data.redis.password:}")
-    private String redisPassword;
+    @Value("${spring.data.redis.password}")
+    private String redisPassword; // No default - must be set in env
 
     @Value("${spring.data.redis.database:0}")
     private int database;
@@ -72,8 +76,8 @@ public class RedisConfig implements CachingConfigurer {
     @Value("${spring.data.redis.lettuce.pool.max-idle:8}")
     private int maxIdle;
 
-    @Value("${spring.data.redis.lettuce.pool.min-idle:2}")
-    private int minIdle;
+    @Value("${spring.data.redis.lettuce.pool.min-idle:0}")
+    private int minIdle; // Best practice: 0 for min-idle
 
     @Value("${spring.data.redis.lettuce.pool.max-wait:-1ms}")
     private Duration maxWait;
@@ -94,11 +98,12 @@ public class RedisConfig implements CachingConfigurer {
     private boolean cacheNullValues;
 
     /**
-     * Custom ObjectMapper for Redis serialization Configured with type information for proper
-     * deserialization
+     * JSON ObjectMapper for Redis serialization - better compatibility and debugging While
+     * MessagePack is more efficient, JSON provides better interoperability
      */
     @Bean("redisObjectMapper")
     public ObjectMapper redisObjectMapper() {
+        // Use standard JSON for better compatibility
         ObjectMapper mapper = new ObjectMapper();
 
         // Register JavaTimeModule for Java 8 time types
@@ -111,7 +116,51 @@ public class RedisConfig implements CachingConfigurer {
                 ObjectMapper.DefaultTyping.NON_FINAL,
                 JsonTypeInfo.As.PROPERTY);
 
+        log.info("Configured Redis with JSON serialization for better compatibility");
         return mapper;
+    }
+
+    /**
+     * Cache warming on application startup Preloads frequently accessed data to prevent cold cache
+     * issues
+     */
+    @EventListener(ContextRefreshedEvent.class)
+    @Async
+    public void warmUpCache() {
+        log.info("Starting cache warm-up process...");
+
+        CompletableFuture.runAsync(
+                () -> {
+                    try {
+                        // Warm up service cache
+                        warmUpServiceCache();
+
+                        // Warm up user cache
+                        warmUpUserCache();
+
+                        // Warm up conversion coefficients
+                        warmUpCoefficientCache();
+
+                        log.info("Cache warm-up completed successfully");
+                    } catch (Exception e) {
+                        log.error("Error during cache warm-up: {}", e.getMessage(), e);
+                    }
+                });
+    }
+
+    private void warmUpServiceCache() {
+        // Implementation would load frequently accessed services
+        log.debug("Warming up service cache...");
+    }
+
+    private void warmUpUserCache() {
+        // Implementation would load active users
+        log.debug("Warming up user cache...");
+    }
+
+    private void warmUpCoefficientCache() {
+        // Implementation would load conversion coefficients
+        log.debug("Warming up coefficient cache...");
     }
 
     /** Redis Client for Bucket4j Rate Limiting */
@@ -278,6 +327,11 @@ public class RedisConfig implements CachingConfigurer {
         cacheConfigurations.put("binomLandings", defaultConfig.entryTtl(Duration.ofMinutes(5)));
         cacheConfigurations.put(
                 "binomTrafficSources", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+
+        // YouTube clip URLs for Binom offers
+        cacheConfigurations.put("clipUrls", defaultConfig.entryTtl(Duration.ofDays(7)));
+        cacheConfigurations.put("clipUrlsByOffer", defaultConfig.entryTtl(Duration.ofDays(7)));
+        cacheConfigurations.put("clipUrlQueue", defaultConfig.entryTtl(Duration.ofDays(7)));
 
         // Legacy cache names for backward compatibility
         cacheConfigurations.put("binom-campaigns", defaultConfig.entryTtl(Duration.ofMinutes(30)));

@@ -9,10 +9,10 @@ import com.smmpanel.entity.User;
 import com.smmpanel.repository.jpa.BalanceDepositRepository;
 import com.smmpanel.repository.jpa.OrderRepository;
 import com.smmpanel.repository.jpa.UserRepository;
-import com.smmpanel.service.BalanceService;
-import com.smmpanel.service.NotificationService;
-import com.smmpanel.service.OrderService;
-import com.smmpanel.service.kafka.MessageDeduplicationService;
+import com.smmpanel.service.balance.BalanceService;
+import com.smmpanel.service.kafka.MessageIdempotencyService;
+import com.smmpanel.service.notification.NotificationService;
+import com.smmpanel.service.order.OrderService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class PaymentConfirmationConsumer {
 
-    private final MessageDeduplicationService deduplicationService;
+    private final MessageIdempotencyService deduplicationService;
     private final BalanceService balanceService;
     private final OrderService orderService;
     private final NotificationService notificationService;
@@ -131,7 +131,7 @@ public class PaymentConfirmationConsumer {
 
         try {
             // Check for duplicate webhook processing
-            if (deduplicationService.isMessageAlreadyProcessed("payment", messageId, webhookId)) {
+            if (deduplicationService.isPaymentConfirmationAlreadyProcessed(messageId, webhookId)) {
                 log.debug(
                         "Duplicate payment webhook detected, skipping: webhookId={}, messageId={}",
                         webhookId,
@@ -147,8 +147,7 @@ public class PaymentConfirmationConsumer {
             processPaymentWebhookInternal(webhookData);
 
             // Mark webhook as processed
-            deduplicationService.markMessageAsProcessed(
-                    "payment", messageId, webhookId, java.time.Duration.ofHours(1));
+            deduplicationService.markPaymentConfirmationAsProcessed(messageId, webhookId);
 
             acknowledgment.acknowledge();
 
@@ -183,7 +182,7 @@ public class PaymentConfirmationConsumer {
 
         try {
             // Check for duplicate refund processing
-            if (deduplicationService.isMessageAlreadyProcessed("payment", messageId, refundId)) {
+            if (deduplicationService.isPaymentConfirmationAlreadyProcessed(messageId, refundId)) {
                 log.warn(
                         "Duplicate payment refund detected: refundId={}, messageId={}",
                         refundId,
@@ -201,9 +200,8 @@ public class PaymentConfirmationConsumer {
             // Process refund
             processPaymentRefundInternal(refundData);
 
-            // Mark refund as processed
-            deduplicationService.markMessageAsProcessed(
-                    "payment", messageId, refundId, java.time.Duration.ofHours(24));
+            // Mark refund as processed (uses 1 hour TTL from service)
+            deduplicationService.markPaymentConfirmationAsProcessed(messageId, refundId);
 
             acknowledgment.acknowledge();
 

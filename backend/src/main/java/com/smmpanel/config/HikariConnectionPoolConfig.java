@@ -37,11 +37,17 @@ public class HikariConnectionPoolConfig {
     @Value("${spring.datasource.password}")
     private String dbPassword;
 
-    @Value("${app.database.max-connections:200}")
+    @Value("${spring.datasource.hikari.maximum-pool-size:20}")
     private int dbMaxConnections;
 
-    @Value("${app.database.connection-lifetime-ms:1800000}")
+    @Value("${spring.datasource.hikari.max-lifetime:1800000}")
     private long dbConnectionLifetime;
+
+    @Value("${spring.datasource.hikari.connection-timeout:20000}")
+    private long connectionTimeout;
+
+    @Value("${spring.datasource.hikari.idle-timeout:600000}")
+    private long idleTimeout;
 
     @Bean
     @Primary
@@ -80,15 +86,10 @@ public class HikariConnectionPoolConfig {
         // maxLifetime should be 5-10% lower than DB connection lifetime
         long maxLifetime = (long) (dbConnectionLifetime * 0.95); // 5% lower
 
-        // idleTimeout must be < maxLifetime by at least 30s
-        long idleTimeout = maxLifetime - TimeUnit.SECONDS.toMillis(60); // 60s margin
-
-        // Ensure idleTimeout is reasonable (minimum 5 minutes)
-        idleTimeout = Math.max(idleTimeout, TimeUnit.MINUTES.toMillis(5));
-
-        config.setMaxLifetime(maxLifetime);
-        config.setIdleTimeout(idleTimeout);
-        config.setConnectionTimeout(TimeUnit.SECONDS.toMillis(30));
+        // Use the configured values from environment
+        config.setMaxLifetime(dbConnectionLifetime);
+        config.setIdleTimeout(this.idleTimeout);
+        config.setConnectionTimeout(this.connectionTimeout);
         config.setKeepaliveTime(TimeUnit.MINUTES.toMillis(4));
 
         log.info(
@@ -184,6 +185,7 @@ public class HikariConnectionPoolConfig {
             log.info("Shutting down optimized HikariCP connection pool...");
 
             try {
+                // Log final pool statistics if available
                 if (hikariDataSource.getHikariPoolMXBean() != null) {
                     var poolMXBean = hikariDataSource.getHikariPoolMXBean();
                     log.info(
@@ -192,11 +194,21 @@ public class HikariConnectionPoolConfig {
                             poolMXBean.getIdleConnections(),
                             poolMXBean.getTotalConnections(),
                             poolMXBean.getThreadsAwaitingConnection());
+
+                    // Soft evict connections before shutdown
+                    poolMXBean.softEvictConnections();
                 }
 
+                // Give connections time to finish their work
+                Thread.sleep(100);
+
+                // Close the datasource which will shutdown the pool
                 hikariDataSource.close();
                 log.info("Optimized HikariCP connection pool shutdown completed successfully");
 
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("Interrupted during HikariCP shutdown", e);
             } catch (Exception e) {
                 log.error("Error occurred during optimized connection pool shutdown", e);
             }

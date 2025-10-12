@@ -1,16 +1,21 @@
 # docker-compose.yml
 # Production-ready infrastructure for SMM Panel
 
-# Environment variables can be set in .env file
+# Environment variables are loaded from .env file automatically
 x-common-env: &common-env
   TZ: ${TZ:-UTC}
   SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-production}
-  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-smm_panel}
-  SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-smm_admin}
-  SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+  # Database - using Docker network hostnames
+  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-smm_panel}
+  SPRING_DATASOURCE_USERNAME: ${DB_USER:-smm_admin}
+  SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+  # Redis - using Docker network hostname
   SPRING_DATA_REDIS_HOST: redis
   SPRING_DATA_REDIS_PORT: 6379
-  SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+  # Kafka - using Docker network hostname and internal port
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+  KAFKA_BOOTSTRAP_SERVERS: kafka:29092
   SPRING_SLEUTH_SAMPLER_PROBABILITY: 1.0
   MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,info,metrics,prometheus
   MANAGEMENT_ENDPOINT_HEALTH_SHOWDETAILS: always
@@ -19,7 +24,7 @@ x-common-env: &common-env
   MANAGEMENT_HEALTH_DISKSPACETHRESHOLD: 10MB
   MANAGEMENT_ENDPOINT_METRICS_ENABLED: true
   MANAGEMENT_METRICS_EXPORT_PROMETHEUS_ENABLED: true
-  MANAGEMENT_METRICS_DISTRIBUTION_PERCENTILES_HISTOGRAM_HTTP_SERVER_REQUESTS: true
+  # MANAGEMENT_METRICS_DISTRIBUTION_PERCENTILES_HISTOGRAM_HTTP_SERVER_REQUESTS: true # Commented out - causes type mismatch
   MANAGEMENT_METRICS_ENABLE_HTTP_CLIENT_METRICS: true
   MANAGEMENT_METRICS_ENABLE_JVM: true
   MANAGEMENT_METRICS_ENABLE_SYSTEM: true
@@ -46,18 +51,28 @@ services:
     container_name: smm_postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     environment:
-      POSTGRES_DB: smm_panel
-      POSTGRES_USER: ${POSTGRES_USER:-smm_admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-smm_panel}
+      POSTGRES_USER: ${DB_USER:-smm_admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      # SQL init scripts removed - using Liquibase for all migrations
-      - ./postgresql.conf:/etc/postgresql/postgresql.conf
-    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+      # PostgreSQL custom configuration (optional)
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    command: >
+      postgres
+      -c max_connections=200
+      -c shared_buffers=2GB
+      -c effective_cache_size=6GB
+      -c maintenance_work_mem=512MB
+      -c work_mem=20MB
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-smm_admin} -d smm_panel"]
       interval: 10s
@@ -81,14 +96,16 @@ services:
     restart: unless-stopped
     ports:
       - "6379:6379"
-    # Use config file with password override for security
+    # Use direct Redis command with password for security
     command: >
-      redis-server /usr/local/etc/redis/redis.conf
-      --requirepass ${REDIS_PASSWORD:-changeme}
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 3gb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --save 60 1
     volumes:
       - redis_data:/data
-      - ./redis.conf:/usr/local/etc/redis/redis.conf:ro
-      - ./redis.acl:/usr/local/etc/redis/users.acl:ro
       # Persistence volumes
       - redis_backup:/backup
     environment:
@@ -97,7 +114,7 @@ services:
       REDIS_MAXMEMORY: 3gb
       REDIS_MAXMEMORY_POLICY: allkeys-lru
     healthcheck:
-      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD:-changeme}", "ping"]
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -116,6 +133,137 @@ services:
     # sysctls:
     #   - net.core.somaxconn=65535
     #   - vm.overcommit_memory=1
+
+  # Selenium Grid for browser automation
+  selenium-hub:
+    image: selenium/hub:4.16.1-20231219
+    container_name: smm_selenium_hub
+    restart: unless-stopped
+    ports:
+      - "4444:4444"
+      - "4442:4442"
+      - "4443:4443"
+    environment:
+      GRID_MAX_SESSION: 50
+      GRID_BROWSER_TIMEOUT: 120  # Reduced from 300s - fail fast on browser issues
+      GRID_TIMEOUT: 120  # Reduced from 300s - faster failure detection
+      SE_SESSION_REQUEST_TIMEOUT: 60  # Reduced from 300s - don't wait 5 min for stuck nodes
+      SE_SESSION_RETRY_INTERVAL: 2
+      SE_NODE_SESSION_TIMEOUT: 120  # Reduced from 300s - faster session cleanup
+      SE_SESSION_QUEUE_REQUESTS: 100
+    networks:
+      - smm_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4444/wd/hub/status"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+
+  selenium-chrome:
+    image: selenium/node-chrome:4.16.1-20231219
+    # Remove container_name to allow scaling
+    restart: unless-stopped
+    shm_size: '4gb'  # Increased from 2gb - prevents Chrome crashes (~667MB per session for 6 sessions)
+    depends_on:
+      - selenium-hub
+    ports:
+      - "5900-5909:5900"   # VNC server (up to 10 nodes for future scaling)
+      - "7900-7909:7900"   # noVNC web interface (up to 10 nodes)
+    environment:
+      SE_EVENT_BUS_HOST: selenium-hub
+      SE_EVENT_BUS_PUBLISH_PORT: 4442
+      SE_EVENT_BUS_SUBSCRIBE_PORT: 4443
+      SE_NODE_MAX_SESSIONS: 6  # Reduced from 10 - realistic for 10GB RAM (1.5GB per Chrome instance)
+      SE_NODE_SESSION_TIMEOUT: 120  # Reduced from 300s - faster cleanup of hung sessions
+      SE_VNC_NO_PASSWORD: 1
+      SE_SCREEN_WIDTH: 1536
+      SE_SCREEN_HEIGHT: 864
+      SE_SCREEN_DEPTH: 24
+      SE_SCREEN_DPI: 96
+      JAVA_OPTS: "-Xmx2g -Xms1g"
+      SE_NODE_OVERRIDE_MAX_SESSIONS: "true"
+    # CRITICAL FIX: Add DNS servers to prevent ERR_NAME_NOT_RESOLVED
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+    networks:
+      - smm_network
+    volumes:
+      - /dev/shm:/dev/shm
+      - selenium_profiles:/app/selenium-profiles
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 10G  # Increased from 8G - supports 6 sessions @ 1.5GB each + 1GB overhead
+        reservations:
+          cpus: '2'
+          memory: 5G  # Increased from 4G - better baseline performance
+
+  # Spring Boot Application - Can be scaled with --scale spring-boot-app=3
+  spring-boot-app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        JAR_FILE: build/libs/*.jar
+    # Remove container_name to allow scaling
+    restart: unless-stopped
+    # Remove ports mapping - nginx will handle external access
+    # Internal port 8080 is accessible within the Docker network
+    env_file:
+      - .env.docker
+    environment:
+      <<: *common-env
+      # Override hosts for Docker network
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      SELENIUM_HUB_URL: http://selenium-hub:4444/wd/hub
+      # Ensure Kafka uses internal Docker network
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      # Connection pool per instance (75 total / 3 instances = 25 each)
+      DB_MAX_POOL_SIZE: 25
+      DB_MIN_IDLE: 8
+      # Disable OpenTelemetry/Jaeger tracing completely
+      OTEL_SDK_DISABLED: true
+      OTEL_EXPORTER_OTLP_ENABLED: false
+      OTEL_TRACES_EXPORTER: none
+      OTEL_METRICS_EXPORTER: none
+      OTEL_LOGS_EXPORTER: none
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: ""
+      MANAGEMENT_TRACING_ENABLED: false
+      # Disable Spring Boot DevTools restart in Docker containers
+      SPRING_DEVTOOLS_RESTART_ENABLED: false
+      # All other env vars loaded from .env automatically
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      kafka:
+        condition: service_started
+      selenium-hub:
+        condition: service_healthy
+    networks:
+      - smm_network
+    volumes:
+      - ./backend/logs:/app/logs
+      - ./backend/uploads:/app/uploads
+      - selenium_profiles:/app/selenium-profiles
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   # Kafka for event streaming (Traditional Zookeeper Mode)
   # Note: Consider using docker-compose-kafka-kraft.yml for KRaft mode (no Zookeeper)
@@ -189,22 +337,23 @@ services:
       
       # Performance Settings
       KAFKA_COMPRESSION_TYPE: snappy
-      KAFKA_NUM_NETWORK_THREADS: 8
-      KAFKA_NUM_IO_THREADS: 8
+      KAFKA_NUM_NETWORK_THREADS: 16  # Increased for high load
+      KAFKA_NUM_IO_THREADS: 16       # Increased for high load
+      KAFKA_NUM_PARTITIONS: 8        # More partitions for parallelism
       KAFKA_SOCKET_SEND_BUFFER_BYTES: 102400
       KAFKA_SOCKET_RECEIVE_BUFFER_BYTES: 102400
       KAFKA_SOCKET_REQUEST_MAX_BYTES: 104857600
       
       # Security Settings
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'  # Require explicit topic creation
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'  # Allow automatic topic creation for development
       KAFKA_DELETE_TOPIC_ENABLE: 'true'
       
       # JMX Monitoring
       KAFKA_JMX_PORT: 9101
       KAFKA_JMX_HOSTNAME: localhost
       
-      # JVM Settings
-      KAFKA_HEAP_OPTS: '-Xms1G -Xmx3G'
+      # JVM Settings - Increased for high throughput
+      KAFKA_HEAP_OPTS: '-Xms2G -Xmx4G'
       KAFKA_JVM_PERFORMANCE_OPTS: '-XX:+UseG1GC -XX:MaxGCPauseMillis=20 -XX:InitiatingHeapOccupancyPercent=35'
       
       # Additional Settings
@@ -230,153 +379,71 @@ services:
           cpus: '1'
           memory: 2G
 
-  # Spring Boot Application
-  spring-boot-app:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    image: smm-panel-backend:latest
-    container_name: smm_backend
+  # Kafka UI for monitoring
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: smm_kafka_ui
     restart: unless-stopped
     ports:
-      - "8080:8080"
-    env_file:
-      - .env
+      - "8081:8080"
     environment:
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-production}
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/smm_panel
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-smm_admin}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
-      SPRING_DATA_REDIS_HOST: redis
-      SPRING_DATA_REDIS_PORT: 6379
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      JAVA_OPTS: "-Xms2g -Xmx4g -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
-    volumes:
-      - ./backend/logs:/app/logs
+      KAFKA_CLUSTERS_0_NAME: smm-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      KAFKA_CLUSTERS_0_READONLY: false
     networks:
       - smm_network
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
       kafka:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 4G
-        reservations:
-          cpus: '1'
-          memory: 2G
 
-  # React Frontend
+
+  # Frontend React Application
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    image: smm-panel-frontend:latest
     container_name: smm_frontend
     restart: unless-stopped
     ports:
-      - "3001:80"
-    volumes:
-      - ./frontend/nginx.conf:/etc/nginx/nginx.conf
-    networks:
-      - smm_network
+      - "3000:80"
+    environment:
+      - REACT_APP_API_URL=http://spring-boot-app:8080/api
+      - NODE_ENV=production
     depends_on:
       - spring-boot-app
-
-  # Selenium Hub for YouTube automation
-  selenium-hub:
-    image: selenium/hub:4.15.0
-    container_name: smm_selenium_hub
-    restart: unless-stopped
-    ports:
-      - "4444:4444"
-      - "4442:4442"
-      - "4443:4443"
-    environment:
-      SE_NODE_MAX_SESSIONS: 5
-      SE_NODE_SESSION_TIMEOUT: 300
-      SE_SESSION_REQUEST_TIMEOUT: 300
-      SE_SESSION_RETRY_INTERVAL: 15
     networks:
       - smm_network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4444/wd/hub/status"]
-      interval: 15s
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
       timeout: 10s
       retries: 3
 
-  # Chrome nodes for Selenium
-  chrome-node-1:
-    image: selenium/node-chrome:4.15.0
-    container_name: smm_chrome_1
-    restart: unless-stopped
-    depends_on:
-      selenium-hub:
-        condition: service_healthy
-    environment:
-      SE_EVENT_BUS_HOST: selenium-hub
-      SE_EVENT_BUS_PUBLISH_PORT: 4442
-      SE_EVENT_BUS_SUBSCRIBE_PORT: 4443
-      SE_NODE_MAX_SESSIONS: 2
-      SE_VNC_NO_PASSWORD: 1
-      SE_SCREEN_WIDTH: 1920
-      SE_SCREEN_HEIGHT: 1080
-      SE_OPTS: "--log-level WARNING"
-    shm_size: '2gb'
-    volumes:
-      - /dev/shm:/dev/shm
-    networks:
-      - smm_network
-
-  chrome-node-2:
-    image: selenium/node-chrome:4.15.0
-    container_name: smm_chrome_2
-    restart: unless-stopped
-    depends_on:
-      selenium-hub:
-        condition: service_healthy
-    environment:
-      SE_EVENT_BUS_HOST: selenium-hub
-      SE_EVENT_BUS_PUBLISH_PORT: 4442
-      SE_EVENT_BUS_SUBSCRIBE_PORT: 4443
-      SE_NODE_MAX_SESSIONS: 2
-      SE_VNC_NO_PASSWORD: 1
-      SE_SCREEN_WIDTH: 1920
-      SE_SCREEN_HEIGHT: 1080
-      SE_OPTS: "--log-level WARNING"
-    shm_size: '2gb'
-    volumes:
-      - /dev/shm:/dev/shm
-    networks:
-      - smm_network
-
-  # Nginx as reverse proxy and load balancer
+  # Nginx as reverse proxy and load balancer for scaled instances
   nginx:
     image: nginx:alpine
     container_name: smm_nginx
     restart: unless-stopped
     ports:
+      - "8080:80"  # Expose on port 8080 for backward compatibility
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/conf.d:/etc/nginx/conf.d
-      - ./nginx/ssl:/etc/nginx/ssl
+      - ./nginx/nginx-loadbalancer.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
       - nginx_logs:/var/log/nginx
     networks:
       - smm_network
     depends_on:
       - spring-boot-app
+      - frontend
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
       interval: 30s
@@ -401,8 +468,6 @@ services:
       - '--web.enable-lifecycle'
     networks:
       - smm_network
-    depends_on:
-      - spring-boot-app
     healthcheck:
       test: ["CMD", "wget", "--spider", "http://localhost:9090/-/healthy"]
       interval: 30s
@@ -420,7 +485,7 @@ services:
     container_name: smm_grafana
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3001:3000"
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
@@ -466,25 +531,6 @@ services:
           cpus: '1'
           memory: 1G
 
-  # Promtail for log collection
-  promtail:
-    image: grafana/promtail:latest
-    container_name: smm_promtail
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./promtail:/etc/promtail
-      - /var/log:/var/log:ro
-    command: -config.file=/etc/promtail/promtail-config.yml
-    networks:
-      - smm_network
-    depends_on:
-      - loki
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
 
   # Jaeger for distributed tracing
   jaeger:
@@ -557,6 +603,8 @@ volumes:
   zookeeper_data:
     driver: local
   zookeeper_logs:
+    driver: local
+  selenium_profiles:
     driver: local
   prometheus_data:
     driver: local

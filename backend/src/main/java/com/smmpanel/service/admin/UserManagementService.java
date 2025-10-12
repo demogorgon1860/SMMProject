@@ -7,7 +7,7 @@ import com.smmpanel.entity.User;
 import com.smmpanel.entity.UserRole;
 import com.smmpanel.exception.UserValidationException;
 import com.smmpanel.repository.jpa.UserRepository;
-import com.smmpanel.service.AuditService;
+import com.smmpanel.service.core.AuditService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -163,7 +163,8 @@ public class UserManagementService {
                         .orElseThrow(
                                 () -> new UserValidationException("User not found: " + userId));
 
-        generateApiKey(user);
+        String apiKey = "sk_" + UUID.randomUUID().toString().replace("-", "");
+        user.setApiKeyHash(hashApiKey(apiKey));
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
 
@@ -171,7 +172,7 @@ public class UserManagementService {
         // implemented
         log.info("Generated new API key for user: {}", user.getUsername());
 
-        return user.getApiKey();
+        return apiKey; // Return the generated API key
     }
 
     /** Revoke API key for user */
@@ -183,8 +184,7 @@ public class UserManagementService {
                         .orElseThrow(
                                 () -> new UserValidationException("User not found: " + userId));
 
-        user.setApiKey(null);
-        user.setApiKeyHash(null);
+        user.setApiKeyHash(null); // Only clear the hash
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
 
@@ -236,7 +236,6 @@ public class UserManagementService {
 
     private void generateApiKey(User user) {
         String apiKey = UUID.randomUUID().toString().replace("-", "");
-        user.setApiKey(apiKey);
         user.setApiKeyHash(hashApiKey(apiKey));
     }
 
@@ -269,7 +268,7 @@ public class UserManagementService {
                 .role(user.getRole())
                 .balance(user.getBalance())
                 .timezone(user.getTimezone())
-                .hasApiKey(user.getApiKey() != null)
+                .hasApiKey(user.getApiKeyHash() != null)
                 .active(user.isActive())
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())

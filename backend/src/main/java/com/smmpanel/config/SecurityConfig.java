@@ -19,6 +19,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -54,28 +55,91 @@ public class SecurityConfig {
                 .csrf(
                         csrf ->
                                 csrf.ignoringRequestMatchers(
-                                        "/api/v2/webhooks/**", // Webhook endpoints need to be CSRF
-                                        // exempt
-                                        "/api/v2/auth/**" // Auth endpoints are stateless
-                                        ))
+                                                "/api/**",
+                                                "/actuator/**",
+                                                "/v3/api-docs/**",
+                                                "/swagger-ui/**")
+                                        .csrfTokenRepository(
+                                                CookieCsrfTokenRepository
+                                                        .withHttpOnlyFalse())) // Enable CSRF for
+                // web endpoints,
+                // disable for API
                 .sessionManagement(
                         session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(
                         auth ->
                                 auth.requestMatchers(
-                                                "/api/v2/auth/**",
+                                                // Authentication endpoints (singular - actions)
+                                                "/api/v*/auth/**",
+                                                "/api/auth/**",
+
+                                                // Service endpoints (both singular and plural
+                                                // patterns)
+                                                "/api/v*/services",
+                                                "/api/v*/services/**",
+                                                "/api/v*/service/**",
+
+                                                // Health checks (singular - singleton)
+                                                "/api/v*/health",
+                                                "/api/v*/health/**",
                                                 "/actuator/health",
-                                                "/api/v2/webhooks/**",
+                                                "/actuator/health/**",
+                                                "/actuator/**",
+
+                                                // Webhooks (plural - collections)
+                                                "/api/v*/webhooks/**",
+
+                                                // API Documentation
                                                 "/v3/api-docs/**",
                                                 "/swagger-ui/**",
-                                                "/swagger-ui.html")
+                                                "/swagger-ui.html",
+                                                "/swagger-resources/**",
+                                                "/webjars/**",
+
+                                                // Error and debug
+                                                "/api/debug/**",
+                                                "/error",
+
+                                                // YouTube session setup (temporary public for
+                                                // initial cookie capture)
+                                                "/api/v*/admin/youtube-session/**")
                                         .permitAll()
-                                        .requestMatchers("/api/v2/admin/**")
+
+                                        // Admin endpoints (following REST pattern)
+                                        .requestMatchers("/api/v*/admin/**", "/api/admin/**")
                                         .hasRole("ADMIN")
-                                        .requestMatchers("/api/v2/operator/**")
+
+                                        // Operator endpoints
+                                        .requestMatchers("/api/v*/operator/**")
                                         .hasAnyRole("OPERATOR", "ADMIN")
+
+                                        // User-specific endpoints (require authentication)
+                                        .requestMatchers(
+                                                "/api/v*/orders/**",
+                                                "/api/v*/users/**",
+                                                "/api/v*/payments/**",
+                                                "/api/v*/transactions/**",
+                                                "/api/v*/profile/**")
+                                        .authenticated()
                                         .anyRequest()
                                         .authenticated())
+                .exceptionHandling(
+                        exception ->
+                                exception
+                                        .authenticationEntryPoint(
+                                                (request, response, authException) -> {
+                                                    response.setStatus(401);
+                                                    response.setContentType("application/json");
+                                                    response.getWriter()
+                                                            .write("{\"error\":\"Unauthorized\"}");
+                                                })
+                                        .accessDeniedHandler(
+                                                (request, response, accessDeniedException) -> {
+                                                    response.setStatus(403);
+                                                    response.setContentType("application/json");
+                                                    response.getWriter()
+                                                            .write("{\"error\":\"Access Denied\"}");
+                                                }))
                 .headers(
                         headers ->
                                 headers.frameOptions(frameOptions -> frameOptions.sameOrigin())
@@ -88,7 +152,9 @@ public class SecurityConfig {
                                                                 .includeSubDomains(true)))
                 .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                // OAuth2 login disabled - handlers removed
+                .oauth2Login(oauth2 -> oauth2.disable());
 
         return http.build();
     }

@@ -85,7 +85,6 @@ public interface OrderRepository
                     + "JOIN FETCH o.user u "
                     + "JOIN FETCH o.service s "
                     + "LEFT JOIN FETCH o.videoProcessing vp "
-                    + "LEFT JOIN FETCH o.binomCampaigns bc "
                     + "WHERE u.id = :userId "
                     + "ORDER BY o.createdAt DESC")
     List<Order> findOrdersWithDetailsByUserId(@Param("userId") Long userId);
@@ -114,7 +113,6 @@ public interface OrderRepository
                     + "JOIN FETCH o.user u "
                     + "JOIN FETCH o.service s "
                     + "LEFT JOIN FETCH o.videoProcessing vp "
-                    + "LEFT JOIN FETCH o.binomCampaigns bc "
                     + "WHERE o.id = :id")
     Optional<Order> findByIdWithAllDetails(@Param("id") Long id);
 
@@ -311,11 +309,68 @@ public interface OrderRepository
                     + "ORDER BY o.updatedAt DESC")
     Page<Order> findOrdersForManualReview(Pageable pageable);
 
-    /** Find orders by status with Binom campaign ID set Used for synchronization with Binom */
+    // Removed findByStatusInAndBinomCampaignIdNotNull - using binomOfferId instead
+
+    /** Find orders by status with Binom offer ID set - for direct campaign connection */
     @Query(
             "SELECT o FROM Order o "
                     + "WHERE o.status IN :statuses "
-                    + "AND o.binomCampaignId IS NOT NULL")
-    List<Order> findByStatusInAndBinomCampaignIdNotNull(
-            @Param("statuses") List<OrderStatus> statuses);
+                    + "AND o.binomOfferId IS NOT NULL")
+    List<Order> findByStatusInAndBinomOfferIdNotNull(@Param("statuses") List<OrderStatus> statuses);
+
+    /**
+     * OPTIMIZED QUERY WITH INDEX HINT: Find orders using status index Forces use of
+     * idx_order_status index for better performance
+     */
+    @Query(
+            value =
+                    "SELECT /*+ INDEX(o idx_order_status) */ o.* FROM orders o "
+                            + "WHERE o.status = :status AND o.created_at >= :date "
+                            + "ORDER BY o.created_at DESC",
+            nativeQuery = true)
+    List<Order> findOrdersWithIndexHint(
+            @Param("status") String status, @Param("date") LocalDateTime date);
+
+    /**
+     * BATCH UPDATE: Update status for multiple orders efficiently Prevents multiple individual
+     * updates
+     */
+    @Query(
+            "UPDATE Order o SET o.status = :newStatus, o.updatedAt = :updatedAt "
+                    + "WHERE o.id IN :orderIds")
+    int batchUpdateStatus(
+            @Param("orderIds") List<Long> orderIds,
+            @Param("newStatus") OrderStatus newStatus,
+            @Param("updatedAt") LocalDateTime updatedAt);
+
+    /**
+     * BATCH UPDATE: Mark orders as processed with completion data Used for bulk processing
+     * completion
+     */
+    @Query(
+            "UPDATE Order o SET o.status = 'COMPLETED', "
+                    + "o.updatedAt = :updatedAt, "
+                    + "o.remains = 0 "
+                    + "WHERE o.id IN :orderIds")
+    int batchMarkAsCompleted(
+            @Param("orderIds") List<Long> orderIds, @Param("updatedAt") LocalDateTime updatedAt);
+
+    /**
+     * OPTIMIZED: Find orders ready for processing with limit Uses native query with LIMIT for
+     * better performance
+     */
+    @Query(
+            value =
+                    "SELECT o.* FROM orders o "
+                            + "WHERE o.status = 'PENDING' "
+                            + "AND o.processing_priority >= :minPriority "
+                            + "ORDER BY o.processing_priority DESC, o.created_at ASC "
+                            + "LIMIT :limit",
+            nativeQuery = true)
+    List<Order> findTopPendingOrdersForProcessing(
+            @Param("minPriority") int minPriority, @Param("limit") int limit);
+
+    /** BATCH DELETE: Remove old completed orders Used for data cleanup operations */
+    @Query("DELETE FROM Order o WHERE o.status = 'COMPLETED' " + "AND o.updatedAt < :beforeDate")
+    int deleteOldCompletedOrders(@Param("beforeDate") LocalDateTime beforeDate);
 }

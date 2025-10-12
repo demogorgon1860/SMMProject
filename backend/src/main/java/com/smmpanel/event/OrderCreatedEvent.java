@@ -1,20 +1,30 @@
 package com.smmpanel.event;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
-import lombok.Getter;
-import org.springframework.context.ApplicationEvent;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /** Event published when a new order is created */
-@Getter
-public class OrderCreatedEvent extends ApplicationEvent {
-    private final Long orderId;
-    private final Long userId;
-    private final LocalDateTime createdAt;
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class OrderCreatedEvent implements Serializable {
+    private static final long serialVersionUID = 1L;
 
+    private Long orderId;
+    private Long userId;
+    private Long serviceId;
+    private Integer quantity;
+    private LocalDateTime timestamp;
+    private LocalDateTime createdAt;
+
+    // Constructor for compatibility with existing code
     public OrderCreatedEvent(Object source, Long orderId, Long userId) {
-        super(source);
         this.orderId = orderId;
         this.userId = userId;
         this.createdAt = LocalDateTime.now();
+        this.timestamp = LocalDateTime.now();
     }
 }

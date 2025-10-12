@@ -1,9 +1,9 @@
 package com.smmpanel.entity;
 
+import io.hypersistence.utils.hibernate.type.basic.PostgreSQLEnumType;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,6 +14,7 @@ import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.Fetch;
 import org.hibernate.annotations.FetchMode;
+import org.hibernate.annotations.Type;
 import org.hibernate.annotations.UpdateTimestamp;
 
 @Data
@@ -24,10 +25,16 @@ import org.hibernate.annotations.UpdateTimestamp;
         indexes = {
             @Index(name = "idx_orders_user_id", columnList = "user_id"),
             @Index(name = "idx_orders_service_id", columnList = "service_id"),
-            @Index(name = "idx_orders_status", columnList = "status"),
+            // idx_orders_status created by Liquibase migration
+            // @Index(name = "idx_orders_status", columnList = "status"),
             @Index(name = "idx_orders_created_at", columnList = "created_at"),
             @Index(name = "idx_orders_youtube_video_id", columnList = "youtube_video_id"),
-            @Index(name = "idx_orders_order_id", columnList = "order_id")
+            // Composite index for frequent queries
+            @Index(
+                    name = "idx_orders_user_status_created",
+                    columnList = "user_id, status, created_at")
+            // idx_orders_order_id created by Liquibase migration
+            // @Index(name = "idx_orders_order_id", columnList = "order_id")
         })
 @EqualsAndHashCode(callSuper = false)
 @Builder
@@ -66,8 +73,9 @@ public class Order {
 
     private Integer remains;
 
-    @Convert(converter = com.smmpanel.converter.OrderStatusConverter.class)
-    @Column(name = "status", columnDefinition = "order_status")
+    @Enumerated(EnumType.STRING)
+    @Type(value = PostgreSQLEnumType.class)
+    @Column(name = "status", nullable = false, columnDefinition = "order_status")
     @Builder.Default
     private OrderStatus status = OrderStatus.PENDING;
 
@@ -86,9 +94,7 @@ public class Order {
     @Column(name = "order_id", unique = true, length = 50)
     private String orderId;
 
-    @OneToMany(mappedBy = "order", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    @BatchSize(size = 10)
-    private List<BinomCampaign> binomCampaigns;
+    // BinomCampaigns relationship removed - using dynamic campaign connections
 
     @OneToOne(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private VideoProcessing videoProcessing;
@@ -112,10 +118,10 @@ public class Order {
     @Column(name = "last_error_type", length = 100)
     private String lastErrorType;
 
-    @Column(name = "last_retry_at")
+    @Column(name = "last_retry_at", columnDefinition = "TIMESTAMP")
     private LocalDateTime lastRetryAt;
 
-    @Column(name = "next_retry_at")
+    @Column(name = "next_retry_at", columnDefinition = "TIMESTAMP")
     private LocalDateTime nextRetryAt;
 
     @Column(name = "failure_reason", columnDefinition = "TEXT")
@@ -135,9 +141,7 @@ public class Order {
     private String operatorNotes;
 
     // ========= NEW BINOM TRACKING FIELDS =========
-
-    @Column(name = "binom_campaign_id", length = 50)
-    private String binomCampaignId; // Comma-separated IDs of 3 campaigns
+    // binomCampaignId removed - using direct campaign connections via binomOfferId
 
     @Column(name = "binom_offer_id", length = 50)
     private String binomOfferId;
@@ -166,11 +170,15 @@ public class Order {
     private Long version;
 
     @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @Column(
+            name = "created_at",
+            updatable = false,
+            nullable = false,
+            columnDefinition = "TIMESTAMP")
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", columnDefinition = "TIMESTAMP")
     private LocalDateTime updatedAt;
 
     public Long getId() {
@@ -181,24 +189,5 @@ public class Order {
         return link;
     }
 
-    /**
-     * Convenience method to add a BinomCampaign to the order This method adds the campaign to the
-     * binomCampaigns list and sets the bidirectional relationship
-     */
-    public void setBinomCampaign(BinomCampaign campaign) {
-        if (this.binomCampaigns == null) {
-            this.binomCampaigns = new java.util.ArrayList<>();
-        }
-
-        // Remove any existing campaign first (if we want single campaign per order)
-        this.binomCampaigns.clear();
-
-        // Add the new campaign
-        this.binomCampaigns.add(campaign);
-
-        // Set bidirectional relationship
-        if (campaign != null) {
-            campaign.setOrder(this);
-        }
-    }
+    // setBinomCampaign method removed - using dynamic campaign connections
 }

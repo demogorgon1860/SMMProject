@@ -1,6 +1,6 @@
 package com.smmpanel.security;
 
-import com.smmpanel.service.RateLimitService;
+import com.smmpanel.service.core.RateLimitService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

@@ -3,7 +3,7 @@ package com.smmpanel.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smmpanel.client.CryptomusClient;
 import com.smmpanel.dto.cryptomus.CryptomusWebhook;
-import com.smmpanel.service.CryptomusService;
+import com.smmpanel.service.integration.CryptomusService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;

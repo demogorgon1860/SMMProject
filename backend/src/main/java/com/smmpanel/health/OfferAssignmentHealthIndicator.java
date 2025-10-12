@@ -1,7 +1,6 @@
 package com.smmpanel.health;
 
 import com.smmpanel.client.BinomClient;
-import com.smmpanel.repository.jpa.FixedBinomCampaignRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
@@ -11,7 +10,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class OfferAssignmentHealthIndicator implements HealthIndicator {
 
-    private final FixedBinomCampaignRepository fixedCampaignRepository;
     private final BinomClient binomClient;
 
     @Override

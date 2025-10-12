@@ -3,7 +3,7 @@ package com.smmpanel.config;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
-import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;
+// import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 @Configuration
@@ -13,7 +13,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
         basePackages = "com.smmpanel.repository.jpa",
         entityManagerFactoryRef = "entityManagerFactory",
         transactionManagerRef = "transactionManager")
-@EnableRedisRepositories(basePackages = "com.smmpanel.repository.redis")
+// @EnableRedisRepositories disabled - using Redis for caching only, not as a repository
 public class RepositoryConfig {
     // This configuration explicitly separates JPA and Redis repositories
     // to avoid Spring Data module conflicts

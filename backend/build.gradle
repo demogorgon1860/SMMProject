@@ -6,6 +6,7 @@ plugins {
     id 'org.liquibase.gradle' version '2.2.1'
     id 'jacoco'
     id 'com.diffplug.spotless' version '6.25.0'
+    id "org.sonarqube" version "6.3.1.5724"
 }
 
 // Load .env file if it exists
@@ -385,5 +386,14 @@ task debugEnv {
         println "DB_PASSWORD from System.getProperty: ${System.getProperty('DB_PASSWORD')}"
         println "DB_USER from System.getProperty: ${System.getProperty('DB_USER')}"
         println "DB_URL from System.getProperty: ${System.getProperty('DB_URL')}"
+    }
+}
+
+// SonarQube configuration
+sonar {
+    properties {
+        property "sonar.projectKey", "demogorgon1860_SMMProject"
+        property "sonar.organization", "demogorgon1860"
+        property "sonar.host.url", "https://sonarcloud.io"
     }
 }

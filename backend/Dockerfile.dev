@@ -1,0 +1,45 @@
+# Development Dockerfile with hot reload support
+FROM gradle:7.6-jdk17
+
+# Install additional tools for development
+RUN apt-get update && apt-get install -y \
+    curl \
+    vim \
+    net-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy gradle files
+COPY build.gradle settings.gradle gradlew ./
+COPY gradle ./gradle
+
+# Download dependencies (cached layer)
+RUN ./gradlew dependencies --no-daemon
+
+# Copy source code
+COPY src ./src
+
+# Create directories for logs and uploads
+RUN mkdir -p /app/logs /app/uploads
+
+# Container-aware JVM settings for development
+ENV JAVA_OPTS="-Xms256m -Xmx1g \
+               -XX:+UseG1GC \
+               -XX:+UseContainerSupport \
+               -XX:MaxRAMPercentage=50.0 \
+               -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005 \
+               -Dspring.profiles.active=dev \
+               -Dspring.devtools.restart.enabled=true \
+               -Dspring.jpa.show-sql=true \
+               -Dfile.encoding=UTF-8"
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8080/actuator/health || exit 1
+
+# Expose ports
+EXPOSE 8080 5005
+
+# Run with gradle for hot reload
+CMD ["./gradlew", "bootRun", "--continuous"]

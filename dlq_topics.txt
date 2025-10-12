@@ -1,0 +1,15 @@
+smm.binom.campaign.creation.dlq
+smm.notifications.dlq
+smm.offer.assignments.dlq
+smm.order.processing.dlq
+smm.order.progress.dlq
+smm.order.refund.dlq
+smm.order.state.updates.dlq
+smm.payment.confirmations.dlq
+smm.payment.refunds.dlq
+smm.payment.webhooks.dlq
+smm.video.processing.dlq
+smm.video.processing.retry.dlq
+smm.youtube.processing.dlq
+video.processing.dlq
+video.processing.queue.dlq

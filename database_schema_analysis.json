@@ -1,0 +1,1654 @@
+{
+  "schema_analysis": {
+    "analyzed_at": "2025-09-24",
+    "total_entities": 21,
+    "total_tables": 15,
+    "total_enums": 6,
+    "database_type": "PostgreSQL",
+    "orm": "JPA/Hibernate"
+  },
+  "entities": {
+    "AuditLog": {
+      "table_name": "audit_logs",
+      "primary_key": {
+        "column": "id",
+        "type": "BIGINT",
+        "strategy": "IDENTITY"
+      },
+      "columns": {
+        "id": {
+          "type": "BIGINT",
+          "nullable": false,
+          "auto_increment": true
+        },
+        "entity_type": {
+          "type": "VARCHAR(100)",
+          "nullable": false
+        },
+        "entity_id": {
+          "type": "BIGINT",
+          "nullable": true
+        },
+        "entity_identifier": {
+          "type": "VARCHAR(100)",
+          "nullable": true
+        },
+        "action": {
+          "type": "VARCHAR(100)",
+          "nullable": false
+        },
+        "category": {
+          "type": "audit_category",
+          "nullable": false,
+          "default": "GENERAL",
+          "enum_type": "PostgreSQLEnumType"
+        },
+        "severity": {
+          "type": "audit_severity",
+          "nullable": false,
+          "default": "INFO",
+          "enum_type": "PostgreSQLEnumType"
+        },
+        "user_id": {
+          "type": "BIGINT",
+          "nullable": true
+        },
+        "username": {
+          "type": "VARCHAR(100)",
+          "nullable": true
+        },
+        "user_role": {
+          "type": "VARCHAR(50)",
+          "nullable": true
+        },
+        "old_value": {
+          "type": "TEXT",
+          "nullable": true
+        },
+        "new_value": {
+          "type": "TEXT",
+          "nullable": true
+        },
+        "changes": {
+          "type": "JSONB",
+          "nullable": true
+        },
+        "description": {
+          "type": "VARCHAR(500)",
+          "nullable": true
+        },
+        "ip_address": {
+          "type": "VARCHAR(45)",
+          "nullable": true
+        },
+        "user_agent": {
+          "type": "VARCHAR(500)",
+          "nullable": true
+        },
+        "request_id": {
+          "type": "VARCHAR(100)",
+          "nullable": true
+        },
+        "session_id": {
+          "type": "VARCHAR(100)",
+          "nullable": true
+        },
+        "api_key_used": {
+          "type": "VARCHAR(100)",
+          "nullable": true
+        },
+        "payment_amount": {
+          "type": "DECIMAL(12,2)",
+          "nullable": true
+        },
+        "payment_currency": {
+          "type": "VARCHAR(10)",
+          "nullable": true
+        },
+        "payment_method": {
+          "type": "VARCHAR(50)",
+          "nullable": true
+        },
+        "payment_provider": {
+          "type": "VARCHAR(50)",
+          "nullable": true
+        },
+        "transaction_id": {
+          "type": "VARCHAR(100)",
+          "nullable": true
+        },
+        "payment_status": {
+          "type": "VARCHAR(50)",
+          "nullable": true
+        },
+        "risk_score": {
+          "type": "INTEGER",
+          "nullable": true
+        },
+        "security_flags": {
+          "type": "VARCHAR(500)",
+          "nullable": true
+        },
+        "is_suspicious": {
+          "type": "BOOLEAN",
+          "nullable": true,
+          "default": false
+        },
+        "metadata": {
+          "type": "JSONB",
+          "nullable": true
+        },
+        "timestamp": {
+          "type": "TIMESTAMP",
+          "nullable": false,
+          "updatable": false,
+          "creation_timestamp": true
+        },
+        "execution_time_ms": {
+          "type": "BIGINT",
+          "nullable": true
+        },
+        "compliance_checked": {
+          "type": "BOOLEAN",
+          "nullable": true,
+          "default": false
+        },
+        "retention_days": {
+          "type": "INTEGER",
+          "nullable": true,
+          "default": 2555
+        },
+        "is_pii_redacted": {
+          "type": "BOOLEAN",
+          "nullable": true,
+          "default": false
+        }
+      },
+      "indexes": [
+        {
+          "name": "idx_audit_entity_type_id",
+          "columns": ["entity_type", "entity_id"]
+        },
+        {
+          "name": "idx_audit_user_id",
+          "columns": ["user_id"]
+        },
+        {
+          "name": "idx_audit_action",
+          "columns": ["action"]
+        },
+        {
+          "name": "idx_audit_timestamp",
+          "columns": ["timestamp"]
+        },
+        {
+          "name": "idx_audit_category",
+          "columns": ["category"]
+        },
+        {
+          "name": "idx_audit_severity",
+          "columns": ["severity"]
+        },
+        {
+          "name": "idx_audit_ip_address",
+          "columns": ["ip_address"]
+        }
+      ],
+      "embedded_enums": [
+        {
+          "name": "AuditCategory",
+          "values": ["GENERAL", "AUTHENTICATION", "AUTHORIZATION", "PAYMENT", "ORDER", "USER_MANAGEMENT", "SYSTEM", "SECURITY", "CONFIGURATION", "DATA_ACCESS", "API", "COMPLIANCE"]
+        },
+        {
+          "name": "AuditSeverity",
+          "values": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "SECURITY_ALERT"]
+        }
+      ]
+    },
+    "BalanceDeposit": {
+      "table_name": "balance_deposits",
+      "primary_key": {
+        "column": "id",
+        "type": "BIGINT",
+        "strategy": "IDENTITY"
+      },
+      "columns": {
+        "id": {
+          "type": "BIGINT",
+          "nullable": false,
+          "auto_increment": true
+        },
+        "user_id": {
+          "type": "BIGINT",
+          "nullable": false,
+          "foreign_key": "users.id"
+        },
+        "order_id": {
+          "type": "VARCHAR",
+          "nullable": false,
+          "unique": true
+        },
+        "amount_usdt": {
+          "type": "DECIMAL(10,2)",
+          "nullable": false
+        },
+        "crypto_amount": {
+          "type": "DECIMAL(20,8)",
+          "nullable": true
+        },
+        "cryptomus_payment_id": {
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        "payment_url": {
+          "type": "VARCHAR(500)",
+          "nullable": true
+        },
+        "status": {
+          "type": "payment_status",
+          "nullable": true,
+          "default": "PENDING",
+          "enum_type": "PostgreSQLEnumType"
+        },
+        "expires_at": {
+          "type": "TIMESTAMP",
+          "nullable": false
+        },
+        "confirmed_at": {
+          "type": "TIMESTAMP",
+          "nullable": true
+        },
+        "confirmed_amount": {
+          "type": "DECIMAL(10,2)",
+          "nullable": true
+        },
+        "failed_at": {
+          "type": "TIMESTAMP",
+          "nullable": true
+        },
+        "refunded_at": {
+          "type": "TIMESTAMP",
+          "nullable": true
+        },
+        "refund_amount": {
+          "type": "DECIMAL(10,2)",
+          "nullable": true
+        },
+        "webhook_data": {
+          "type": "JSONB",
+          "nullable": true
+        },
+        "created_at": {
+          "type": "TIMESTAMP",
+          "nullable": true,
+          "updatable": false,
+          "creation_timestamp": true
+        }
+      },
+      "relationships": {
+        "user": {
+          "type": "ManyToOne",
+          "fetch": "LAZY",
+          "join_column": "user_id",
+          "target_entity": "User"
+        }
+      },
+      "indexes": [
+        {
+          "name": "idx_balance_deposits_user_id",
+          "columns": ["user_id"]
+        },
+        {
+          "name": "idx_balance_deposits_order_id",
+          "columns": ["order_id"]
+        },
+        {
+          "name": "idx_balance_deposits_status",
+          "columns": ["status"]
+        },
+        {
+          "name": "idx_balance_deposits_created_at",
+          "columns": ["created_at"]
+        },
+        {
+          "name": "idx_balance_deposits_cryptomus_payment_id",
+          "columns": ["cryptomus_payment_id"]
+        }
+      ]
+    },
+    "BalanceTransaction": {
+      "table_name": "balance_transactions",
+      "primary_key": {
+        "column": "id",
+        "type": "BIGINT",
+        "strategy": "IDENTITY"
+      },
+      "columns": {
+        "id": {
+          "type": "BIGINT",
+          "nullable": false,
+          "auto_increment": true
+        },
+        "user_id": {
+          "type": "BIGINT",
+          "nullable": false,
+          "foreign_key": "users.id"
+        },
+        "order_id": {
+          "type": "BIGINT",
+          "nullable": true,
+          "foreign_key": "orders.id"
+        },
+        "deposit_id": {
+          "type": "BIGINT",
+          "nullable": true,
+          "foreign_key": "balance_deposits.id"
+        },
+        "amount": {
+          "type": "DECIMAL(10,2)",
+          "nullable": false
+        },
+        "balance_before": {
+          "type": "DECIMAL(10,2)",
+          "nullable": false
+        },
+        "balance_after": {
+          "type": "DECIMAL(10,2)",
+          "nullable": false
+        },
+        "transaction_id": {
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "unique": true
+        },
+        "reference_id": {
+          "type": "VARCHAR(255)",
+          "nullable": true
+        },
+        "source_system": {
+          "type": "VARCHAR(50)",
+          "nullable": true
+        },
+        "ip_address": {
+          "type": "VARCHAR(45)",
+          "nullable": true
+        },
+        "user_agent": {
+          "type": "VARCHAR(500)",
+          "nullable": true
+        },
+        "session_id": {
+          "type": "VARCHAR(100)",
+          "nullable": true
+        },
+        "transaction_type": {
+          "type": "transaction_type",
+          "nullable": false,
+          "enum_type": "PostgreSQLEnumType"
+        },
+        "description": {
+          "type": "TEXT",
+          "nullable": true
+        },
+        "version": {
+          "type": "BIGINT",
+          "nullable": true,
+          "optimistic_locking": true
+        },
+        "created_at": {
+          "type": "TIMESTAMP",
+          "nullable": true,
+          "updatable": false,
+          "creation_timestamp": true
+        },
+        "updated_at": {
+          "type": "TIMESTAMP",
+          "nullable": true,
+          "update_timestamp": true
+        },
+        "processed_at": {
+          "type": "TIMESTAMP",
+          "nullable": true
+        },
+        "reconciled_at": {
+          "type": "TIMESTAMP",
+          "nullable": true
+        },
+        "reconciliation_status": {
+          "type": "VARCHAR",
+          "nullable": true,
+          "enum_values": ["PENDING", "RECONCILED", "DISCREPANCY", "UNDER_REVIEW", "RESOLVED"]
+        },
+        "audit_hash": {
+          "type": "VARCHAR(64)",
+          "nullable": true
+        },
+        "previous_transaction_hash": {
+          "type": "VARCHAR(64)",
+          "nullable": true
+        }
+      },
+      "relationships": {
+        "user": {
+          "type": "ManyToOne",
+          "fetch": "LAZY",
+          "join_column": "user_id",
+          "target_entity": "User"
+        },
+        "order": {
+          "type": "ManyToOne",
+          "fetch": "LAZY",
+          "join_column": "order_id",
+          "target_entity": "Order"
+        },
+        "deposit": {
+          "type": "ManyToOne",
+          "fetch": "LAZY",
+          "join_column": "deposit_id",
+          "target_entity": "BalanceDeposit"
+        }
+      },
+      "indexes": [
+        {
+          "name": "idx_balance_transactions_user_id",
+          "columns": ["user_id"]
+        },
+        {
+          "name": "idx_balance_transactions_order_id",
+          "columns": ["order_id"]
+        },
+        {
+          "name": "idx_balance_transactions_deposit_id",
+          "columns": ["deposit_id"]
+        },
+        {
+          "name": "idx_balance_transactions_type",
+          "columns": ["transaction_type"]
+        },
+        {
+          "name": "idx_balance_transactions_created_at",
+          "columns": ["created_at"]
+        },
+        {
+          "name": "idx_balance_transactions_transaction_id",
+          "columns": ["transaction_id"]
+        }
+      ],
+      "embedded_enums": [
+        {
+          "name": "ReconciliationStatus",
+          "values": ["PENDING", "RECONCILED", "DISCREPANCY", "UNDER_REVIEW", "RESOLVED"]
+        }
+      ]
+    },
+    "ConversionCoefficient": {
+      "table_name": "conversion_coefficients",
+      "primary_key": {
+        "column": "id",
+        "type": "BIGINT",
+        "strategy": "IDENTITY"
+      },
+      "columns": {
+        "id": {
+          "type": "BIGINT",
+          "nullable": false,
+          "auto_increment": true
+        },
+        "service_id": {
+          "type": "BIGINT",
+          "nullable": false
+        },
+        "coefficient": {
+          "type": "DECIMAL(4,2)",
+          "nullable": false
+        },
+        "with_clip": {
+          "type": "DECIMAL",
+          "nullable": false,
+          "default": "3.0"
+        },
+        "without_clip": {
+          "type": "DECIMAL",
+          "nullable": false,
+          "default": "4.0"
+        },
+        "updated_by": {
+          "type": "VARCHAR(100)",
+          "nullable": true
+        },
+        "created_at": {
+          "type": "TIMESTAMP",
+          "nullable": false,
+          "updatable": false,
+          "creation_timestamp": true
+        },
+        "updated_at": {
+          "type": "TIMESTAMP",
+          "nullable": true,
+          "update_timestamp": true
+        }
+      },
+      "relationships": {
+        "service": {
+          "type": "ManyToOne",
+          "fetch": "LAZY",
+          "join_column": "service_id",
+          "target_entity": "Service",
+          "insertable": false,
+          "updatable": false
+        }
+      },
+      "unique_constraints": [
+        {
+          "name": "unique_service_without_clip",
+          "columns": ["service_id", "without_clip"]
+        }
+      ]
+    },
+    "OperatorLog": {
+      "table_name": "operator_logs",
+      "primary_key": {
+        "column": "id",
+        "type": "BIGINT",
+        "strategy": "IDENTITY"
+      },
+      "columns": {
+        "id": {
+          "type": "BIGINT",
+          "nullable": false,
+          "auto_increment": true
+        },
+        "operator_id": {
+          "type": "BIGINT",
+          "nullable": false,
+          "foreign_key": "users.id"
+        },
+        "action": {
+          "type": "VARCHAR(100)",
+          "nullable": false
+        },
+        "target_type": {
+          "type": "VARCHAR(50)",
+          "nullable": false
+        },
+        "target_id": {
+          "type": "BIGINT",
+          "nullable": false
+        },
+        "details": {
+          "type": "JSONB",
+          "nullable": true
+        },
+        "ip_address": {
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        "user_agent": {
+          "type": "TEXT",
+          "nullable": true
+        },
+        "created_at": {
+          "type": "TIMESTAMP",
+          "nullable": true,
+          "updatable": false,
+          "creation_timestamp": true
+        }
+      },
+      "relationships": {
+        "operator": {
+          "type": "ManyToOne",
+          "fetch": "LAZY",
+          "join_column": "operator_id",
+          "target_entity": "User"
+        }
+      }
+    },
+    "OrderEvent": {
+      "table_name": "order_events",
+      "primary_key": {
+        "column": "id",
+        "type": "BIGINT",
+        "strategy": "IDENTITY"
+      },
+      "columns": {
+        "id": {
+          "type": "BIGINT",
+          "nullable": false,
+          "auto_increment": true
+        },
+        "event_id": {
+          "type": "VARCHAR(100)",
+          "nullable": false,
+          "unique": true
+        },
+        "aggregate_id": {
+          "type": "VARCHAR(100)",
+          "nullable": false
+        },
+        "order_id": {
+          "type": "BIGINT",
+          "nullable": false
+        },
+        "event_type": {
+          "type": "VARCHAR(100)",
+          "nullable": false
+        },
+        "event_version": {
+          "type": "INTEGER",
+          "nullable": false,
+          "default": 1
+        },
+        "sequence_number": {
+          "type": "BIGINT",
+          "nullable": false
+        },
+        "event_data": {
+          "type": "JSONB",
+          "nullable": true
+        },
+        "metadata": {
+          "type": "JSONB",
+          "nullable": true
+        },
+        "user_id": {
+          "type": "BIGINT",
+          "nullable": true
+        },
+        "username": {
+          "type": "VARCHAR(100)",
+          "nullable": true
+        },
+        "correlation_id": {
+          "type": "VARCHAR(100)",
+          "nullable": true
+        },
+        "causation_id": {
+          "type": "VARCHAR(100)",
+          "nullable": true
+        },
+        "event_timestamp": {
+          "type": "TIMESTAMP",
+          "nullable": false,
+          "updatable": false,
+          "creation_timestamp": true
+        },
+        "is_processed": {
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": false
+        },
+        "processed_at": {
+          "type": "TIMESTAMP",
+          "nullable": true
+        },
+        "retry_count": {
+          "type": "INTEGER",
+          "nullable": true,
+          "default": 0
+        },
+        "error_message": {
+          "type": "VARCHAR(1000)",
+          "nullable": true
+        },
+        "kafka_topic": {
+          "type": "VARCHAR(100)",
+          "nullable": true
+        },
+        "kafka_partition": {
+          "type": "INTEGER",
+          "nullable": true
+        },
+        "kafka_offset": {
+          "type": "BIGINT",
+          "nullable": true
+        }
+      },
+      "indexes": [
+        {
+          "name": "idx_order_event_order_id",
+          "columns": ["order_id"]
+        },
+        {
+          "name": "idx_order_event_type",
+          "columns": ["event_type"]
+        },
+        {
+          "name": "idx_order_event_timestamp",
+          "columns": ["event_timestamp"]
+        },
+        {
+          "name": "idx_order_event_aggregate",
+          "columns": ["aggregate_id"]
+        },
+        {
+          "name": "idx_order_event_sequence",
+          "columns": ["sequence_number"]
+        },
+        {
+          "name": "idx_order_event_processed",
+          "columns": ["is_processed"]
+        }
+      ]
+    },
+    "RefreshToken": {
+      "table_name": "refresh_tokens",
+      "primary_key": {
+        "column": "id",
+        "type": "BIGINT",
+        "strategy": "IDENTITY"
+      },
+      "columns": {
+        "id": {
+          "type": "BIGINT",
+          "nullable": false,
+          "auto_increment": true
+        },
+        "token": {
+          "type": "VARCHAR(500)",
+          "nullable": false,
+          "unique": true
+        },
+        "user_id": {
+          "type": "BIGINT",
+          "nullable": false,
+          "foreign_key": "users.id"
+        },
+        "expiry_date": {
+          "type": "TIMESTAMP",
+          "nullable": false
+        },
+        "is_revoked": {
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": false
+        },
+        "revoked_at": {
+          "type": "TIMESTAMP",
+          "nullable": true
+        },
+        "revoked_reason": {
+          "type": "VARCHAR",
+          "nullable": true
+        },
+        "device_info": {
+          "type": "VARCHAR(500)",
+          "nullable": true
+        },
+        "ip_address": {
+          "type": "VARCHAR(45)",
+          "nullable": true
+        },
+        "created_at": {
+          "type": "TIMESTAMP",
+          "nullable": false,
+          "updatable": false,
+          "creation_timestamp": true
+        },
+        "last_used_at": {
+          "type": "TIMESTAMP",
+          "nullable": true
+        },
+        "user_agent": {
+          "type": "VARCHAR(500)",
+          "nullable": true
+        },
+        "version": {
+          "type": "BIGINT",
+          "nullable": true,
+          "optimistic_locking": true
+        }
+      },
+      "relationships": {
+        "user": {
+          "type": "ManyToOne",
+          "fetch": "LAZY",
+          "join_column": "user_id",
+          "target_entity": "User"
+        }
+      },
+      "indexes": [
+        {
+          "name": "idx_refresh_token",
+          "columns": ["token"]
+        },
+        {
+          "name": "idx_refresh_token_user",
+          "columns": ["user_id"]
+        },
+        {
+          "name": "idx_refresh_token_expiry",
+          "columns": ["expiry_date"]
+        },
+        {
+          "name": "idx_refresh_token_revoked",
+          "columns": ["is_revoked"]
+        }
+      ]
+    },
+    "Service": {
+      "table_name": "services",
+      "primary_key": {
+        "column": "id",
+        "type": "BIGINT",
+        "strategy": "IDENTITY"
+      },
+      "columns": {
+        "id": {
+          "type": "BIGINT",
+          "nullable": false,
+          "auto_increment": true
+        },
+        "name": {
+          "type": "VARCHAR(255)",
+          "nullable": false
+        },
+        "category": {
+          "type": "VARCHAR(100)",
+          "nullable": true
+        },
+        "min_order": {
+          "type": "INTEGER",
+          "nullable": true
+        },
+        "max_order": {
+          "type": "INTEGER",
+          "nullable": true
+        },
+        "price_per_1000": {
+          "type": "DECIMAL(10,6)",
+          "nullable": true
+        },
+        "start_count_100": {
+          "type": "INTEGER",
+          "nullable": true
+        },
+        "description": {
+          "type": "TEXT",
+          "nullable": true
+        },
+        "active": {
+          "type": "BOOLEAN",
+          "nullable": true,
+          "default": true
+        },
+        "geo_targeting": {
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "default": "US"
+        },
+        "created_at": {
+          "type": "TIMESTAMP",
+          "nullable": false,
+          "updatable": false,
+          "creation_timestamp": true
+        },
+        "updated_at": {
+          "type": "TIMESTAMP",
+          "nullable": true,
+          "update_timestamp": true
+        }
+      },
+      "indexes": [
+        {
+          "name": "idx_services_active",
+          "columns": ["active"]
+        },
+        {
+          "name": "idx_services_category",
+          "columns": ["category"]
+        },
+        {
+          "name": "idx_services_geo_targeting",
+          "columns": ["geo_targeting"]
+        },
+        {
+          "name": "idx_services_created_at",
+          "columns": ["created_at"]
+        }
+      ],
+      "caching": {
+        "strategy": "READ_WRITE"
+      }
+    },
+    "User": {
+      "table_name": "users",
+      "primary_key": {
+        "column": "id",
+        "type": "BIGINT",
+        "strategy": "IDENTITY"
+      },
+      "columns": {
+        "id": {
+          "type": "BIGINT",
+          "nullable": false,
+          "auto_increment": true
+        },
+        "username": {
+          "type": "VARCHAR(50)",
+          "nullable": false,
+          "unique": true
+        },
+        "email": {
+          "type": "VARCHAR(100)",
+          "nullable": false,
+          "unique": true
+        },
+        "password_hash": {
+          "type": "VARCHAR(255)",
+          "nullable": false
+        },
+        "api_key_hash": {
+          "type": "VARCHAR(64)",
+          "nullable": true,
+          "unique": true
+        },
+        "balance": {
+          "type": "DECIMAL(12,2)",
+          "nullable": false,
+          "default": "0.00"
+        },
+        "role": {
+          "type": "user_role",
+          "nullable": false,
+          "default": "USER",
+          "enum_type": "PostgreSQLEnumType"
+        },
+        "timezone": {
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "default": "UTC"
+        },
+        "is_active": {
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": true
+        },
+        "email_verified": {
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": false
+        },
+        "oauth2_provider": {
+          "type": "VARCHAR(50)",
+          "nullable": true
+        },
+        "oauth2_provider_id": {
+          "type": "VARCHAR(100)",
+          "nullable": true
+        },
+        "registration_source": {
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "default": "DIRECT"
+        },
+        "two_factor_enabled": {
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": false
+        },
+        "failed_login_attempts": {
+          "type": "INTEGER",
+          "nullable": false,
+          "default": 0
+        },
+        "account_locked": {
+          "type": "BOOLEAN",
+          "nullable": true,
+          "default": false
+        },
+        "failed_attempts": {
+          "type": "INTEGER",
+          "nullable": true,
+          "default": 0
+        },
+        "lock_time": {
+          "type": "TIMESTAMP",
+          "nullable": true
+        },
+        "locked_until": {
+          "type": "TIMESTAMP",
+          "nullable": true
+        },
+        "last_login_at": {
+          "type": "TIMESTAMP",
+          "nullable": true
+        },
+        "last_api_access_at": {
+          "type": "TIMESTAMP",
+          "nullable": true
+        },
+        "api_key_salt": {
+          "type": "VARCHAR(64)",
+          "nullable": true
+        },
+        "api_key_last_rotated": {
+          "type": "TIMESTAMP",
+          "nullable": true
+        },
+        "total_spent": {
+          "type": "DECIMAL(12,2)",
+          "nullable": true,
+          "default": "0.00"
+        },
+        "password_changed_at": {
+          "type": "TIMESTAMP",
+          "nullable": true
+        },
+        "version": {
+          "type": "BIGINT",
+          "nullable": true,
+          "optimistic_locking": true
+        },
+        "created_at": {
+          "type": "TIMESTAMP",
+          "nullable": false,
+          "updatable": false,
+          "creation_timestamp": true
+        },
+        "updated_at": {
+          "type": "TIMESTAMP",
+          "nullable": false,
+          "update_timestamp": true
+        }
+      },
+      "relationships": {
+        "orders": {
+          "type": "OneToMany",
+          "mapped_by": "user",
+          "fetch": "LAZY",
+          "cascade": "ALL",
+          "target_entity": "Order",
+          "batch_size": 25
+        },
+        "balanceTransactions": {
+          "type": "OneToMany",
+          "mapped_by": "user",
+          "fetch": "LAZY",
+          "cascade": "ALL",
+          "target_entity": "BalanceTransaction",
+          "batch_size": 20
+        }
+      },
+      "indexes": [
+        {
+          "name": "idx_users_username",
+          "columns": ["username"]
+        },
+        {
+          "name": "idx_users_email",
+          "columns": ["email"]
+        },
+        {
+          "name": "idx_users_api_key_hash",
+          "columns": ["api_key_hash"]
+        },
+        {
+          "name": "idx_users_active",
+          "columns": ["is_active"]
+        },
+        {
+          "name": "idx_users_role",
+          "columns": ["role"]
+        },
+        {
+          "name": "idx_users_balance",
+          "columns": ["balance"]
+        },
+        {
+          "name": "idx_users_created_at",
+          "columns": ["created_at"]
+        },
+        {
+          "name": "idx_users_api_key_salt",
+          "columns": ["api_key_salt"]
+        },
+        {
+          "name": "idx_users_last_login",
+          "columns": ["last_login_at"]
+        },
+        {
+          "name": "idx_users_last_api_access_at",
+          "columns": ["last_api_access_at"]
+        }
+      ],
+      "caching": {
+        "strategy": "READ_WRITE"
+      },
+      "implements": ["UserDetails"]
+    },
+    "VideoProcessing": {
+      "table_name": "video_processing",
+      "primary_key": {
+        "column": "id",
+        "type": "BIGINT",
+        "strategy": "IDENTITY"
+      },
+      "columns": {
+        "id": {
+          "type": "BIGINT",
+          "nullable": false,
+          "auto_increment": true
+        },
+        "order_id": {
+          "type": "BIGINT",
+          "nullable": false,
+          "foreign_key": "orders.id"
+        },
+        "original_url": {
+          "type": "VARCHAR(500)",
+          "nullable": false
+        },
+        "clip_url": {
+          "type": "VARCHAR(500)",
+          "nullable": true
+        },
+        "video_id": {
+          "type": "VARCHAR(100)",
+          "nullable": true
+        },
+        "video_type": {
+          "type": "video_type",
+          "nullable": true,
+          "enum_type": "PostgreSQLEnumType"
+        },
+        "clip_created": {
+          "type": "BOOLEAN",
+          "nullable": true,
+          "default": false
+        },
+        "status": {
+          "type": "video_processing_status",
+          "nullable": false,
+          "default": "PENDING",
+          "enum_type": "PostgreSQLEnumType"
+        },
+        "processing_attempts": {
+          "type": "INTEGER",
+          "nullable": true,
+          "default": 0
+        },
+        "last_processed_at": {
+          "type": "TIMESTAMP",
+          "nullable": true
+        },
+        "completed_at": {
+          "type": "TIMESTAMP",
+          "nullable": true
+        },
+        "last_error_at": {
+          "type": "TIMESTAMP",
+          "nullable": true
+        },
+        "error_message": {
+          "type": "TEXT",
+          "nullable": true
+        },
+        "youtube_account_id": {
+          "type": "BIGINT",
+          "nullable": true
+        },
+        "created_at": {
+          "type": "TIMESTAMP",
+          "nullable": true,
+          "updatable": false,
+          "creation_timestamp": true
+        },
+        "updated_at": {
+          "type": "TIMESTAMP",
+          "nullable": true,
+          "update_timestamp": true
+        }
+      },
+      "relationships": {
+        "order": {
+          "type": "OneToOne",
+          "fetch": "LAZY",
+          "join_column": "order_id",
+          "target_entity": "Order"
+        }
+      },
+      "indexes": [
+        {
+          "name": "idx_video_processing_order_id",
+          "columns": ["order_id"]
+        },
+        {
+          "name": "idx_video_processing_status",
+          "columns": ["status"]
+        },
+        {
+          "name": "idx_video_processing_video_id",
+          "columns": ["video_id"]
+        },
+        {
+          "name": "idx_video_processing_created_at",
+          "columns": ["created_at"]
+        }
+      ]
+    },
+    "YouTubeAccount": {
+      "table_name": "youtube_accounts",
+      "primary_key": {
+        "column": "id",
+        "type": "BIGINT",
+        "strategy": "IDENTITY"
+      },
+      "columns": {
+        "id": {
+          "type": "BIGINT",
+          "nullable": false,
+          "auto_increment": true
+        },
+        "email": {
+          "type": "VARCHAR",
+          "nullable": false
+        },
+        "password": {
+          "type": "VARCHAR",
+          "nullable": false
+        },
+        "status": {
+          "type": "youtube_account_status",
+          "nullable": true,
+          "default": "ACTIVE",
+          "enum_type": "PostgreSQLEnumType"
+        },
+        "daily_clips_count": {
+          "type": "INTEGER",
+          "nullable": true,
+          "default": 0
+        },
+        "last_clip_date": {
+          "type": "DATE",
+          "nullable": true
+        },
+        "daily_limit": {
+          "type": "INTEGER",
+          "nullable": true,
+          "default": 50
+        },
+        "total_clips_created": {
+          "type": "INTEGER",
+          "nullable": true,
+          "default": 0
+        },
+        "last_error": {
+          "type": "TEXT",
+          "nullable": true
+        },
+        "last_error_at": {
+          "type": "TIMESTAMP",
+          "nullable": true
+        },
+        "proxy_config": {
+          "type": "JSONB",
+          "nullable": true
+        },
+        "created_at": {
+          "type": "TIMESTAMP",
+          "nullable": true,
+          "updatable": false,
+          "creation_timestamp": true
+        },
+        "updated_at": {
+          "type": "TIMESTAMP",
+          "nullable": true,
+          "update_timestamp": true
+        }
+      },
+      "indexes": [
+        {
+          "name": "idx_youtube_accounts_email",
+          "columns": ["email"]
+        },
+        {
+          "name": "idx_youtube_accounts_status",
+          "columns": ["status"]
+        },
+        {
+          "name": "idx_youtube_accounts_created_at",
+          "columns": ["created_at"]
+        }
+      ]
+    },
+    "Order": {
+      "table_name": "orders",
+      "primary_key": {
+        "column": "id",
+        "type": "BIGINT",
+        "strategy": "IDENTITY"
+      },
+      "columns": {
+        "id": {
+          "type": "BIGINT",
+          "nullable": false,
+          "auto_increment": true
+        },
+        "user_id": {
+          "type": "BIGINT",
+          "nullable": false,
+          "foreign_key": "users.id"
+        },
+        "service_id": {
+          "type": "BIGINT",
+          "nullable": false,
+          "foreign_key": "services.id"
+        },
+        "link": {
+          "type": "VARCHAR(500)",
+          "nullable": false
+        },
+        "quantity": {
+          "type": "INTEGER",
+          "nullable": false
+        },
+        "charge": {
+          "type": "DECIMAL(10,2)",
+          "nullable": false
+        },
+        "start_count": {
+          "type": "INTEGER",
+          "nullable": true,
+          "default": 0
+        },
+        "remains": {
+          "type": "INTEGER",
+          "nullable": true
+        },
+        "status": {
+          "type": "order_status",
+          "nullable": false,
+          "default": "PENDING",
+          "enum_type": "PostgreSQLEnumType"
+        },
+        "youtube_video_id": {
+          "type": "VARCHAR(100)",
+          "nullable": true
+        },
+        "target_views": {
+          "type": "INTEGER",
+          "nullable": true
+        },
+        "coefficient": {
+          "type": "DECIMAL(5,2)",
+          "nullable": true
+        },
+        "target_country": {
+          "type": "VARCHAR(10)",
+          "nullable": true
+        },
+        "order_id": {
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "unique": true
+        },
+        "processing_priority": {
+          "type": "INTEGER",
+          "nullable": true,
+          "default": 0
+        },
+        "error_message": {
+          "type": "TEXT",
+          "nullable": true
+        },
+        "retry_count": {
+          "type": "INTEGER",
+          "nullable": true,
+          "default": 0
+        },
+        "max_retries": {
+          "type": "INTEGER",
+          "nullable": true,
+          "default": 3
+        },
+        "last_error_type": {
+          "type": "VARCHAR(100)",
+          "nullable": true
+        },
+        "last_retry_at": {
+          "type": "TIMESTAMP",
+          "nullable": true
+        },
+        "next_retry_at": {
+          "type": "TIMESTAMP",
+          "nullable": true
+        },
+        "failure_reason": {
+          "type": "TEXT",
+          "nullable": true
+        },
+        "error_stack_trace": {
+          "type": "TEXT",
+          "nullable": true
+        },
+        "failed_phase": {
+          "type": "VARCHAR(50)",
+          "nullable": true
+        },
+        "is_manually_failed": {
+          "type": "BOOLEAN",
+          "nullable": true,
+          "default": false
+        },
+        "operator_notes": {
+          "type": "TEXT",
+          "nullable": true
+        },
+        "binom_offer_id": {
+          "type": "VARCHAR(50)",
+          "nullable": true
+        },
+        "traffic_status": {
+          "type": "VARCHAR(20)",
+          "nullable": true,
+          "default": "PENDING"
+        },
+        "views_delivered": {
+          "type": "INTEGER",
+          "nullable": true,
+          "default": 0
+        },
+        "cost_incurred": {
+          "type": "DECIMAL(10,2)",
+          "nullable": true,
+          "default": "0.00"
+        },
+        "budget_limit": {
+          "type": "DECIMAL(10,2)",
+          "nullable": true
+        },
+        "version": {
+          "type": "BIGINT",
+          "nullable": true,
+          "optimistic_locking": true
+        },
+        "created_at": {
+          "type": "TIMESTAMP",
+          "nullable": false,
+          "updatable": false,
+          "creation_timestamp": true
+        },
+        "updated_at": {
+          "type": "TIMESTAMP",
+          "nullable": true,
+          "update_timestamp": true
+        }
+      },
+      "relationships": {
+        "user": {
+          "type": "ManyToOne",
+          "fetch": "LAZY",
+          "join_column": "user_id",
+          "target_entity": "User",
+          "batch_size": 25
+        },
+        "service": {
+          "type": "ManyToOne",
+          "fetch": "LAZY",
+          "join_column": "service_id",
+          "target_entity": "Service",
+          "batch_size": 25
+        },
+        "videoProcessing": {
+          "type": "OneToOne",
+          "mapped_by": "order",
+          "cascade": "ALL",
+          "fetch": "LAZY",
+          "target_entity": "VideoProcessing"
+        }
+      },
+      "indexes": [
+        {
+          "name": "idx_orders_user_id",
+          "columns": ["user_id"]
+        },
+        {
+          "name": "idx_orders_service_id",
+          "columns": ["service_id"]
+        },
+        {
+          "name": "idx_orders_created_at",
+          "columns": ["created_at"]
+        },
+        {
+          "name": "idx_orders_youtube_video_id",
+          "columns": ["youtube_video_id"]
+        },
+        {
+          "name": "idx_orders_user_status_created",
+          "columns": ["user_id", "status", "created_at"]
+        }
+      ],
+      "batch_size": 20
+    }
+  },
+  "enums": {
+    "AuditAction": {
+      "values": ["USER_CREATED", "USER_DELETED", "USER_ROLE_CHANGED", "USER_STATUS_CHANGED", "API_KEY_GENERATED", "API_KEY_REVOKED", "ORDER_CREATED", "ORDER_STATUS_CHANGED", "ORDER_COMPLETED", "ORDER_CANCELLED", "ORDER_PAUSED", "ORDER_RESUMED", "BULK_ORDER_OPERATION", "BINOM_CAMPAIGN_CREATED", "BINOM_CAMPAIGN_STOPPED", "BINOM_CAMPAIGN_PAUSED", "BINOM_CAMPAIGN_RESUMED", "USER_LOGIN_SUCCESS", "USER_LOGIN_FAILED", "USER_ACCOUNT_LOCKED", "UNAUTHORIZED_ACCESS_ATTEMPT", "SYSTEM_BACKUP", "SYSTEM_RESTORE", "CONFIGURATION_CHANGED"]
+    },
+    "AuditEntityType": {
+      "values": ["USER", "ORDER", "BINOM_CAMPAIGN", "TRAFFIC_SOURCE", "SERVICE", "BALANCE_TRANSACTION", "SECURITY", "SYSTEM"]
+    },
+    "OrderStatus": {
+      "values": ["PENDING", "IN_PROGRESS", "PROCESSING", "ACTIVE", "PARTIAL", "COMPLETED", "CANCELLED", "PAUSED", "HOLDING", "REFILL", "ERROR", "SUSPENDED"]
+    },
+    "PaymentStatus": {
+      "values": ["PENDING", "PROCESSING", "COMPLETED", "FAILED", "EXPIRED", "CANCELLED", "REFUNDED"]
+    },
+    "ProcessingStatus": {
+      "values": ["PENDING", "QUEUED", "PROCESSING", "ACTIVE", "COMPLETED", "FAILED", "HOLDING", "RETRYING", "PAUSED"]
+    },
+    "TransactionType": {
+      "values": ["DEPOSIT", "ORDER_PAYMENT", "REFUND", "REFILL", "TRANSFER_IN", "TRANSFER_OUT", "ADJUSTMENT", "BONUS", "COMMISSION", "PENALTY"]
+    },
+    "UserRole": {
+      "values": ["USER", "OPERATOR", "ADMIN"],
+      "authorities": ["ROLE_USER", "ROLE_OPERATOR", "ROLE_ADMIN"]
+    },
+    "VideoProcessingStatus": {
+      "values": ["PENDING", "QUEUED", "PROCESSING", "COMPLETED", "FAILED", "CANCELLED", "RETRYING"]
+    },
+    "VideoType": {
+      "values": ["STANDARD", "SHORTS", "LIVE"]
+    },
+    "YouTubeAccountStatus": {
+      "values": ["ACTIVE", "BLOCKED", "SUSPENDED", "RATE_LIMITED", "INACTIVE"],
+      "descriptions": ["Active and working", "Blocked by YouTube", "Temporarily suspended", "Rate limited", "Manually deactivated"]
+    }
+  },
+  "database_enums": {
+    "audit_category": ["GENERAL", "AUTHENTICATION", "AUTHORIZATION", "PAYMENT", "ORDER", "USER_MANAGEMENT", "SYSTEM", "SECURITY", "CONFIGURATION", "DATA_ACCESS", "API", "COMPLIANCE"],
+    "audit_severity": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "SECURITY_ALERT"],
+    "payment_status": ["PENDING", "PROCESSING", "COMPLETED", "FAILED", "EXPIRED", "CANCELLED", "REFUNDED"],
+    "transaction_type": ["DEPOSIT", "ORDER_PAYMENT", "REFUND", "REFILL", "TRANSFER_IN", "TRANSFER_OUT", "ADJUSTMENT", "BONUS", "COMMISSION", "PENALTY"],
+    "user_role": ["USER", "OPERATOR", "ADMIN"],
+    "order_status": ["PENDING", "IN_PROGRESS", "PROCESSING", "ACTIVE", "PARTIAL", "COMPLETED", "CANCELLED", "PAUSED", "HOLDING", "REFILL", "ERROR", "SUSPENDED"],
+    "video_processing_status": ["PENDING", "QUEUED", "PROCESSING", "COMPLETED", "FAILED", "CANCELLED", "RETRYING"],
+    "video_type": ["STANDARD", "SHORTS", "LIVE"],
+    "youtube_account_status": ["ACTIVE", "BLOCKED", "SUSPENDED", "RATE_LIMITED", "INACTIVE"]
+  },
+  "relationships_summary": {
+    "total_foreign_keys": 8,
+    "foreign_key_relationships": [
+      {
+        "from_table": "balance_deposits",
+        "from_column": "user_id",
+        "to_table": "users",
+        "to_column": "id",
+        "relationship_type": "ManyToOne"
+      },
+      {
+        "from_table": "balance_transactions",
+        "from_column": "user_id",
+        "to_table": "users",
+        "to_column": "id",
+        "relationship_type": "ManyToOne"
+      },
+      {
+        "from_table": "balance_transactions",
+        "from_column": "order_id",
+        "to_table": "orders",
+        "to_column": "id",
+        "relationship_type": "ManyToOne"
+      },
+      {
+        "from_table": "balance_transactions",
+        "from_column": "deposit_id",
+        "to_table": "balance_deposits",
+        "to_column": "id",
+        "relationship_type": "ManyToOne"
+      },
+      {
+        "from_table": "operator_logs",
+        "from_column": "operator_id",
+        "to_table": "users",
+        "to_column": "id",
+        "relationship_type": "ManyToOne"
+      },
+      {
+        "from_table": "refresh_tokens",
+        "from_column": "user_id",
+        "to_table": "users",
+        "to_column": "id",
+        "relationship_type": "ManyToOne"
+      },
+      {
+        "from_table": "orders",
+        "from_column": "user_id",
+        "to_table": "users",
+        "to_column": "id",
+        "relationship_type": "ManyToOne"
+      },
+      {
+        "from_table": "orders",
+        "from_column": "service_id",
+        "to_table": "services",
+        "to_column": "id",
+        "relationship_type": "ManyToOne"
+      },
+      {
+        "from_table": "video_processing",
+        "from_column": "order_id",
+        "to_table": "orders",
+        "to_column": "id",
+        "relationship_type": "OneToOne"
+      }
+    ]
+  },
+  "performance_features": {
+    "optimistic_locking": ["users", "balance_transactions", "refresh_tokens", "orders"],
+    "batch_processing": ["users.orders", "users.balanceTransactions", "orders.user", "orders.service"],
+    "caching_enabled": ["users", "services"],
+    "indexes_count": 67,
+    "jsonb_columns": ["audit_logs.changes", "audit_logs.metadata", "balance_deposits.webhook_data", "operator_logs.details", "order_events.event_data", "order_events.metadata", "youtube_accounts.proxy_config"]
+  },
+  "security_features": {
+    "password_hashing": ["users.password_hash"],
+    "api_key_hashing": ["users.api_key_hash"],
+    "audit_hashing": ["balance_transactions.audit_hash"],
+    "soft_delete_capable": ["users"],
+    "account_locking": ["users"],
+    "two_factor_support": ["users"],
+    "session_tracking": ["refresh_tokens", "balance_transactions"]
+  }
+}

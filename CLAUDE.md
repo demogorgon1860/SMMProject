@@ -439,3 +439,42 @@ CRYPTOMUS_API_SECRET=your_secret
 - Verify Redis container status and network connectivity
 - Check Redis password configuration if authentication is enabled
 - Monitor cache hit/miss rates via actuator metrics
+
+## 📚 API Documentation
+
+**CRITICAL**: For complete API documentation, refer to the `API_DOCUMENTATION.md` file in the project root.
+
+The API documentation includes:
+- Complete endpoint specifications for all 80+ API endpoints
+- Authentication methods (JWT tokens and API keys)
+- Request/response formats with examples
+- Rate limiting specifications
+- Error codes and handling
+- Perfect Panel API compatibility endpoints
+- WebSocket real-time updates
+- cURL examples for testing
+
+### Quick API Reference
+
+- **Base URL**: `/api`
+- **Current Version**: `/api/v1/`
+- **Perfect Panel Compatible**: `/api/v2/`
+- **Authentication**: JWT Bearer token or X-API-Key header
+- **Documentation File**: `API_DOCUMENTATION.md`
+- **Swagger UI**: `http://localhost:8080/swagger-ui.html` (development)
+
+### Key API Endpoints
+
+| Category | Endpoint | Description |
+|----------|----------|-------------|
+| Auth | `POST /api/v1/auth/login` | User login |
+| Auth | `POST /api/v1/auth/register` | User registration |
+| Orders | `POST /api/v1/orders` | Create new order |
+| Orders | `GET /api/v1/orders` | Get user orders |
+| Balance | `GET /api/v1/balance` | Get current balance |
+| Services | `GET /api/v1/service/services` | List all services |
+| Admin | `GET /api/v2/admin/dashboard` | Admin dashboard stats |
+| Perfect Panel | `POST /api/v2?action=add` | Perfect Panel compatible order |
+
+For detailed API usage, request/response formats, and integration examples, see `API_DOCUMENTATION.md`.
+- Always refer to C:\Users\user\Desktop\Projects\API_DOCUMENTATION.md

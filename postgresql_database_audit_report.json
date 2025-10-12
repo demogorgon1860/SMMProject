@@ -1,0 +1,459 @@
+{
+  "audit_metadata": {
+    "audit_timestamp": "2025-09-24T00:00:00Z",
+    "database_name": "smm_panel",
+    "database_user": "smm_admin",
+    "postgresql_version": "PostgreSQL (from Docker)",
+    "jpa_analysis_source": "database_schema_analysis.json",
+    "audit_scope": "Complete schema comparison between PostgreSQL database and JPA entities"
+  },
+  "database_configuration": {
+    "postgresql_settings": {
+      "max_connections": 100,
+      "shared_buffers": "32768 (256MB)",
+      "effective_cache_size": "131072 (1GB)",
+      "maintenance_work_mem": "65536 (64MB)",
+      "checkpoint_completion_target": 0.9,
+      "wal_buffers": "2048 (16MB)",
+      "default_statistics_target": 100
+    },
+    "hikari_connection_pool": {
+      "maximum_pool_size": 20,
+      "connection_timeout": "30000ms",
+      "validation_timeout": "5000ms",
+      "idle_timeout": "600000ms (10 minutes)",
+      "max_lifetime": "1800000ms (30 minutes)",
+      "leak_detection_threshold": "60000ms",
+      "connection_test_query": "SELECT 1",
+      "register_mbeans": true,
+      "connection_init_sql": "SET statement_timeout = 30000"
+    }
+  },
+  "schema_summary": {
+    "actual_database": {
+      "total_tables": 77,
+      "main_tables": 19,
+      "partitioned_tables": 2,
+      "partition_tables": 48,
+      "sequences": 19,
+      "indexes": 122,
+      "foreign_keys": 245,
+      "enum_types": 7
+    },
+    "jpa_entities": {
+      "total_entities": 21,
+      "expected_tables": 15,
+      "expected_enums": 6
+    }
+  },
+  "missing_in_db": {
+    "tables": [],
+    "columns": {
+      "audit_logs": [
+        {
+          "column": "category",
+          "jpa_type": "audit_category",
+          "issue": "JPA expects enum type 'audit_category' but database has VARCHAR(50)"
+        },
+        {
+          "column": "severity",
+          "jpa_type": "audit_severity",
+          "issue": "JPA expects enum type 'audit_severity' but database has VARCHAR(20)"
+        }
+      ],
+      "balance_transactions": [
+        {
+          "column": "transaction_type",
+          "jpa_type": "transaction_type",
+          "issue": "JPA expects enum type but database shows VARCHAR(20)"
+        },
+        {
+          "column": "reference_id",
+          "jpa_type": "VARCHAR(255)",
+          "issue": "Column exists in JPA but missing in database"
+        },
+        {
+          "column": "source_system",
+          "jpa_type": "VARCHAR(50)",
+          "issue": "Column exists in JPA but missing in database"
+        },
+        {
+          "column": "ip_address",
+          "jpa_type": "VARCHAR(45)",
+          "issue": "Column exists in JPA but missing in database"
+        },
+        {
+          "column": "user_agent",
+          "jpa_type": "VARCHAR(500)",
+          "issue": "Column exists in JPA but missing in database"
+        },
+        {
+          "column": "session_id",
+          "jpa_type": "VARCHAR(100)",
+          "issue": "Column exists in JPA but missing in database"
+        },
+        {
+          "column": "updated_at",
+          "jpa_type": "TIMESTAMP",
+          "issue": "Column exists in JPA but missing in database"
+        },
+        {
+          "column": "processed_at",
+          "jpa_type": "TIMESTAMP",
+          "issue": "Column exists in JPA but missing in database"
+        },
+        {
+          "column": "reconciled_at",
+          "jpa_type": "TIMESTAMP",
+          "issue": "Column exists in JPA but missing in database"
+        },
+        {
+          "column": "reconciliation_status",
+          "jpa_type": "VARCHAR",
+          "issue": "Column exists in JPA but missing in database"
+        }
+      ],
+      "users": [
+        {
+          "column": "role",
+          "jpa_type": "user_role",
+          "issue": "JPA expects enum type 'user_role' but database has VARCHAR(20)"
+        }
+      ]
+    },
+    "enums": [
+      {
+        "enum_name": "audit_category",
+        "values": ["GENERAL", "AUTHENTICATION", "AUTHORIZATION", "PAYMENT", "ORDER", "USER_MANAGEMENT", "SYSTEM", "SECURITY", "CONFIGURATION", "DATA_ACCESS", "API", "COMPLIANCE"],
+        "issue": "Enum defined in JPA but missing in PostgreSQL"
+      },
+      {
+        "enum_name": "audit_severity",
+        "values": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "SECURITY_ALERT"],
+        "issue": "Enum defined in JPA but missing in PostgreSQL"
+      },
+      {
+        "enum_name": "video_processing_status",
+        "values": ["PENDING", "QUEUED", "PROCESSING", "COMPLETED", "FAILED", "CANCELLED", "RETRYING"],
+        "issue": "Enum defined in JPA but missing in PostgreSQL"
+      }
+    ]
+  },
+  "extra_in_db": {
+    "tables": [
+      {
+        "table_name": "action",
+        "issue": "Table exists in database but no corresponding JPA entity found"
+      },
+      {
+        "table_name": "binom_configuration",
+        "issue": "Table exists in database but no corresponding JPA entity found"
+      },
+      {
+        "table_name": "binom_sync_jobs",
+        "issue": "Table exists in database but no corresponding JPA entity found"
+      },
+      {
+        "table_name": "deferred_events",
+        "issue": "Table exists in database but no corresponding JPA entity found"
+      },
+      {
+        "table_name": "guard",
+        "issue": "Table exists in database but no corresponding JPA entity found"
+      },
+      {
+        "table_name": "outbox_events",
+        "issue": "Table exists in database but no corresponding JPA entity found"
+      },
+      {
+        "table_name": "state",
+        "issue": "Table exists in database but no corresponding JPA entity found"
+      },
+      {
+        "table_name": "state_entryactions",
+        "issue": "Table exists in database but no corresponding JPA entity found"
+      },
+      {
+        "table_name": "state_exitactions",
+        "issue": "Table exists in database but no corresponding JPA entity found"
+      },
+      {
+        "table_name": "state_machine",
+        "issue": "Table exists in database but no corresponding JPA entity found"
+      },
+      {
+        "table_name": "state_stateactions",
+        "issue": "Table exists in database but no corresponding JPA entity found"
+      },
+      {
+        "table_name": "traffic_sources",
+        "issue": "Table exists in database but no corresponding JPA entity found"
+      },
+      {
+        "table_name": "transition",
+        "issue": "Table exists in database but no corresponding JPA entity found"
+      },
+      {
+        "table_name": "transition_actions",
+        "issue": "Table exists in database but no corresponding JPA entity found"
+      },
+      {
+        "table_name": "view_stats",
+        "issue": "Table exists in database but no corresponding JPA entity found"
+      }
+    ],
+    "columns": {
+      "balance_deposits": [
+        {
+          "column": "amount_usd",
+          "db_type": "NUMERIC(10,2)",
+          "issue": "Column exists in database but not in JPA entity (also has amount_usdt)"
+        },
+        {
+          "column": "currency",
+          "db_type": "VARCHAR(10)",
+          "issue": "Column exists in database but not in JPA entity"
+        },
+        {
+          "column": "failed_at",
+          "db_type": "TIMESTAMP",
+          "issue": "Column exists in database but not in JPA entity"
+        },
+        {
+          "column": "refund_amount",
+          "db_type": "NUMERIC(10,2)",
+          "issue": "Column exists in database but not in JPA entity"
+        },
+        {
+          "column": "refunded_at",
+          "db_type": "TIMESTAMP",
+          "issue": "Column exists in database but not in JPA entity"
+        }
+      ],
+      "users": [
+        {
+          "column": "api_key_plaintext_deprecated",
+          "db_type": "VARCHAR(255)",
+          "issue": "Deprecated column exists in database but not in JPA entity"
+        },
+        {
+          "column": "preferred_currency",
+          "db_type": "VARCHAR(3)",
+          "issue": "Column exists in database but not in JPA entity"
+        },
+        {
+          "column": "two_factor_secret",
+          "db_type": "VARCHAR(255)",
+          "issue": "Column exists in database but not in JPA entity"
+        },
+        {
+          "column": "last_api_access",
+          "db_type": "TIMESTAMP",
+          "issue": "Column exists in database, JPA has last_api_access_at"
+        }
+      ]
+    }
+  },
+  "type_mismatches": [
+    {
+      "table": "users",
+      "column": "username",
+      "jpa_type": "VARCHAR(50)",
+      "db_type": "VARCHAR(255)",
+      "severity": "LOW",
+      "issue": "Database allows longer usernames than JPA constraint"
+    },
+    {
+      "table": "users",
+      "column": "email",
+      "jpa_type": "VARCHAR(100)",
+      "db_type": "VARCHAR(255)",
+      "severity": "LOW",
+      "issue": "Database allows longer emails than JPA constraint"
+    },
+    {
+      "table": "orders",
+      "column": "status",
+      "jpa_type": "order_status (enum)",
+      "db_type": "VARCHAR(20)",
+      "severity": "MEDIUM",
+      "issue": "JPA expects enum but database uses varchar - may cause data inconsistency"
+    },
+    {
+      "table": "balance_deposits",
+      "column": "status",
+      "jpa_type": "payment_status (enum)",
+      "db_type": "payment_status (enum)",
+      "severity": "NONE",
+      "issue": "Types match correctly"
+    }
+  ],
+  "index_issues": [
+    {
+      "table": "balance_transactions",
+      "issue": "JPA analysis expects index 'idx_balance_transactions_user_created' but actual database has similar index with different naming",
+      "severity": "LOW"
+    },
+    {
+      "table": "orders",
+      "issue": "Database has many specialized indexes for performance that are not reflected in JPA @Index annotations",
+      "severity": "INFO"
+    }
+  ],
+  "foreign_key_issues": [
+    {
+      "table": "balance_transactions",
+      "issue": "Excessive foreign key constraints - 25+ duplicate constraints pointing to partitioned order tables",
+      "severity": "HIGH",
+      "details": "Foreign keys like 'balance_transactions_order_id_order_created_at_fkey1' through 'fkey23' indicate over-generation during partition setup"
+    },
+    {
+      "table": "video_processing",
+      "issue": "25+ foreign key constraints to individual order partitions instead of main partitioned table",
+      "severity": "HIGH",
+      "details": "Should reference main 'orders' table, not individual partition tables"
+    },
+    {
+      "table": "view_stats",
+      "issue": "25+ foreign key constraints to individual order partitions",
+      "severity": "HIGH",
+      "details": "Should reference main 'orders' table, not individual partition tables"
+    }
+  ],
+  "sequence_issues": [
+    {
+      "sequence": "orders_id_seq",
+      "current_value": 32,
+      "issue": "Low usage, sequence functioning normally",
+      "severity": "NONE"
+    },
+    {
+      "sequence": "binom_sync_jobs_id_seq",
+      "current_value": 55257,
+      "issue": "High usage indicating active sync operations",
+      "severity": "INFO"
+    },
+    {
+      "sequence": "balance_transactions_id_seq",
+      "current_value": 32,
+      "issue": "Low usage, sequence functioning normally",
+      "severity": "NONE"
+    }
+  ],
+  "configuration_issues": [
+    {
+      "component": "Connection Pool",
+      "issue": "HikariCP pool size (20) vs PostgreSQL max_connections (100) - Good ratio",
+      "severity": "NONE"
+    },
+    {
+      "component": "PostgreSQL Memory",
+      "issue": "shared_buffers (256MB) seems low for production workload",
+      "severity": "MEDIUM",
+      "recommendation": "Consider increasing shared_buffers to 25% of system RAM"
+    },
+    {
+      "component": "Hibernate DDL",
+      "issue": "ddl-auto: none is correct - relying on Liquibase for schema management",
+      "severity": "NONE"
+    }
+  ],
+  "partitioning_analysis": {
+    "orders_partitioning": {
+      "strategy": "Range partitioning by created_at (monthly)",
+      "partitions": 24,
+      "date_range": "2025-01 to 2026-12",
+      "status": "Well-organized",
+      "issue": "Future partitions pre-created appropriately"
+    },
+    "operator_logs_partitioning": {
+      "strategy": "Range partitioning by created_at (monthly)",
+      "partitions": 24,
+      "date_range": "2025-01 to 2026-12",
+      "status": "Well-organized",
+      "issue": "Future partitions pre-created appropriately"
+    }
+  },
+  "security_analysis": {
+    "password_storage": {
+      "table": "users",
+      "column": "password_hash",
+      "status": "SECURE",
+      "issue": "Using hashed passwords, not storing plaintext"
+    },
+    "api_key_storage": {
+      "table": "users",
+      "columns": ["api_key_hash", "api_key_salt"],
+      "status": "SECURE",
+      "issue": "Using salted hashes for API keys"
+    },
+    "deprecated_fields": {
+      "table": "users",
+      "column": "api_key_plaintext_deprecated",
+      "status": "RISK",
+      "issue": "Deprecated plaintext API key field still exists"
+    }
+  },
+  "critical_issues": [
+    {
+      "severity": "CRITICAL",
+      "category": "Data Inconsistency",
+      "issue": "Enum types defined in JPA (audit_category, audit_severity, video_processing_status) are missing from database",
+      "impact": "Application may fail when trying to persist enum values",
+      "recommendation": "Create missing enum types in PostgreSQL or update JPA to use string types"
+    },
+    {
+      "severity": "HIGH",
+      "category": "Foreign Key Proliferation",
+      "issue": "Excessive duplicate foreign key constraints due to partitioning setup",
+      "impact": "Database maintenance overhead, potential performance impact",
+      "recommendation": "Clean up duplicate foreign key constraints, ensure proper partition constraint inheritance"
+    },
+    {
+      "severity": "HIGH",
+      "category": "Schema Drift",
+      "issue": "Multiple columns exist in database but not in JPA entities (balance_transactions missing 9 columns)",
+      "impact": "Potential data loss during application updates, inconsistent data access",
+      "recommendation": "Synchronize JPA entities with actual database schema"
+    }
+  ],
+  "recommendations": [
+    {
+      "priority": "HIGH",
+      "category": "Schema Synchronization",
+      "action": "Create missing enum types in PostgreSQL",
+      "details": "CREATE TYPE audit_category AS ENUM (...); CREATE TYPE audit_severity AS ENUM (...); etc."
+    },
+    {
+      "priority": "HIGH",
+      "category": "Foreign Key Cleanup",
+      "action": "Remove duplicate foreign key constraints on partitioned tables",
+      "details": "Keep only main table foreign keys, remove partition-specific duplicates"
+    },
+    {
+      "priority": "MEDIUM",
+      "category": "JPA Entity Updates",
+      "action": "Add missing columns to JPA entities",
+      "details": "Update BalanceTransaction, BalanceDeposit, and User entities with missing database columns"
+    },
+    {
+      "priority": "MEDIUM",
+      "category": "Security Cleanup",
+      "action": "Remove deprecated api_key_plaintext_deprecated column",
+      "details": "Data migration should be complete, remove security risk"
+    },
+    {
+      "priority": "LOW",
+      "category": "Performance Tuning",
+      "action": "Review PostgreSQL memory settings for production",
+      "details": "Consider increasing shared_buffers and effective_cache_size based on system resources"
+    }
+  ],
+  "compliance_status": {
+    "schema_consistency": "FAIL - Multiple discrepancies between JPA and database",
+    "data_integrity": "WARNING - Missing enum constraints may allow invalid data",
+    "security_standards": "PASS - Password and API key hashing implemented correctly",
+    "backup_readiness": "PASS - Standard PostgreSQL backup mechanisms applicable",
+    "monitoring_readiness": "PASS - Comprehensive indexing and partitioning for performance monitoring"
+  }
+}

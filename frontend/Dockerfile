@@ -1,8 +1,9 @@
-# Build stage
+# Multi-stage build for production
+# Stage 1: Build stage
 FROM node:20-alpine AS builder
 
 # Install build dependencies
-RUN apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++ git
 
 WORKDIR /app
 
@@ -10,26 +11,33 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install ALL dependencies (including devDependencies for build)
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
-# Copy source code
-COPY . .
+# Copy source code and config files
+COPY index.html vite.config.ts tsconfig.json ./
+COPY tailwind.config.js postcss.config.js ./
+COPY src ./src
+COPY public ./public
 
 # Build application for production
-# Vite outputs to 'dist' by default
+# Set build-time environment variables
+ARG VITE_API_URL=/api
+ENV VITE_API_URL=$VITE_API_URL
+
 RUN npm run build
 
-# Production stage
+# Stage 2: Production runtime
 FROM nginx:stable-alpine
 
-# Install curl for health checks
-RUN apk add --no-cache curl
+# Install curl for health checks and timezone data
+RUN apk add --no-cache curl tzdata && \
+    cp /usr/share/zoneinfo/UTC /etc/localtime && \
+    echo "UTC" > /etc/timezone
 
-# Create nginx user if not exists and set permissions
-RUN addgroup -g 101 -S nginx 2>/dev/null || true && \
-    adduser -S -D -H -u 101 -h /var/cache/nginx -s /sbin/nologin -G nginx -g nginx nginx 2>/dev/null || true
+# Ensure nginx user exists with correct permissions
+RUN id -u nginx &>/dev/null || adduser -S -D -H -u 101 -h /var/cache/nginx -s /sbin/nologin -G nginx -g nginx nginx
 
-# Copy built app (Vite outputs to 'dist')
+# Copy built app from builder stage
 COPY --from=builder --chown=nginx:nginx /app/dist /usr/share/nginx/html
 
 # Copy nginx configuration
@@ -47,7 +55,7 @@ EXPOSE 80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost/health || curl -f http://localhost/ || exit 1
+  CMD curl -f http://localhost/ || exit 1
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]

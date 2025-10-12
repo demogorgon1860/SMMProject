@@ -1,0 +1,99 @@
+# docker-compose.override.yml
+# Local development overrides - automatically loaded by docker-compose
+# This file is ignored in production deployments
+
+services:
+  # Spring Boot application development overrides
+  spring-boot-app:
+    environment:
+      # Force development profile
+      SPRING_PROFILES_ACTIVE: dev
+      # Enable debug logging
+      LOGGING_LEVEL_COM_SMMPANEL: DEBUG
+      LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY: DEBUG
+      LOGGING_LEVEL_ORG_HIBERNATE_SQL: DEBUG
+      # Show SQL queries
+      SPRING_JPA_SHOW_SQL: "true"
+      HIBERNATE_FORMAT_SQL: "true"
+      # Development-specific settings
+      MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: always
+      SERVER_ERROR_INCLUDE_MESSAGE: always
+      SERVER_ERROR_INCLUDE_BINDING_ERRORS: always
+    volumes:
+      # Mount source code for development
+      - ./backend/src:/app/src:ro
+      - ./backend/build:/app/build
+      - ./backend/logs:/app/logs
+    # ports:
+    #   - "5005:5005"  # Debug port - commented for scaling
+
+  # Frontend development overrides
+  frontend:
+    environment:
+      NODE_ENV: development
+      VITE_API_URL: http://localhost:8080/api
+    volumes:
+      # Mount source for hot reload
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+
+  # PostgreSQL development settings
+  postgres:
+    environment:
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8 --auth-local=trust"
+    volumes:
+      # Mount init scripts
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=4MB
+      -c min_wal_size=1GB
+      -c max_wal_size=4GB
+      -c max_worker_processes=4
+      -c max_parallel_workers_per_gather=2
+      -c max_parallel_workers=4
+      -c max_parallel_maintenance_workers=2
+      -c log_statement=all
+      -c log_duration=on
+      -c log_min_duration_statement=100
+
+  # Redis development settings
+  redis:
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 1gb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --save 60 1
+      --loglevel debug
+
+  # Kafka development settings
+  kafka:
+    environment:
+      KAFKA_LOG4J_LOGGERS: "kafka.controller=DEBUG,kafka.producer=DEBUG,kafka.consumer=DEBUG"
+      KAFKA_LOG4J_ROOT_LOGLEVEL: INFO
+
+# Additional development services
+  # Adminer for database management (lightweight alternative to pgAdmin)
+  adminer:
+    image: adminer:latest
+    container_name: smm_adminer
+    restart: unless-stopped
+    ports:
+      - "8082:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: pepa-linha
+    networks:
+      - smm_network
+    depends_on:
+      - postgres

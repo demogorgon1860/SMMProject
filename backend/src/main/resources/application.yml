@@ -549,6 +549,10 @@ app:
       coefficient: ${YOUTUBE_CLIP_COEFFICIENT:3.0}
       timeout: ${YOUTUBE_CLIP_TIMEOUT:300000}  # 5 minutes
       retry-attempts: ${YOUTUBE_CLIP_RETRY_ATTEMPTS:2}
+    # Coefficient multipliers for view calculation
+    coefficient:
+      with-clip: ${YOUTUBE_COEFFICIENT_WITH_CLIP:3.0}     # Multiplier when clip creation succeeds (lower is better)
+      without-clip: ${YOUTUBE_COEFFICIENT_WITHOUT_CLIP:4.0}  # Multiplier when clip creation fails or is disabled
   cryptomus:
     enabled: ${CRYPTOMUS_ENABLED:true}
     api:

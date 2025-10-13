@@ -13,6 +13,7 @@ plugins {
 def envFile = file('../.env')
 if (envFile.exists()) {
     println "Loading environment variables from: ${envFile.absolutePath}"
+    def loadedCount = 0
     envFile.readLines().each { line ->
         if (!line.startsWith('#') && line.contains('=')) {
             def (key, value) = line.split('=', 2)
@@ -22,9 +23,10 @@ if (envFile.exists()) {
             System.setProperty(key, value)
             // Also set as project property
             project.ext[key] = value
+            loadedCount++
         }
     }
-    println "Loaded ${System.properties.findAll { it.key.toString().startsWith('DB_') }.size()} DB-related environment variables from .env"
+    println "Loaded ${loadedCount} environment variables from .env (including DB and SONAR_TOKEN)"
 }
 
 // Apply performance testing configuration
@@ -395,5 +397,7 @@ sonar {
         property "sonar.projectKey", "demogorgon1860_SMMProject"
         property "sonar.organization", "demogorgon1860"
         property "sonar.host.url", "https://sonarcloud.io"
+        // Use SONAR_TOKEN from environment or .env file
+        property "sonar.token", System.getProperty('SONAR_TOKEN') ?: System.getenv('SONAR_TOKEN') ?: project.findProperty('SONAR_TOKEN')
     }
 }

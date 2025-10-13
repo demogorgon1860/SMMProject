@@ -2168,7 +2168,8 @@ public class BinomClient {
 
     /**
      * Get detailed campaign information including offers Uses /public/api/v1/campaign/{id} endpoint
-     * CACHED for 15 seconds to reduce API calls during sync cycles
+     * CACHED for 15 seconds to reduce API calls during sync cycles SYNCHRONIZED: Only one thread
+     * per campaignId will call the API, others wait for cached result
      *
      * @param campaignId Campaign ID to get details for
      * @return Map containing campaign details including offers array
@@ -2176,7 +2177,8 @@ public class BinomClient {
     @org.springframework.cache.annotation.Cacheable(
             value = "binomCampaignDetails",
             key = "#campaignId",
-            unless = "#result == null || #result.isEmpty()")
+            unless = "#result == null || #result.isEmpty()",
+            sync = true)
     public Map<String, Object> getCampaignDetails(String campaignId) {
         String endpoint = String.format("/public/api/v1/campaign/%s", campaignId);
         String url = apiUrl + endpoint;

@@ -10,6 +10,7 @@ import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.repository.jpa.OrderRepository;
 import com.smmpanel.service.integration.YouTubeService;
 import com.smmpanel.service.integration.YouTubeService.VideoStatistics;
+import jakarta.annotation.PreDestroy;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -51,9 +53,11 @@ public class BinomSyncScheduler {
     private final RedisTemplate<String, Object> redisTemplate;
 
     // Executor service for parallel order processing
+    // Thread pool sized to work within Resilience4j bulkhead limits (25 concurrent API calls)
+    // With caching, most orders hit cache after first in batch, so 15 threads is optimal
     private final ExecutorService syncExecutor =
             Executors.newFixedThreadPool(
-                    20, // Parallel threads for API calls
+                    15, // Parallel threads - sized below bulkhead limit to avoid blocking
                     r -> {
                         Thread t = new Thread(r, "binom-sync-worker");
                         t.setDaemon(true);
@@ -76,6 +80,32 @@ public class BinomSyncScheduler {
     private double earlyPullThreshold;
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+    /**
+     * Gracefully shutdown the executor service on application shutdown Prevents thread leaks during
+     * redeployment and application restarts
+     */
+    @PreDestroy
+    public void shutdown() {
+        log.info("Shutting down Binom sync executor service...");
+        syncExecutor.shutdown(); // Disable new tasks from being submitted
+        try {
+            // Wait up to 30 seconds for currently executing tasks to finish
+            if (!syncExecutor.awaitTermination(30, TimeUnit.SECONDS)) {
+                log.warn("Executor did not terminate in 30 seconds, forcing shutdown...");
+                syncExecutor.shutdownNow(); // Cancel currently executing tasks
+                // Wait a bit for tasks to respond to being cancelled
+                if (!syncExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
+                    log.error("Executor did not terminate after forced shutdown");
+                }
+            }
+            log.info("Binom sync executor service shut down successfully");
+        } catch (InterruptedException e) {
+            log.error("Shutdown interrupted, forcing immediate shutdown", e);
+            syncExecutor.shutdownNow(); // (Re-)Cancel if current thread also interrupted
+            Thread.currentThread().interrupt(); // Preserve interrupt status
+        }
+    }
 
     /** Main synchronization job - Runs every 15 seconds for real-time click tracking */
     @Scheduled(fixedDelay = 15000)

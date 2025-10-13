@@ -1926,11 +1926,14 @@ public class BinomClient {
     /**
      * Remove offer from campaign paths (does NOT delete the offer from Binom) This properly updates
      * the campaign's customRotation to remove the offer Uses PATCH for efficient partial update
-     * when possible
+     * when possible Invalidates cache after update
      *
      * @param campaignId Campaign to remove offer from
      * @param offerId Offer to remove from campaign paths
      */
+    @org.springframework.cache.annotation.CacheEvict(
+            value = "binomCampaignDetails",
+            key = "#campaignId")
     public void removeOfferFromCampaign(String campaignId, String offerId) {
         String endpoint = String.format("/public/api/v1/campaign/%s", campaignId);
         String url = apiUrl + endpoint;
@@ -2165,10 +2168,15 @@ public class BinomClient {
 
     /**
      * Get detailed campaign information including offers Uses /public/api/v1/campaign/{id} endpoint
+     * CACHED for 15 seconds to reduce API calls during sync cycles
      *
      * @param campaignId Campaign ID to get details for
      * @return Map containing campaign details including offers array
      */
+    @org.springframework.cache.annotation.Cacheable(
+            value = "binomCampaignDetails",
+            key = "#campaignId",
+            unless = "#result == null || #result.isEmpty()")
     public Map<String, Object> getCampaignDetails(String campaignId) {
         String endpoint = String.format("/public/api/v1/campaign/%s", campaignId);
         String url = apiUrl + endpoint;

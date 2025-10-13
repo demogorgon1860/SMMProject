@@ -14,7 +14,11 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -46,6 +50,16 @@ public class BinomSyncScheduler {
     private final YouTubeService youTubeService;
     private final RedisTemplate<String, Object> redisTemplate;
 
+    // Executor service for parallel order processing
+    private final ExecutorService syncExecutor =
+            Executors.newFixedThreadPool(
+                    20, // Parallel threads for API calls
+                    r -> {
+                        Thread t = new Thread(r, "binom-sync-worker");
+                        t.setDaemon(true);
+                        return t;
+                    });
+
     @Value("${app.scheduling.binom-sync.interval-minutes:5}")
     private int syncIntervalMinutes;
 
@@ -54,6 +68,12 @@ public class BinomSyncScheduler {
 
     @Value("${app.scheduling.binom-sync.auto-pause-enabled:true}")
     private boolean autoPauseEnabled;
+
+    @Value("${app.scheduling.binom-sync.parallel-enabled:true}")
+    private boolean parallelProcessingEnabled;
+
+    @Value("${app.scheduling.binom-sync.early-pull-threshold:0.95}")
+    private double earlyPullThreshold;
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -106,26 +126,76 @@ public class BinomSyncScheduler {
 
             log.info("Found {} active orders to sync", activeOrders.size());
 
-            // Process orders in batches
+            // Process orders in batches with optional parallel processing
             for (int i = 0; i < activeOrders.size(); i += batchSize) {
                 int end = Math.min(i + batchSize, activeOrders.size());
                 List<Order> batch = activeOrders.subList(i, end);
 
-                for (Order order : batch) {
-                    try {
-                        boolean tracked = syncOrderOfferStats(order);
-                        if (tracked) {
-                            offersTracked.incrementAndGet();
+                if (parallelProcessingEnabled) {
+                    // PARALLEL PROCESSING - Process all orders in batch concurrently
+                    log.info(
+                            "Processing batch {}-{} of {} orders IN PARALLEL",
+                            i,
+                            end,
+                            activeOrders.size());
+
+                    List<CompletableFuture<Boolean>> futures =
+                            batch.stream()
+                                    .map(
+                                            order ->
+                                                    CompletableFuture.supplyAsync(
+                                                            () -> {
+                                                                try {
+                                                                    boolean tracked =
+                                                                            syncOrderOfferStats(
+                                                                                    order);
+                                                                    ordersProcessed
+                                                                            .incrementAndGet();
+                                                                    if (tracked) {
+                                                                        offersTracked
+                                                                                .incrementAndGet();
+                                                                    }
+                                                                    return tracked;
+                                                                } catch (Exception e) {
+                                                                    log.error(
+                                                                            "Error syncing order"
+                                                                                    + " {}: {}",
+                                                                            order.getId(),
+                                                                            e.getMessage());
+                                                                    errors.incrementAndGet();
+                                                                    return false;
+                                                                }
+                                                            },
+                                                            syncExecutor))
+                                    .collect(Collectors.toList());
+
+                    // Wait for all futures to complete
+                    CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+                } else {
+                    // SEQUENTIAL PROCESSING - Original behavior
+                    log.info(
+                            "Processing batch {}-{} of {} orders SEQUENTIALLY",
+                            i,
+                            end,
+                            activeOrders.size());
+
+                    for (Order order : batch) {
+                        try {
+                            boolean tracked = syncOrderOfferStats(order);
+                            if (tracked) {
+                                offersTracked.incrementAndGet();
+                            }
+                            ordersProcessed.incrementAndGet();
+                        } catch (Exception e) {
+                            log.error("Error syncing order {}: {}", order.getId(), e.getMessage());
+                            errors.incrementAndGet();
                         }
-                        ordersProcessed.incrementAndGet();
-                    } catch (Exception e) {
-                        log.error("Error syncing order {}: {}", order.getId(), e.getMessage());
-                        errors.incrementAndGet();
                     }
                 }
 
                 // Log progress
-                log.debug("Processed {}/{} orders", ordersProcessed.get(), activeOrders.size());
+                log.info("Processed {}/{} orders", ordersProcessed.get(), activeOrders.size());
             }
 
             // Update job record
@@ -230,16 +300,22 @@ public class BinomSyncScheduler {
         order.setCostIncurred(totalCost);
 
         // Calculate early pull threshold to prevent overshoot
-        // Pull at 95% of target to account for clicks that accumulate during the 15-second interval
-        long earlyPullThreshold = (long) (targetClicks * 0.95);
+        // Configurable threshold (default 90%) to account for clicks during sync and removal delay
+        long earlyPullThresholdClicks = (long) (targetClicks * earlyPullThreshold);
+        double currentProgress = targetClicks > 0 ? (double) totalClicks / targetClicks : 0;
 
         // Check if we've reached the early pull threshold
-        if (targetClicks > 0 && totalClicks >= earlyPullThreshold) {
+        if (targetClicks > 0 && totalClicks >= earlyPullThresholdClicks) {
             // Threshold reached - immediately remove offers from campaigns
             log.info(
-                    "Order {} reached early pull threshold (95% of target): {} clicks (target: {})"
-                            + " - removing offer {} from campaigns immediately",
-                    order.getId(), totalClicks, targetClicks, order.getBinomOfferId());
+                    "Order {} reached early pull threshold ({} of target): {} clicks (target: {},"
+                            + " progress: {}) - removing offer {} from campaigns immediately",
+                    order.getId(),
+                    String.format("%.0f%%", earlyPullThreshold * 100),
+                    totalClicks,
+                    targetClicks,
+                    String.format("%.1f%%", currentProgress * 100),
+                    order.getBinomOfferId());
 
             // IMMEDIATELY remove offers from Binom campaigns to stop traffic
             boolean removalSuccessful = false;

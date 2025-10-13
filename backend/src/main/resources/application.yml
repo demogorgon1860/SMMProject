@@ -529,6 +529,8 @@ app:
       interval-minutes: ${BINOM_SYNC_INTERVAL_MINUTES:5}
       batch-size: ${BINOM_SYNC_BATCH_SIZE:50}
       auto-pause-enabled: ${BINOM_AUTO_PAUSE_ENABLED:true}
+      parallel-enabled: ${BINOM_SYNC_PARALLEL_ENABLED:true}  # Enable parallel processing for 100+ orders
+      early-pull-threshold: ${BINOM_SYNC_EARLY_PULL_THRESHOLD:0.95}  # Pull at 95% to prevent overflow
   
   youtube:
     api:
@@ -582,6 +584,8 @@ app:
       ttl: ${CACHE_COEFFICIENTS_TTL:7200}  # 2 hours - coefficients change rarely
     youtube-stats:
       ttl: ${CACHE_YOUTUBE_TTL:600}        # 10 minutes - stats need regular updates
+    binom-campaign-details:
+      ttl: ${CACHE_BINOM_CAMPAIGN_TTL:15}  # 15 seconds - matches sync interval for optimal performance
 
   # ===============================
   # FILE UPLOAD & PROCESSING

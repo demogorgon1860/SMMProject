@@ -398,12 +398,35 @@ public class BinomSyncScheduler {
                             order.getId(),
                             e.getMessage());
                 }
-            }
 
-            order.setStatus(OrderStatus.COMPLETED);
-            // Clear Redis cache when completed
-            redisTemplate.delete("order:current:" + order.getId());
-            redisTemplate.delete("order:monitoring:" + order.getId());
+                // CRITICAL: Only mark as COMPLETED if removal was successful
+                order.setStatus(OrderStatus.COMPLETED);
+                // Clear Redis cache when completed
+                redisTemplate.delete("order:current:" + order.getId());
+                redisTemplate.delete("order:monitoring:" + order.getId());
+
+                log.info(
+                        "Order {} marked as COMPLETED after successful offer removal",
+                        order.getId());
+            } else if (removalSuccessful && order.getYoutubeVideoId() == null) {
+                // Removal successful but no YouTube video - still mark as completed
+                order.setStatus(OrderStatus.COMPLETED);
+                redisTemplate.delete("order:current:" + order.getId());
+                redisTemplate.delete("order:monitoring:" + order.getId());
+
+                log.info(
+                        "Order {} marked as COMPLETED after successful offer removal (no YouTube"
+                                + " video)",
+                        order.getId());
+            } else {
+                // CRITICAL: Removal FAILED - keep order in IN_PROGRESS for retry
+                log.error(
+                        "Order {} offer removal FAILED - keeping order status as IN_PROGRESS for"
+                                + " retry. Offer {} will be retried in next sync cycle.",
+                        order.getId(),
+                        order.getBinomOfferId());
+                // Do NOT mark as COMPLETED - next sync cycle will retry removal
+            }
         }
         // Note: Removed traffic_status updates as they're not meaningful
 

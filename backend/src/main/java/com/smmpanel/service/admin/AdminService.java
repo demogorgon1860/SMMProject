@@ -672,20 +672,11 @@ public class AdminService {
     }
 
     private AdminOrderDto mapToAdminOrderDto(Order order) {
-        // Get Binom offer ID if available
+        // Get Binom offer ID directly from order entity
+        // Removed external Binom API call to prevent transaction rollback issues
         String binomOfferId = null;
-        try {
-            List<Map<String, Object>> campaigns =
-                    binomService.getActiveCampaignsForOrder(order.getId());
-            if (!campaigns.isEmpty()) {
-                Object offerId = campaigns.get(0).get("offerId");
-                if (offerId != null) {
-                    binomOfferId = String.valueOf(offerId);
-                }
-            }
-        } catch (Exception e) {
-            log.debug(
-                    "Could not get Binom offer ID for order {}: {}", order.getId(), e.getMessage());
+        if (order.getBinomOfferId() != null) {
+            binomOfferId = String.valueOf(order.getBinomOfferId());
         }
 
         // Get YouTube video title as order name

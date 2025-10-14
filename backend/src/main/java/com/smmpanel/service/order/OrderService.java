@@ -1307,10 +1307,14 @@ public class OrderService {
     }
 
     /**
-     * CRITICAL: Monitor all IN_PROGRESS orders Check Binom clicks and verify YouTube views when
-     * target reached Runs every 5 seconds for faster tracking
+     * DISABLED: Binom integration moved to BinomSyncScheduler for proper separation of concerns
+     *
+     * <p>OrderService handles: Order creation, business logic, status management BinomSyncScheduler
+     * handles: Binom integration, click tracking, offer removal
+     *
+     * <p>This prevents duplicate Binom API calls and race conditions between schedulers.
      */
-    @Scheduled(fixedDelay = 5000)
+    // @Scheduled(fixedDelay = 5000)
     @Transactional(propagation = Propagation.REQUIRED)
     public void monitorActiveOrders() {
         try {

@@ -107,8 +107,8 @@ public class BinomSyncScheduler {
         }
     }
 
-    /** Main synchronization job - Runs every 15 seconds for real-time click tracking */
-    @Scheduled(fixedDelay = 15000)
+    /** Main synchronization job - Runs every 5 seconds for real-time click tracking */
+    @Scheduled(fixedDelay = 5000)
     public void syncBinomCampaigns() { // NO @Transactional here
         try {
             // Check if database is accessible before running sync

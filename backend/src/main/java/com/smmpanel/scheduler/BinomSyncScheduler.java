@@ -9,7 +9,6 @@ import com.smmpanel.entity.OrderStatus;
 // BinomCampaignRepository removed - using dynamic campaign connections
 import com.smmpanel.repository.jpa.OrderRepository;
 import com.smmpanel.service.integration.YouTubeService;
-import com.smmpanel.service.integration.YouTubeService.VideoStatistics;
 import jakarta.annotation.PreDestroy;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -51,6 +50,7 @@ public class BinomSyncScheduler {
     private final JdbcTemplate jdbcTemplate;
     private final YouTubeService youTubeService;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final com.smmpanel.service.order.OrderService orderService;
 
     // Executor service for parallel order processing
     // Thread pool sized to work within Resilience4j bulkhead limits (25 concurrent API calls)
@@ -369,63 +369,38 @@ public class BinomSyncScheduler {
                 }
             }
 
-            // After removal, check YouTube for final count (second startCount)
-            if (removalSuccessful && order.getYoutubeVideoId() != null) {
+            // CRITICAL: After successful offer removal, keep order IN_PROGRESS
+            // OrderService will monitor YouTube views every 30 minutes and mark COMPLETED when
+            // views arrive
+            if (removalSuccessful) {
+                // Keep order IN_PROGRESS while monitoring YouTube views
+                // Do NOT change status - order is still "in progress" until views are verified
+                log.info(
+                        "Order {} - Offer successfully removed from campaigns. "
+                                + "Order remains IN_PROGRESS while monitoring YouTube views.",
+                        order.getId());
+
+                // Schedule initial view check with OrderService
+                // This will check views every 30 minutes until they arrive
                 try {
-                    // Wait a moment for YouTube to update
-                    Thread.sleep(2000);
-
-                    VideoStatistics stats =
-                            youTubeService.getVideoStatistics(order.getYoutubeVideoId());
-                    Long viewCount = stats != null ? stats.getViewCount() : null;
-                    int secondStartCount = viewCount != null ? viewCount.intValue() : 0;
-                    int firstStartCount = order.getStartCount() != null ? order.getStartCount() : 0;
-                    int actualViewsDelivered = secondStartCount - firstStartCount;
-
+                    orderService.scheduleInitialViewCheck(order);
                     log.info(
-                            "Order {} completed - Final YouTube count: {} actual views delivered "
-                                    + "(second count: {} - first count: {})",
-                            order.getId(),
-                            actualViewsDelivered,
-                            secondStartCount,
-                            firstStartCount);
-
-                    // Store actual views delivered from YouTube
-                    order.setViewsDelivered(actualViewsDelivered);
+                            "Order {} - Scheduled YouTube view monitoring (every 30 minutes)",
+                            order.getId());
                 } catch (Exception e) {
                     log.error(
-                            "Failed to get final YouTube stats for order {}: {}",
+                            "Failed to schedule view check for order {}: {}",
                             order.getId(),
                             e.getMessage());
                 }
-
-                // CRITICAL: Only mark as COMPLETED if removal was successful
-                order.setStatus(OrderStatus.COMPLETED);
-                // Clear Redis cache when completed
-                redisTemplate.delete("order:current:" + order.getId());
-                redisTemplate.delete("order:monitoring:" + order.getId());
-
-                log.info(
-                        "Order {} marked as COMPLETED after successful offer removal",
-                        order.getId());
-            } else if (removalSuccessful && order.getYoutubeVideoId() == null) {
-                // Removal successful but no YouTube video - still mark as completed
-                order.setStatus(OrderStatus.COMPLETED);
-                redisTemplate.delete("order:current:" + order.getId());
-                redisTemplate.delete("order:monitoring:" + order.getId());
-
-                log.info(
-                        "Order {} marked as COMPLETED after successful offer removal (no YouTube"
-                                + " video)",
-                        order.getId());
             } else {
                 // CRITICAL: Removal FAILED - keep order in IN_PROGRESS for retry
                 log.error(
                         "Order {} offer removal FAILED - keeping order status as IN_PROGRESS for"
-                                + " retry. Offer {} will be retried in next sync cycle.",
+                                + " retry. Offer {} will be retried in next sync cycle (5s).",
                         order.getId(),
                         order.getBinomOfferId());
-                // Do NOT mark as COMPLETED - next sync cycle will retry removal
+                // Do NOT change status - next sync cycle will retry removal
             }
         }
         // Note: Removed traffic_status updates as they're not meaningful

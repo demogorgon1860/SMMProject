@@ -1513,13 +1513,13 @@ public class OrderService {
         state.put("currentViewCount", currentViewCount);
         state.put("viewsGained", viewsGained);
         state.put("retryCount", retryCount);
-        state.put("nextRetryAt", LocalDateTime.now().plusMinutes(15).toString());
+        state.put("nextRetryAt", LocalDateTime.now().plusMinutes(30).toString());
 
         redisTemplate.opsForHash().putAll(stateKey, state);
         redisTemplate.expire(stateKey, java.time.Duration.ofDays(1));
 
         log.info(
-                "Order {} - Views {}/{}. Retry {} scheduled in 15 minutes",
+                "Order {} - Views {}/{}. Retry {} scheduled in 30 minutes",
                 orderId,
                 viewsGained,
                 order.getQuantity(),
@@ -1582,8 +1582,11 @@ public class OrderService {
         }
     }
 
-    /** Schedule initial view check after offer removal */
-    private void scheduleInitialViewCheck(Order order) {
+    /**
+     * Schedule initial view check after offer removal PUBLIC: Called by BinomSyncScheduler after
+     * removing offer from campaigns
+     */
+    public void scheduleInitialViewCheck(Order order) {
         try {
             Long orderId = order.getId();
             String videoId = order.getYoutubeVideoId();
@@ -1612,18 +1615,18 @@ public class OrderService {
                     secondStartCount,
                     order.getStartCount());
 
-            // Schedule first view check in 15 minutes
+            // Schedule first view check in 30 minutes
             String stateKey = "order:retry:state:" + orderId;
             Map<String, Object> state = new HashMap<>();
             state.put("currentViewCount", secondStartCount);
             state.put("viewsGained", secondStartCount - order.getStartCount());
             state.put("retryCount", 0);
-            state.put("nextRetryAt", LocalDateTime.now().plusMinutes(15).toString());
+            state.put("nextRetryAt", LocalDateTime.now().plusMinutes(30).toString());
 
             redisTemplate.opsForHash().putAll(stateKey, state);
             redisTemplate.expire(stateKey, java.time.Duration.ofDays(1));
 
-            log.info("Order {} - Initial view check scheduled in 15 minutes", orderId);
+            log.info("Order {} - Initial view check scheduled in 30 minutes", orderId);
 
         } catch (Exception e) {
             log.error(

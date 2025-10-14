@@ -679,27 +679,13 @@ public class AdminService {
             binomOfferId = String.valueOf(order.getBinomOfferId());
         }
 
-        // Get YouTube video title as order name
+        // Use YouTube video ID or link as order name
+        // Removed external YouTube API call to prevent transaction rollback issues
         String orderName = "N/A";
-        try {
-            if (order.getLink() != null) {
-                String videoId = youTubeService.extractVideoId(order.getLink());
-                if (videoId != null) {
-                    YouTubeService.VideoDetails details = youTubeService.getVideoDetails(videoId);
-                    if (details != null && details.getTitle() != null) {
-                        orderName = details.getTitle();
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.debug(
-                    "Could not get YouTube video title for order {}: {}",
-                    order.getId(),
-                    e.getMessage());
-            // Fallback to link if we can't get the title
-            if (order.getLink() != null) {
-                orderName = order.getLink();
-            }
+        if (order.getYoutubeVideoId() != null) {
+            orderName = "Video ID: " + order.getYoutubeVideoId();
+        } else if (order.getLink() != null) {
+            orderName = order.getLink();
         }
 
         return AdminOrderDto.builder()

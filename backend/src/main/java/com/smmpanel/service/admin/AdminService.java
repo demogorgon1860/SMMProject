@@ -679,11 +679,13 @@ public class AdminService {
             binomOfferId = String.valueOf(order.getBinomOfferId());
         }
 
-        // Use YouTube video ID or link as order name
+        // Use YouTube video ID with startCount in brackets
         // Removed external YouTube API call to prevent transaction rollback issues
         String orderName = "N/A";
         if (order.getYoutubeVideoId() != null) {
-            orderName = "Video ID: " + order.getYoutubeVideoId();
+            String startCount =
+                    order.getStartCount() != null ? order.getStartCount().toString() : "0";
+            orderName = "Video ID: " + order.getYoutubeVideoId() + " (" + startCount + ")";
         } else if (order.getLink() != null) {
             orderName = order.getLink();
         }

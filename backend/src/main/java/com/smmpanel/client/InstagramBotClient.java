@@ -16,7 +16,7 @@ import org.springframework.web.client.RestTemplate;
 
 /**
  * Client for communicating with the Instagram bot API.
- * Bot is located at C:\Users\user\Desktop\instagramBot (Go-based).
+ * Bot is a Go-based application running on the host machine.
  */
 @Slf4j
 @Component

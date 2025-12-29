@@ -39,6 +39,9 @@ public class OrderEvent {
     @Column(name = "order_id", nullable = false)
     private Long orderId;
 
+    @Column(name = "order_created_at", nullable = false)
+    private LocalDateTime orderCreatedAt;
+
     @Column(name = "event_type", nullable = false, length = 100)
     private String eventType;
 

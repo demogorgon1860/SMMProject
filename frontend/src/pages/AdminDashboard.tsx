@@ -73,10 +73,10 @@ export const AdminDashboard: React.FC = () => {
               View All Orders
             </Link>
             <Link
-              to="/admin/users"
+              to="/admin/payments"
               className="block w-full bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded text-center transition"
             >
-              Manage Users
+              View All Payments
             </Link>
             <Link
               to="/services-test"

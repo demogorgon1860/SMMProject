@@ -122,12 +122,11 @@ app:
     enabled: ${CRYPTOMUS_ENABLED:true}  ## From .env file
     api:
       url: ${CRYPTOMUS_API_URL:https://api.cryptomus.com}  ## From .env file
-      user-key: ${CRYPTOMUS_USER_API_KEY:test-user-key}  ## From .env file (Simple User Account)
-      payout-key: ${CRYPTOMUS_PAYOUT_API_KEY:test-payout-key}  ## From .env file (Payout operations)
+      payment-key: ${CRYPTOMUS_PAYMENT_API_KEY}  ## Payment API Key for all operations
       secret: ${CRYPTOMUS_API_SECRET:not-applicable}  ## Not needed for simple user account
     webhook:
       secret: ${CRYPTOMUS_WEBHOOK_SECRET:not-applicable}  ## Not needed for simple user account
-    merchant-id: ${CRYPTOMUS_MERCHANT_ID:not-applicable}  ## Not needed for simple user account
+    merchant-id: ${CRYPTOMUS_MERCHANT_ID}  ## Merchant ID
     sandbox: false  ## Simple user accounts use production mode
     min-deposit: 5.00  ## Minimum deposit amount
   

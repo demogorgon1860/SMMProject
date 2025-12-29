@@ -369,7 +369,7 @@ public class SeleniumService {
 
             // Chrome options to bypass Google security warnings
             // Removed --incognito to allow using existing cookies and sessions
-            options.addArguments("--window-size=1521,738");
+            options.addArguments("--window-size=1544,949");
 
             // Use profile directory to persist cookies/session
             // User can manually login in Chrome with: chrome
@@ -520,7 +520,7 @@ public class SeleniumService {
             ChromeOptions options = new ChromeOptions();
 
             // Chrome options for fresh session (no profile locking issues)
-            options.addArguments("--window-size=1521,738");
+            options.addArguments("--window-size=1544,949");
 
             // NO PROFILE - We'll inject cookies after driver creation
             // This allows concurrent sessions without profile locking
@@ -1098,12 +1098,11 @@ public class SeleniumService {
                 log.info("Clicking Share Clip button...");
                 shareButton.click();
 
-                // Wait for share dialog to appear instead of Thread.sleep
-                wait.until(
-                        ExpectedConditions.visibilityOfElementLocated(
-                                By.cssSelector("ytd-unified-share-panel-renderer")));
+                // Wait for share panel to render (visibility check fails, so use sleep)
+                log.info("Waiting 3 seconds for share panel...");
+                Thread.sleep(3000);
 
-                // Try to get clip URL from current page or copy button
+                // Try to get clip URL from share panel
                 String clipUrl = copyClipUrl(driver, wait);
                 if (clipUrl != null && isValidClipUrl(clipUrl)) {
                     log.info("Successfully retrieved clip URL: {}", clipUrl);
@@ -1153,104 +1152,232 @@ public class SeleniumService {
     private String copyClipUrl(WebDriver driver, WebDriverWait wait) {
         try {
             log.info("Getting clip URL from share dialog");
-            String clipUrl = null;
+            JavascriptExecutor js = (JavascriptExecutor) driver;
 
-            // Look for Copy button - try multiple approaches
-            WebElement copyButton = null;
+            // TARGETED SEARCH: Use exact XPath provided by user
+            log.info("Extracting clip URL using exact XPath (up to 20s)...");
 
-            try {
-                // First try the user-provided XPath
-                copyButton =
-                        driver.findElement(
-                                By.xpath(
-                                        "//*[@id=\"copy-button\"]/yt-button-shape/button/yt-touch-feedback-shape"));
-                log.info("Found copy button via XPath");
-            } catch (Exception e) {
-                log.info("XPath failed, trying to find copy button by text...");
-                // Try to find button by text (works for both English and Russian)
-                List<WebElement> buttons =
-                        driver.findElements(
-                                By.cssSelector("ytd-unified-share-panel-renderer button"));
+            WebDriverWait longWait = new WebDriverWait(driver, Duration.ofSeconds(20));
 
-                for (WebElement btn : buttons) {
-                    String btnText = btn.getText();
-                    if (btnText.contains("Copy") || btnText.contains("Копировать")) {
-                        copyButton = btn;
-                        log.info("Found Copy button by text: {}", btnText);
-                        break;
-                    }
-                }
+            String clipUrl =
+                    longWait.until(
+                            driver1 -> {
+                                try {
+                                    // STRATEGY 0: EXACT XPath to input field (MOST RELIABLE)
+                                    String url =
+                                            (String)
+                                                    js.executeScript(
+                                                            "let input ="
+                                                                + " document.evaluate('/html/body/ytd-app/ytd-popup-container/tp-yt-paper-dialog/yt-unified-share-panel-renderer/tp-yt-paper-dialog-scrollable/div/div[2]/yt-third-party-network-section-renderer/div[2]/yt-copy-link-renderer/div/input',"
+                                                                + " document, null,"
+                                                                + " XPathResult.FIRST_ORDERED_NODE_TYPE,"
+                                                                + " null).singleNodeValue;if (input"
+                                                                + " && input.value &&"
+                                                                + " input.value.includes('/clip/'))"
+                                                                + " {  console.log('[STRATEGY 0 -"
+                                                                + " EXACT XPATH] Found clip URL:',"
+                                                                + " input.value);  return"
+                                                                + " input.value;}return null;");
+
+                                    if (url != null && url.contains("/clip/")) {
+                                        log.info("✓✓✓ [EXACT XPATH] URL FOUND: {}", url);
+                                        return url;
+                                    }
+
+                                    // STRATEGY 1: Direct lookup in yt-copy-link-renderer (FALLBACK)
+                                    url =
+                                            (String)
+                                                    js.executeScript(
+                                                            "let copyLinkRenderer ="
+                                                                + " document.querySelector('yt-copy-link-renderer');if"
+                                                                + " (copyLinkRenderer) {  let input"
+                                                                + " = copyLinkRenderer.querySelector('input');"
+                                                                + "  if (input && input.value &&"
+                                                                + " input.value.includes('/clip/'))"
+                                                                + " {    console.log('[STRATEGY 1]"
+                                                                + " Found in"
+                                                                + " yt-copy-link-renderer:',"
+                                                                + " input.value);    return"
+                                                                + " input.value;  }}let allInputs ="
+                                                                + " document.querySelectorAll('input');for"
+                                                                + " (let input of allInputs) {  if"
+                                                                + " (input.value &&"
+                                                                + " input.value.includes('/clip/'))"
+                                                                + " {    console.log('[STRATEGY 2]"
+                                                                + " Found in input:', input.value);"
+                                                                + "    return input.value;  }}let"
+                                                                + " allText ="
+                                                                + " document.querySelectorAll('*');for"
+                                                                + " (let el of allText) {  let text"
+                                                                + " = el.innerText ||"
+                                                                + " el.textContent || '';  if"
+                                                                + " (text.includes('youtube.com/clip/'))"
+                                                                + " {    let match ="
+                                                                + " text.match(/(https:\\/\\/[^\\s]+\\/clip\\/[A-Za-z0-9_-]+)/);"
+                                                                + "    if (match) {     "
+                                                                + " console.log('[STRATEGY 3] Found"
+                                                                + " via text:', match[1]);     "
+                                                                + " return match[1];    }  }}return"
+                                                                + " null;");
+
+                                    if (url != null && url.contains("/clip/")) {
+                                        log.info("✓✓✓ URL FOUND: {}", url);
+                                        return url;
+                                    }
+
+                                    return null;
+
+                                } catch (Exception e) {
+                                    log.debug("Searching... {}", e.getMessage());
+                                    return null;
+                                }
+                            });
+
+            if (clipUrl != null) {
+                log.info("✓✓✓ SUCCESS! Clip URL: {}", clipUrl);
+                return clipUrl;
             }
 
-            if (copyButton != null && copyButton.isDisplayed() && copyButton.isEnabled()) {
-                log.info("Clicking copy button...");
-                copyButton.click();
-                Thread.sleep(1000); // Wait for copy action to complete
-                log.info("Copy button clicked successfully");
-            } else {
-                log.warn("Copy button not found or not clickable");
-            }
+            log.error("✗ Timeout - URL did not appear in 15 seconds");
+            return null;
 
-            // Try multiple methods to find the URL
-            log.info("Looking for clip URL in share dialog...");
-
-            // Method 1: Look for input fields with the URL (same as test file)
-            List<WebElement> urlInputs =
-                    driver.findElements(
-                            By.cssSelector("input[readonly], input[value*='youtube.com/clip']"));
-
-            log.info("Found {} URL input candidates", urlInputs.size());
-
-            for (WebElement input : urlInputs) {
-                try {
-                    String url = input.getAttribute("value");
-                    if (url != null && url.contains("youtube.com")) {
-                        clipUrl = url;
-                        log.info("Found clip URL from input: {}", clipUrl);
-                        break;
-                    }
-                } catch (Exception e) {
-                    // Ignore and continue
-                }
-            }
-
-            // Method 2: Check all input fields if first method failed
-            if (clipUrl == null) {
-                List<WebElement> allInputs = driver.findElements(By.tagName("input"));
-                log.info("Checking all {} input elements...", allInputs.size());
-
-                for (WebElement input : allInputs) {
-                    try {
-                        String value = input.getAttribute("value");
-                        if (value != null && value.contains("youtube.com")) {
-                            log.info("Found URL in input: {}", value);
-                            if (value.contains("/clip/") || value.contains("youtube.com/clip")) {
-                                clipUrl = value;
-                                log.info("This is the clip URL: {}", clipUrl);
-                                break;
-                            }
-                        }
-                    } catch (Exception e) {
-                        // Ignore and continue
-                    }
-                }
-            }
-
-            // Check if redirected to clip URL
-            if (clipUrl == null) {
-                String currentUrl = driver.getCurrentUrl();
-                if (currentUrl.contains("/clip/")) {
-                    clipUrl = currentUrl;
-                    log.debug("Current URL is clip URL: {}", clipUrl);
-                }
-            }
-
-            // Return the clip URL (or null if not found)
-            return clipUrl;
+        } catch (TimeoutException e) {
+            log.error("✗ TIMEOUT - URL never appeared in DOM");
+            log.error("This means YouTube is not loading the clip URL, possible reasons:");
+            log.error("1. Clip creation failed on YouTube side");
+            log.error("2. Account doesn't have permission to create clips");
+            log.error("3. Network issue preventing URL from loading");
+            return null;
 
         } catch (Exception e) {
-            log.error("Failed to copy clip URL: {}", e.getMessage());
+            log.error("Error: {}", e.getMessage(), e);
             return null;
+        }
+    }
+
+    /** Aggressive copy button click with 7 fallback methods */
+    private boolean clickCopyButton(WebDriver driver, JavascriptExecutor js) {
+        try {
+            log.info("=== AGGRESSIVE COPY BUTTON CLICK ===");
+
+            // МЕТОД 1: Твой длинный XPath
+            log.info("Method 1: Full XPath...");
+            try {
+                String fullXPath =
+                        "/html/body/ytd-app/ytd-popup-container/tp-yt-paper-dialog/yt-unified-share-panel-renderer/tp-yt-paper-dialog-scrollable/div/div[2]/yt-third-party-network-section-renderer/div[2]/yt-copy-link-renderer/div/yt-button-renderer/yt-button-shape/button/yt-touch-feedback-shape";
+                WebElement btn = driver.findElement(By.xpath(fullXPath));
+                js.executeScript("arguments[0].click();", btn);
+                log.info("✓ Clicked via full XPath");
+                return true;
+            } catch (Exception e) {
+                log.warn("✗ Full XPath failed: {}", e.getMessage());
+            }
+
+            // МЕТОД 2: До button (без yt-touch-feedback-shape)
+            log.info("Method 2: XPath to button...");
+            try {
+                String buttonXPath =
+                        "/html/body/ytd-app/ytd-popup-container/tp-yt-paper-dialog/yt-unified-share-panel-renderer/tp-yt-paper-dialog-scrollable/div/div[2]/yt-third-party-network-section-renderer/div[2]/yt-copy-link-renderer/div/yt-button-renderer/yt-button-shape/button";
+                WebElement btn = driver.findElement(By.xpath(buttonXPath));
+                js.executeScript("arguments[0].click();", btn);
+                log.info("✓ Clicked via button XPath");
+                return true;
+            } catch (Exception e) {
+                log.warn("✗ Button XPath failed: {}", e.getMessage());
+            }
+
+            // МЕТОД 3: ID (самый короткий)
+            log.info("Method 3: By ID...");
+            try {
+                WebElement btn = driver.findElement(By.id("copy-button"));
+                js.executeScript("arguments[0].click();", btn);
+                log.info("✓ Clicked via ID");
+                return true;
+            } catch (Exception e) {
+                log.warn("✗ ID failed: {}", e.getMessage());
+            }
+
+            // МЕТОД 4: JavaScript - найти кнопку по тексту
+            log.info("Method 4: JS search by text...");
+            try {
+                Boolean clicked =
+                        (Boolean)
+                                js.executeScript(
+                                        "let buttons = document.querySelectorAll('button');for (let"
+                                            + " btn of buttons) {  let text = (btn.textContent ||"
+                                            + " btn.innerText || '').trim().toLowerCase();  let"
+                                            + " aria = (btn.getAttribute('aria-label') ||"
+                                            + " '').toLowerCase();  if (text === 'copy' ||"
+                                            + " text.includes('copy') || aria.includes('copy')) {  "
+                                            + "  console.log('Found Copy button:', btn);   "
+                                            + " btn.click();    return true;  }}return false;");
+
+                if (Boolean.TRUE.equals(clicked)) {
+                    log.info("✓ Clicked via JS text search");
+                    return true;
+                }
+            } catch (Exception e) {
+                log.warn("✗ JS search failed: {}", e.getMessage());
+            }
+
+            // МЕТОД 5: Найти yt-copy-link-renderer и кликнуть по button внутри
+            log.info("Method 5: Via yt-copy-link-renderer...");
+            try {
+                WebElement container = driver.findElement(By.tagName("yt-copy-link-renderer"));
+                WebElement btn = container.findElement(By.tagName("button"));
+                js.executeScript("arguments[0].click();", btn);
+                log.info("✓ Clicked via container->button");
+                return true;
+            } catch (Exception e) {
+                log.warn("✗ Container method failed: {}", e.getMessage());
+            }
+
+            // МЕТОД 6: CSS Selector
+            log.info("Method 6: CSS Selector...");
+            try {
+                WebElement btn = driver.findElement(By.cssSelector("yt-copy-link-renderer button"));
+                js.executeScript("arguments[0].click();", btn);
+                log.info("✓ Clicked via CSS");
+                return true;
+            } catch (Exception e) {
+                log.warn("✗ CSS failed: {}", e.getMessage());
+            }
+
+            // МЕТОД 7: Координатный клик (последний шанс)
+            log.info("Method 7: Click by coordinates...");
+            try {
+                WebElement container = driver.findElement(By.tagName("yt-copy-link-renderer"));
+
+                // Получаем координаты
+                @SuppressWarnings("unchecked")
+                Map<String, Number> coords =
+                        (Map<String, Number>)
+                                js.executeScript(
+                                        "let el = arguments[0].querySelector('button');let rect ="
+                                                + " el.getBoundingClientRect();return {x: rect.x +"
+                                                + " rect.width/2, y: rect.y + rect.height/2};",
+                                        container);
+
+                int x = coords.get("x").intValue();
+                int y = coords.get("y").intValue();
+
+                // Клик по координатам
+                js.executeScript(
+                        "document.elementFromPoint(arguments[0], arguments[1]).click();", x, y);
+
+                log.info("✓ Clicked via coordinates ({}, {})", x, y);
+                return true;
+
+            } catch (Exception e) {
+                log.warn("✗ Coordinate click failed: {}", e.getMessage());
+            }
+
+            log.error("✗✗✗ ALL 7 METHODS FAILED!");
+            return false;
+
+        } catch (Exception e) {
+            log.error("Error: {}", e.getMessage());
+            return false;
         }
     }
 

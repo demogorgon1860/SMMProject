@@ -61,6 +61,7 @@ public class ResilienceConfig {
         registry.circuitBreaker("cryptomus", externalApiConfig);
         registry.circuitBreaker("binom", externalApiConfig);
         registry.circuitBreaker("exchangeRate", externalApiConfig);
+        registry.circuitBreaker("instagramBot", externalApiConfig);
 
         return registry;
     }
@@ -110,11 +111,13 @@ public class ResilienceConfig {
         registry.retry("exchangeRate", idempotentConfig);
         registry.retry("binomRead", idempotentConfig);
         registry.retry("cryptomusRead", idempotentConfig);
+        registry.retry("instagramBotRead", idempotentConfig);
 
         RetryConfig nonIdempotentConfig = RetryConfig.custom().maxAttempts(1).build();
 
         registry.retry("binomWrite", nonIdempotentConfig);
         registry.retry("cryptomusWrite", nonIdempotentConfig);
+        registry.retry("instagramBotWrite", nonIdempotentConfig);
 
         return registry;
     }
@@ -212,6 +215,45 @@ public class ResilienceConfig {
                         event ->
                                 log.warn(
                                         "Cryptomus Write API retry attempt {}: {}",
+                                        event.getNumberOfRetryAttempts(),
+                                        event.getLastThrowable().getMessage()));
+        return retry;
+    }
+
+    @Bean
+    public CircuitBreaker instagramBotCircuitBreaker(CircuitBreakerRegistry registry) {
+        CircuitBreaker circuitBreaker = registry.circuitBreaker("instagramBot");
+        circuitBreaker
+                .getEventPublisher()
+                .onStateTransition(
+                        event ->
+                                log.info(
+                                        "Instagram Bot Circuit Breaker state transition: {}",
+                                        event));
+        return circuitBreaker;
+    }
+
+    @Bean
+    public Retry instagramBotReadRetry(RetryRegistry registry) {
+        Retry retry = registry.retry("instagramBotRead");
+        retry.getEventPublisher()
+                .onRetry(
+                        event ->
+                                log.warn(
+                                        "Instagram Bot Read API retry attempt {}: {}",
+                                        event.getNumberOfRetryAttempts(),
+                                        event.getLastThrowable().getMessage()));
+        return retry;
+    }
+
+    @Bean
+    public Retry instagramBotWriteRetry(RetryRegistry registry) {
+        Retry retry = registry.retry("instagramBotWrite");
+        retry.getEventPublisher()
+                .onRetry(
+                        event ->
+                                log.warn(
+                                        "Instagram Bot Write API retry attempt {}: {}",
                                         event.getNumberOfRetryAttempts(),
                                         event.getLastThrowable().getMessage()));
         return retry;

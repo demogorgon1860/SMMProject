@@ -20,6 +20,7 @@ import com.smmpanel.service.core.CqrsReadModelService;
 import com.smmpanel.service.core.EventSourcingService;
 import com.smmpanel.service.fraud.FraudDetectionService;
 import com.smmpanel.service.integration.BinomService;
+import com.smmpanel.service.integration.InstagramService;
 import com.smmpanel.service.integration.YouTubeService;
 import com.smmpanel.service.notification.NotificationService;
 import com.smmpanel.service.order.state.OrderStateManager;
@@ -72,6 +73,7 @@ public class OrderService {
     private final CqrsReadModelService cqrsReadModelService;
     private final ApiKeyService apiKeyService;
     private final YouTubeService youTubeService;
+    private final InstagramService instagramService;
     private final org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
     private final OrderStateManager orderStateManager;
     private final VideoProcessingService videoProcessingService;
@@ -198,6 +200,44 @@ public class OrderService {
                         order.setYoutubeVideoId(videoId);
                         orderRepository.save(order);
 
+                        // CRITICAL: Check if video is deleted/blocked (startCount = 0)
+                        if (startCount == 0) {
+                            log.warn(
+                                    "Order {} - Video is deleted or blocked (startCount = 0)."
+                                        + " Automatically marking as PARTIAL and refunding user.",
+                                    order.getId());
+
+                            // Mark order as PARTIAL
+                            order.setStatus(OrderStatus.PARTIAL);
+                            order.setRemains(order.getQuantity()); // No views delivered
+                            order.setErrorMessage("Video deleted or unavailable");
+                            orderRepository.save(order);
+
+                            // Full refund to user
+                            try {
+                                balanceService.refund(
+                                        user,
+                                        charge,
+                                        order,
+                                        "Refund for deleted/blocked video - Order #"
+                                                + order.getId());
+                                log.info(
+                                        "Order {} - Refunded {} to user {} for deleted/blocked"
+                                                + " video",
+                                        order.getId(),
+                                        charge,
+                                        user.getUsername());
+                            } catch (Exception e) {
+                                log.error(
+                                        "Failed to refund deleted video order {}: {}",
+                                        order.getId(),
+                                        e.getMessage());
+                            }
+
+                            // Don't send to processing queue - return early
+                            return mapToOrderResponse(order);
+                        }
+
                         // Cache the startCount
                         cacheStartCount(order.getId(), videoId, startCount);
 
@@ -217,15 +257,90 @@ public class OrderService {
                             "Failed to capture startCount for order {}: {}",
                             order.getId(),
                             e.getMessage());
-                    // Continue with order processing - will retry in processing phase
+
+                    // CRITICAL: Check if startCount is still 0 after exception (video might be
+                    // blocked/deleted)
+                    // Reload order to get current state
+                    Order reloadedOrder = orderRepository.findById(order.getId()).orElse(order);
+                    if (reloadedOrder.getStartCount() == null
+                            || reloadedOrder.getStartCount() == 0) {
+                        log.warn(
+                                "Order {} - Video startCount check failed and remains 0. Video may"
+                                    + " be deleted/blocked. Marking as PARTIAL and refunding user.",
+                                order.getId());
+
+                        // Mark order as PARTIAL
+                        reloadedOrder.setStatus(OrderStatus.PARTIAL);
+                        reloadedOrder.setRemains(reloadedOrder.getQuantity()); // No views delivered
+                        reloadedOrder.setErrorMessage(
+                                "Video unavailable or startCount check failed");
+                        orderRepository.save(reloadedOrder);
+
+                        // Full refund to user
+                        try {
+                            balanceService.refund(
+                                    user,
+                                    charge,
+                                    reloadedOrder,
+                                    "Refund for unavailable video (startCount check failed) - Order"
+                                            + " #"
+                                            + order.getId());
+                            log.info(
+                                    "Order {} - Refunded {} to user {} for unavailable video",
+                                    order.getId(),
+                                    charge,
+                                    user.getUsername());
+                        } catch (Exception refundEx) {
+                            log.error(
+                                    "Failed to refund unavailable video order {}: {}",
+                                    order.getId(),
+                                    refundEx.getMessage());
+                        }
+
+                        // Don't send to processing queue - return early
+                        return mapToOrderResponse(reloadedOrder);
+                    }
+
+                    // If startCount was successfully set before exception, continue processing
+                }
+            } else if (isInstagramOrder(order)) {
+                // INSTAGRAM ORDER - Send to Instagram bot
+                log.info("Order {} - Instagram order detected, sending to Instagram bot", order.getId());
+                try {
+                    var instagramResponse = instagramService.createInstagramOrder(order);
+                    if (instagramResponse.isSuccess()) {
+                        log.info("Order {} - Successfully sent to Instagram bot: {}",
+                                order.getId(), instagramResponse.getId());
+                        // Instagram orders are processed by the bot, return immediately
+                        return mapToOrderResponse(order);
+                    } else {
+                        log.error("Order {} - Instagram bot returned error: {}",
+                                order.getId(), instagramResponse.getError());
+                        // Refund and mark as failed
+                        order.setStatus(OrderStatus.CANCELLED);
+                        order.setErrorMessage("Instagram bot error: " + instagramResponse.getError());
+                        orderRepository.save(order);
+                        balanceService.refund(user, charge, order,
+                                "Refund for failed Instagram order #" + order.getId());
+                        return mapToOrderResponse(order);
+                    }
+                } catch (Exception e) {
+                    log.error("Order {} - Failed to send to Instagram bot: {}",
+                            order.getId(), e.getMessage());
+                    order.setStatus(OrderStatus.CANCELLED);
+                    order.setErrorMessage("Instagram bot unavailable: " + e.getMessage());
+                    orderRepository.save(order);
+                    balanceService.refund(user, charge, order,
+                            "Refund for failed Instagram order #" + order.getId());
+                    return mapToOrderResponse(order);
                 }
             } else {
                 log.info(
-                        "Order {} - Not a YouTube order, skipping video ID extraction",
+                        "Order {} - Not a YouTube or Instagram order, skipping special processing",
                         order.getId());
             }
 
-            // 10. Send to processing queue for clip creation and Binom setup
+            // 10. Send to processing queue for clip creation and Binom setup (YouTube only)
             // Create and send VideoProcessingMessage
             String videoIdForProcessing =
                     order.getYoutubeVideoId() != null
@@ -703,8 +818,8 @@ public class OrderService {
 
         for (User user : activeUsers) {
             if (user.getApiKeyHash() != null && user.getApiKeySalt() != null) {
-                // Use ApiKeyService to validate with rotation support
-                if (apiKeyService.validateApiKeyWithRotation(apiKey, user)) {
+                // Use ApiKeyService to validate API key (checks active status)
+                if (apiKeyService.validateApiKey(apiKey, user)) {
                     return user;
                 }
             }
@@ -769,6 +884,8 @@ public class OrderService {
                 .remains(order.getRemains())
                 .status(mapToPerfectPanelStatus(order.getStatus()))
                 .charge(order.getCharge().toString())
+                .createdAt(order.getCreatedAt())
+                .updatedAt(order.getUpdatedAt())
                 .build();
     }
 
@@ -844,9 +961,20 @@ public class OrderService {
     private boolean isYouTubeOrder(Order order) {
         if (order.getService() == null) return false;
         String serviceName = order.getService().getName();
-        return serviceName != null
+        String category = order.getService().getCategory();
+        return (serviceName != null
                 && (serviceName.toLowerCase().contains("youtube")
-                        || serviceName.toLowerCase().contains("views"));
+                        || serviceName.toLowerCase().contains("views")))
+                || (category != null && category.toLowerCase().contains("youtube"));
+    }
+
+    /** Check if order is for Instagram service */
+    private boolean isInstagramOrder(Order order) {
+        if (order.getService() == null) return false;
+        String category = order.getService().getCategory();
+        String serviceName = order.getService().getName();
+        return (category != null && category.toLowerCase().contains("instagram"))
+                || (serviceName != null && serviceName.toLowerCase().contains("instagram"));
     }
 
     /** Extract YouTube video ID from various URL formats */
@@ -994,11 +1122,40 @@ public class OrderService {
                         e.getMessage());
                 // Continue with order processing - will retry in processing phase
             }
+        } else if (isInstagramOrder(order)) {
+            // INSTAGRAM ORDER - Send to Instagram bot
+            log.info("Order {} - Instagram order detected, sending to Instagram bot", order.getId());
+            try {
+                var instagramResponse = instagramService.createInstagramOrder(order);
+                if (instagramResponse.isSuccess()) {
+                    log.info("Order {} - Successfully sent to Instagram bot: {}",
+                            order.getId(), instagramResponse.getId());
+                    return mapToOrderResponse(order);
+                } else {
+                    log.error("Order {} - Instagram bot returned error: {}",
+                            order.getId(), instagramResponse.getError());
+                    order.setStatus(OrderStatus.CANCELLED);
+                    order.setErrorMessage("Instagram bot error: " + instagramResponse.getError());
+                    orderRepository.save(order);
+                    balanceService.refund(user, charge, order,
+                            "Refund for failed Instagram order #" + order.getId());
+                    return mapToOrderResponse(order);
+                }
+            } catch (Exception e) {
+                log.error("Order {} - Failed to send to Instagram bot: {}",
+                        order.getId(), e.getMessage());
+                order.setStatus(OrderStatus.CANCELLED);
+                order.setErrorMessage("Instagram bot unavailable: " + e.getMessage());
+                orderRepository.save(order);
+                balanceService.refund(user, charge, order,
+                        "Refund for failed Instagram order #" + order.getId());
+                return mapToOrderResponse(order);
+            }
         } else {
-            log.info("Order {} - Not a YouTube order, skipping video ID extraction", order.getId());
+            log.info("Order {} - Not a YouTube or Instagram order, skipping special processing", order.getId());
         }
 
-        // Send to processing queue
+        // Send to processing queue (YouTube orders only)
         // Create and send VideoProcessingMessage
         String videoIdForProcessing =
                 order.getYoutubeVideoId() != null
@@ -1478,30 +1635,8 @@ public class OrderService {
             retryCount = 0;
         }
 
-        if (retryCount >= 12) {
-            // Max retries reached - partial completion
-            log.warn(
-                    "Order {} max retries reached. Views: {}/{}",
-                    orderId,
-                    viewsGained,
-                    order.getQuantity());
-
-            order.setStatus(OrderStatus.PARTIAL);
-            order.setRemains(order.getQuantity() - viewsGained);
-            orderRepository.save(order);
-
-            // Archive the offer to prevent any further spending
-            try {
-                binomService.removeOfferForOrder(orderId);
-            } catch (Exception e) {
-                log.error(
-                        "Failed to remove offer for partial order {}: {}", orderId, e.getMessage());
-            }
-
-            // Clean up Redis keys
-            cleanupRedisKeys(orderId);
-            return;
-        }
+        // Max retries check removed - PARTIAL status is now manual-only via admin action
+        // Auto-PARTIAL only occurs for deleted/blocked videos (startCount = 0)
 
         // Increment retry count
         retryCount++;
@@ -1586,15 +1721,39 @@ public class OrderService {
      * Schedule initial view check after offer removal PUBLIC: Called by BinomSyncScheduler after
      * removing offer from campaigns
      */
+    /**
+     * Schedule initial view check after offer removal.
+     *
+     * <p>CRITICAL: This method sets Redis key "order:secondStartCount:{orderId}" which causes
+     * BinomSyncScheduler to SKIP syncing the order. This is the ONLY method that should set this
+     * key, and it should ONLY be called when offers are actually removed from Binom.
+     *
+     * <p>EDGE CASE FIX: Added comprehensive logging with stack traces to detect when this is called
+     * unexpectedly (e.g., from disabled schedulers, manual scripts, or during transaction
+     * rollbacks).
+     */
     public void scheduleInitialViewCheck(Order order) {
+        Long orderId = order.getId();
+
         try {
-            Long orderId = order.getId();
             String videoId = order.getYoutubeVideoId();
 
             if (videoId == null) {
                 log.error("No YouTube video ID for order {}", orderId);
                 return;
             }
+
+            // CRITICAL: Log WHO called this method and WHY (to catch edge cases)
+            StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+            String caller = stackTrace.length > 2 ? stackTrace[2].toString() : "unknown";
+            String callerClass = stackTrace.length > 2 ? stackTrace[2].getClassName() : "unknown";
+
+            log.warn(
+                    "REDIS KEY CREATION INITIATED - Order {}: scheduleInitialViewCheck() called by"
+                            + " {} (class: {})",
+                    orderId,
+                    caller,
+                    callerClass);
 
             // Capture second startCount and store in Redis
             int secondStartCount = youTubeService.getVideoViewCount(videoId);
@@ -1605,12 +1764,26 @@ public class OrderService {
             secondCountData.put("secondStartCount", secondStartCount);
             secondCountData.put("capturedAt", LocalDateTime.now().toString());
             secondCountData.put("firstStartCount", order.getStartCount());
+            secondCountData.put("calledBy", caller); // Track who created this key
+            secondCountData.put("callerClass", callerClass);
+
+            // Log BEFORE setting the Redis key (in case of transaction rollback)
+            log.info(
+                    "Order {} - ABOUT TO SET Redis secondStartCount key: videoId={},"
+                            + " secondCount={}, firstCount={}, caller={}",
+                    orderId,
+                    videoId,
+                    secondStartCount,
+                    order.getStartCount(),
+                    caller);
 
             redisTemplate.opsForHash().putAll(secondCountKey, secondCountData);
             redisTemplate.expire(secondCountKey, java.time.Duration.ofDays(7));
 
-            log.info(
-                    "Order {} - Second startCount captured: {} (first was: {})",
+            // Log AFTER setting the Redis key (confirms it was set)
+            log.warn(
+                    "REDIS KEY CREATED - Order {} - secondStartCount key SET in Redis: {} (first"
+                            + " was: {}). This order will NOW BE SKIPPED by BinomSyncScheduler!",
                     orderId,
                     secondStartCount,
                     order.getStartCount());
@@ -1630,9 +1803,16 @@ public class OrderService {
 
         } catch (Exception e) {
             log.error(
-                    "Failed to schedule initial view check for order {}: {}",
-                    order.getId(),
-                    e.getMessage());
+                    "CRITICAL ERROR - Failed to schedule initial view check for order {}: {}. Stack"
+                            + " trace:",
+                    orderId,
+                    e.getMessage(),
+                    e);
+
+            // Log full stack trace to understand what happened
+            for (StackTraceElement element : e.getStackTrace()) {
+                log.error("  at {}", element);
+            }
         }
     }
 
@@ -1650,6 +1830,8 @@ public class OrderService {
             String secondCountKey = "order:secondStartCount:" + orderId;
             String retryKey = "order:retry:" + orderId;
             String retryStateKey = "order:retry:state:" + orderId;
+            String backoffKey = "order:offerRemoval:nextRetry:" + orderId;
+            String viewCheckScheduledKey = "order:viewCheckScheduled:" + orderId;
 
             // Delete keys if they exist
             if (redisTemplate != null) {
@@ -1660,6 +1842,8 @@ public class OrderService {
                 redisTemplate.delete(secondCountKey);
                 redisTemplate.delete(retryKey);
                 redisTemplate.delete(retryStateKey);
+                redisTemplate.delete(backoffKey);
+                redisTemplate.delete(viewCheckScheduledKey);
 
                 log.debug("Cleaned up Redis keys for order {}", orderId);
             }

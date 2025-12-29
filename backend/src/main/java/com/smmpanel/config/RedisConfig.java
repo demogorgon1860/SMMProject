@@ -15,6 +15,9 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
+import org.redisson.Redisson;
+import org.redisson.api.RedissonClient;
+import org.redisson.config.Config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.cache.CacheManager;
@@ -415,5 +418,34 @@ public class RedisConfig implements CachingConfigurer {
                     cache.getName(),
                     exception.getMessage());
         }
+    }
+
+    /**
+     * Custom Redisson configuration that handles Redis without AUTH Only sets password if it's not
+     * null/empty to avoid AUTH errors
+     */
+    @Bean(destroyMethod = "shutdown")
+    @Primary
+    public RedissonClient redisson() {
+        Config config = new Config();
+        String address = "redis://" + redisHost + ":" + redisPort;
+
+        config.useSingleServer()
+                .setAddress(address)
+                .setDatabase(database)
+                .setConnectionPoolSize(10)
+                .setConnectionMinimumIdleSize(2)
+                .setConnectTimeout(5000)
+                .setTimeout(3000);
+
+        // Only set password if it's not null or empty
+        if (redisPassword != null && !redisPassword.trim().isEmpty()) {
+            config.useSingleServer().setPassword(redisPassword);
+            log.info("Redisson configured with password authentication");
+        } else {
+            log.info("Redisson configured WITHOUT password authentication");
+        }
+
+        return Redisson.create(config);
     }
 }

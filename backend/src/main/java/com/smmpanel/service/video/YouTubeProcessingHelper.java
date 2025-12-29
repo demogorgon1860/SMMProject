@@ -31,7 +31,7 @@ public class YouTubeProcessingHelper {
     // YouTube URL pattern for video ID extraction
     private static final Pattern YOUTUBE_URL_PATTERN =
             Pattern.compile(
-                    "^https?://(www\\.)?(youtube\\.com/watch\\?v=|youtu\\.be/|youtube\\.com/shorts/)([a-zA-Z0-9_-]{11}).*");
+                    "^https?://(www\\.)?(youtube\\.com/watch\\?v=|youtu\\.be/|youtube\\.com/shorts/|youtube\\.com/live/)([a-zA-Z0-9_-]{11}).*");
 
     // Clip title templates
     private static final String[] CLIP_TITLE_TEMPLATES = {
@@ -47,7 +47,7 @@ public class YouTubeProcessingHelper {
 
     /**
      * Extract YouTube video ID from URL Supports: youtube.com/watch?v=, youtu.be/,
-     * youtube.com/shorts/
+     * youtube.com/shorts/, youtube.com/live/
      *
      * @param url YouTube video URL
      * @return 11-character video ID or null if invalid

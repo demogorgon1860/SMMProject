@@ -30,7 +30,13 @@ public class VideoProcessing {
     private Long id;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id", nullable = false)
+    @JoinColumns({
+        @JoinColumn(name = "order_id", referencedColumnName = "id", nullable = false),
+        @JoinColumn(
+                name = "order_created_at",
+                referencedColumnName = "created_at",
+                nullable = false)
+    })
     private Order order;
 
     @Column(name = "original_url", nullable = false, length = 500)

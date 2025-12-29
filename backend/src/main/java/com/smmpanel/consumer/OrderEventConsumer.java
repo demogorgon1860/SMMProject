@@ -9,6 +9,9 @@ import com.smmpanel.repository.jpa.OrderRepository;
 import com.smmpanel.service.core.MessageProcessingService;
 import com.smmpanel.service.integration.YouTubeService;
 import com.smmpanel.service.kafka.MessageIdempotencyService;
+import com.smmpanel.service.order.OrderProcessingContext;
+import com.smmpanel.service.order.OrderStateManagementService;
+import com.smmpanel.service.video.YouTubeProcessingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -30,6 +33,8 @@ public class OrderEventConsumer {
 
     private final OrderRepository orderRepository;
     private final YouTubeService youTubeService;
+    private final YouTubeProcessingService youTubeProcessingService;
+    private final OrderStateManagementService orderStateManagementService;
     private final OrderEventProducer orderEventProducer;
     private final MessageProcessingService messageProcessingService;
     private final MessageIdempotencyService deduplicationService;
@@ -161,6 +166,24 @@ public class OrderEventConsumer {
 
                 order.setYoutubeVideoId(videoId);
                 order.setStartCount(viewCount.intValue());
+
+                // CRITICAL FIX: Check if video is blocked/deleted (startCount = 0)
+                if (viewCount == 0) {
+                    log.warn(
+                            "Order {} - Video is deleted or blocked (startCount = 0)."
+                                    + " Using shared transition method",
+                            order.getId());
+
+                    // Use shared state transition method for consistency
+                    orderStateManagementService.transitionToPartialVideoUnavailable(
+                            order.getId(), "Video deleted or unavailable");
+
+                    log.info(
+                            "Order {} marked as PARTIAL due to blocked/deleted video",
+                            order.getId());
+                    return;
+                }
+
                 orderRepository.save(order);
 
                 log.info(
@@ -170,8 +193,36 @@ public class OrderEventConsumer {
                         viewCount);
             }
         } catch (Exception e) {
-            log.error("YouTube verification failed: orderId={}", order.getId(), e);
-            // Don't fail the entire process, continue with default values
+            log.error(
+                    "YouTube verification failed for order {}: {}",
+                    order.getId(),
+                    e.getMessage(),
+                    e);
+
+            // CRITICAL FIX: Check if startCount is still 0 after exception
+            // Reload order to get current state
+            Order reloadedOrder =
+                    orderRepository.findByIdWithAllDetails(order.getId()).orElse(order);
+            if (reloadedOrder.getStartCount() == null || reloadedOrder.getStartCount() == 0) {
+                log.warn(
+                        "Order {} - Video startCount check failed and remains 0. "
+                                + "Video may be deleted/blocked. Using shared transition method",
+                        order.getId());
+
+                // Use shared state transition method for consistency
+                orderStateManagementService.transitionToPartialVideoUnavailable(
+                        order.getId(), "Video unavailable or startCount check failed");
+
+                log.info(
+                        "Order {} marked as PARTIAL after YouTube verification failure",
+                        order.getId());
+            } else {
+                log.warn(
+                        "Order {} YouTube verification failed but startCount was set ({})."
+                                + " Continuing.",
+                        order.getId(),
+                        reloadedOrder.getStartCount());
+            }
         }
     }
 
@@ -215,18 +266,60 @@ public class OrderEventConsumer {
     private void processOrderCreatedEventInternal(OrderCreatedEvent event) {
         Order order =
                 orderRepository
-                        .findById(event.getOrderId())
+                        .findByIdWithAllDetails(event.getOrderId())
                         .orElseThrow(
                                 () ->
                                         new RuntimeException(
                                                 "Order not found: " + event.getOrderId()));
 
-        // Process YouTube verification
-        processYouTubeVerification(order);
+        // Skip processing if order is not in PENDING status
+        // (e.g., admin manually marked as PARTIAL, CANCELLED, or already processed)
+        if (!OrderStatus.PENDING.equals(order.getStatus())) {
+            log.warn(
+                    "Skipping order processing - order {} not in PENDING status: {}",
+                    order.getId(),
+                    order.getStatus());
+            return;
+        }
 
-        // Update order status to ACTIVE
-        updateOrderStatus(order, OrderStatus.ACTIVE);
+        // Initialize order processing with modern flow that creates video_processing records
+        OrderProcessingContext context =
+                youTubeProcessingService.initializeOrderProcessing(order.getId());
 
-        log.info("Order created event processed successfully: orderId={}", event.getOrderId());
+        if (context != null) {
+            // Trigger async processing (clip creation, Binom integration, etc.)
+            youTubeProcessingService.processOrderAsync(context);
+            log.info("Order created event processed successfully: orderId={}", event.getOrderId());
+        } else {
+            log.warn(
+                    "Failed to initialize order processing for order: {}, falling back to old"
+                            + " logic",
+                    order.getId());
+
+            // Fallback to old logic if modern flow fails
+            processYouTubeVerification(order);
+
+            // Reload order to get latest state (processYouTubeVerification uses REQUIRES_NEW
+            // transaction)
+            Order refreshedOrder =
+                    orderRepository.findByIdWithAllDetails(order.getId()).orElse(order);
+
+            // Only transition to ACTIVE if still in PENDING (i.e., not marked PARTIAL by
+            // verification)
+            if (OrderStatus.PENDING.equals(refreshedOrder.getStatus())) {
+                // Use shared transition method for consistency
+                int startCount =
+                        refreshedOrder.getStartCount() != null ? refreshedOrder.getStartCount() : 0;
+                orderStateManagementService.transitionToActive(order.getId(), startCount);
+                log.info(
+                        "Order {} transitioned to ACTIVE after fallback processing", order.getId());
+            } else {
+                log.info(
+                        "Order {} already in status {} after YouTube verification, skipping ACTIVE"
+                                + " transition",
+                        order.getId(),
+                        refreshedOrder.getStatus());
+            }
+        }
     }
 }

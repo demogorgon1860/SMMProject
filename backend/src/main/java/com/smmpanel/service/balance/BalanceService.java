@@ -143,7 +143,7 @@ public class BalanceService {
         transactionRepository.save(transaction);
 
         log.info(
-                "Deducted {} from user {}. New balance: {} (attempt: retry)",
+                "Deducted {} from user {}. New balance: {}",
                 amountToDeduct,
                 managedUser.getUsername(),
                 newBalance);
@@ -398,19 +398,20 @@ public class BalanceService {
         }
 
         // Load users in a consistent order to prevent deadlocks
+        // CRITICAL FIX: Use pessimistic locking to prevent race conditions
         Long firstUserId = fromUserId < toUserId ? fromUserId : toUserId;
         Long secondUserId = fromUserId < toUserId ? toUserId : fromUserId;
 
         User firstUser =
                 userRepository
-                        .findById(firstUserId)
+                        .findByIdWithLock(firstUserId)
                         .orElseThrow(
                                 () ->
                                         new ResourceNotFoundException(
                                                 "User not found with id: " + firstUserId));
         User secondUser =
                 userRepository
-                        .findById(secondUserId)
+                        .findByIdWithLock(secondUserId)
                         .orElseThrow(
                                 () ->
                                         new ResourceNotFoundException(

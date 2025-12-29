@@ -63,6 +63,7 @@ public class BinomService {
     // BinomCampaignRepository removed - using dynamic campaign connections
     private final ConversionCoefficientRepository conversionCoefficientRepository;
     private final org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
+    private final org.redisson.api.RedissonClient redissonClient;
 
     @Value("${app.binom.default-coefficient:3.0}")
     private BigDecimal defaultCoefficient;
@@ -79,6 +80,11 @@ public class BinomService {
 
     // In-memory cache for assignment statuses
     private final Map<Long, String> assignmentStatusCache = new ConcurrentHashMap<>();
+
+    // DISTRIBUTED LOCK: Redis-based locks to prevent duplicate offer creation across ALL containers
+    // Replaces in-memory ReentrantLock which only worked within single JVM
+    // This prevents race conditions when multiple backend containers process same order
+    // simultaneously
 
     @PostConstruct
     public void initBatching() {
@@ -239,7 +245,7 @@ public class BinomService {
             }
 
             // Get active campaigns directly from Binom
-            List<Map<String, Object>> binomCampaigns = getActiveCampaignsFromBinom();
+            List<Map<String, Object>> binomCampaigns = getActiveCampaignsFromBinom(order);
             int campaignCount = binomCampaigns.size();
 
             log.info("Found {} campaigns from Binom for order {}", campaignCount, order.getId());
@@ -481,7 +487,7 @@ public class BinomService {
     }
 
     /** Get active campaigns directly from Binom (2 or 3) for distribution */
-    private List<Map<String, Object>> getActiveCampaignsFromBinom() {
+    private List<Map<String, Object>> getActiveCampaignsFromBinom(Order order) {
         try {
             // Fetch all campaigns from Binom API
             Map<String, Object> response = binomClient.getCampaigns(null);
@@ -501,16 +507,26 @@ public class BinomService {
                         "No campaigns found in Binom response. Checking if Binom is configured"
                                 + " correctly.");
                 throw new BinomApiException(
-                        "No campaigns found in Binom. Please create campaigns with IDs 1, 3, and 4"
-                                + " in Binom.");
+                        "No campaigns found in Binom. Please create campaigns with IDs 1, 3, 4"
+                                + " (regular orders) and 5 (refills) in Binom.");
             }
 
             log.info("Received {} campaigns from Binom API", allCampaigns.size());
 
             // Define the specific campaign IDs to use for distribution
-            List<String> ALLOWED_CAMPAIGN_IDS = Arrays.asList("1", "3", "4");
+            // Regular orders: campaigns 1, 3, 4
+            // Refill orders: campaign 5 only
+            List<String> ALLOWED_CAMPAIGN_IDS;
+            if (Boolean.TRUE.equals(order.getIsRefill())) {
+                ALLOWED_CAMPAIGN_IDS = Arrays.asList("5");
+                log.info("Order {} is a REFILL - routing to campaign 5 only", order.getId());
+            } else {
+                ALLOWED_CAMPAIGN_IDS = Arrays.asList("1", "3", "4");
+                log.info("Order {} is REGULAR - routing to campaigns 1, 3, 4", order.getId());
+            }
 
-            // Filter to only use campaigns with IDs 1, 3, and 4 that are active (not deleted)
+            // Filter to only use allowed campaigns that are active (not deleted)
+            // Regular orders: 1, 3, 4 | Refill orders: 5
             List<Map<String, Object>> activeCampaigns =
                     allCampaigns.stream()
                             .filter(
@@ -532,9 +548,13 @@ public class BinomService {
                             .collect(Collectors.toList());
 
             if (activeCampaigns.isEmpty()) {
+                String campaignList = String.join(", ", ALLOWED_CAMPAIGN_IDS);
+                String orderType = Boolean.TRUE.equals(order.getIsRefill()) ? "refill" : "regular";
                 throw new BinomApiException(
-                        "No active campaigns with IDs 1, 3, or 4 found in Binom. Please ensure"
-                                + " these campaigns exist and are active.");
+                        String.format(
+                                "No active campaigns with IDs %s found in Binom for %s orders. "
+                                        + "Please ensure these campaigns exist and are active.",
+                                campaignList, orderType));
             }
 
             // Log which campaigns were found and which are missing
@@ -605,23 +625,66 @@ public class BinomService {
     }
 
     /** Create or get existing offer in Binom */
+    /**
+     * Create or get Binom offer with DISTRIBUTED locking to prevent race conditions.
+     *
+     * <p>CRITICAL FIX: Uses Redis distributed locks to ensure only ONE THREAD ACROSS ALL CONTAINERS
+     * can create an offer with a specific name. This prevents duplicate offers (e.g., Order 795
+     * creating both offers 2450 and 2451) when multiple backend containers process the same order
+     * simultaneously.
+     *
+     * <p>OLD ISSUE: ReentrantLock only worked within single JVM, allowing duplicates when multiple
+     * containers ran concurrently.
+     *
+     * <p>NEW SOLUTION: Redisson RLock works across all containers via Redis, preventing ALL race
+     * conditions.
+     *
+     * @param offerName Unique offer name (typically order ID)
+     * @param targetUrl YouTube video URL
+     * @param geoTargeting Geographic targeting
+     * @return Binom offer ID
+     */
     private String createOrGetOffer(String offerName, String targetUrl, String geoTargeting) {
+        // DISTRIBUTED LOCK: Works across ALL backend containers via Redis
+        org.redisson.api.RLock lock = redissonClient.getLock("binom:offer:creation:" + offerName);
+
         try {
-            // Check if offer exists
+            // Wait up to 10 seconds to acquire lock, auto-release after 30 seconds
+            boolean acquired = lock.tryLock(10, 30, java.util.concurrent.TimeUnit.SECONDS);
+            if (!acquired) {
+                log.error(
+                        "Could not acquire distributed lock for offer creation: {} (timeout after"
+                                + " 10s)",
+                        offerName);
+                throw new BinomApiException(
+                        "Could not acquire distributed lock for offer: " + offerName);
+            }
+
+            log.info(
+                    "[DISTRIBUTED LOCK] Acquired lock for offer creation: {} (thread: {})",
+                    offerName,
+                    Thread.currentThread().getName());
+
+            // Double-check if offer exists (another container might have created it while we
+            // waited)
             CheckOfferResponse existingOffer = binomClient.checkOfferExists(offerName);
             if (existingOffer.isExists()) {
-                log.info("Using existing Binom offer: {}", existingOffer.getOfferId());
+                log.info(
+                        "[DISTRIBUTED LOCK] Using existing Binom offer: {} (name: {})",
+                        existingOffer.getOfferId(),
+                        offerName);
                 return existingOffer.getOfferId();
             }
 
-            // Create new offer with updated DTO structure
+            // Create new offer
+            log.info("[DISTRIBUTED LOCK] Creating new Binom offer with name: {}", offerName);
             CreateOfferRequest offerRequest =
                     CreateOfferRequest.builder()
                             .name(offerName)
                             .url(targetUrl)
-                            .geoTargeting(List.of(geoTargeting)) // Now expects List<String>
+                            .geoTargeting(List.of(geoTargeting))
                             .description("SMM Panel auto-generated offer")
-                            .affiliateNetworkId(1L) // Default affiliate network ID
+                            .affiliateNetworkId(1L)
                             .type("REDIRECT")
                             .status("ACTIVE")
                             .payoutType("CPA")
@@ -630,12 +693,35 @@ public class BinomService {
                             .build();
 
             CreateOfferResponse response = binomClient.createOffer(offerRequest);
-            log.info("Created new Binom offer: {}", response.getOfferId());
+
+            // CRITICAL: Wait 500ms for Binom's query endpoint to index the new offer
+            // Prevents eventual consistency issues where checkOfferExists() returns false even
+            // after creation
+            Thread.sleep(500);
+
+            log.info(
+                    "[DISTRIBUTED LOCK] Created new Binom offer: {} (name: {}) - waited 500ms for"
+                            + " indexing",
+                    response.getOfferId(),
+                    offerName);
             return response.getOfferId();
 
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("Lock acquisition interrupted for offer: {}", offerName);
+            throw new BinomApiException("Lock acquisition interrupted", e);
         } catch (Exception e) {
-            log.error("Failed to create/get Binom offer: {}", e.getMessage());
+            log.error("Failed to create/get Binom offer '{}': {}", offerName, e.getMessage(), e);
             throw new BinomApiException("Failed to create/get Binom offer", e);
+        } finally {
+            // Only unlock if held by current thread
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
+                log.info(
+                        "[DISTRIBUTED LOCK] Released lock for offer creation: {} (thread: {})",
+                        offerName,
+                        Thread.currentThread().getName());
+            }
         }
     }
 
@@ -1068,13 +1154,13 @@ public class BinomService {
     // This keeps the system stateless and always uses the latest campaign data from Binom
 
     /**
-     * Remove offer from all campaigns (1, 3, 4) for an order Unified method that replaces both
-     * stopOfferForOrder and archiveOfferForOrder
+     * Remove offer from campaigns for an order CRITICAL: Refills go to campaign 5, regular orders
+     * go to campaigns 1, 3, 4
      */
     @Transactional
     public void removeOfferForOrder(Long orderId) {
         try {
-            // Get order to find offer ID
+            // Get order to find offer ID and determine campaign routing
             Order order = orderRepository.findById(orderId).orElse(null);
             if (order == null || order.getBinomOfferId() == null) {
                 log.warn("No order or offer ID found for order {}", orderId);
@@ -1082,10 +1168,20 @@ public class BinomService {
             }
 
             String offerId = order.getBinomOfferId();
-            log.info("Removing offer {} from campaigns for order {}", offerId, orderId);
 
-            // Remove offer from campaigns 1, 3, 4 using batch removal
-            List<String> campaignIds = Arrays.asList("1", "3", "4");
+            // CRITICAL: Different campaigns for refills vs regular orders
+            List<String> campaignIds;
+            if (Boolean.TRUE.equals(order.getIsRefill())) {
+                campaignIds = Arrays.asList("5");
+                log.info("Removing REFILL offer {} from campaign 5 for order {}", offerId, orderId);
+            } else {
+                campaignIds = Arrays.asList("1", "3", "4");
+                log.info(
+                        "Removing REGULAR offer {} from campaigns 1, 3, 4 for order {}",
+                        offerId,
+                        orderId);
+            }
+
             BinomClient.RemoveOfferResponse removeResponse =
                     binomClient.removeOfferFromCampaigns(offerId, campaignIds);
 
@@ -1118,8 +1214,17 @@ public class BinomService {
                         request.getOrderId(), "Invalid assignment request");
             }
 
+            // Load order to check if it's a refill
+            Order order =
+                    orderRepository
+                            .findById(request.getOrderId())
+                            .orElseThrow(
+                                    () ->
+                                            new RuntimeException(
+                                                    "Order not found: " + request.getOrderId()));
+
             // Get all active campaigns from Binom
-            List<Map<String, Object>> binomCampaigns = getActiveCampaignsFromBinom();
+            List<Map<String, Object>> binomCampaigns = getActiveCampaignsFromBinom(order);
             if (binomCampaigns.isEmpty()) {
                 log.error("No active campaigns found in Binom for offer assignment");
                 return buildOfferAssignmentErrorResponse(
@@ -1234,7 +1339,7 @@ public class BinomService {
                             .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
 
             // Get campaigns from Binom API with their offers
-            List<Map<String, Object>> binomCampaigns = getActiveCampaignsFromBinom();
+            List<Map<String, Object>> binomCampaigns = getActiveCampaignsFromBinom(order);
             return binomCampaigns.stream()
                     .map(
                             campaign ->
@@ -1381,7 +1486,10 @@ public class BinomService {
     /** Get all campaigns directly from Binom for admin review */
     public List<CampaignStatusResponse> getAllCampaignConfigurations() {
         try {
-            List<Map<String, Object>> binomCampaigns = getActiveCampaignsFromBinom();
+            // For admin review, show regular campaigns (1, 3, 4)
+            // Create a dummy non-refill order for campaign selection
+            Order dummyOrder = Order.builder().isRefill(false).build();
+            List<Map<String, Object>> binomCampaigns = getActiveCampaignsFromBinom(dummyOrder);
             return binomCampaigns.stream()
                     .map(this::mapBinomCampaignToStatus)
                     .collect(Collectors.toList());
@@ -1433,7 +1541,9 @@ public class BinomService {
         CampaignValidationResult result = new CampaignValidationResult();
 
         try {
-            List<Map<String, Object>> activeCampaigns = getActiveCampaignsFromBinom();
+            // For validation, check regular campaigns (1, 3, 4)
+            Order dummyOrder = Order.builder().isRefill(false).build();
+            List<Map<String, Object>> activeCampaigns = getActiveCampaignsFromBinom(dummyOrder);
             result.setActiveCampaignCount(activeCampaigns.size());
 
             if (activeCampaigns.size() >= 2 && activeCampaigns.size() <= 3) {

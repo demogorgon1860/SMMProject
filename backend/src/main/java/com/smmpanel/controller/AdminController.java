@@ -1,9 +1,11 @@
 package com.smmpanel.controller;
 
 import com.smmpanel.dto.admin.*;
+import com.smmpanel.dto.refill.RefillResponse;
 import com.smmpanel.dto.response.PerfectPanelResponse;
 import com.smmpanel.service.admin.AdminService;
 import com.smmpanel.service.order.OrderService;
+import com.smmpanel.service.refill.OrderRefillService;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +23,9 @@ public class AdminController {
 
     private final AdminService adminService;
     private final OrderService orderService;
+    private final OrderRefillService orderRefillService;
+    private final com.smmpanel.producer.OrderEventProducer orderEventProducer;
+    private final com.smmpanel.repository.jpa.OrderRepository orderRepository;
 
     @GetMapping("/dashboard")
     public ResponseEntity<DashboardStats> getDashboardStats() {
@@ -41,6 +46,19 @@ public class AdminController {
         return ResponseEntity.ok(orders);
     }
 
+    @GetMapping("/deposits")
+    public ResponseEntity<Map<String, Object>> getAllDeposits(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String dateFrom,
+            @RequestParam(required = false) String dateTo,
+            Pageable pageable) {
+
+        Map<String, Object> deposits =
+                adminService.getAllDeposits(status, username, dateFrom, dateTo, pageable);
+        return ResponseEntity.ok(deposits);
+    }
+
     @PostMapping("/orders/{orderId}/actions")
     public ResponseEntity<PerfectPanelResponse> performOrderAction(
             @PathVariable Long orderId, @Valid @RequestBody OrderActionRequest request) {
@@ -59,11 +77,17 @@ public class AdminController {
             case "cancel":
                 adminService.cancelOrder(orderId, request.getReason());
                 break;
+            case "delete":
+                adminService.deleteOrder(orderId);
+                break;
             case "update_start_count":
                 adminService.updateStartCount(orderId, request.getNewStartCount());
                 break;
             case "complete":
                 adminService.completeOrder(orderId);
+                break;
+            case "partial":
+                adminService.markOrderAsPartial(orderId, request.getReason());
                 break;
             default:
                 return ResponseEntity.badRequest()
@@ -90,6 +114,35 @@ public class AdminController {
                         .data(Map.of("message", "Bulk action completed", "processed", processed))
                         .success(true)
                         .build());
+    }
+
+    /**
+     * Create a refill for an order that has underdelivered views. Fetches current YouTube view
+     * count and creates a new order for the remaining quantity.
+     */
+    @PostMapping("/orders/{orderId}/refill")
+    public ResponseEntity<RefillResponse> createRefill(@PathVariable Long orderId) {
+        RefillResponse response = orderRefillService.createRefill(orderId);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Get refill history for an order. Shows all refills that have been created for the original
+     * order.
+     */
+    @GetMapping("/orders/{orderId}/refills")
+    public ResponseEntity<List<RefillResponse>> getRefillHistory(@PathVariable Long orderId) {
+        List<RefillResponse> refills = orderRefillService.getRefillHistory(orderId);
+        return ResponseEntity.ok(refills);
+    }
+
+    /**
+     * Get all refills across all orders for admin view. Returns paginated list with order details.
+     */
+    @GetMapping("/refills")
+    public ResponseEntity<Map<String, Object>> getAllRefills(Pageable pageable) {
+        Map<String, Object> refills = orderRefillService.getAllRefills(pageable);
+        return ResponseEntity.ok(refills);
     }
 
     @GetMapping("/conversion-coefficients")
@@ -247,5 +300,43 @@ public class AdminController {
                         .data(Map.of("message", "Processing triggered"))
                         .success(true)
                         .build());
+    }
+
+    /**
+     * Republish Kafka events for stuck orders Useful for orders that failed to process due to
+     * transient errors
+     */
+    @PostMapping("/orders/{orderId}/republish-event")
+    public ResponseEntity<Map<String, Object>> republishOrderEvent(@PathVariable Long orderId) {
+        // Fetch order with all relationships eagerly loaded
+        com.smmpanel.entity.Order order =
+                orderRepository
+                        .findByIdWithAllDetails(orderId)
+                        .orElseThrow(
+                                () ->
+                                        new com.smmpanel.exception.ResourceNotFoundException(
+                                                "Order not found: " + orderId));
+
+        // Create and publish OrderCreatedEvent
+        com.smmpanel.event.OrderCreatedEvent event =
+                new com.smmpanel.event.OrderCreatedEvent(
+                        this, order.getId(), order.getUser().getId());
+        event.setServiceId(order.getService().getId());
+        event.setQuantity(order.getQuantity());
+        event.setTimestamp(java.time.LocalDateTime.now());
+        event.setCreatedAt(order.getCreatedAt());
+
+        orderEventProducer.publishOrderCreatedEvent(event);
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "success",
+                        true,
+                        "message",
+                        "Kafka event republished for order " + orderId,
+                        "orderId",
+                        orderId,
+                        "serviceId",
+                        order.getService().getId()));
     }
 }

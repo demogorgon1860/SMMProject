@@ -7,11 +7,9 @@ import com.smmpanel.repository.jpa.UserRepository;
 import com.smmpanel.service.security.AuthenticationRateLimitService;
 import com.smmpanel.util.ApiKeyGenerator;
 import java.time.LocalDateTime;
-import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -30,13 +28,9 @@ public class ApiKeyService {
     private final ApiKeyGenerator apiKeyGenerator;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationRateLimitService rateLimitService;
-    private final RedisTemplate<String, String> redisTemplate;
 
     @Value("${app.security.api-key.global-salt:smm-panel-secure-salt-2024}")
     private String globalSalt;
-
-    @Value("${app.security.api-key.rotation-grace-period-hours:24}")
-    private int rotationGracePeriodHours;
 
     /**
      * Generates a new API key for a user.
@@ -63,9 +57,14 @@ public class ApiKeyService {
             // Hash the API key with the salt
             String hashedKey = apiKeyGenerator.hashApiKey(apiKey, salt);
 
+            // Create preview (first 4 + last 4 characters) for display
+            String preview = apiKeyGenerator.maskApiKey(apiKey);
+
             // Update user with new API key details
             user.setApiKeyHash(hashedKey);
             user.setApiKeySalt(salt);
+            user.setApiKeyPreview(preview);
+            user.setApiKeyActive(true);
             user.setApiKeyLastRotated(LocalDateTime.now());
             userRepository.save(user);
 
@@ -90,6 +89,13 @@ public class ApiKeyService {
             return false;
         }
 
+        // Check if API key is active
+        if (user.getApiKeyActive() == null || !user.getApiKeyActive()) {
+            log.warn(
+                    "API key validation failed - key is inactive for user: {}", user.getUsername());
+            return false;
+        }
+
         try {
             boolean isValid =
                     apiKeyGenerator.verifyApiKey(
@@ -107,32 +113,7 @@ public class ApiKeyService {
     }
 
     /**
-     * Revokes the API key for a user.
-     *
-     * @param userId The ID of the user
-     * @throws ResourceNotFoundException if the user is not found
-     */
-    @Transactional
-    public void revokeApiKey(Long userId) {
-        User user =
-                userRepository
-                        .findById(userId)
-                        .orElseThrow(
-                                () ->
-                                        new ResourceNotFoundException(
-                                                "User not found with id: " + userId));
-
-        user.setApiKeyHash(null);
-        user.setApiKeySalt(null);
-        user.setApiKeyLastRotated(null);
-        userRepository.save(user);
-
-        log.info("Revoked API key for user: {}", user.getUsername());
-    }
-
-    /**
-     * Rotates the API key for a user with grace period. Keeps old key valid for 24 hours to prevent
-     * service disruption.
+     * Rotates the API key for a user. Deactivates the old key and generates a new active one.
      *
      * @param userId The ID of the user
      * @return The new API key
@@ -148,58 +129,15 @@ public class ApiKeyService {
                                         new ResourceNotFoundException(
                                                 "User not found with id: " + userId));
 
-        // Store old key in Redis with TTL for grace period
-        if (user.getApiKeyHash() != null && user.getApiKeySalt() != null) {
-            String oldKeyCache = "old_api_key:" + userId;
-            String oldKeyData = user.getApiKeyHash() + ":" + user.getApiKeySalt();
-            redisTemplate
-                    .opsForValue()
-                    .set(oldKeyCache, oldKeyData, rotationGracePeriodHours, TimeUnit.HOURS);
-            log.info(
-                    "Stored old API key for user {} with {} hour grace period",
-                    user.getUsername(),
-                    rotationGracePeriodHours);
+        // Deactivate old API key before generating new one
+        if (user.getApiKeyHash() != null) {
+            user.setApiKeyActive(false);
+            userRepository.save(user);
+            log.info("Deactivated old API key for user: {}", user.getUsername());
         }
 
-        // Generate new key
+        // Generate new active key
         return generateApiKey(userId);
-    }
-
-    /**
-     * Validates an API key including checking old keys during rotation grace period.
-     *
-     * @param apiKey The API key to validate
-     * @param user The user to validate against
-     * @return true if the API key is valid (current or within grace period)
-     */
-    public boolean validateApiKeyWithRotation(String apiKey, User user) {
-        // First try current key
-        if (validateApiKey(apiKey, user)) {
-            return true;
-        }
-
-        // Check if there's an old key in grace period
-        String oldKeyCache = "old_api_key:" + user.getId();
-        String oldKeyData = redisTemplate.opsForValue().get(oldKeyCache);
-
-        if (oldKeyData != null) {
-            String[] parts = oldKeyData.split(":");
-            if (parts.length == 2) {
-                try {
-                    boolean isValid = apiKeyGenerator.verifyApiKey(apiKey, parts[0], parts[1]);
-                    if (isValid) {
-                        log.info(
-                                "User {} authenticated with old API key during grace period",
-                                user.getUsername());
-                        return true;
-                    }
-                } catch (Exception e) {
-                    log.error("Error validating old API key: {}", e.getMessage());
-                }
-            }
-        }
-
-        return false;
     }
 
     /**
@@ -222,8 +160,8 @@ public class ApiKeyService {
             return "No API key set";
         }
 
-        // Return a masked version of the key (first 4 and last 4 characters)
-        return apiKeyGenerator.maskApiKey(user.getApiKeyHash());
+        // Return the stored preview (first 4 and last 4 characters of actual API key)
+        return user.getApiKeyPreview() != null ? user.getApiKeyPreview() : "Preview not available";
     }
 
     /**

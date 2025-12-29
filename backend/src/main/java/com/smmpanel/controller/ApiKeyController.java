@@ -49,43 +49,30 @@ public class ApiKeyController {
     @PostMapping("/rotate")
     @Operation(
             summary = "Rotate API key",
-            description = "Rotates the API key with a grace period for the old key")
+            description = "Rotates the API key - deactivates old key and creates new active one")
     public ResponseEntity<ApiKeyResponse> rotateApiKey() {
         User user = getCurrentUser();
         String newApiKey = apiKeyService.rotateApiKey(user.getId());
 
         ApiKeyResponse response = new ApiKeyResponse();
         response.setApiKey(newApiKey);
-        response.setMessage(
-                "API key rotated successfully. Old key will remain valid for 24 hours.");
+        response.setMessage("API key rotated successfully. Old key has been deactivated.");
 
         log.info("Rotated API key for user: {}", user.getUsername());
-        return ResponseEntity.ok(response);
-    }
-
-    @DeleteMapping("/revoke")
-    @Operation(summary = "Revoke API key", description = "Immediately revokes the current API key")
-    public ResponseEntity<Map<String, String>> revokeApiKey() {
-        User user = getCurrentUser();
-        apiKeyService.revokeApiKey(user.getId());
-
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "API key revoked successfully");
-
-        log.info("Revoked API key for user: {}", user.getUsername());
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/status")
     @Operation(
             summary = "Get API key status",
-            description = "Returns masked API key and last rotation date")
+            description = "Returns masked API key, active status, and last rotation date")
     public ResponseEntity<Map<String, Object>> getApiKeyStatus() {
         User user = getCurrentUser();
 
         Map<String, Object> response = new HashMap<>();
         response.put("maskedKey", apiKeyService.getMaskedApiKey(user.getId()));
         response.put("hasApiKey", user.getApiKeyHash() != null);
+        response.put("isActive", user.getApiKeyActive() != null && user.getApiKeyActive());
         response.put("lastRotated", user.getApiKeyLastRotated());
 
         return ResponseEntity.ok(response);

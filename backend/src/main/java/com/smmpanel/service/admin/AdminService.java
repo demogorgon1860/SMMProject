@@ -44,6 +44,9 @@ public class AdminService {
     private final YouTubeService youTubeService;
     private final OrderStateManager orderStateManager;
     private final AuditService auditService;
+    private final com.smmpanel.repository.jpa.VideoProcessingRepository videoProcessingRepository;
+    private final BalanceDepositRepository balanceDepositRepository;
+    private final org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
 
     @Transactional(readOnly = true)
     public DashboardStats getDashboardStats() {
@@ -131,54 +134,84 @@ public class AdminService {
         User operator = userRepository.findByUsername(operatorUsername).orElse(null);
 
         int processed = 0;
+        List<String> errors = new ArrayList<>();
+
         for (Long orderId : request.getOrderIds()) {
             try {
-                switch (request.getAction().toLowerCase()) {
-                    case "stop":
-                        stopOrder(orderId, request.getReason());
-                        break;
-                    case "resume":
-                        resumeOrder(orderId);
-                        break;
-                    case "cancel":
-                        cancelOrder(orderId, request.getReason());
-                        break;
-                    case "complete":
-                        completeOrder(orderId);
-                        break;
-                    default:
-                        continue;
-                }
-
-                // Log the action
-                if (operator != null) {
-                    logOperatorAction(
-                            operator,
-                            request.getAction(),
-                            "ORDER",
-                            orderId,
-                            Map.of(
-                                    "reason",
-                                    request.getReason() != null ? request.getReason() : ""));
-                }
-
+                // CRITICAL FIX: Use separate transaction for each action
+                // This prevents partial bulk operation inconsistencies
+                performSingleBulkAction(orderId, request, operator);
                 processed++;
             } catch (Exception e) {
+                String errorMsg =
+                        String.format(
+                                "Order %d: %s",
+                                orderId,
+                                e.getMessage() != null
+                                        ? e.getMessage()
+                                        : e.getClass().getSimpleName());
+                errors.add(errorMsg);
                 log.error(
                         "Failed to perform bulk action {} on order {}: {}",
                         request.getAction(),
                         orderId,
-                        e.getMessage());
+                        e.getMessage(),
+                        e);
             }
         }
 
         log.info(
-                "Performed bulk action {} on {} orders by {}",
+                "Performed bulk action {} on {} orders by {} (success: {}, failed: {})",
                 request.getAction(),
+                request.getOrderIds().size(),
+                operatorUsername,
                 processed,
-                operatorUsername);
+                errors.size());
+
+        // CRITICAL FIX: If ANY failures occurred, log them for admin visibility
+        if (!errors.isEmpty()) {
+            log.warn(
+                    "Bulk action {} had {} failures: {}",
+                    request.getAction(),
+                    errors.size(),
+                    String.join("; ", errors));
+        }
 
         return processed;
+    }
+
+    @Transactional(
+            propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    private void performSingleBulkAction(Long orderId, BulkActionRequest request, User operator) {
+        switch (request.getAction().toLowerCase()) {
+            case "stop":
+                stopOrder(orderId, request.getReason());
+                break;
+            case "resume":
+                resumeOrder(orderId);
+                break;
+            case "cancel":
+                cancelOrder(orderId, request.getReason());
+                break;
+            case "complete":
+                completeOrder(orderId);
+                break;
+            case "partial":
+                markOrderAsPartial(orderId, request.getReason());
+                break;
+            default:
+                throw new IllegalArgumentException("Unknown action: " + request.getAction());
+        }
+
+        // Log the action
+        if (operator != null) {
+            logOperatorAction(
+                    operator,
+                    request.getAction(),
+                    "ORDER",
+                    orderId,
+                    Map.of("reason", request.getReason() != null ? request.getReason() : ""));
+        }
     }
 
     @Transactional
@@ -206,14 +239,78 @@ public class AdminService {
     }
 
     @Transactional
-    public void updateStartCount(Long orderId, Integer newStartCount) {
+    public void deleteOrder(Long orderId) {
         Order order =
                 orderRepository
                         .findById(orderId)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("Order not found: " + orderId));
 
-        int oldStartCount = order.getStartCount();
+        log.warn(
+                "HARD DELETE initiated for order {}: status={}, user={}",
+                orderId,
+                order.getStatus(),
+                order.getUser().getUsername());
+
+        // 1. Delete related video_processing records (cascade delete)
+        try {
+            videoProcessingRepository.deleteByOrderId(orderId);
+            log.info("Deleted video_processing records for order {}", orderId);
+        } catch (Exception e) {
+            log.warn("No video_processing records found for order {}: {}", orderId, e.getMessage());
+        }
+
+        // 2. Clear Redis cache keys related to this order
+        try {
+            // Clear clip URL cache (by order ID)
+            String orderClipKey = "order:clip:" + orderId;
+            redisTemplate.delete(orderClipKey);
+
+            // Clear secondStartCount cache
+            String secondCountKey = "order:secondStartCount:" + orderId;
+            redisTemplate.delete(secondCountKey);
+
+            // Clear any clip URL cache (by video URL if exists)
+            if (order.getLink() != null) {
+                String clipUrlCacheKey = "clip:url:" + order.getLink();
+                redisTemplate.delete(clipUrlCacheKey);
+            }
+
+            log.info("Cleared Redis cache keys for order {}", orderId);
+        } catch (Exception e) {
+            log.warn("Failed to clear Redis keys for order {}: {}", orderId, e.getMessage());
+        }
+
+        // 3. Hard delete the order from database
+        orderRepository.delete(order);
+
+        log.warn("HARD DELETE completed for order {}", orderId);
+    }
+
+    @Transactional
+    public void updateStartCount(Long orderId, Integer newStartCount) {
+        // CRITICAL FIX: Validate newStartCount before applying
+        if (newStartCount == null) {
+            throw new IllegalArgumentException("New start count cannot be null");
+        }
+        if (newStartCount < 0) {
+            throw new IllegalArgumentException(
+                    "New start count cannot be negative. Provided: " + newStartCount);
+        }
+
+        Order order =
+                orderRepository
+                        .findById(orderId)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("Order not found: " + orderId));
+
+        // CRITICAL FIX: Handle null oldStartCount safely
+        Integer oldStartCount = order.getStartCount();
+        if (oldStartCount == null) {
+            oldStartCount = 0;
+            log.warn("Order {} had null startCount, treating as 0", orderId);
+        }
+
         order.setStartCount(newStartCount);
 
         // Recalculate remains
@@ -286,6 +383,132 @@ public class AdminService {
         orderRepository.save(order);
 
         log.info("Resumed order {}", orderId);
+    }
+
+    /**
+     * Manually mark order as PARTIAL Works on ANY order status: COMPLETED, PENDING, IN_PROGRESS
+     * Automatically calculates and refunds proportional amount based on delivered views Stops order
+     * processing and deletes Binom offer if exists
+     */
+    @Transactional
+    public void markOrderAsPartial(Long orderId, String reason) {
+        Order order =
+                orderRepository
+                        .findById(orderId)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("Order not found: " + orderId));
+
+        // Get current status for logging
+        OrderStatus oldStatus = order.getStatus();
+
+        // Calculate refund amount based on what was delivered
+        BigDecimal refundAmount = calculatePartialRefund(order);
+
+        log.info(
+                "Marking order {} as PARTIAL. Old status: {}, Refund amount: ${}",
+                orderId,
+                oldStatus,
+                refundAmount);
+
+        // Issue refund to user if any work was not completed
+        if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
+            try {
+                balanceService.refund(
+                        order.getUser(),
+                        refundAmount,
+                        order,
+                        "Partial refund - " + (reason != null ? reason : "Manual admin action"));
+                log.info(
+                        "Refunded ${} to user {} for partial order {}",
+                        refundAmount,
+                        order.getUser().getUsername(),
+                        orderId);
+            } catch (Exception e) {
+                log.error("Failed to refund partial order {}: {}", orderId, e.getMessage());
+                throw new RuntimeException("Refund failed: " + e.getMessage());
+            }
+        }
+
+        // Stop order processing by deleting Binom offer if exists
+        if (order.getBinomOfferId() != null) {
+            try {
+                binomService.removeOfferForOrder(orderId);
+                log.info("Deleted Binom offer for partial order {}", orderId);
+            } catch (Exception e) {
+                log.error("Failed to delete Binom offer for order {}: {}", orderId, e.getMessage());
+                // Continue even if offer deletion fails
+            }
+        }
+
+        // Mark order as PARTIAL
+        order.setStatus(OrderStatus.PARTIAL);
+
+        // Set error message with reason
+        String errorMsg = "Manually marked as PARTIAL by admin";
+        if (reason != null && !reason.trim().isEmpty()) {
+            errorMsg += ": " + reason;
+        }
+        order.setErrorMessage(errorMsg);
+
+        orderRepository.save(order);
+
+        log.info("Successfully marked order {} as PARTIAL (was {})", orderId, oldStatus);
+    }
+
+    /**
+     * Calculate refund amount for partial order based on views delivered Full refund if
+     * PENDING/IN_PROGRESS Proportional refund based on remaining views for active orders
+     */
+    private BigDecimal calculatePartialRefund(Order order) {
+        // Full refund for pending or in-progress orders (nothing delivered yet)
+        if (order.getStatus() == OrderStatus.PENDING
+                || order.getStatus() == OrderStatus.IN_PROGRESS) {
+            return order.getCharge();
+        }
+
+        // Full refund if order was already completed (user gets full amount back)
+        if (order.getStatus() == OrderStatus.COMPLETED) {
+            return order.getCharge();
+        }
+
+        // For active orders, calculate based on current view count
+        try {
+            int currentViews = getCurrentViewCount(order);
+            int viewsDelivered = currentViews - order.getStartCount();
+
+            if (viewsDelivered <= 0) {
+                // No views delivered - full refund
+                return order.getCharge();
+            }
+
+            if (viewsDelivered >= order.getQuantity()) {
+                // All views delivered - no refund
+                return BigDecimal.ZERO;
+            }
+
+            // Partial refund based on undelivered views
+            double deliveredPercentage = (double) viewsDelivered / order.getQuantity();
+            double remainingPercentage = 1.0 - deliveredPercentage;
+
+            BigDecimal refund = order.getCharge().multiply(BigDecimal.valueOf(remainingPercentage));
+
+            log.info(
+                    "Order {}: {} of {} views delivered ({:.1f}%). Refund: ${}",
+                    order.getId(),
+                    viewsDelivered,
+                    order.getQuantity(),
+                    deliveredPercentage * 100,
+                    refund);
+
+            return refund;
+        } catch (Exception e) {
+            log.error(
+                    "Failed to calculate partial refund for order {}: {}",
+                    order.getId(),
+                    e.getMessage());
+            // Default to full refund if we can't determine progress
+            return order.getCharge();
+        }
     }
 
     @Transactional
@@ -1211,5 +1434,63 @@ public class AdminService {
         }
 
         return videoId;
+    }
+
+    /**
+     * Get all deposits/payments for admin
+     *
+     * @param status Filter by payment status (optional)
+     * @param username Filter by username (optional)
+     * @param dateFrom Filter by start date (optional)
+     * @param dateTo Filter by end date (optional)
+     * @param pageable Pagination parameters
+     * @return Map containing deposit list and pagination info
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getAllDeposits(
+            String status, String username, String dateFrom, String dateTo, Pageable pageable) {
+
+        Page<BalanceDeposit> deposits =
+                balanceDepositRepository.findAllByOrderByCreatedAtDesc(pageable);
+
+        // Convert deposits to DTO format with user information
+        List<Map<String, Object>> depositList =
+                deposits.getContent().stream()
+                        .map(
+                                deposit -> {
+                                    Map<String, Object> depositMap = new HashMap<>();
+                                    depositMap.put("id", deposit.getId());
+                                    depositMap.put("orderId", deposit.getOrderId());
+                                    depositMap.put(
+                                            "username",
+                                            deposit.getUser() != null
+                                                    ? deposit.getUser().getUsername()
+                                                    : "Unknown");
+                                    depositMap.put(
+                                            "userId",
+                                            deposit.getUser() != null
+                                                    ? deposit.getUser().getId()
+                                                    : null);
+                                    depositMap.put("amountUsdt", deposit.getAmountUsdt());
+                                    depositMap.put("cryptoAmount", deposit.getCryptoAmount());
+                                    depositMap.put("status", deposit.getStatus().name());
+                                    depositMap.put("paymentUrl", deposit.getPaymentUrl());
+                                    depositMap.put(
+                                            "cryptomusPaymentId", deposit.getCryptomusPaymentId());
+                                    depositMap.put("createdAt", deposit.getCreatedAt());
+                                    depositMap.put("confirmedAt", deposit.getConfirmedAt());
+                                    depositMap.put("expiresAt", deposit.getExpiresAt());
+                                    return depositMap;
+                                })
+                        .collect(Collectors.toList());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("deposits", depositList);
+        response.put("currentPage", deposits.getNumber());
+        response.put("totalPages", deposits.getTotalPages());
+        response.put("totalElements", deposits.getTotalElements());
+        response.put("pageSize", deposits.getSize());
+
+        return response;
     }
 }

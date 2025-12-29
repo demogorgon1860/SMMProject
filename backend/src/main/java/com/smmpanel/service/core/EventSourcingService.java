@@ -45,6 +45,12 @@ public class EventSourcingService {
             return orderEventRepository.findByEventId(eventId).orElse(null);
         }
 
+        // Get order created_at for composite foreign key
+        Order order =
+                orderRepository
+                        .findById(orderId)
+                        .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+
         // Get next sequence number
         Long sequenceNumber =
                 orderEventRepository
@@ -58,6 +64,7 @@ public class EventSourcingService {
                         .eventId(eventId)
                         .aggregateId("ORDER-" + orderId)
                         .orderId(orderId)
+                        .orderCreatedAt(order.getCreatedAt())
                         .eventType(eventType)
                         .sequenceNumber(sequenceNumber)
                         .eventData(eventData)

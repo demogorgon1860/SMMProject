@@ -36,7 +36,10 @@ public class BalanceTransaction {
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id")
+    @JoinColumns({
+        @JoinColumn(name = "order_id", referencedColumnName = "id"),
+        @JoinColumn(name = "order_created_at", referencedColumnName = "created_at")
+    })
     private Order order;
 
     @ManyToOne(fetch = FetchType.LAZY)

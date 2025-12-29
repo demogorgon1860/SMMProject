@@ -30,4 +30,7 @@ public class CryptomusWebhook {
 
     @JsonProperty("txid")
     private String txid;
+
+    // Signature field for webhook validation
+    private String sign;
 }

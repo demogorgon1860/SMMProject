@@ -385,8 +385,6 @@ public class PaymentConfirmationConsumer {
 
         // 3. Update deposit status
         deposit.setStatus(PaymentStatus.REFUNDED);
-        deposit.setRefundedAt(LocalDateTime.now());
-        deposit.setRefundAmount(refundAmount);
         balanceDepositRepository.save(deposit);
 
         // 4. Update order status if applicable

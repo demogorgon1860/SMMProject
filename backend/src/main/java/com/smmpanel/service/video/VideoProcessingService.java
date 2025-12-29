@@ -41,7 +41,7 @@ public class VideoProcessingService {
     @Value("${app.order.processing.clip-creation.timeout:300000}")
     private long clipCreationTimeoutMs;
 
-    @Value("${app.order.processing.clip-creation.retry-attempts:2}")
+    @Value("${app.order.processing.clip-creation.retry-attempts:1}")
     private int clipCreationRetryAttempts;
 
     /** Create video processing record for an order */

@@ -93,6 +93,28 @@ export const LoginForm: React.FC = () => {
             </span>
           </div>
         </form>
+
+        {/* Footer Links */}
+        <div className="mt-6 pt-6 border-t border-gray-200">
+          <div className="flex flex-wrap justify-center gap-4 text-sm">
+            <Link to="/services-public" className="text-indigo-600 hover:text-indigo-800 font-medium">
+              Services
+            </Link>
+            <span className="text-gray-300">|</span>
+            <Link to="/terms" className="text-indigo-600 hover:text-indigo-800 font-medium">
+              Terms of Service
+            </Link>
+            <span className="text-gray-300">|</span>
+            <div className="group relative inline-block">
+              <button className="text-indigo-600 hover:text-indigo-800 font-medium cursor-pointer">
+                Contact Us
+              </button>
+              <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded shadow-lg whitespace-nowrap">
+                smmdata.top@gmail.com
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

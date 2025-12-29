@@ -311,9 +311,14 @@ public interface OrderRepository
 
     // Removed findByStatusInAndBinomCampaignIdNotNull - using binomOfferId instead
 
-    /** Find orders by status with Binom offer ID set - for direct campaign connection */
+    /**
+     * Find orders by status with Binom offer ID set - for direct campaign connection OPTIMIZED:
+     * JOIN FETCH video_processing to prevent N+1 queries in BinomSyncScheduler Schema analysis
+     * showed 767,674 sequential scans before index - now uses JOIN for efficiency
+     */
     @Query(
-            "SELECT o FROM Order o "
+            "SELECT DISTINCT o FROM Order o "
+                    + "LEFT JOIN FETCH o.videoProcessing vp "
                     + "WHERE o.status IN :statuses "
                     + "AND o.binomOfferId IS NOT NULL")
     List<Order> findByStatusInAndBinomOfferIdNotNull(@Param("statuses") List<OrderStatus> statuses);
@@ -373,4 +378,29 @@ public interface OrderRepository
     /** BATCH DELETE: Remove old completed orders Used for data cleanup operations */
     @Query("DELETE FROM Order o WHERE o.status = 'COMPLETED' " + "AND o.updatedAt < :beforeDate")
     int deleteOldCompletedOrders(@Param("beforeDate") LocalDateTime beforeDate);
+
+    // ==================== REFILL OPERATIONS ====================
+
+    /**
+     * Find order by ID with PESSIMISTIC WRITE lock Prevents concurrent refill creation for the same
+     * order Used during refill creation to ensure atomicity
+     */
+    @Query(
+            "SELECT o FROM Order o LEFT JOIN FETCH o.service LEFT JOIN FETCH o.user WHERE o.id ="
+                    + " :id")
+    @org.springframework.data.jpa.repository.Lock(
+            jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    Optional<Order> findByIdWithLock(@Param("id") Long id);
+
+    /**
+     * Count pending refill orders for a given parent order Prevents duplicate refills when one is
+     * already pending
+     */
+    long countByRefillParentIdAndStatus(Long refillParentId, OrderStatus status);
+
+    /**
+     * Find all refill orders for a parent order regardless of status Used for checking refill
+     * history and limits
+     */
+    List<Order> findByRefillParentId(Long refillParentId);
 }

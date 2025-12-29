@@ -329,6 +329,65 @@ public class OrderStateManagementService {
         }
     }
 
+    /**
+     * TRANSITION TO PARTIAL STATE - VIDEO UNAVAILABLE
+     *
+     * <p>Marks order as PARTIAL when the YouTube video is deleted, blocked, or has 0 views. This is
+     * a terminal state indicating the order cannot be fulfilled.
+     *
+     * @param orderId The order ID to transition
+     * @param reason Detailed reason for marking as partial
+     * @return StateTransitionResult indicating success or failure
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public StateTransitionResult transitionToPartialVideoUnavailable(Long orderId, String reason) {
+        Order order = null;
+        try {
+            log.warn(
+                    "Transitioning order {} to PARTIAL state (video unavailable): {}",
+                    orderId,
+                    reason);
+
+            order =
+                    orderRepository
+                            .findById(orderId)
+                            .orElseThrow(
+                                    () ->
+                                            new VideoProcessingException(
+                                                    "Order not found: " + orderId));
+
+            // PARTIAL is allowed from PENDING, PROCESSING, or ACTIVE states
+            OrderStatus previousStatus = order.getStatus();
+
+            // Perform state transition
+            order.setStatus(OrderStatus.PARTIAL);
+            order.setStartCount(0); // Video has 0 views (deleted/blocked)
+            order.setRemains(order.getQuantity()); // No views delivered
+            order.setErrorMessage(reason);
+            order.setUpdatedAt(LocalDateTime.now());
+
+            orderRepository.save(order);
+
+            // Remove from active processing tracking
+            activeProcessingStates.remove(orderId);
+
+            // Log state transition
+            logStateTransition(orderId, previousStatus, OrderStatus.PARTIAL, reason);
+
+            log.info(
+                    "Order {} successfully transitioned to PARTIAL state (video unavailable)",
+                    orderId);
+
+            return StateTransitionResult.success(orderId, previousStatus, OrderStatus.PARTIAL);
+
+        } catch (Exception e) {
+            log.error("Failed to transition order {} to PARTIAL: {}", orderId, e.getMessage(), e);
+            OrderStatus currentStatus = order != null ? order.getStatus() : OrderStatus.PENDING;
+            return StateTransitionResult.failed(
+                    orderId, currentStatus, OrderStatus.PARTIAL, e.getMessage());
+        }
+    }
+
     /** UPDATE ORDER PROGRESS Updates remaining count and checks for completion */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ProgressUpdateResult updateOrderProgress(Long orderId, int currentViews) {

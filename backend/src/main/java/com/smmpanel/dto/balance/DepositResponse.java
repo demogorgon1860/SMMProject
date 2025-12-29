@@ -21,10 +21,14 @@ public class DepositResponse {
     private String status;
     private String paymentMethod;
     private String transactionId;
+    private String paymentUrl;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdAt;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime updatedAt;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime confirmedAt;
 }

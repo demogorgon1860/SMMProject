@@ -60,9 +60,10 @@ public class AuthController {
         AuthResponse authResponse = authService.register(request);
 
         // Create refresh token with HttpOnly cookie support
+        // Use user ID from AuthResponse to avoid transaction timing issues
         User user =
                 userRepository
-                        .findByUsername(request.getUsername())
+                        .findById(authResponse.getUser().getId())
                         .orElseThrow(() -> new UserNotFoundException("User not found"));
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user, httpRequest);
 

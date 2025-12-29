@@ -43,17 +43,12 @@ export const Dashboard: React.FC = () => {
         <h1 className="text-2xl font-bold text-gray-900 mb-6" style={{ color: '#111827' }}>User Dashboard</h1>
         {!user && !userLoading && <p style={{ color: 'red' }}>No user data available!</p>}
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-sm font-medium text-gray-500 mb-2">Username</h2>
           <p className="text-2xl font-bold text-gray-900">{user?.username}</p>
         </div>
-        
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-sm font-medium text-gray-500 mb-2">Role</h2>
-          <p className="text-2xl font-bold text-gray-900">{user?.role}</p>
-        </div>
-        
+
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-sm font-medium text-gray-500 mb-2">Balance</h2>
           {loading ? (
@@ -84,10 +79,10 @@ export const Dashboard: React.FC = () => {
             View Orders
           </Link>
           <Link
-            to="/services-test"
+            to="/add-funds"
             className="bg-purple-500 hover:bg-purple-600 text-white rounded-lg p-4 text-center transition"
           >
-            Test Services
+            Add Funds
           </Link>
           <Link
             to="/profile"

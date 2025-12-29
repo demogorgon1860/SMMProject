@@ -12,17 +12,23 @@ export const RegisterForm: React.FC = () => {
     password: '',
     confirmPassword: '',
   });
-  
+
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [validationError, setValidationError] = useState('');
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    if (!agreedToTerms) {
+      setValidationError('You must agree to the Terms of Service to register');
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setValidationError('Passwords do not match');
       return;
     }
-    
+
     if (formData.password.length < 6) {
       setValidationError('Password must be at least 6 characters');
       return;
@@ -126,7 +132,38 @@ export const RegisterForm: React.FC = () => {
               />
             </div>
           </div>
-          
+
+          <div className="flex items-start">
+            <div className="flex items-center h-5">
+              <input
+                id="terms"
+                name="terms"
+                type="checkbox"
+                checked={agreedToTerms}
+                onChange={(e) => {
+                  setAgreedToTerms(e.target.checked);
+                  setValidationError('');
+                }}
+                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer"
+              />
+            </div>
+            <div className="ml-3 text-sm">
+              <label htmlFor="terms" className="font-medium text-gray-700 cursor-pointer">
+                I agree to the{' '}
+                <Link
+                  to="/terms"
+                  target="_blank"
+                  className="text-indigo-600 hover:text-indigo-500 underline"
+                >
+                  Terms of Service
+                </Link>
+              </label>
+              <p className="text-gray-500 text-xs mt-1">
+                Please read and accept our Terms of Service to create an account
+              </p>
+            </div>
+          </div>
+
           <div>
             <button
               type="submit"

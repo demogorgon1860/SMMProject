@@ -161,6 +161,15 @@ public class Order {
     @Column(name = "budget_limit", precision = 10, scale = 2)
     private BigDecimal budgetLimit;
 
+    /** Refill support - indicates if this order is a refill of another order */
+    @Column(name = "is_refill", nullable = false)
+    @Builder.Default
+    private Boolean isRefill = false;
+
+    /** If this is a refill order, points to the original order ID */
+    @Column(name = "refill_parent_id")
+    private Long refillParentId;
+
     /**
      * Optimistic locking version counter - incremented on each update Prevents concurrent
      * modification issues during order processing

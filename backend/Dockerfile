@@ -15,7 +15,9 @@ RUN chmod +x /app/app.jar
 EXPOSE 8080
 
 # Container-aware JVM settings with Java 17 compatibility
-ENV JAVA_OPTS="-Xms512m -Xmx2g \
+# FIX: Removed -Xmx2g to rely on MaxRAMPercentage for dynamic heap sizing
+# With 2GB ECS container: 75% = 1536MB heap, leaving 512MB for metaspace/threads/native
+ENV JAVA_OPTS="-Xms512m \
                -XX:+UseG1GC \
                -XX:MaxGCPauseMillis=200 \
                -XX:+UseContainerSupport \

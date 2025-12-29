@@ -9,6 +9,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -52,6 +54,11 @@ public class BinomClient {
 
     @Value("${app.binom.tracking.url:}")
     private String trackingUrl; // For click tracking
+
+    // Per-campaign locks to prevent race conditions when multiple orders update the same campaign
+    // Key: campaignId, Value: ReentrantLock for that campaign
+    private final ConcurrentHashMap<String, ReentrantLock> campaignLocks =
+            new ConcurrentHashMap<>();
 
     public BinomClient(
             @Qualifier("binomRestTemplate") RestTemplate restTemplate,
@@ -129,7 +136,7 @@ public class BinomClient {
                                             "amount",
                                             request.getPayout() != null
                                                     ? request.getPayout()
-                                                    : 0.05); // Use request payout if available
+                                                    : 0.0); // Use request payout if available
                                     offerData.put(
                                             "currency",
                                             request.getPayoutCurrency() != null
@@ -181,182 +188,222 @@ public class BinomClient {
 
     /**
      * Assign offer to campaign - follows the working script pattern Gets campaign, adds offer to
-     * paths, updates campaign
+     * paths, updates campaign SYNCHRONIZED: Uses per-campaign locks to prevent race conditions when
+     * multiple orders try to update the same campaign simultaneously
      */
     public AssignOfferResponse assignOfferToCampaign(String campaignId, String offerId) {
-        String endpoint = String.format("/public/api/v1/campaign/%s", campaignId);
-        String url = apiUrl + endpoint;
+        // CRITICAL: Acquire lock for this specific campaign to prevent concurrent modifications
+        // This prevents the lost update problem when multiple orders assign offers simultaneously
+        ReentrantLock lock = campaignLocks.computeIfAbsent(campaignId, k -> new ReentrantLock());
 
-        return circuitBreaker.executeSupplier(
-                () ->
-                        writeRetry.executeSupplier(
-                                () -> {
-                                    // First, get the existing campaign
-                                    HttpHeaders headers = createAuthHeaders();
-                                    HttpEntity<String> getEntity = new HttpEntity<>("", headers);
+        lock.lock();
+        try {
+            log.debug(
+                    "Acquired lock for campaign {} to assign offer {} (thread: {})",
+                    campaignId,
+                    offerId,
+                    Thread.currentThread().getName());
 
-                                    ResponseEntity<Map> getResponse =
-                                            restTemplate.exchange(
-                                                    url, HttpMethod.GET, getEntity, Map.class);
+            String endpoint = String.format("/public/api/v1/campaign/%s", campaignId);
+            String url = apiUrl + endpoint;
 
-                                    if (!getResponse.getStatusCode().is2xxSuccessful()
-                                            || getResponse.getBody() == null) {
-                                        throw new BinomApiException(
-                                                "Failed to get campaign " + campaignId);
-                                    }
+            return circuitBreaker.executeSupplier(
+                    () ->
+                            writeRetry.executeSupplier(
+                                    () -> {
+                                        // First, get the existing campaign
+                                        HttpHeaders headers = createAuthHeaders();
+                                        HttpEntity<String> getEntity =
+                                                new HttpEntity<>("", headers);
 
-                                    @SuppressWarnings("unchecked")
-                                    Map<String, Object> campaign =
-                                            (Map<String, Object>) getResponse.getBody();
+                                        ResponseEntity<Map> getResponse =
+                                                restTemplate.exchange(
+                                                        url, HttpMethod.GET, getEntity, Map.class);
 
-                                    // Extract existing offers from campaign
-                                    @SuppressWarnings("unchecked")
-                                    Map<String, Object> customRotation =
-                                            (Map<String, Object>) campaign.get("customRotation");
-                                    @SuppressWarnings("unchecked")
-                                    List<Map<String, Object>> defaultPaths =
-                                            castToListOfMaps(customRotation.get("defaultPaths"));
-                                    Map<String, Object> path = defaultPaths.get(0);
-                                    @SuppressWarnings("unchecked")
-                                    List<Map<String, Object>> existingOffers =
-                                            castToListOfMaps(
-                                                    path.getOrDefault("offers", new ArrayList<>()));
+                                        if (!getResponse.getStatusCode().is2xxSuccessful()
+                                                || getResponse.getBody() == null) {
+                                            throw new BinomApiException(
+                                                    "Failed to get campaign " + campaignId);
+                                        }
 
-                                    // Check if offer already exists
-                                    for (Map<String, Object> offer : existingOffers) {
-                                        if (String.valueOf(offer.get("offerId")).equals(offerId)) {
+                                        @SuppressWarnings("unchecked")
+                                        Map<String, Object> campaign =
+                                                (Map<String, Object>) getResponse.getBody();
+
+                                        // Extract existing offers from campaign
+                                        @SuppressWarnings("unchecked")
+                                        Map<String, Object> customRotation =
+                                                (Map<String, Object>)
+                                                        campaign.get("customRotation");
+                                        @SuppressWarnings("unchecked")
+                                        List<Map<String, Object>> defaultPaths =
+                                                castToListOfMaps(
+                                                        customRotation.get("defaultPaths"));
+                                        Map<String, Object> path = defaultPaths.get(0);
+                                        @SuppressWarnings("unchecked")
+                                        List<Map<String, Object>> existingOffers =
+                                                castToListOfMaps(
+                                                        path.getOrDefault(
+                                                                "offers", new ArrayList<>()));
+
+                                        // Check if offer already exists
+                                        for (Map<String, Object> offer : existingOffers) {
+                                            if (String.valueOf(offer.get("offerId"))
+                                                    .equals(offerId)) {
+                                                log.info(
+                                                        "Offer {} already exists in campaign {}",
+                                                        offerId,
+                                                        campaignId);
+                                                return AssignOfferResponse.builder()
+                                                        .campaignId(campaignId)
+                                                        .offerId(offerId)
+                                                        .status("ALREADY_ASSIGNED")
+                                                        .build();
+                                            }
+                                        }
+
+                                        // Create new offer structure (matching script)
+                                        Map<String, Object> newOffer = new HashMap<>();
+                                        newOffer.put("offerId", Integer.parseInt(offerId));
+                                        newOffer.put("campaignId", 0);
+                                        newOffer.put("directUrl", ""); // CRITICAL: Must be present
+                                        newOffer.put("enabled", true);
+                                        newOffer.put("weight", 100);
+
+                                        // Add new offer to the list
+                                        List<Map<String, Object>> updatedOffers =
+                                                new ArrayList<>(existingOffers);
+                                        updatedOffers.add(newOffer);
+
+                                        // Build update payload (matching Binom API documentation)
+                                        Map<String, Object> updatePayload = new HashMap<>();
+                                        updatePayload.put("name", campaign.get("name"));
+                                        updatePayload.put(
+                                                "key", campaign.get("key")); // Add key field
+                                        updatePayload.put(
+                                                "groupUuid",
+                                                campaign.get("groupUuid")); // Add groupUuid
+                                        updatePayload.put(
+                                                "trafficSourceId", campaign.get("trafficSourceId"));
+
+                                        // Extract cost information properly
+                                        @SuppressWarnings("unchecked")
+                                        Map<String, Object> cost =
+                                                (Map<String, Object>)
+                                                        campaign.getOrDefault(
+                                                                "cost", new HashMap<>());
+                                        @SuppressWarnings("unchecked")
+                                        Map<String, Object> money =
+                                                (Map<String, Object>)
+                                                        cost.getOrDefault("money", new HashMap<>());
+                                        updatePayload.put(
+                                                "costModel", cost.getOrDefault("model", "CPC"));
+                                        updatePayload.put(
+                                                "amount", money.getOrDefault("amount", 0));
+                                        updatePayload.put(
+                                                "currency", money.getOrDefault("currency", "USD"));
+                                        updatePayload.put(
+                                                "isAuto", cost.getOrDefault("isAuto", false));
+
+                                        @SuppressWarnings("unchecked")
+                                        Map<String, Object> hideReferrer =
+                                                (Map<String, Object>) campaign.get("hideReferrer");
+                                        updatePayload.put(
+                                                "hideReferrerType", hideReferrer.get("type"));
+                                        updatePayload.put("domainUuid", campaign.get("domainUuid"));
+                                        updatePayload.put(
+                                                "distributionType",
+                                                campaign.getOrDefault(
+                                                        "distributionType", "NORMAL"));
+
+                                        // Add rotationId if present
+                                        if (campaign.containsKey("rotationId")) {
+                                            updatePayload.put(
+                                                    "rotationId", campaign.get("rotationId"));
+                                        }
+
+                                        // Add campaignSettings (REQUIRED by API - must always be
+                                        // present)
+                                        @SuppressWarnings("unchecked")
+                                        Map<String, Object> campaignSettings =
+                                                (Map<String, Object>)
+                                                        campaign.getOrDefault(
+                                                                "campaignSettings",
+                                                                new HashMap<>());
+                                        // Ensure all required fields are present with defaults
+                                        campaignSettings.putIfAbsent("s2sPostback", "");
+                                        campaignSettings.putIfAbsent("ea", null);
+                                        campaignSettings.putIfAbsent("postbackPercent", 100);
+                                        campaignSettings.putIfAbsent("payoutPercent", 100);
+                                        campaignSettings.putIfAbsent("trafficLossPercent", 0);
+                                        campaignSettings.putIfAbsent("appendToCampaignUrl", "");
+                                        campaignSettings.putIfAbsent("appendToOfferUrl", "");
+                                        campaignSettings.putIfAbsent("appendToLandingUrl", "");
+                                        updatePayload.put("campaignSettings", campaignSettings);
+
+                                        // Build customRotation with updated offers
+                                        Map<String, Object> updatedPath = new HashMap<>();
+                                        updatedPath.put("id", path.getOrDefault("id", 1));
+                                        updatedPath.put(
+                                                "name", path.getOrDefault("name", "Path 1"));
+                                        updatedPath.put(
+                                                "enabled", path.getOrDefault("enabled", true));
+                                        updatedPath.put("weight", path.getOrDefault("weight", 100));
+                                        updatedPath.put(
+                                                "landings",
+                                                path.getOrDefault("landings", new ArrayList<>()));
+                                        updatedPath.put("offers", updatedOffers);
+
+                                        Map<String, Object> updatedCustomRotation = new HashMap<>();
+                                        updatedCustomRotation.put(
+                                                "defaultPaths", List.of(updatedPath));
+                                        updatedCustomRotation.put(
+                                                "rules",
+                                                customRotation.getOrDefault(
+                                                        "rules", new ArrayList<>()));
+                                        updatePayload.put("customRotation", updatedCustomRotation);
+
+                                        // Send update request
+                                        HttpEntity<Map<String, Object>> updateEntity =
+                                                new HttpEntity<>(updatePayload, headers);
+
+                                        log.info(
+                                                "Updating campaign {} to add offer {}",
+                                                campaignId,
+                                                offerId);
+
+                                        ResponseEntity<Map> updateResponse =
+                                                restTemplate.exchange(
+                                                        url,
+                                                        HttpMethod.PUT,
+                                                        updateEntity,
+                                                        Map.class);
+
+                                        if (updateResponse.getStatusCode() == HttpStatus.OK) {
                                             log.info(
-                                                    "Offer {} already exists in campaign {}",
+                                                    "Successfully assigned offer {} to campaign {}",
                                                     offerId,
                                                     campaignId);
+
                                             return AssignOfferResponse.builder()
                                                     .campaignId(campaignId)
                                                     .offerId(offerId)
-                                                    .status("ALREADY_ASSIGNED")
+                                                    .status("ASSIGNED")
                                                     .build();
                                         }
-                                    }
 
-                                    // Create new offer structure (matching script)
-                                    Map<String, Object> newOffer = new HashMap<>();
-                                    newOffer.put("offerId", Integer.parseInt(offerId));
-                                    newOffer.put("campaignId", 0);
-                                    newOffer.put("directUrl", ""); // CRITICAL: Must be present
-                                    newOffer.put("enabled", true);
-                                    newOffer.put("weight", 100);
-
-                                    // Add new offer to the list
-                                    List<Map<String, Object>> updatedOffers =
-                                            new ArrayList<>(existingOffers);
-                                    updatedOffers.add(newOffer);
-
-                                    // Build update payload (matching Binom API documentation)
-                                    Map<String, Object> updatePayload = new HashMap<>();
-                                    updatePayload.put("name", campaign.get("name"));
-                                    updatePayload.put("key", campaign.get("key")); // Add key field
-                                    updatePayload.put(
-                                            "groupUuid",
-                                            campaign.get("groupUuid")); // Add groupUuid
-                                    updatePayload.put(
-                                            "trafficSourceId", campaign.get("trafficSourceId"));
-
-                                    // Extract cost information properly
-                                    @SuppressWarnings("unchecked")
-                                    Map<String, Object> cost =
-                                            (Map<String, Object>)
-                                                    campaign.getOrDefault("cost", new HashMap<>());
-                                    @SuppressWarnings("unchecked")
-                                    Map<String, Object> money =
-                                            (Map<String, Object>)
-                                                    cost.getOrDefault("money", new HashMap<>());
-                                    updatePayload.put(
-                                            "costModel", cost.getOrDefault("model", "CPC"));
-                                    updatePayload.put("amount", money.getOrDefault("amount", 0));
-                                    updatePayload.put(
-                                            "currency", money.getOrDefault("currency", "USD"));
-                                    updatePayload.put("isAuto", cost.getOrDefault("isAuto", false));
-
-                                    @SuppressWarnings("unchecked")
-                                    Map<String, Object> hideReferrer =
-                                            (Map<String, Object>) campaign.get("hideReferrer");
-                                    updatePayload.put("hideReferrerType", hideReferrer.get("type"));
-                                    updatePayload.put("domainUuid", campaign.get("domainUuid"));
-                                    updatePayload.put(
-                                            "distributionType",
-                                            campaign.getOrDefault("distributionType", "NORMAL"));
-
-                                    // Add rotationId if present
-                                    if (campaign.containsKey("rotationId")) {
-                                        updatePayload.put("rotationId", campaign.get("rotationId"));
-                                    }
-
-                                    // Add campaignSettings (REQUIRED by API - must always be
-                                    // present)
-                                    @SuppressWarnings("unchecked")
-                                    Map<String, Object> campaignSettings =
-                                            (Map<String, Object>)
-                                                    campaign.getOrDefault(
-                                                            "campaignSettings", new HashMap<>());
-                                    // Ensure all required fields are present with defaults
-                                    campaignSettings.putIfAbsent("s2sPostback", "");
-                                    campaignSettings.putIfAbsent("ea", null);
-                                    campaignSettings.putIfAbsent("postbackPercent", 100);
-                                    campaignSettings.putIfAbsent("payoutPercent", 100);
-                                    campaignSettings.putIfAbsent("trafficLossPercent", 0);
-                                    campaignSettings.putIfAbsent("appendToCampaignUrl", "");
-                                    campaignSettings.putIfAbsent("appendToOfferUrl", "");
-                                    campaignSettings.putIfAbsent("appendToLandingUrl", "");
-                                    updatePayload.put("campaignSettings", campaignSettings);
-
-                                    // Build customRotation with updated offers
-                                    Map<String, Object> updatedPath = new HashMap<>();
-                                    updatedPath.put("id", path.getOrDefault("id", 1));
-                                    updatedPath.put("name", path.getOrDefault("name", "Path 1"));
-                                    updatedPath.put("enabled", path.getOrDefault("enabled", true));
-                                    updatedPath.put("weight", path.getOrDefault("weight", 100));
-                                    updatedPath.put(
-                                            "landings",
-                                            path.getOrDefault("landings", new ArrayList<>()));
-                                    updatedPath.put("offers", updatedOffers);
-
-                                    Map<String, Object> updatedCustomRotation = new HashMap<>();
-                                    updatedCustomRotation.put("defaultPaths", List.of(updatedPath));
-                                    updatedCustomRotation.put(
-                                            "rules",
-                                            customRotation.getOrDefault(
-                                                    "rules", new ArrayList<>()));
-                                    updatePayload.put("customRotation", updatedCustomRotation);
-
-                                    // Send update request
-                                    HttpEntity<Map<String, Object>> updateEntity =
-                                            new HttpEntity<>(updatePayload, headers);
-
-                                    log.info(
-                                            "Updating campaign {} to add offer {}",
-                                            campaignId,
-                                            offerId);
-
-                                    ResponseEntity<Map> updateResponse =
-                                            restTemplate.exchange(
-                                                    url, HttpMethod.PUT, updateEntity, Map.class);
-
-                                    if (updateResponse.getStatusCode() == HttpStatus.OK) {
-                                        log.info(
-                                                "Successfully assigned offer {} to campaign {}",
-                                                offerId,
-                                                campaignId);
-
-                                        return AssignOfferResponse.builder()
-                                                .campaignId(campaignId)
-                                                .offerId(offerId)
-                                                .status("ASSIGNED")
-                                                .build();
-                                    }
-
-                                    throw new BinomApiException(
-                                            "Failed to update campaign: "
-                                                    + updateResponse.getBody());
-                                }));
+                                        throw new BinomApiException(
+                                                "Failed to update campaign: "
+                                                        + updateResponse.getBody());
+                                    }));
+        } finally {
+            lock.unlock();
+            log.debug(
+                    "Released lock for campaign {} after assigning offer {} (thread: {})",
+                    campaignId,
+                    offerId,
+                    Thread.currentThread().getName());
+        }
     }
 
     /**

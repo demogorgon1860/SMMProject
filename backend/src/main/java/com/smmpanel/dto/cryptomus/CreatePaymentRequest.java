@@ -1,6 +1,8 @@
 package com.smmpanel.dto.cryptomus;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import java.math.BigDecimal;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,7 +14,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreatePaymentRequest {
+    @JsonSerialize(using = ToStringSerializer.class)
     private BigDecimal amount;
+
     private String currency;
 
     @JsonProperty("order_id")
@@ -38,6 +42,7 @@ public class CreatePaymentRequest {
     private Integer subtract;
 
     @JsonProperty("discount_percent")
+    @JsonSerialize(using = ToStringSerializer.class)
     private BigDecimal discountPercent;
 
     @JsonProperty("is_payment_multiple")

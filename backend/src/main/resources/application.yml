@@ -410,8 +410,7 @@ app:
       hash-algorithm: SHA-256
       global-salt: ${API_KEY_GLOBAL_SALT:smm-panel-secure-salt-2024}
   cors:
-    allowed-origins: >
-      ${CORS_ORIGINS:http://localhost:3000,https://demo.perfectpanel.com}
+    allowed-origins: "${CORS_ORIGINS:http://localhost:3000,https://demo.perfectpanel.com,https://www.youtubeprovider.com,https://youtubeprovider.com}"
     allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
     allowed-headers: "Authorization,Content-Type,X-API-Key,Accept,Origin"
     allow-credentials: true
@@ -559,15 +558,13 @@ app:
     enabled: ${CRYPTOMUS_ENABLED:true}
     api:
       url: ${CRYPTOMUS_API_URL}
-      ## User API Key for operations
-      user-key: ${CRYPTOMUS_USER_API_KEY}
-      ## Payout API Key for payout operations
-      payout-key: ${CRYPTOMUS_PAYOUT_API_KEY}
+      ## Payment API Key for all operations
+      payment-key: ${CRYPTOMUS_PAYMENT_API_KEY}
       ## Merchant-specific fields (optional for simple user accounts)
       secret: ${CRYPTOMUS_API_SECRET:not-applicable}
     webhook:
       secret: ${CRYPTOMUS_WEBHOOK_SECRET:not-applicable}
-    merchant-id: ${CRYPTOMUS_MERCHANT_ID:not-applicable}
+    merchant-id: ${CRYPTOMUS_MERCHANT_ID}
     min-deposit: ${CRYPTOMUS_MIN_DEPOSIT:5.00}
     timeout: 30000
 
@@ -692,6 +689,17 @@ app:
     profiles:
       path: ${SELENIUM_PROFILES_PATH:./selenium-profiles}
     test-mode: ${TEST_MODE:false}
+
+  # ===============================
+  # INSTAGRAM BOT CONFIGURATION
+  # ===============================
+  instagram:
+    bot:
+      url: ${INSTAGRAM_BOT_URL:http://45.142.211.90:8080}
+      callback-url: ${INSTAGRAM_CALLBACK_BASE_URL:https://youtubeprovider.com}
+      timeout: ${INSTAGRAM_BOT_TIMEOUT:30000}
+      retry-attempts: ${INSTAGRAM_BOT_RETRY_ATTEMPTS:3}
+    enabled: ${INSTAGRAM_ENABLED:true}
       
   # ===============================
   # ADDITIONAL SERVICE CONFIGURATION
@@ -762,6 +770,23 @@ resilience4j:
         failure-rate-threshold: 40
         slow-call-duration-threshold: PT8S
         wait-duration-in-open-state: PT1M
+      # Instagram Bot Circuit Breaker
+      instagram-bot:
+        failure-rate-threshold: ${INSTAGRAM_CB_FAILURE_RATE_THRESHOLD:50}
+        slow-call-rate-threshold: ${INSTAGRAM_CB_SLOW_CALL_RATE_THRESHOLD:40}
+        slow-call-duration-threshold: ${INSTAGRAM_CB_SLOW_CALL_DURATION:PT10S}
+        wait-duration-in-open-state: ${INSTAGRAM_CB_WAIT_DURATION_OPEN:PT30S}
+        minimum-number-of-calls: ${INSTAGRAM_CB_MIN_CALLS:5}
+        sliding-window-size: ${INSTAGRAM_CB_SLIDING_WINDOW_SIZE:10}
+        sliding-window-type: COUNT_BASED
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        record-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.client.ResourceAccessException
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
       # Cryptomus API Circuit Breaker
       cryptomus-api:
         failure-rate-threshold: ${CRYPTOMUS_CB_FAILURE_RATE_THRESHOLD:50}
@@ -812,6 +837,17 @@ resilience4j:
       payment-api:
         max-attempts: 2
         wait-duration: PT3S
+      # Instagram Bot Retry
+      instagram-bot:
+        max-attempts: ${INSTAGRAM_RETRY_MAX_ATTEMPTS:3}
+        wait-duration: ${INSTAGRAM_RETRY_WAIT_DURATION:PT2S}
+        exponential-backoff-multiplier: 2.0
+        retry-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.client.ResourceAccessException
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
       # Cryptomus API Retry
       cryptomus-api:
         max-attempts: ${CRYPTOMUS_RETRY_MAX_ATTEMPTS:3}

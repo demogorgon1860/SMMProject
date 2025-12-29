@@ -85,7 +85,7 @@ public class YouTubeProcessingService {
     @Value("${app.youtube.clip-creation.timeout:300000}")
     private long clipCreationTimeoutMs;
 
-    @Value("${app.order.processing.clip-creation.retry-attempts:2}")
+    @Value("${app.order.processing.clip-creation.retry-attempts:1}")
     private int clipCreationRetryAttempts;
 
     /**
@@ -183,6 +183,7 @@ public class YouTubeProcessingService {
      * <p>CRITICAL: This method is intentionally NOT @Transactional
      */
     public void processYouTubeOrder(Long orderId) {
+        Long videoProcessingId = null;
         try {
             log.info("=== Starting YouTube order processing for order: {} ===", orderId);
 
@@ -199,6 +200,15 @@ public class YouTubeProcessingService {
                     orderId);
 
             // ========================================
+            // FAST TX #1b: Create video_processing record
+            // CRITICAL FIX: This was missing - clips were created but records weren't persisted
+            // ========================================
+            videoProcessingId =
+                    createVideoProcessingRecordForOrder(
+                            orderId, order.getYoutubeVideoId(), order.getLink());
+            log.info("Created video_processing record {} for order {}", videoProcessingId, orderId);
+
+            // ========================================
             // NO TX: Long-Running Clip Creation (60-120s)
             // ========================================
             ClipCreationResult clipResult = createClipWithoutTransaction(order, 3);
@@ -211,6 +221,19 @@ public class YouTubeProcessingService {
                     orderId,
                     clipCreated,
                     clipUrl);
+
+            // ========================================
+            // FAST TX #1c: Update video_processing with clip result
+            // CRITICAL FIX: This was missing - save the clip URL to database
+            // ========================================
+            if (videoProcessingId != null) {
+                updateVideoProcessingWithClipResult(videoProcessingId, clipResult);
+                log.info(
+                        "Updated video_processing {} with clip result: success={}, url={}",
+                        videoProcessingId,
+                        clipCreated,
+                        clipUrl);
+            }
 
             // ========================================
             // Calculate Coefficient (Pure Math, No DB)
@@ -253,6 +276,18 @@ public class YouTubeProcessingService {
             // FAST TX #3: Error Handling Transaction
             // ========================================
             handleProcessingErrorTransactional(orderId, e.getMessage());
+
+            // Also update video_processing if it was created
+            if (videoProcessingId != null) {
+                try {
+                    updateVideoProcessingWithError(videoProcessingId, e.getMessage());
+                } catch (Exception ex) {
+                    log.error(
+                            "Failed to update video_processing error for {}: {}",
+                            videoProcessingId,
+                            ex.getMessage());
+                }
+            }
         }
     }
 
@@ -263,7 +298,7 @@ public class YouTubeProcessingService {
         try {
             log.info("Processing YouTube order from event: orderId={}, userId={}", orderId, userId);
 
-            Order order = orderRepository.findById(orderId).orElse(null);
+            Order order = orderRepository.findByIdWithAllDetails(orderId).orElse(null);
             if (order == null) {
                 log.error("Order not found: orderId={}", orderId);
                 return;
@@ -490,10 +525,10 @@ public class YouTubeProcessingService {
     @Transactional(propagation = Propagation.REQUIRED)
     public OrderProcessingContext initializeOrderProcessing(Long orderId) {
         try {
-            // Get and validate order
+            // Get and validate order with eagerly loaded relationships
             Order order =
                     orderRepository
-                            .findById(orderId)
+                            .findByIdWithAllDetails(orderId)
                             .orElseThrow(
                                     () ->
                                             new VideoProcessingException(
@@ -649,20 +684,27 @@ public class YouTubeProcessingService {
                         .build();
             }
 
-            // CRITICAL: Check if URL is YouTube Shorts - cannot create clips on Shorts
+            // CRITICAL: Check if URL is YouTube Shorts or Live - cannot create clips on these
             String orderLink = order.getLink();
-            if (orderLink != null && orderLink.toLowerCase().contains("/shorts/")) {
+            if (orderLink != null
+                    && (orderLink.toLowerCase().contains("/shorts/")
+                            || orderLink.toLowerCase().contains("/live/"))) {
+                String videoType = orderLink.toLowerCase().contains("/shorts/") ? "Shorts" : "Live";
                 log.info(
-                        "Order {} is YouTube Shorts URL - SKIPPING clip creation immediately."
+                        "Order {} is YouTube {} URL - SKIPPING clip creation immediately."
                                 + " Will use 4x coefficient.",
-                        order.getId());
+                        order.getId(),
+                        videoType);
                 return ClipCreationResult.builder()
                         .success(false)
                         .eligible(false)
-                        .failureType("SHORTS_NOT_SUPPORTED")
-                        .eligibilityReasonCode("SHORTS_NOT_SUPPORTED")
-                        .eligibilityReason("YouTube Shorts do not support clip creation")
-                        .errorMessage("YouTube Shorts do not support clips - using 4x coefficient")
+                        .failureType(videoType.toUpperCase() + "_NOT_SUPPORTED")
+                        .eligibilityReasonCode(videoType.toUpperCase() + "_NOT_SUPPORTED")
+                        .eligibilityReason("YouTube " + videoType + " do not support clip creation")
+                        .errorMessage(
+                                "YouTube "
+                                        + videoType
+                                        + " do not support clips - using 4x coefficient")
                         .totalClipsCreated(0)
                         .clipUrls(java.util.List.of())
                         .build();
@@ -816,6 +858,34 @@ public class YouTubeProcessingService {
                     "Retrieving current view count from YouTube API");
 
             int startCount = youTubeService.getVideoViewCount(context.getVideoId());
+
+            // CRITICAL: Validate startCount - if 0, video is deleted/blocked
+            if (startCount == 0) {
+                log.warn(
+                        "Order {} - Video has 0 views (deleted, blocked, or unavailable)."
+                                + " Marking as PARTIAL using shared method",
+                        context.getOrderId());
+
+                // Use shared state transition method for consistency
+                StateTransitionResult result =
+                        orderStateManagementService.transitionToPartialVideoUnavailable(
+                                context.getOrderId(),
+                                "Video deleted or unavailable (0 views detected)");
+
+                if (result.isSuccess()) {
+                    log.info(
+                            "Order {} successfully marked as PARTIAL, processing stopped",
+                            context.getOrderId());
+                } else {
+                    log.error(
+                            "Failed to mark order {} as PARTIAL: {}",
+                            context.getOrderId(),
+                            result.getErrorMessage());
+                }
+
+                return CompletableFuture.completedFuture(null);
+            }
+
             updateOrderStartCount(context.getOrderId(), startCount);
 
             // PHASE 2: CLIP CREATION
@@ -1892,6 +1962,155 @@ public class YouTubeProcessingService {
 
             kafkaTemplate.send("smm.video.processing", processingId);
             log.info("Retrying video processing {}", processingId);
+        }
+    }
+
+    // ========================================
+    // VIDEO_PROCESSING PERSISTENCE FIX
+    // ========================================
+
+    /**
+     * CRITICAL FIX: Create video_processing record for order This was missing from the main flow -
+     * clips were created but records weren't saved
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Long createVideoProcessingRecordForOrder(
+            Long orderId, String videoId, String originalUrl) {
+        try {
+            log.info("Creating video_processing record for order {}", orderId);
+
+            // Load order
+            Order order =
+                    orderRepository
+                            .findById(orderId)
+                            .orElseThrow(
+                                    () ->
+                                            new VideoProcessingException(
+                                                    "Order not found: " + orderId));
+
+            // Create video processing record
+            VideoProcessing processing =
+                    VideoProcessing.builder()
+                            .order(order)
+                            .originalUrl(originalUrl)
+                            .videoId(videoId)
+                            .videoType(youTubeProcessingHelper.determineVideoType(originalUrl))
+                            .status(VideoProcessingStatus.PROCESSING)
+                            .processingAttempts(1)
+                            .clipCreated(false)
+                            .createdAt(LocalDateTime.now())
+                            .build();
+
+            processing = videoProcessingRepository.save(processing);
+
+            log.info(
+                    "Created video_processing record {} for order {}", processing.getId(), orderId);
+            return processing.getId();
+
+        } catch (Exception e) {
+            log.error(
+                    "Failed to create video_processing record for order {}: {}",
+                    orderId,
+                    e.getMessage(),
+                    e);
+            // Don't throw - allow processing to continue without video_processing record
+            return null;
+        }
+    }
+
+    /**
+     * CRITICAL FIX: Update video_processing with clip result This was missing from the main flow -
+     * clips were created but URLs weren't saved
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void updateVideoProcessingWithClipResult(
+            Long videoProcessingId, ClipCreationResult clipResult) {
+        try {
+            log.info("Updating video_processing {} with clip result", videoProcessingId);
+
+            VideoProcessing processing =
+                    videoProcessingRepository
+                            .findById(videoProcessingId)
+                            .orElseThrow(
+                                    () ->
+                                            new VideoProcessingException(
+                                                    "VideoProcessing not found: "
+                                                            + videoProcessingId));
+
+            if (clipResult != null && clipResult.isSuccess()) {
+                processing.setClipCreated(true);
+                processing.setClipUrl(clipResult.getClipUrl());
+                processing.setStatus(VideoProcessingStatus.COMPLETED);
+                processing.setCompletedAt(LocalDateTime.now());
+                log.info(
+                        "Set clip URL for video_processing {}: {}",
+                        videoProcessingId,
+                        clipResult.getClipUrl());
+            } else {
+                processing.setClipCreated(false);
+                processing.setStatus(VideoProcessingStatus.COMPLETED);
+                processing.setCompletedAt(LocalDateTime.now());
+                if (clipResult != null && clipResult.getErrorMessage() != null) {
+                    processing.setErrorMessage(clipResult.getErrorMessage());
+                    log.info(
+                            "Clip creation failed for video_processing {}: {}",
+                            videoProcessingId,
+                            clipResult.getErrorMessage());
+                }
+            }
+
+            processing.setUpdatedAt(LocalDateTime.now());
+            videoProcessingRepository.save(processing);
+
+            log.info(
+                    "Successfully updated video_processing {} with clip result: success={}",
+                    videoProcessingId,
+                    clipResult != null && clipResult.isSuccess());
+
+        } catch (Exception e) {
+            log.error(
+                    "Failed to update video_processing {} with clip result: {}",
+                    videoProcessingId,
+                    e.getMessage(),
+                    e);
+            // Don't throw - allow processing to continue
+        }
+    }
+
+    /**
+     * CRITICAL FIX: Update video_processing with error Called in catch block to mark
+     * video_processing as failed
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void updateVideoProcessingWithError(Long videoProcessingId, String errorMessage) {
+        try {
+            log.info(
+                    "Updating video_processing {} with error: {}", videoProcessingId, errorMessage);
+
+            VideoProcessing processing =
+                    videoProcessingRepository
+                            .findById(videoProcessingId)
+                            .orElseThrow(
+                                    () ->
+                                            new VideoProcessingException(
+                                                    "VideoProcessing not found: "
+                                                            + videoProcessingId));
+
+            processing.setStatus(VideoProcessingStatus.FAILED);
+            processing.setErrorMessage(errorMessage);
+            processing.setLastErrorAt(LocalDateTime.now());
+            processing.setUpdatedAt(LocalDateTime.now());
+            videoProcessingRepository.save(processing);
+
+            log.info("Successfully updated video_processing {} with error", videoProcessingId);
+
+        } catch (Exception e) {
+            log.error(
+                    "Failed to update video_processing {} with error: {}",
+                    videoProcessingId,
+                    e.getMessage(),
+                    e);
+            // Don't throw - this is already in error handling
         }
     }
 }

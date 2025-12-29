@@ -127,6 +127,13 @@ public class User implements UserDetails {
     @Column(name = "api_key_last_rotated")
     private LocalDateTime apiKeyLastRotated;
 
+    @Column(name = "api_key_preview", length = 13)
+    private String apiKeyPreview;
+
+    @Column(name = "api_key_active")
+    @Builder.Default
+    private Boolean apiKeyActive = false;
+
     @Column(name = "total_spent", precision = 12, scale = 2)
     @Builder.Default
     private BigDecimal totalSpent = BigDecimal.ZERO;

@@ -17,9 +17,6 @@ public class CreateDepositRequest {
     @DecimalMax(value = "10000.0", message = "Maximum deposit amount is $10,000.00")
     private BigDecimal amount;
 
-    @NotBlank(message = "Currency is required")
-    @Pattern(
-            regexp = "^(BTC|ETH|USDT|LTC|USDC)$",
-            message = "Supported currencies: BTC, ETH, USDT, LTC, USDC")
+    // Optional currency field (not used - we create USD invoices that accept any crypto)
     private String currency;
 }

@@ -10,11 +10,17 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 // Pages
 import { Dashboard } from './pages/Dashboard';
+import { Services } from './pages/Services';
 import { Orders } from './pages/Orders';
 import { NewOrder } from './pages/NewOrder';
+import { ProfileSettings } from './pages/ProfileSettings';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { AdminOrders } from './pages/AdminOrders';
+import { AdminPayments } from './pages/AdminPayments';
+import { AdminRefills } from './pages/AdminRefills';
 import { ServicesTest } from './pages/ServicesTest';
+import { TermsOfService } from './pages/TermsOfService';
+import { AddFunds } from './pages/AddFunds';
 
 function App() {
   const { checkAuth } = useAuthStore();
@@ -29,7 +35,9 @@ function App() {
         {/* Public routes */}
         <Route path="/login" element={<LoginForm />} />
         <Route path="/register" element={<RegisterForm />} />
-        
+        <Route path="/terms" element={<TermsOfService />} />
+        <Route path="/services-public" element={<Services />} />
+
         {/* Protected routes */}
         <Route
           path="/"
@@ -41,10 +49,12 @@ function App() {
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
+          <Route path="services" element={<Services />} />
           <Route path="orders" element={<Orders />} />
           <Route path="orders/new" element={<NewOrder />} />
-          <Route path="services-test" element={<ServicesTest />} />
-          
+          <Route path="add-funds" element={<AddFunds />} />
+          <Route path="profile" element={<ProfileSettings />} />
+
           {/* Admin routes */}
           <Route
             path="admin"
@@ -59,6 +69,30 @@ function App() {
             element={
               <ProtectedRoute requiredRole="ADMIN">
                 <AdminOrders />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="admin/payments"
+            element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <AdminPayments />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="admin/refills"
+            element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <AdminRefills />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="services-test"
+            element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <ServicesTest />
               </ProtectedRoute>
             }
           />

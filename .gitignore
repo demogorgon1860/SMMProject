@@ -226,3 +226,4 @@ public_key.pem
 # Selenium browser profiles - contains lock files incompatible with Windows Git
 selenium-profiles/
 backend/nul
+nul

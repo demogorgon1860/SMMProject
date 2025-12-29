@@ -166,7 +166,7 @@ services:
           memory: 2G
 
   selenium-chrome:
-    image: selenium/node-chrome:4.16.1-20231219
+    image: selenium/node-chrome:4.16.1-20231219  # Official Selenium Chrome node
     # Remove container_name to allow scaling
     restart: unless-stopped
     shm_size: '4gb'  # Increased from 2gb - prevents Chrome crashes (~667MB per session for 6 sessions)
@@ -218,6 +218,8 @@ services:
     restart: unless-stopped
     # Remove ports mapping - nginx will handle external access
     # Internal port 8080 is accessible within the Docker network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # Access host machine (for Instagram bot)
     env_file:
       - .env.docker
     environment:
@@ -232,6 +234,10 @@ services:
       # Connection pool per instance (75 total / 3 instances = 25 each)
       DB_MAX_POOL_SIZE: 25
       DB_MIN_IDLE: 8
+      # Instagram bot running on host machine (not in Docker)
+      INSTAGRAM_BOT_URL: http://host.docker.internal:8080
+      INSTAGRAM_CALLBACK_BASE_URL: ${INSTAGRAM_CALLBACK_BASE_URL:-http://45.142.211.90}
+      INSTAGRAM_ENABLED: ${INSTAGRAM_ENABLED:-true}
       # Disable OpenTelemetry/Jaeger tracing completely
       OTEL_SDK_DISABLED: true
       OTEL_EXPORTER_OTLP_ENABLED: false

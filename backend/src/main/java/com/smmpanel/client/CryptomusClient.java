@@ -9,8 +9,6 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -29,7 +27,7 @@ public class CryptomusClient {
 
     public CryptomusClient(
             @org.springframework.beans.factory.annotation.Qualifier("cryptomusRestTemplate") RestTemplate restTemplate,
-            @org.springframework.beans.factory.annotation.Qualifier("redisObjectMapper") ObjectMapper objectMapper,
+            ObjectMapper objectMapper,
             @org.springframework.beans.factory.annotation.Qualifier("cryptomusCircuitBreaker") io.github.resilience4j.circuitbreaker.CircuitBreaker circuitBreaker,
             @org.springframework.beans.factory.annotation.Qualifier("cryptomusReadRetry") io.github.resilience4j.retry.Retry readRetry,
             @org.springframework.beans.factory.annotation.Qualifier("cryptomusWriteRetry") io.github.resilience4j.retry.Retry writeRetry) {
@@ -46,13 +44,9 @@ public class CryptomusClient {
     @Value("${app.cryptomus.api.url:https://api.cryptomus.com/v2}")
     private String apiUrlV2;
 
-    // User API Key for user operations
-    @Value("${app.cryptomus.api.user-key}")
-    private String userApiKey;
-
-    // Payout API Key for payout operations
-    @Value("${app.cryptomus.api.payout-key}")
-    private String payoutApiKey;
+    // Payment API Key (used for all operations)
+    @Value("${app.cryptomus.api.payment-key}")
+    private String paymentApiKey;
 
     @Value("${app.cryptomus.merchant-id:not-applicable}")
     private String merchantId;
@@ -211,25 +205,34 @@ public class CryptomusClient {
 
     private String generateSignature(String data, boolean isUserApi) {
         try {
-            // Select the appropriate API key
-            String apiKey = isUserApi ? userApiKey : payoutApiKey;
+            // Use payment API key for all operations
+            String apiKey = paymentApiKey;
 
-            // Create MD5 hash of the data
+            // Cryptomus signature algorithm (from docs):
+            // $sign = md5(base64_encode($data) . $API_KEY);
+            // 1. Base64 encode the JSON body
+            // 2. Concatenate: base64(body) + apiKey
+            // 3. MD5 hash the combined string (return as hex string)
+
+            // Step 1: Base64 encode the data
+            String base64Data =
+                    Base64.getEncoder().encodeToString(data.getBytes(StandardCharsets.UTF_8));
+
+            // Step 2: Concatenate with API key
+            String combined = base64Data + apiKey;
+
+            // Step 3: MD5 hash and convert to hex string
             MessageDigest md5 = MessageDigest.getInstance("MD5");
-            byte[] dataBytes = data.getBytes(StandardCharsets.UTF_8);
-            byte[] hashBytes = md5.digest(dataBytes);
+            byte[] hashBytes = md5.digest(combined.getBytes(StandardCharsets.UTF_8));
 
-            // Convert to base64
-            String base64Hash = Base64.getEncoder().encodeToString(hashBytes);
-
-            // Create HMAC-SHA256 signature
-            Mac sha256Hmac = Mac.getInstance("HmacSHA256");
-            SecretKeySpec secretKey =
-                    new SecretKeySpec(apiKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-            sha256Hmac.init(secretKey);
-
-            byte[] signatureBytes = sha256Hmac.doFinal(base64Hash.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(signatureBytes);
+            // Convert MD5 bytes to hex string (NOT base64!)
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hashBytes) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
 
         } catch (Exception e) {
             log.error("Failed to generate signature: {}", e.getMessage());

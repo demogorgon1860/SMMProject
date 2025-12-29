@@ -73,9 +73,9 @@ export const orderAPI = {
     return response.data;
   },
   
-  getOrders: async (page = 0, size = 20) => {
+  getOrders: async (status?: string, dateFrom?: string, dateTo?: string, page = 0, size = 100) => {
     const response = await api.get('/v1/orders', {
-      params: { page, size }
+      params: { status, dateFrom, dateTo, page, size }
     });
     return response.data;
   },
@@ -120,6 +120,24 @@ export const userAPI = {
   },
 };
 
+// API Key Management
+export const apiKeyAPI = {
+  generate: async () => {
+    const response = await api.post('/v1/apikey/generate');
+    return response.data;
+  },
+
+  rotate: async () => {
+    const response = await api.post('/v1/apikey/rotate');
+    return response.data;
+  },
+
+  getStatus: async () => {
+    const response = await api.get('/v1/apikey/status');
+    return response.data;
+  },
+};
+
 // Admin API
 export const adminAPI = {
   getDashboard: async () => {
@@ -127,9 +145,9 @@ export const adminAPI = {
     return response.data;
   },
 
-  getAllOrders: async (status?: string, page = 0, size = 20) => {
+  getAllOrders: async (status?: string, username?: string, dateFrom?: string, dateTo?: string, page = 0, size = 100) => {
     const response = await api.get('/v2/admin/orders', {
-      params: { status, page, size }
+      params: { status, username, dateFrom, dateTo, page, size }
     });
     return response.data;
   },
@@ -143,10 +161,34 @@ export const adminAPI = {
     const response = await api.post(`/v2/admin/orders/${orderId}/actions`, { action });
     return response.data;
   },
-  
+
   getUsers: async (page = 0, size = 20) => {
     const response = await api.get('/v2/admin/users', {
       params: { page, size }
+    });
+    return response.data;
+  },
+
+  getAllDeposits: async (status?: string, page = 0, size = 100) => {
+    const response = await api.get('/v2/admin/deposits', {
+      params: { status, page, size }
+    });
+    return response.data;
+  },
+
+  createRefill: async (orderId: number) => {
+    const response = await api.post(`/v2/admin/orders/${orderId}/refill`);
+    return response.data;
+  },
+
+  getRefillHistory: async (orderId: number) => {
+    const response = await api.get(`/v2/admin/orders/${orderId}/refills`);
+    return response.data;
+  },
+
+  getAllRefills: async (page = 0, size = 100) => {
+    const response = await api.get('/v2/admin/refills', {
+      params: { page, size, sort: 'createdAt,desc' }
     });
     return response.data;
   },
@@ -196,6 +238,32 @@ export const seleniumAPI = {
   
   getClipStatus: async (jobId: string) => {
     const response = await api.get(`/v2/admin/selenium/clip/${jobId}/status`);
+    return response.data;
+  },
+};
+
+// Deposits API
+export const depositsAPI = {
+  createDeposit: async (amount: number) => {
+    const response = await api.post('/v1/deposits/create', {
+      amount,
+      currency: 'USD'
+    });
+    return response.data;
+  },
+
+  getDeposits: async (page = 0, size = 100) => {
+    const response = await api.get(`/v1/deposits?page=${page}&size=${size}`);
+    return response.data;
+  },
+
+  getDepositById: async (id: number) => {
+    const response = await api.get(`/v1/deposits/${id}`);
+    return response.data;
+  },
+
+  getRecentDeposits: async () => {
+    const response = await api.get('/v1/deposits/recent');
     return response.data;
   },
 };

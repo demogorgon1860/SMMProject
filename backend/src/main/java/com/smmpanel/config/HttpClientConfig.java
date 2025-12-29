@@ -147,6 +147,12 @@ public class HttpClientConfig {
         return createCustomRestTemplateWithLimits("YouTube", 50, 20);
     }
 
+    @Bean("instagramBotRestTemplate")
+    public RestTemplate instagramBotRestTemplate() {
+        // Instagram bot needs longer timeouts for processing
+        return createCustomRestTemplateWithLimits("InstagramBot", 50, 20);
+    }
+
     private RestTemplate createCustomRestTemplateWithLimits(
             String clientName, int maxTotal, int maxPerRoute) {
         ConnectionConfig connectionConfig =

@@ -6,6 +6,7 @@ import java.util.Arrays;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -68,7 +69,11 @@ public class SecurityConfig {
                         session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(
                         auth ->
-                                auth.requestMatchers(
+                                auth
+                                        // CRITICAL: Allow CORS preflight OPTIONS requests FIRST
+                                        .requestMatchers(HttpMethod.OPTIONS, "/**")
+                                        .permitAll()
+                                        .requestMatchers(
                                                 // Authentication endpoints (singular - actions)
                                                 "/api/v*/auth/**",
                                                 "/api/auth/**",
@@ -88,6 +93,7 @@ public class SecurityConfig {
 
                                                 // Webhooks (plural - collections)
                                                 "/api/v*/webhooks/**",
+                                                "/api/v*/payments/cryptomus/callback",
 
                                                 // API Documentation
                                                 "/v3/api-docs/**",

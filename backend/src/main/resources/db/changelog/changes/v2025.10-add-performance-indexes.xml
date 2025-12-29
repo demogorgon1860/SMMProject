@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="add-critical-performance-indexes-1" author="system">
+        <comment>
+            CRITICAL: Fix N+1 query problem in video_processing table
+            Schema analysis showed 767,674 sequential scans with 0 index scans on order_id
+            Missing index causes massive performance degradation in BinomSyncScheduler
+        </comment>
+
+        <!-- INDEX #1: Most Critical - Fix N+1 Query Problem -->
+        <createIndex tableName="video_processing" indexName="idx_video_processing_order_id">
+            <column name="order_id"/>
+        </createIndex>
+
+        <!-- INDEX #2: Composite FK index for partition queries -->
+        <createIndex tableName="video_processing" indexName="idx_video_processing_order_composite">
+            <column name="order_id"/>
+            <column name="order_created_at"/>
+        </createIndex>
+
+        <!-- INDEX #3: Composite index for common query pattern (order_id + status) -->
+        <createIndex tableName="video_processing" indexName="idx_video_processing_order_status">
+            <column name="order_id"/>
+            <column name="status"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex tableName="video_processing" indexName="idx_video_processing_order_id"/>
+            <dropIndex tableName="video_processing" indexName="idx_video_processing_order_composite"/>
+            <dropIndex tableName="video_processing" indexName="idx_video_processing_order_status"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

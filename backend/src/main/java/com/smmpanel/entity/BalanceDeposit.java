@@ -8,7 +8,9 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.Type;
+import org.hibernate.type.SqlTypes;
 
 @Data
 @Entity
@@ -37,8 +39,11 @@ public class BalanceDeposit {
     @Column(name = "order_id", unique = true, nullable = false)
     private String orderId;
 
-    @Column(name = "amount_usdt", nullable = false, precision = 10, scale = 2)
+    @Column(name = "amount_usd", nullable = false, precision = 10, scale = 2)
     private BigDecimal amountUsdt;
+
+    @Column(name = "currency", nullable = false, length = 10)
+    private String currency;
 
     @Column(name = "crypto_amount", precision = 20, scale = 8)
     private BigDecimal cryptoAmount;
@@ -66,12 +71,7 @@ public class BalanceDeposit {
     @Column(name = "failed_at")
     private LocalDateTime failedAt;
 
-    @Column(name = "refunded_at")
-    private LocalDateTime refundedAt;
-
-    @Column(name = "refund_amount", precision = 10, scale = 2)
-    private BigDecimal refundAmount;
-
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "webhook_data", columnDefinition = "JSONB")
     private String webhookData;
 

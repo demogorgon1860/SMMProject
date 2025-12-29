@@ -16,6 +16,8 @@ public interface VideoProcessingRepository extends JpaRepository<VideoProcessing
 
     Optional<VideoProcessing> findByOrderId(Long orderId);
 
+    void deleteByOrderId(Long orderId);
+
     List<VideoProcessing> findByStatusOrderByCreatedAtAsc(VideoProcessingStatus status);
 
     List<VideoProcessing> findByVideoIdOrderByCreatedAtDesc(String videoId);

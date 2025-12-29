@@ -1,0 +1,178 @@
+[
+    {
+        "name": "DB_PORT",
+        "value": "5432"
+    },
+    {
+        "name": "CRYPTOMUS_USER_API_KEY",
+        "value": "cbb847e3f5d0d8cb63112dac193e1b16d2008273"
+    },
+    {
+        "name": "TZ",
+        "value": "UTC"
+    },
+    {
+        "name": "DB_USER",
+        "value": "smmadmin"
+    },
+    {
+        "name": "YOUTUBE_PROCESSING_ENABLED",
+        "value": "true"
+    },
+    {
+        "name": "SPRING_PROFILES_ACTIVE",
+        "value": "production"
+    },
+    {
+        "name": "BINOM_API_URL",
+        "value": "http://148.113.47.108"
+    },
+    {
+        "name": "OTEL_TRACES_EXPORTER",
+        "value": "none"
+    },
+    {
+        "name": "OTEL_LOGS_EXPORTER",
+        "value": "none"
+    },
+    {
+        "name": "DB_NAME",
+        "value": "smm_panel"
+    },
+    {
+        "name": "CRYPTOMUS_PAYOUT_API_KEY",
+        "value": "2RuKolX9PE70AZf4M4iM5UtdZKpKr9dGrAPq3qQqGUXHlTR30kMSJynGkJ2h7kV4hUuIbIWhwjOHQP4qPDKvdRk6aZsSdCrX6Vks6hzsyS6hyoa5RphAE7tAtTtV7Ww8"
+    },
+    {
+        "name": "DB_MIN_IDLE",
+        "value": "10"
+    },
+    {
+        "name": "MANAGEMENT_OTLP_TRACING_ENDPOINT",
+        "value": ""
+    },
+    {
+        "name": "API_KEY_GLOBAL_SALT",
+        "value": "c73a93d6ebd0886f214d390f2ef4466f924ee2edcd1af019f2b9b9244b91f286"
+    },
+    {
+        "name": "KAFKA_BOOTSTRAP_SERVERS",
+        "value": "172.31.43.232:9092"
+    },
+    {
+        "name": "OAUTH2_ENABLED",
+        "value": "false"
+    },
+    {
+        "name": "REDIS_PORT",
+        "value": "6379"
+    },
+    {
+        "name": "SPRING_JPA_SHOW_SQL",
+        "value": "false"
+    },
+    {
+        "name": "SELENIUM_HUB_URL",
+        "value": "http://172.31.1.247:4444"
+    },
+    {
+        "name": "JWT_SECRET",
+        "value": "Mhd6YElbFvskMPTHMGYafbwnboiGhQSacGgeF4NJ2eDlpu6HjvHmUG5jjXVWuI9XxFfLPyvaISnV/rqotvUkMg=="
+    },
+    {
+        "name": "BINOM_API_KEY",
+        "value": "8f25ea1198f24b9dbcd1ad6efbed8d37fe8b10988b6e2ef2034d21ce627a5da5"
+    },
+    {
+        "name": "SPRING_KAFKA_BOOTSTRAP_SERVERS",
+        "value": "172.31.43.232:9092"
+    },
+    {
+        "name": "BINOM_USERNAME",
+        "value": "admin"
+    },
+    {
+        "name": "BINOM_INTEGRATION_ENABLED",
+        "value": "true"
+    },
+    {
+        "name": "SPRING_KAFKA_CONSUMER_GROUP_ID",
+        "value": "smm-panel-group"
+    },
+    {
+        "name": "REDIS_HOST",
+        "value": "smm-panel-redis.go4zkq.0001.aps1.cache.amazonaws.com"
+    },
+    {
+        "name": "YOUTUBE_CLIP_COEFFICIENT",
+        "value": "3.0"
+    },
+    {
+        "name": "OTEL_SDK_DISABLED",
+        "value": "true"
+    },
+    {
+        "name": "JWT_EXPIRATION_MS",
+        "value": "86400000"
+    },
+    {
+        "name": "SPRING_DEVTOOLS_RESTART_ENABLED",
+        "value": "false"
+    },
+    {
+        "name": "DB_HOST",
+        "value": "smm-panel-db.cjwgkwegg4lb.ap-south-1.rds.amazonaws.com"
+    },
+    {
+        "name": "OTEL_EXPORTER_OTLP_ENABLED",
+        "value": "false"
+    },
+    {
+        "name": "BINOM_TRACKING_URL",
+        "value": "https://youtubershop.top"
+    },
+    {
+        "name": "YOUTUBE_API_KEY",
+        "value": "AIzaSyDLOo4ZKOmY9IxIH5FdLc1opNOiMaCHdO4"
+    },
+    {
+        "name": "CRYPTOMUS_ENABLED",
+        "value": "true"
+    },
+    {
+        "name": "MANAGEMENT_TRACING_ENABLED",
+        "value": "false"
+    },
+    {
+        "name": "SPRING_AUTOCONFIGURE_EXCLUDE",
+        "value": "org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration"
+    },
+    {
+        "name": "OTEL_METRICS_EXPORTER",
+        "value": "none"
+    },
+    {
+        "name": "DB_MAX_POOL_SIZE",
+        "value": "50"
+    },
+    {
+        "name": "HIBERNATE_STATISTICS",
+        "value": "false"
+    },
+    {
+        "name": "CRYPTOMUS_API_URL",
+        "value": "https://api.cryptomus.com"
+    },
+    {
+        "name": "DB_PASSWORD",
+        "value": "SmmPanel2024"
+    },
+    {
+        "name": "BINOM_PASSWORD",
+        "value": "GcnRrxfV33SYBMjMo5NeiHbsIuIuhsZM"
+    },
+    {
+        "name": "YOUTUBE_CLIP_CREATION_ENABLED",
+        "value": "true"
+    }
+]

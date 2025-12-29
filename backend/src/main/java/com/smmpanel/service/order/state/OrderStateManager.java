@@ -32,7 +32,11 @@ public class OrderStateManager {
 
     static {
         VALID_TRANSITIONS.put(
-                OrderStatus.PENDING, EnumSet.of(OrderStatus.IN_PROGRESS, OrderStatus.CANCELLED));
+                OrderStatus.PENDING,
+                EnumSet.of(
+                        OrderStatus.IN_PROGRESS,
+                        OrderStatus.CANCELLED,
+                        OrderStatus.PARTIAL)); // Admin can mark any order as PARTIAL
 
         VALID_TRANSITIONS.put(
                 OrderStatus.IN_PROGRESS,
@@ -40,11 +44,16 @@ public class OrderStateManager {
                         OrderStatus.PROCESSING,
                         OrderStatus.ACTIVE,
                         OrderStatus.CANCELLED,
-                        OrderStatus.HOLDING));
+                        OrderStatus.HOLDING,
+                        OrderStatus.PARTIAL)); // Admin can mark any order as PARTIAL
 
         VALID_TRANSITIONS.put(
                 OrderStatus.PROCESSING,
-                EnumSet.of(OrderStatus.ACTIVE, OrderStatus.CANCELLED, OrderStatus.HOLDING));
+                EnumSet.of(
+                        OrderStatus.ACTIVE,
+                        OrderStatus.CANCELLED,
+                        OrderStatus.HOLDING,
+                        OrderStatus.PARTIAL)); // Admin can mark any order as PARTIAL
 
         VALID_TRANSITIONS.put(
                 OrderStatus.ACTIVE,
@@ -58,13 +67,25 @@ public class OrderStateManager {
                 OrderStatus.PARTIAL, EnumSet.of(OrderStatus.COMPLETED, OrderStatus.HOLDING));
 
         VALID_TRANSITIONS.put(
-                OrderStatus.PAUSED, EnumSet.of(OrderStatus.ACTIVE, OrderStatus.CANCELLED));
+                OrderStatus.PAUSED,
+                EnumSet.of(
+                        OrderStatus.ACTIVE,
+                        OrderStatus.CANCELLED,
+                        OrderStatus.PARTIAL)); // Admin can mark any order as PARTIAL
 
         VALID_TRANSITIONS.put(
                 OrderStatus.HOLDING,
-                EnumSet.of(OrderStatus.ACTIVE, OrderStatus.CANCELLED, OrderStatus.PROCESSING));
+                EnumSet.of(
+                        OrderStatus.ACTIVE,
+                        OrderStatus.CANCELLED,
+                        OrderStatus.PROCESSING,
+                        OrderStatus.PARTIAL)); // Admin can mark any order as PARTIAL
 
-        VALID_TRANSITIONS.put(OrderStatus.COMPLETED, EnumSet.of(OrderStatus.REFILL));
+        VALID_TRANSITIONS.put(
+                OrderStatus.COMPLETED,
+                EnumSet.of(
+                        OrderStatus.REFILL,
+                        OrderStatus.PARTIAL)); // Admin can mark even completed orders as PARTIAL
 
         VALID_TRANSITIONS.put(
                 OrderStatus.REFILL, EnumSet.of(OrderStatus.ACTIVE, OrderStatus.COMPLETED));
@@ -74,28 +95,49 @@ public class OrderStateManager {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @org.springframework.retry.annotation.Retryable(
+            value = {org.springframework.orm.ObjectOptimisticLockingFailureException.class},
+            maxAttempts = 5,
+            backoff =
+                    @org.springframework.retry.annotation.Backoff(
+                            delay = 100,
+                            multiplier = 2.0,
+                            maxDelay = 2000,
+                            random = true))
     public void transitionTo(Order order, OrderStatus newStatus) {
-        OrderStatus currentStatus = order.getStatus();
+        // CRITICAL FIX: Reload order from database to get fresh version
+        // This prevents OptimisticLockingFailureException due to stale entity
+        Order managedOrder =
+                orderRepository
+                        .findById(order.getId())
+                        .orElseThrow(
+                                () ->
+                                        new IllegalOrderStateTransitionException(
+                                                String.format(
+                                                        "Order not found with id: %d",
+                                                        order.getId())));
+
+        OrderStatus currentStatus = managedOrder.getStatus();
 
         if (!isValidTransition(currentStatus, newStatus)) {
             throw new IllegalOrderStateTransitionException(
                     String.format(
                             "Invalid state transition from %s to %s for order %d",
-                            currentStatus, newStatus, order.getId()));
+                            currentStatus, newStatus, managedOrder.getId()));
         }
 
         // Save the old status before updating
-        OrderStatus oldStatus = order.getStatus();
+        OrderStatus oldStatus = managedOrder.getStatus();
 
         // Update the order status
-        order.setStatus(newStatus);
-        order = orderRepository.save(order);
+        managedOrder.setStatus(newStatus);
+        managedOrder = orderRepository.save(managedOrder);
 
         // Log the state transition
-        logStateTransition(order.getId(), oldStatus, newStatus);
+        logStateTransition(managedOrder.getId(), oldStatus, newStatus);
 
         // Publish the status change event
-        publishStatusChangeEvent(order, oldStatus, newStatus);
+        publishStatusChangeEvent(managedOrder, oldStatus, newStatus);
     }
 
     private boolean isValidTransition(OrderStatus from, OrderStatus to) {

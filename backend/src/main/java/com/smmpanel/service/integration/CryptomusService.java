@@ -1,5 +1,6 @@
 package com.smmpanel.service.integration;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smmpanel.client.CryptomusClient;
 import com.smmpanel.dto.balance.CreateDepositRequest;
 import com.smmpanel.dto.balance.CreateDepositResponse;
@@ -41,11 +42,12 @@ public class CryptomusService {
     private final UserRepository userRepository;
     private final BalanceDepositRepository depositRepository;
     private final BalanceService balanceService;
+    private final ObjectMapper objectMapper;
 
     @Value("${app.cryptomus.min-deposit:5.00}")
     private BigDecimal minDepositAmount;
 
-    @Value("${app.cryptomus.api.user-key}")
+    @Value("${app.cryptomus.api.payment-key}")
     private String cryptomusApiKey;
 
     // Track processed payments to prevent duplicates
@@ -69,12 +71,14 @@ public class CryptomusService {
         CreatePaymentRequest cryptomusRequest =
                 CreatePaymentRequest.builder()
                         .amount(request.getAmount())
-                        .currency("USDT")
+                        .currency("USD")
                         .orderId(orderId)
-                        .urlCallback("https://yourdomain.com/api/v2/webhooks/cryptomus")
-                        .urlSuccess("https://yourdomain.com/deposits/success")
-                        .urlReturn("https://yourdomain.com/deposits")
+                        .urlCallback(
+                                "https://youtubeprovider.com/api/v1/payments/cryptomus/callback")
+                        .urlSuccess("https://youtubeprovider.com/dashboard/balance?deposit=success")
+                        .urlReturn("https://youtubeprovider.com/dashboard/balance?deposit=cancel")
                         .lifetime(1440) // 24 hours in minutes
+                        .isPaymentMultiple(false) // Each deposit gets unique payment address
                         .build();
 
         try {
@@ -86,6 +90,7 @@ public class CryptomusService {
             deposit.setUser(user);
             deposit.setOrderId(orderId);
             deposit.setAmountUsdt(request.getAmount());
+            deposit.setCurrency("USD");
             deposit.setCryptoAmount(cryptomusResponse.getAmount());
             deposit.setCryptomusPaymentId(cryptomusResponse.getUuid());
             deposit.setPaymentUrl(cryptomusResponse.getUrl());
@@ -104,7 +109,7 @@ public class CryptomusService {
                     .orderId(orderId)
                     .paymentUrl(cryptomusResponse.getUrl())
                     .amount(request.getAmount())
-                    .currency("USDT")
+                    .currency("USD")
                     .cryptoAmount(cryptomusResponse.getAmount().toString())
                     .expiresAt(deposit.getExpiresAt())
                     .build();
@@ -145,7 +150,7 @@ public class CryptomusService {
                 .orderId(deposit.getOrderId())
                 .status(deposit.getStatus().name())
                 .amount(deposit.getAmountUsdt())
-                .currency("USDT")
+                .currency("USD")
                 .cryptoAmount(deposit.getCryptoAmount())
                 .createdAt(deposit.getCreatedAt())
                 .confirmedAt(deposit.getConfirmedAt())
@@ -266,7 +271,8 @@ public class CryptomusService {
                             .currency(currency)
                             .network(network)
                             .orderId(orderId)
-                            .urlCallback("https://yourdomain.com/api/v2/webhooks/cryptomus/wallet")
+                            .urlCallback(
+                                    "https://youtubeprovider.com/api/v2/webhooks/cryptomus/wallet")
                             .build();
 
             var walletResponse = cryptomusClient.createWallet(walletRequest);
@@ -290,38 +296,127 @@ public class CryptomusService {
     }
 
     /**
-     * Validates webhook signature using MD5+Base64 as per Cryptomus documentation
+     * Validates webhook signature using MD5 as per Cryptomus documentation
      *
-     * @param body Raw webhook body
-     * @param signature Provided signature header
+     * <p>Cryptomus signature algorithm: 1. Extract sign field from webhook JSON 2. Remove sign
+     * field from JSON 3. Base64 encode the JSON without sign 4. Concatenate: base64(json) + apiKey
+     * 5. MD5 hash the combined string (return as hex) 6. Compare with extracted sign
+     *
+     * @param webhook Webhook object containing the sign field
      * @return true if signature is valid
      */
-    public boolean validateWebhookSignature(String body, String signature) {
-        if (signature == null || body == null) {
-            log.warn("Missing signature or body for webhook validation");
+    public boolean validateWebhookSignature(String rawJsonBody, String providedSignature) {
+        if (rawJsonBody == null || providedSignature == null) {
+            log.warn("Missing raw JSON body or signature for validation");
             return false;
         }
 
         try {
-            // Cryptomus uses MD5 hash of body + api_key, then Base64 encode
-            String dataToHash = body + cryptomusApiKey;
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] hashBytes = md.digest(dataToHash.getBytes("UTF-8"));
-            String calculatedSignature = Base64.getEncoder().encodeToString(hashBytes);
+            // IMPORTANT: Extract sign value FIRST before removing it from JSON
+            // Per expert advice: JSON must be compact (no spaces) with escaped slashes
+            com.fasterxml.jackson.databind.ObjectMapper mapper =
+                    new com.fasterxml.jackson.databind.ObjectMapper();
 
-            // Constant-time comparison to prevent timing attacks
+            // Configure mapper for compact JSON output matching Cryptomus format
+            mapper.configure(
+                    com.fasterxml.jackson.databind.SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS,
+                    true);
+            // Disable indentation - we need compact JSON (no spaces)
+            mapper.configure(
+                    com.fasterxml.jackson.databind.SerializationFeature.INDENT_OUTPUT, false);
+
+            com.fasterxml.jackson.databind.JsonNode rootNode = mapper.readTree(rawJsonBody);
+
+            // Step 1: Extract the sign field value to a separate variable BEFORE removing it
+            String signFromJson = null;
+            if (rootNode.has("sign")) {
+                signFromJson = rootNode.get("sign").asText();
+                log.debug("Extracted sign from webhook JSON: {}", signFromJson);
+            }
+
+            // Verify the provided signature matches what we extracted
+            if (signFromJson == null) {
+                log.warn("No sign field found in webhook JSON");
+                return false;
+            }
+
+            if (!signFromJson.equals(providedSignature)) {
+                log.warn(
+                        "Sign mismatch: JSON contains '{}', but parameter provided '{}'",
+                        signFromJson,
+                        providedSignature);
+            }
+
+            // Step 2: Remove the "sign" field from the JSON
+            if (rootNode instanceof com.fasterxml.jackson.databind.node.ObjectNode) {
+                ((com.fasterxml.jackson.databind.node.ObjectNode) rootNode).remove("sign");
+            }
+
+            // Step 3: Serialize back to COMPACT string (no spaces, escaped slashes)
+            String jsonWithoutSign = mapper.writeValueAsString(rootNode);
+
+            // Step 4: Ensure forward slashes are escaped (per expert advice)
+            // This is critical for matching Cryptomus's signature calculation
+            jsonWithoutSign = jsonWithoutSign.replace("/", "\\/");
+
+            log.debug("JSON without sign field (compact, escaped): {}", jsonWithoutSign);
+
+            // Cryptomus signature algorithm (from docs + expert advice):
+            // $sign = md5(base64_encode($dataJsonString) . $API_KEY);
+            // where $dataJsonString is compact JSON with escaped slashes
+            // 5. Base64 encode the compact JSON (without sign field)
+            String base64Json =
+                    Base64.getEncoder().encodeToString(jsonWithoutSign.getBytes("UTF-8"));
+
+            log.debug("Base64 encoded: {}", base64Json);
+
+            // 6. Concatenate: base64(json) + apiKey
+            String combined = base64Json + cryptomusApiKey;
+
+            // 7. MD5 hash and convert to hex string
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] hashBytes = md.digest(combined.getBytes("UTF-8"));
+
+            // Convert MD5 bytes to hex string (NOT base64!)
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hashBytes) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            String calculatedSignature = hexString.toString();
+
+            // Step 8: Compare calculated signature with the EXTRACTED sign value
+            // Use the sign value we extracted from JSON, not the parameter
             boolean isValid =
-                    MessageDigest.isEqual(calculatedSignature.getBytes(), signature.getBytes());
+                    MessageDigest.isEqual(calculatedSignature.getBytes(), signFromJson.getBytes());
 
             if (!isValid) {
-                log.warn("Invalid webhook signature received");
+                log.warn(
+                        "Invalid webhook signature. Calculated: {}, Expected: {}",
+                        calculatedSignature,
+                        signFromJson);
+                log.debug(
+                        "API Key (last 4 chars): ...{}",
+                        cryptomusApiKey.substring(Math.max(0, cryptomusApiKey.length() - 4)));
+                log.debug("Raw JSON body: {}", rawJsonBody);
+                log.debug("JSON without sign (compact, escaped): {}", jsonWithoutSign);
+                log.debug("Base64 of JSON: {}", base64Json);
+            } else {
+                log.info("Webhook signature validated successfully for sign: {}", signFromJson);
             }
 
             return isValid;
         } catch (Exception e) {
-            log.error("Error validating webhook signature: {}", e.getMessage());
+            log.error("Error validating webhook signature: {}", e.getMessage(), e);
             return false;
         }
+    }
+
+    @Deprecated
+    public boolean validateWebhookSignature(CryptomusWebhook webhook) {
+        log.warn("Using deprecated validateWebhookSignature method - should use raw JSON version");
+        return false;
     }
 
     @Transactional
@@ -358,10 +453,10 @@ public class CryptomusService {
 
                     // Add balance to user
                     balanceService.addBalance(
-                            deposit.getUser(), deposit.getAmountUsdt(), deposit, "USDT deposit");
+                            deposit.getUser(), deposit.getAmountUsdt(), deposit, "USD deposit");
 
                     log.info(
-                            "Processed deposit {} for user {} amount {} USDT",
+                            "Processed deposit {} for user {} amount {} USD",
                             webhook.getOrderId(),
                             deposit.getUser().getUsername(),
                             deposit.getAmountUsdt());
@@ -387,7 +482,19 @@ public class CryptomusService {
                             webhook.getOrderId());
             }
 
-            deposit.setWebhookData(webhook.toString());
+            // Serialize webhook to JSON for JSONB column
+            try {
+                String webhookJson = objectMapper.writeValueAsString(webhook);
+                deposit.setWebhookData(webhookJson);
+            } catch (Exception jsonException) {
+                log.error(
+                        "Failed to serialize webhook to JSON: {}",
+                        jsonException.getMessage(),
+                        jsonException);
+                // Store null instead of invalid data
+                deposit.setWebhookData(null);
+            }
+
             depositRepository.save(deposit);
 
         } catch (Exception e) {

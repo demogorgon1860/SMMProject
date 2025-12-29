@@ -422,16 +422,19 @@ public class KafkaConfig {
         // Transaction configuration
         configProps.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "smm-panel-tx");
 
-        // JSON Serializer specific configs
+        // JSON Serializer specific configs - ADD TYPE INFO HEADERS FOR DESERIALIZATION
+        configProps.put(JsonSerializer.ADD_TYPE_INFO_HEADERS, true);
         configProps.put(
                 JsonSerializer.TYPE_MAPPINGS,
                 "order:com.smmpanel.entity.Order,"
+                        + "orderEvent:com.smmpanel.entity.OrderEvent,"
                         + "videoProcessing:com.smmpanel.entity.VideoProcessing,"
                         + "videoProcessingMessage:com.smmpanel.dto.kafka.VideoProcessingMessage,"
                         + "offerAssignment:com.smmpanel.dto.binom.OfferAssignmentRequest,"
                         + "offerAssignmentEvent:com.smmpanel.event.OfferAssignmentEvent,"
-                        + "notification:java.util.Map,"
-                        + "orderStateUpdate:java.util.Map");
+                        + "orderCreatedEvent:com.smmpanel.event.OrderCreatedEvent,"
+                        + "orderStatusChangedEvent:com.smmpanel.event.OrderStatusChangedEvent,"
+                        + "notification:java.util.Map");
 
         DefaultKafkaProducerFactory<String, Object> factory =
                 new DefaultKafkaProducerFactory<>(configProps);
@@ -559,12 +562,14 @@ public class KafkaConfig {
         configProps.put(
                 JsonDeserializer.TYPE_MAPPINGS,
                 "order:com.smmpanel.entity.Order,"
+                        + "orderEvent:com.smmpanel.entity.OrderEvent,"
                         + "videoProcessing:com.smmpanel.entity.VideoProcessing,"
                         + "videoProcessingMessage:com.smmpanel.dto.kafka.VideoProcessingMessage,"
                         + "offerAssignment:com.smmpanel.dto.binom.OfferAssignmentRequest,"
                         + "offerAssignmentEvent:com.smmpanel.event.OfferAssignmentEvent,"
-                        + "notification:java.util.Map,"
-                        + "orderStateUpdate:java.util.Map");
+                        + "orderCreatedEvent:com.smmpanel.event.OrderCreatedEvent,"
+                        + "orderStatusChangedEvent:com.smmpanel.event.OrderStatusChangedEvent,"
+                        + "notification:java.util.Map");
         configProps.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, true);
         // Remove default type to allow specific type mappings to work
         // configProps.put(JsonDeserializer.VALUE_DEFAULT_TYPE, "java.util.Map");

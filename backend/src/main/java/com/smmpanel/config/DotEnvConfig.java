@@ -22,11 +22,11 @@ public class DotEnvConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(DotEnvConfig.class);
 
-    private static final Set<String> REQUIRED_VARIABLES =
-            Set.of("DB_PASSWORD", "REDIS_PASSWORD", "JWT_SECRET", "POSTGRES_PASSWORD");
+    private static final Set<String> REQUIRED_VARIABLES = Set.of("DB_PASSWORD", "JWT_SECRET");
 
     private static final Set<String> OPTIONAL_VARIABLES =
             Set.of(
+                    "REDIS_PASSWORD",
                     "BINOM_API_KEY",
                     "YOUTUBE_API_KEY",
                     "CRYPTOMUS_API_KEY",
@@ -145,7 +145,7 @@ public class DotEnvConfig {
                 logger.error("REQUIRED environment variable is missing: {}", variable);
                 hasErrors = true;
             } else {
-                logger.debug("✓ Required variable present: {}", variable);
+                logger.debug("[OK] Required variable present: {}", variable);
             }
         }
 
@@ -161,7 +161,7 @@ public class DotEnvConfig {
                         "Optional environment variable is missing or using placeholder: {}",
                         variable);
             } else {
-                logger.debug("✓ Optional variable present: {}", variable);
+                logger.debug("[OK] Optional variable present: {}", variable);
             }
         }
 
@@ -173,7 +173,7 @@ public class DotEnvConfig {
             logger.error("================================");
             // Don't fail startup, but warn strongly
         } else {
-            logger.info("✓ All required environment variables are present");
+            logger.info("[SUCCESS] All required environment variables are present");
         }
     }
 }

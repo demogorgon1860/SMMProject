@@ -182,16 +182,13 @@ public class AppProperties {
         public static class Api {
             @NotBlank private String url; // Loaded from CRYPTOMUS_API_URL env var
 
-            @NotBlank private String userKey; // Loaded from CRYPTOMUS_USER_API_KEY env var
-
-            private String payoutKey; // Loaded from CRYPTOMUS_PAYOUT_API_KEY env var
-
-            @NotBlank private String secret; // Loaded from CRYPTOMUS_API_SECRET env var
+            @NotBlank private String paymentKey; // Loaded from CRYPTOMUS_PAYMENT_API_KEY env var
         }
 
         @Data
         public static class Webhook {
-            @NotBlank private String secret; // Loaded from CRYPTOMUS_WEBHOOK_SECRET env var
+            private String secret =
+                    "not-applicable"; // Loaded from CRYPTOMUS_WEBHOOK_SECRET env var (optional)
         }
     }
 

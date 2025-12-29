@@ -1,4 +1,29 @@
-# Simple Dockerfile that uses pre-built JAR
+# Multi-stage build: Build JAR in container
+FROM eclipse-temurin:17-jdk-alpine AS builder
+
+WORKDIR /app
+
+# Install git for gradle
+RUN apk add --no-cache git
+
+# Copy gradle wrapper and build files
+COPY gradlew gradlew
+COPY gradle gradle
+COPY build.gradle settings.gradle ./
+
+# Make gradlew executable
+RUN chmod +x gradlew
+
+# Download dependencies (cached layer)
+RUN ./gradlew dependencies --no-daemon || true
+
+# Copy source code
+COPY src src
+
+# Build the JAR (skip tests for faster build)
+RUN ./gradlew clean build -x test --no-daemon
+
+# Runtime stage
 FROM eclipse-temurin:17-jdk-alpine
 
 # Install curl for health checks
@@ -6,8 +31,8 @@ RUN apk add --no-cache curl
 
 WORKDIR /app
 
-# Copy JAR directly (assuming it's already built)
-COPY build/libs/backend-1.0.0.jar app.jar
+# Copy JAR from builder stage
+COPY --from=builder /app/build/libs/*.jar app.jar
 
 # Set permissions
 RUN chmod +x /app/app.jar
@@ -15,8 +40,6 @@ RUN chmod +x /app/app.jar
 EXPOSE 8080
 
 # Container-aware JVM settings with Java 17 compatibility
-# FIX: Removed -Xmx2g to rely on MaxRAMPercentage for dynamic heap sizing
-# With 2GB ECS container: 75% = 1536MB heap, leaving 512MB for metaspace/threads/native
 ENV JAVA_OPTS="-Xms512m \
                -XX:+UseG1GC \
                -XX:MaxGCPauseMillis=200 \

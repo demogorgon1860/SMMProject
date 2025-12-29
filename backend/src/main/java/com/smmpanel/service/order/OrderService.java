@@ -305,32 +305,47 @@ public class OrderService {
                 }
             } else if (isInstagramOrder(order)) {
                 // INSTAGRAM ORDER - Send to Instagram bot
-                log.info("Order {} - Instagram order detected, sending to Instagram bot", order.getId());
+                log.info(
+                        "Order {} - Instagram order detected, sending to Instagram bot",
+                        order.getId());
                 try {
                     var instagramResponse = instagramService.createInstagramOrder(order);
                     if (instagramResponse.isSuccess()) {
-                        log.info("Order {} - Successfully sent to Instagram bot: {}",
-                                order.getId(), instagramResponse.getId());
+                        log.info(
+                                "Order {} - Successfully sent to Instagram bot: {}",
+                                order.getId(),
+                                instagramResponse.getId());
                         // Instagram orders are processed by the bot, return immediately
                         return mapToOrderResponse(order);
                     } else {
-                        log.error("Order {} - Instagram bot returned error: {}",
-                                order.getId(), instagramResponse.getError());
+                        log.error(
+                                "Order {} - Instagram bot returned error: {}",
+                                order.getId(),
+                                instagramResponse.getError());
                         // Refund and mark as failed
                         order.setStatus(OrderStatus.CANCELLED);
-                        order.setErrorMessage("Instagram bot error: " + instagramResponse.getError());
+                        order.setErrorMessage(
+                                "Instagram bot error: " + instagramResponse.getError());
                         orderRepository.save(order);
-                        balanceService.refund(user, charge, order,
+                        balanceService.refund(
+                                user,
+                                charge,
+                                order,
                                 "Refund for failed Instagram order #" + order.getId());
                         return mapToOrderResponse(order);
                     }
                 } catch (Exception e) {
-                    log.error("Order {} - Failed to send to Instagram bot: {}",
-                            order.getId(), e.getMessage());
+                    log.error(
+                            "Order {} - Failed to send to Instagram bot: {}",
+                            order.getId(),
+                            e.getMessage());
                     order.setStatus(OrderStatus.CANCELLED);
                     order.setErrorMessage("Instagram bot unavailable: " + e.getMessage());
                     orderRepository.save(order);
-                    balanceService.refund(user, charge, order,
+                    balanceService.refund(
+                            user,
+                            charge,
+                            order,
                             "Refund for failed Instagram order #" + order.getId());
                     return mapToOrderResponse(order);
                 }
@@ -963,8 +978,8 @@ public class OrderService {
         String serviceName = order.getService().getName();
         String category = order.getService().getCategory();
         return (serviceName != null
-                && (serviceName.toLowerCase().contains("youtube")
-                        || serviceName.toLowerCase().contains("views")))
+                        && (serviceName.toLowerCase().contains("youtube")
+                                || serviceName.toLowerCase().contains("views")))
                 || (category != null && category.toLowerCase().contains("youtube"));
     }
 
@@ -1124,35 +1139,47 @@ public class OrderService {
             }
         } else if (isInstagramOrder(order)) {
             // INSTAGRAM ORDER - Send to Instagram bot
-            log.info("Order {} - Instagram order detected, sending to Instagram bot", order.getId());
+            log.info(
+                    "Order {} - Instagram order detected, sending to Instagram bot", order.getId());
             try {
                 var instagramResponse = instagramService.createInstagramOrder(order);
                 if (instagramResponse.isSuccess()) {
-                    log.info("Order {} - Successfully sent to Instagram bot: {}",
-                            order.getId(), instagramResponse.getId());
+                    log.info(
+                            "Order {} - Successfully sent to Instagram bot: {}",
+                            order.getId(),
+                            instagramResponse.getId());
                     return mapToOrderResponse(order);
                 } else {
-                    log.error("Order {} - Instagram bot returned error: {}",
-                            order.getId(), instagramResponse.getError());
+                    log.error(
+                            "Order {} - Instagram bot returned error: {}",
+                            order.getId(),
+                            instagramResponse.getError());
                     order.setStatus(OrderStatus.CANCELLED);
                     order.setErrorMessage("Instagram bot error: " + instagramResponse.getError());
                     orderRepository.save(order);
-                    balanceService.refund(user, charge, order,
+                    balanceService.refund(
+                            user,
+                            charge,
+                            order,
                             "Refund for failed Instagram order #" + order.getId());
                     return mapToOrderResponse(order);
                 }
             } catch (Exception e) {
-                log.error("Order {} - Failed to send to Instagram bot: {}",
-                        order.getId(), e.getMessage());
+                log.error(
+                        "Order {} - Failed to send to Instagram bot: {}",
+                        order.getId(),
+                        e.getMessage());
                 order.setStatus(OrderStatus.CANCELLED);
                 order.setErrorMessage("Instagram bot unavailable: " + e.getMessage());
                 orderRepository.save(order);
-                balanceService.refund(user, charge, order,
-                        "Refund for failed Instagram order #" + order.getId());
+                balanceService.refund(
+                        user, charge, order, "Refund for failed Instagram order #" + order.getId());
                 return mapToOrderResponse(order);
             }
         } else {
-            log.info("Order {} - Not a YouTube or Instagram order, skipping special processing", order.getId());
+            log.info(
+                    "Order {} - Not a YouTube or Instagram order, skipping special processing",
+                    order.getId());
         }
 
         // Send to processing queue (YouTube orders only)

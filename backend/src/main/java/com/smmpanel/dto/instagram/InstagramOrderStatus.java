@@ -6,9 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * DTO for Instagram order status from GET /api/orders/get endpoint.
- */
+/** DTO for Instagram order status from GET /api/orders/get endpoint. */
 @Data
 @Builder
 @NoArgsConstructor

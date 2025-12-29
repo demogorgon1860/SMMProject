@@ -14,8 +14,8 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Service for managing Instagram orders through the Instagram bot.
- * Handles order creation, status tracking, and webhook callbacks.
+ * Service for managing Instagram orders through the Instagram bot. Handles order creation, status
+ * tracking, and webhook callbacks.
  */
 @Slf4j
 @org.springframework.stereotype.Service
@@ -29,9 +29,7 @@ public class InstagramService {
     private static final String INSTAGRAM_ORDER_CACHE_PREFIX = "instagram:order:";
     private static final String INSTAGRAM_BOT_ORDER_ID_PREFIX = "instagram:bot_order:";
 
-    /**
-     * Check if a service is an Instagram service.
-     */
+    /** Check if a service is an Instagram service. */
     public boolean isInstagramService(Service service) {
         if (service == null || service.getCategory() == null) {
             return false;
@@ -62,17 +60,22 @@ public class InstagramService {
             }
 
             // Determine order type from service category
-            InstagramOrderType orderType = InstagramOrderType.fromServiceCategory(service.getCategory());
+            InstagramOrderType orderType =
+                    InstagramOrderType.fromServiceCategory(service.getCategory());
 
             // Build request
-            InstagramOrderRequest request = InstagramOrderRequest.builder()
-                    .type(orderType.getValue())
-                    .targetUrl(order.getLink())
-                    .count(order.getQuantity())
-                    .externalId(String.valueOf(order.getId()))
-                    .callbackUrl(botClient.getCallbackUrl())
-                    .priority(order.getProcessingPriority() != null ? order.getProcessingPriority() : 0)
-                    .build();
+            InstagramOrderRequest request =
+                    InstagramOrderRequest.builder()
+                            .type(orderType.getValue())
+                            .targetUrl(order.getLink())
+                            .count(order.getQuantity())
+                            .externalId(String.valueOf(order.getId()))
+                            .callbackUrl(botClient.getCallbackUrl())
+                            .priority(
+                                    order.getProcessingPriority() != null
+                                            ? order.getProcessingPriority()
+                                            : 0)
+                            .build();
 
             // Send to bot
             InstagramOrderResponse response = botClient.createOrder(request);
@@ -87,20 +90,29 @@ public class InstagramService {
                 order.setTrafficStatus("SENT_TO_BOT");
                 orderRepository.save(order);
 
-                log.info("Instagram order created: panel={}, bot={}", order.getId(), response.getId());
+                log.info(
+                        "Instagram order created: panel={}, bot={}",
+                        order.getId(),
+                        response.getId());
             } else {
                 // Update order with error
                 order.setErrorMessage("Instagram bot error: " + response.getError());
                 order.setRetryCount(order.getRetryCount() != null ? order.getRetryCount() + 1 : 1);
                 orderRepository.save(order);
 
-                log.error("Failed to create Instagram order {}: {}", order.getId(), response.getError());
+                log.error(
+                        "Failed to create Instagram order {}: {}",
+                        order.getId(),
+                        response.getError());
             }
 
             return response;
 
         } catch (IllegalArgumentException e) {
-            log.error("Invalid Instagram service category for order {}: {}", order.getId(), e.getMessage());
+            log.error(
+                    "Invalid Instagram service category for order {}: {}",
+                    order.getId(),
+                    e.getMessage());
             return InstagramOrderResponse.builder()
                     .success(false)
                     .error("Invalid service type: " + e.getMessage())
@@ -127,8 +139,11 @@ public class InstagramService {
      */
     @Transactional
     public void processWebhookCallback(InstagramWebhookCallback callback) {
-        log.info("Processing Instagram webhook callback: event={}, external_id={}, status={}",
-                callback.getEvent(), callback.getExternalId(), callback.getStatus());
+        log.info(
+                "Processing Instagram webhook callback: event={}, external_id={}, status={}",
+                callback.getEvent(),
+                callback.getExternalId(),
+                callback.getStatus());
 
         try {
             // Find the order by external_id (our order ID)
@@ -158,12 +173,13 @@ public class InstagramService {
         }
     }
 
-    /**
-     * Handle completed order callback.
-     */
+    /** Handle completed order callback. */
     private void handleOrderCompleted(Order order, InstagramWebhookCallback callback) {
-        log.info("Instagram order {} completed: {} actions done, {} failed",
-                order.getId(), callback.getCompleted(), callback.getFailed());
+        log.info(
+                "Instagram order {} completed: {} actions done, {} failed",
+                order.getId(),
+                callback.getCompleted(),
+                callback.getFailed());
 
         // Calculate actual delivered count
         int actualDelivered = callback.getCompleted() != null ? callback.getCompleted() : 0;
@@ -192,7 +208,11 @@ public class InstagramService {
             // Partial completion
             order.setStatus(OrderStatus.PARTIAL);
             order.setTrafficStatus("PARTIAL");
-            log.info("Order {} partially completed: {}/{} delivered", order.getId(), actualDelivered, ordered);
+            log.info(
+                    "Order {} partially completed: {}/{} delivered",
+                    order.getId(),
+                    actualDelivered,
+                    ordered);
         }
 
         order.setErrorMessage(null);
@@ -203,12 +223,13 @@ public class InstagramService {
         redisTemplate.delete(cacheKey);
     }
 
-    /**
-     * Handle failed order callback.
-     */
+    /** Handle failed order callback. */
     private void handleOrderFailed(Order order, InstagramWebhookCallback callback) {
-        log.warn("Instagram order {} failed: {} completed, {} failed",
-                order.getId(), callback.getCompleted(), callback.getFailed());
+        log.warn(
+                "Instagram order {} failed: {} completed, {} failed",
+                order.getId(),
+                callback.getCompleted(),
+                callback.getFailed());
 
         int completed = callback.getCompleted() != null ? callback.getCompleted() : 0;
 
@@ -235,9 +256,7 @@ public class InstagramService {
         redisTemplate.delete(cacheKey);
     }
 
-    /**
-     * Determine start count from callback.
-     */
+    /** Determine start count from callback. */
     private Integer determineStartCount(Order order, InstagramWebhookCallback callback) {
         Service service = order.getService();
         if (service == null || service.getCategory() == null) {
@@ -257,9 +276,7 @@ public class InstagramService {
         return null;
     }
 
-    /**
-     * Get order status from bot.
-     */
+    /** Get order status from bot. */
     public InstagramOrderStatus getOrderStatus(Long orderId) {
         String cacheKey = INSTAGRAM_BOT_ORDER_ID_PREFIX + orderId;
         Object botOrderId = redisTemplate.opsForValue().get(cacheKey);
@@ -272,9 +289,7 @@ public class InstagramService {
         return botClient.getOrderStatus(botOrderId.toString());
     }
 
-    /**
-     * Cancel an Instagram order.
-     */
+    /** Cancel an Instagram order. */
     @Transactional
     public boolean cancelOrder(Long orderId) {
         String cacheKey = INSTAGRAM_BOT_ORDER_ID_PREFIX + orderId;
@@ -301,30 +316,22 @@ public class InstagramService {
         return cancelled;
     }
 
-    /**
-     * Check bot health status.
-     */
+    /** Check bot health status. */
     public InstagramHealthResponse checkBotHealth() {
         return botClient.checkHealth();
     }
 
-    /**
-     * Check if bot is ready.
-     */
+    /** Check if bot is ready. */
     public boolean isBotReady() {
         return botClient.isReady();
     }
 
-    /**
-     * Get bot queue statistics.
-     */
+    /** Get bot queue statistics. */
     public Map<String, Object> getBotQueueStats() {
         return botClient.getQueueStats();
     }
 
-    /**
-     * Control bot workers.
-     */
+    /** Control bot workers. */
     public boolean controlBotWorkers(String action) {
         return botClient.controlWorkers(action);
     }

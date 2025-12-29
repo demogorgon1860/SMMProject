@@ -15,8 +15,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 /**
- * Client for communicating with the Instagram bot API.
- * Bot is a Go-based application running on the host machine.
+ * Client for communicating with the Instagram bot API. Bot is a Go-based application running on the
+ * host machine.
  */
 @Slf4j
 @Component
@@ -48,8 +48,7 @@ public class InstagramBotClient {
     }
 
     /**
-     * Create a new order in the Instagram bot.
-     * POST /api/orders/create
+     * Create a new order in the Instagram bot. POST /api/orders/create
      *
      * @param request Order creation request
      * @return Response with bot order ID
@@ -65,15 +64,19 @@ public class InstagramBotClient {
                                         HttpHeaders headers = new HttpHeaders();
                                         headers.setContentType(MediaType.APPLICATION_JSON);
 
-                                        String jsonPayload = objectMapper.writeValueAsString(request);
+                                        String jsonPayload =
+                                                objectMapper.writeValueAsString(request);
                                         log.info("Creating Instagram order: {}", jsonPayload);
 
-                                        HttpEntity<String> entity = new HttpEntity<>(jsonPayload, headers);
+                                        HttpEntity<String> entity =
+                                                new HttpEntity<>(jsonPayload, headers);
 
-                                        ResponseEntity<Map> response = restTemplate.exchange(
-                                                url, HttpMethod.POST, entity, Map.class);
+                                        ResponseEntity<Map> response =
+                                                restTemplate.exchange(
+                                                        url, HttpMethod.POST, entity, Map.class);
 
-                                        if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                                        if (response.getStatusCode() == HttpStatus.OK
+                                                && response.getBody() != null) {
                                             Map<String, Object> body = response.getBody();
 
                                             Boolean success = (Boolean) body.get("success");
@@ -81,32 +84,41 @@ public class InstagramBotClient {
                                             String error = (String) body.get("error");
 
                                             if (Boolean.TRUE.equals(success)) {
-                                                log.info("Instagram order created successfully: {}", id);
+                                                log.info(
+                                                        "Instagram order created successfully: {}",
+                                                        id);
                                                 return InstagramOrderResponse.builder()
                                                         .success(true)
                                                         .id(id)
                                                         .build();
                                             } else {
-                                                log.error("Instagram bot returned error: {}", error);
+                                                log.error(
+                                                        "Instagram bot returned error: {}", error);
                                                 return InstagramOrderResponse.builder()
                                                         .success(false)
-                                                        .error(error != null ? error : "Unknown error")
+                                                        .error(
+                                                                error != null
+                                                                        ? error
+                                                                        : "Unknown error")
                                                         .build();
                                             }
                                         }
 
-                                        throw new RuntimeException("Invalid response from Instagram bot");
+                                        throw new RuntimeException(
+                                                "Invalid response from Instagram bot");
 
                                     } catch (Exception e) {
-                                        log.error("Failed to create Instagram order: {}", e.getMessage(), e);
+                                        log.error(
+                                                "Failed to create Instagram order: {}",
+                                                e.getMessage(),
+                                                e);
                                         throw new RuntimeException("Order creation failed", e);
                                     }
                                 }));
     }
 
     /**
-     * Get order status from the bot.
-     * GET /api/orders/get?id=X
+     * Get order status from the bot. GET /api/orders/get?id=X
      *
      * @param orderId Bot's order ID
      * @return Order status
@@ -119,9 +131,11 @@ public class InstagramBotClient {
                                     try {
                                         String url = botBaseUrl + "/api/orders/get?id=" + orderId;
 
-                                        ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
+                                        ResponseEntity<Map> response =
+                                                restTemplate.getForEntity(url, Map.class);
 
-                                        if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                                        if (response.getStatusCode() == HttpStatus.OK
+                                                && response.getBody() != null) {
                                             Map<String, Object> body = response.getBody();
                                             return InstagramOrderStatus.builder()
                                                     .id((String) body.get("id"))
@@ -138,18 +152,22 @@ public class InstagramBotClient {
                                                     .build();
                                         }
 
-                                        throw new RuntimeException("Failed to get order status from Instagram bot");
+                                        throw new RuntimeException(
+                                                "Failed to get order status from Instagram bot");
 
                                     } catch (Exception e) {
-                                        log.error("Failed to get Instagram order status: {}", e.getMessage(), e);
-                                        throw new RuntimeException("Order status retrieval failed", e);
+                                        log.error(
+                                                "Failed to get Instagram order status: {}",
+                                                e.getMessage(),
+                                                e);
+                                        throw new RuntimeException(
+                                                "Order status retrieval failed", e);
                                     }
                                 }));
     }
 
     /**
-     * Cancel an order in the bot.
-     * POST /api/orders/cancel
+     * Cancel an order in the bot. POST /api/orders/cancel
      *
      * @param orderId Bot's order ID
      * @return true if cancelled successfully
@@ -169,13 +187,17 @@ public class InstagramBotClient {
                                         body.put("order_id", orderId);
 
                                         String jsonPayload = objectMapper.writeValueAsString(body);
-                                        HttpEntity<String> entity = new HttpEntity<>(jsonPayload, headers);
+                                        HttpEntity<String> entity =
+                                                new HttpEntity<>(jsonPayload, headers);
 
-                                        ResponseEntity<Map> response = restTemplate.exchange(
-                                                url, HttpMethod.POST, entity, Map.class);
+                                        ResponseEntity<Map> response =
+                                                restTemplate.exchange(
+                                                        url, HttpMethod.POST, entity, Map.class);
 
-                                        if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-                                            Boolean success = (Boolean) response.getBody().get("success");
+                                        if (response.getStatusCode() == HttpStatus.OK
+                                                && response.getBody() != null) {
+                                            Boolean success =
+                                                    (Boolean) response.getBody().get("success");
                                             if (Boolean.TRUE.equals(success)) {
                                                 log.info("Instagram order {} cancelled", orderId);
                                                 return true;
@@ -186,15 +208,16 @@ public class InstagramBotClient {
                                         return false;
 
                                     } catch (Exception e) {
-                                        log.error("Error cancelling Instagram order: {}", e.getMessage());
+                                        log.error(
+                                                "Error cancelling Instagram order: {}",
+                                                e.getMessage());
                                         throw new RuntimeException("Order cancellation failed", e);
                                     }
                                 }));
     }
 
     /**
-     * List all orders from the bot.
-     * GET /api/orders
+     * List all orders from the bot. GET /api/orders
      *
      * @return List of orders
      */
@@ -207,24 +230,28 @@ public class InstagramBotClient {
                                     try {
                                         String url = botBaseUrl + "/api/orders";
 
-                                        ResponseEntity<List> response = restTemplate.getForEntity(url, List.class);
+                                        ResponseEntity<List> response =
+                                                restTemplate.getForEntity(url, List.class);
 
-                                        if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                                        if (response.getStatusCode() == HttpStatus.OK
+                                                && response.getBody() != null) {
                                             return response.getBody();
                                         }
 
                                         return List.of();
 
                                     } catch (Exception e) {
-                                        log.error("Error listing Instagram orders: {}", e.getMessage());
-                                        throw new RuntimeException("Order list retrieval failed", e);
+                                        log.error(
+                                                "Error listing Instagram orders: {}",
+                                                e.getMessage());
+                                        throw new RuntimeException(
+                                                "Order list retrieval failed", e);
                                     }
                                 }));
     }
 
     /**
-     * Get queue statistics from the bot.
-     * GET /api/orders/stats
+     * Get queue statistics from the bot. GET /api/orders/stats
      *
      * @return Stats map
      */
@@ -237,9 +264,11 @@ public class InstagramBotClient {
                                     try {
                                         String url = botBaseUrl + "/api/orders/stats";
 
-                                        ResponseEntity<Map> response = restTemplate.getForEntity(url, Map.class);
+                                        ResponseEntity<Map> response =
+                                                restTemplate.getForEntity(url, Map.class);
 
-                                        if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                                        if (response.getStatusCode() == HttpStatus.OK
+                                                && response.getBody() != null) {
                                             return response.getBody();
                                         }
 
@@ -247,14 +276,14 @@ public class InstagramBotClient {
 
                                     } catch (Exception e) {
                                         log.error("Error getting queue stats: {}", e.getMessage());
-                                        throw new RuntimeException("Queue stats retrieval failed", e);
+                                        throw new RuntimeException(
+                                                "Queue stats retrieval failed", e);
                                     }
                                 }));
     }
 
     /**
-     * Control workers (start/stop).
-     * POST /api/orders/workers
+     * Control workers (start/stop). POST /api/orders/workers
      *
      * @param action "start" or "stop"
      * @return true if successful
@@ -274,13 +303,17 @@ public class InstagramBotClient {
                                         body.put("action", action);
 
                                         String jsonPayload = objectMapper.writeValueAsString(body);
-                                        HttpEntity<String> entity = new HttpEntity<>(jsonPayload, headers);
+                                        HttpEntity<String> entity =
+                                                new HttpEntity<>(jsonPayload, headers);
 
-                                        ResponseEntity<Map> response = restTemplate.exchange(
-                                                url, HttpMethod.POST, entity, Map.class);
+                                        ResponseEntity<Map> response =
+                                                restTemplate.exchange(
+                                                        url, HttpMethod.POST, entity, Map.class);
 
                                         if (response.getStatusCode() == HttpStatus.OK) {
-                                            log.info("Workers action '{}' executed successfully", action);
+                                            log.info(
+                                                    "Workers action '{}' executed successfully",
+                                                    action);
                                             return true;
                                         }
 
@@ -294,8 +327,7 @@ public class InstagramBotClient {
     }
 
     /**
-     * Check bot health.
-     * GET /api/health
+     * Check bot health. GET /api/health
      *
      * @return Health response
      */
@@ -312,25 +344,23 @@ public class InstagramBotClient {
                         .status((String) body.get("status"))
                         .components((Map<String, Object>) body.get("components"))
                         .version((String) body.get("version"))
-                        .uptime(body.get("uptime") != null ? ((Number) body.get("uptime")).longValue() : null)
+                        .uptime(
+                                body.get("uptime") != null
+                                        ? ((Number) body.get("uptime")).longValue()
+                                        : null)
                         .build();
             }
 
-            return InstagramHealthResponse.builder()
-                    .status("unknown")
-                    .build();
+            return InstagramHealthResponse.builder().status("unknown").build();
 
         } catch (Exception e) {
             log.error("Error checking Instagram bot health: {}", e.getMessage());
-            return InstagramHealthResponse.builder()
-                    .status("error")
-                    .build();
+            return InstagramHealthResponse.builder().status("error").build();
         }
     }
 
     /**
-     * Check if bot is alive (liveness probe).
-     * GET /api/health/live
+     * Check if bot is alive (liveness probe). GET /api/health/live
      *
      * @return true if alive
      */
@@ -346,8 +376,7 @@ public class InstagramBotClient {
     }
 
     /**
-     * Check if bot is ready to accept requests (readiness probe).
-     * GET /api/health/ready
+     * Check if bot is ready to accept requests (readiness probe). GET /api/health/ready
      *
      * @return true if ready
      */
@@ -362,9 +391,7 @@ public class InstagramBotClient {
         }
     }
 
-    /**
-     * Get the callback URL for webhooks.
-     */
+    /** Get the callback URL for webhooks. */
     public String getCallbackUrl() {
         return callbackBaseUrl + "/api/webhook/instagram";
     }

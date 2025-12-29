@@ -1,15 +1,12 @@
 package com.smmpanel.dto.instagram;
 
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.Map;
-
-/**
- * Health check response from Instagram bot.
- */
+/** Health check response from Instagram bot. */
 @Data
 @Builder
 @NoArgsConstructor

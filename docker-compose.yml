@@ -437,7 +437,7 @@ services:
     container_name: smm_nginx
     restart: unless-stopped
     ports:
-      - "8080:80"  # Expose on port 8080 for backward compatibility
+      # Port 8080 is used by Instagram bot on host
       - "80:80"
       - "443:443"
     volumes:

@@ -195,7 +195,6 @@ export const Services: React.FC = () => {
                 borderColor="border-pink-200"
                 gradientFrom="from-white"
                 gradientTo="to-pink-50"
-                comingSoon={true}
               />
 
               {/* Instagram Followers */}
@@ -216,7 +215,6 @@ export const Services: React.FC = () => {
                 borderColor="border-purple-200"
                 gradientFrom="from-white"
                 gradientTo="to-purple-50"
-                comingSoon={true}
               />
 
               {/* Instagram Comments */}
@@ -237,7 +235,6 @@ export const Services: React.FC = () => {
                 borderColor="border-fuchsia-200"
                 gradientFrom="from-white"
                 gradientTo="to-fuchsia-50"
-                comingSoon={true}
               />
             </div>
           </div>

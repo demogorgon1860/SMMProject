@@ -3,16 +3,16 @@ FROM eclipse-temurin:17-jdk-alpine AS builder
 
 WORKDIR /app
 
-# Install git for gradle
-RUN apk add --no-cache git
+# Install required tools
+RUN apk add --no-cache git dos2unix bash
 
 # Copy gradle wrapper and build files
 COPY gradlew gradlew
 COPY gradle gradle
 COPY build.gradle settings.gradle ./
 
-# Make gradlew executable
-RUN chmod +x gradlew
+# Fix Windows line endings and make executable
+RUN dos2unix gradlew && chmod +x gradlew
 
 # Download dependencies (cached layer)
 RUN ./gradlew dependencies --no-daemon || true

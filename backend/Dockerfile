@@ -20,8 +20,8 @@ RUN ./gradlew dependencies --no-daemon || true
 # Copy source code
 COPY src src
 
-# Build the JAR (skip tests for faster build)
-RUN ./gradlew clean build -x test --no-daemon
+# Build the JAR (skip tests and spotless for faster build)
+RUN ./gradlew clean build -x test -x spotlessCheck -x spotlessJavaCheck --no-daemon
 
 # Runtime stage
 FROM eclipse-temurin:17-jdk-alpine

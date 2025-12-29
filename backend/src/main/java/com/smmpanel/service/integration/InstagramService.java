@@ -220,7 +220,7 @@ public class InstagramService {
             order.setRemains(order.getQuantity() - completed);
         } else {
             // Complete failure
-            order.setStatus(OrderStatus.FAILED);
+            order.setStatus(OrderStatus.CANCELLED);
             order.setTrafficStatus("FAILED");
             order.setViewsDelivered(0);
             order.setRemains(order.getQuantity());
@@ -291,7 +291,7 @@ public class InstagramService {
             Optional<Order> orderOpt = orderRepository.findById(orderId);
             if (orderOpt.isPresent()) {
                 Order order = orderOpt.get();
-                order.setStatus(OrderStatus.CANCELED);
+                order.setStatus(OrderStatus.CANCELLED);
                 order.setTrafficStatus("CANCELLED");
                 orderRepository.save(order);
             }

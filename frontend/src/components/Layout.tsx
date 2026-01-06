@@ -1,12 +1,30 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { ThemeToggle } from './ui/ThemeToggle';
+import {
+  LayoutDashboard,
+  ShoppingBag,
+  Package,
+  Settings,
+  Shield,
+  Wallet,
+  LogOut,
+  Menu,
+  X,
+  ChevronDown,
+  User,
+  FileText,
+  Mail,
+  Plus,
+} from 'lucide-react';
 
 export const Layout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuthStore();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -21,199 +39,290 @@ export const Layout: React.FC = () => {
     setIsMobileMenuOpen(false);
   };
 
+  const isActive = (path: string) => {
+    if (path === '/admin') {
+      return location.pathname.startsWith('/admin');
+    }
+    return location.pathname === path;
+  };
+
+  const navLinkClass = (path: string) => `
+    flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200
+    ${isActive(path)
+      ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-300'
+      : 'text-dark-600 hover:text-dark-900 hover:bg-dark-100 dark:text-dark-300 dark:hover:text-white dark:hover:bg-dark-700'
+    }
+  `;
+
+  const mobileNavLinkClass = (path: string) => `
+    flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200
+    ${isActive(path)
+      ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-300'
+      : 'text-dark-600 hover:text-dark-900 hover:bg-dark-100 dark:text-dark-300 dark:hover:text-white dark:hover:bg-dark-700'
+    }
+  `;
+
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow-md">
+    <div className="min-h-screen bg-dark-50 dark:bg-dark-950 transition-colors duration-300">
+      {/* Navigation */}
+      <nav className="sticky top-0 z-40 bg-white/80 dark:bg-dark-900/80 backdrop-blur-lg border-b border-dark-100 dark:border-dark-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
-            <div className="flex items-center w-full">
-              <Link to="/dashboard" className="text-lg sm:text-xl font-bold text-gray-900 flex-shrink-0">
-                SMM Panel
+            {/* Logo and Desktop Nav */}
+            <div className="flex items-center gap-8">
+              <Link
+                to="/dashboard"
+                className="flex items-center gap-2 text-xl font-bold text-dark-900 dark:text-white"
+              >
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center">
+                  <span className="text-white text-sm font-bold">S</span>
+                </div>
+                <span className="hidden sm:block">SMM Panel</span>
               </Link>
 
-              {/* Desktop navigation */}
-              <div className="hidden md:flex md:ml-10 md:items-baseline md:space-x-4">
-                <Link
-                  to="/dashboard"
-                  className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-                >
+              {/* Desktop Navigation */}
+              <div className="hidden md:flex items-center gap-1">
+                <Link to="/dashboard" className={navLinkClass('/dashboard')}>
+                  <LayoutDashboard size={18} />
                   Dashboard
                 </Link>
 
-                <Link
-                  to="/services"
-                  className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-                >
+                <Link to="/services" className={navLinkClass('/services')}>
+                  <ShoppingBag size={18} />
                   Services
                 </Link>
 
-                <Link
-                  to="/orders"
-                  className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-                >
+                <Link to="/orders" className={navLinkClass('/orders')}>
+                  <Package size={18} />
                   Orders
                 </Link>
 
+                <Link to="/orders/new" className={navLinkClass('/orders/new')}>
+                  <Plus size={18} />
+                  New Order
+                </Link>
+
                 {user?.role === 'ADMIN' && (
+                  <Link to="/admin" className={navLinkClass('/admin')}>
+                    <Shield size={18} />
+                    Admin
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            {/* Desktop Right Section */}
+            <div className="hidden md:flex items-center gap-3">
+              {/* Balance */}
+              <Link
+                to="/add-funds"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-accent-100 text-accent-700 dark:bg-accent-900/50 dark:text-accent-300 hover:bg-accent-200 dark:hover:bg-accent-900/70 transition-colors"
+              >
+                <Wallet size={16} />
+                <span className="font-semibold">${user?.balance?.toFixed(2) || '0.00'}</span>
+              </Link>
+
+              {/* Theme Toggle */}
+              <ThemeToggle />
+
+              {/* Profile Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-dark-600 hover:text-dark-900 hover:bg-dark-100 dark:text-dark-300 dark:hover:text-white dark:hover:bg-dark-700 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/50 flex items-center justify-center">
+                    <User size={16} className="text-primary-600 dark:text-primary-400" />
+                  </div>
+                  <span className="text-sm font-medium max-w-24 truncate">{user?.username}</span>
+                  <ChevronDown
+                    size={16}
+                    className={`transition-transform duration-200 ${isProfileDropdownOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+
+                {/* Dropdown Menu */}
+                {isProfileDropdownOpen && (
                   <>
-                    <Link
-                      to="/admin"
-                      className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-                    >
-                      Admin
-                    </Link>
-                    <Link
-                      to="/services-test"
-                      className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-                    >
-                      Test Services
-                    </Link>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setIsProfileDropdownOpen(false)}
+                    />
+                    <div className="absolute right-0 mt-2 w-56 rounded-xl bg-white dark:bg-dark-800 border border-dark-100 dark:border-dark-700 shadow-soft-lg dark:shadow-dark-lg z-20 animate-fade-in-down overflow-hidden">
+                      <div className="px-4 py-3 border-b border-dark-100 dark:border-dark-700">
+                        <p className="text-sm font-medium text-dark-900 dark:text-white truncate">
+                          {user?.username}
+                        </p>
+                        <p className="text-xs text-dark-500 dark:text-dark-400">{user?.email}</p>
+                        <span className="inline-block mt-1 px-2 py-0.5 text-2xs font-medium rounded-md bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-300">
+                          {user?.role}
+                        </span>
+                      </div>
+
+                      <div className="py-1">
+                        <Link
+                          to="/profile"
+                          onClick={() => setIsProfileDropdownOpen(false)}
+                          className="flex items-center gap-2 px-4 py-2 text-sm text-dark-600 hover:text-dark-900 hover:bg-dark-50 dark:text-dark-300 dark:hover:text-white dark:hover:bg-dark-700 transition-colors"
+                        >
+                          <Settings size={16} />
+                          Settings
+                        </Link>
+
+                        <Link
+                          to="/terms"
+                          onClick={() => setIsProfileDropdownOpen(false)}
+                          className="flex items-center gap-2 px-4 py-2 text-sm text-dark-600 hover:text-dark-900 hover:bg-dark-50 dark:text-dark-300 dark:hover:text-white dark:hover:bg-dark-700 transition-colors"
+                        >
+                          <FileText size={16} />
+                          Terms of Service
+                        </Link>
+
+                        <a
+                          href="mailto:smmdata.top@gmail.com"
+                          className="flex items-center gap-2 px-4 py-2 text-sm text-dark-600 hover:text-dark-900 hover:bg-dark-50 dark:text-dark-300 dark:hover:text-white dark:hover:bg-dark-700 transition-colors"
+                        >
+                          <Mail size={16} />
+                          Contact Support
+                        </a>
+                      </div>
+
+                      <div className="border-t border-dark-100 dark:border-dark-700 py-1">
+                        <button
+                          onClick={() => {
+                            setIsProfileDropdownOpen(false);
+                            handleLogout();
+                          }}
+                          className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20 transition-colors"
+                        >
+                          <LogOut size={16} />
+                          Logout
+                        </button>
+                      </div>
+                    </div>
                   </>
                 )}
               </div>
             </div>
 
-            {/* Desktop user info and logout */}
-            <div className="hidden md:flex md:items-center md:space-x-4">
-              <span className="text-sm text-gray-700 whitespace-nowrap">
-                {user?.username} ({user?.role})
-              </span>
-              <Link
-                to="/terms"
-                className="text-blue-600 hover:text-blue-800 px-3 py-2 rounded text-sm font-medium whitespace-nowrap border border-blue-600 hover:border-blue-800 transition-colors"
-              >
-                Terms of Service
-              </Link>
-              <div className="group relative">
-                <button className="text-green-600 hover:text-green-800 px-3 py-2 rounded text-sm font-medium whitespace-nowrap border border-green-600 hover:border-green-800 transition-colors">
-                  Contact Us
-                </button>
-                <div className="invisible group-hover:visible absolute top-full right-0 mt-2 px-4 py-3 bg-gray-800 text-white text-sm rounded shadow-lg whitespace-nowrap z-50">
-                  smmdata.top@gmail.com
-                </div>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded text-sm whitespace-nowrap"
-              >
-                Logout
-              </button>
-            </div>
-
-            {/* Mobile menu button */}
-            <div className="md:hidden flex items-center">
+            {/* Mobile Menu Button */}
+            <div className="md:hidden flex items-center gap-2">
+              <ThemeToggle size="sm" />
               <button
                 onClick={toggleMobileMenu}
-                className="inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
-                aria-expanded="false"
+                className="p-2 rounded-xl text-dark-600 hover:text-dark-900 hover:bg-dark-100 dark:text-dark-300 dark:hover:text-white dark:hover:bg-dark-700 transition-colors"
               >
-                <span className="sr-only">Open main menu</span>
-                {/* Hamburger icon */}
-                {!isMobileMenuOpen ? (
-                  <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
-                ) : (
-                  <svg className="block h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                )}
+                {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
             </div>
           </div>
         </div>
 
-        {/* Mobile menu */}
+        {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-200">
-            <div className="px-2 pt-2 pb-3 space-y-1">
+          <div className="md:hidden border-t border-dark-100 dark:border-dark-800 bg-white dark:bg-dark-900 animate-fade-in-down">
+            <div className="p-4 space-y-2">
+              {/* Balance */}
               <Link
-                to="/dashboard"
+                to="/add-funds"
                 onClick={closeMobileMenu}
-                className="text-gray-700 hover:text-gray-900 hover:bg-gray-100 block px-3 py-2 rounded-md text-base font-medium"
+                className="flex items-center justify-between px-4 py-3 rounded-xl bg-accent-50 dark:bg-accent-900/30 text-accent-700 dark:text-accent-300"
               >
+                <span className="flex items-center gap-2">
+                  <Wallet size={18} />
+                  Balance
+                </span>
+                <span className="font-bold">${user?.balance?.toFixed(2) || '0.00'}</span>
+              </Link>
+
+              {/* Navigation Links */}
+              <Link to="/dashboard" onClick={closeMobileMenu} className={mobileNavLinkClass('/dashboard')}>
+                <LayoutDashboard size={20} />
                 Dashboard
               </Link>
 
-              <Link
-                to="/services"
-                onClick={closeMobileMenu}
-                className="text-gray-700 hover:text-gray-900 hover:bg-gray-100 block px-3 py-2 rounded-md text-base font-medium"
-              >
+              <Link to="/services" onClick={closeMobileMenu} className={mobileNavLinkClass('/services')}>
+                <ShoppingBag size={20} />
                 Services
               </Link>
 
-              <Link
-                to="/orders"
-                onClick={closeMobileMenu}
-                className="text-gray-700 hover:text-gray-900 hover:bg-gray-100 block px-3 py-2 rounded-md text-base font-medium"
-              >
+              <Link to="/orders" onClick={closeMobileMenu} className={mobileNavLinkClass('/orders')}>
+                <Package size={20} />
                 Orders
               </Link>
 
+              <Link to="/orders/new" onClick={closeMobileMenu} className={mobileNavLinkClass('/orders/new')}>
+                <Plus size={20} />
+                New Order
+              </Link>
+
               {user?.role === 'ADMIN' && (
-                <>
-                  <Link
-                    to="/admin"
-                    onClick={closeMobileMenu}
-                    className="text-gray-700 hover:text-gray-900 hover:bg-gray-100 block px-3 py-2 rounded-md text-base font-medium"
-                  >
-                    Admin
-                  </Link>
-                  <Link
-                    to="/services-test"
-                    onClick={closeMobileMenu}
-                    className="text-gray-700 hover:text-gray-900 hover:bg-gray-100 block px-3 py-2 rounded-md text-base font-medium"
-                  >
-                    Test Services
-                  </Link>
-                </>
+                <Link to="/admin" onClick={closeMobileMenu} className={mobileNavLinkClass('/admin')}>
+                  <Shield size={20} />
+                  Admin Panel
+                </Link>
               )}
 
-              <div className="border-t border-gray-200 pt-4 mt-4">
-                <div className="px-3 pb-2">
-                  <p className="text-sm text-gray-700">
-                    Logged in as: <span className="font-medium">{user?.username}</span>
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Role: {user?.role}
-                  </p>
-                </div>
-                <Link
-                  to="/terms"
-                  onClick={closeMobileMenu}
-                  className="block text-center bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-md text-base font-medium mx-2 mb-2"
-                  style={{ width: 'calc(100% - 1rem)' }}
-                >
-                  Terms of Service
-                </Link>
-                <div className="mx-2 mb-2 relative" style={{ width: 'calc(100% - 1rem)' }}>
-                  <div className="group relative inline-block w-full">
-                    <button className="w-full text-center bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md text-base font-medium">
-                      Contact Us
-                    </button>
-                    <div className="invisible group-hover:visible absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-800 text-white text-sm rounded shadow-lg whitespace-nowrap z-50">
-                      smmdata.top@gmail.com
-                    </div>
+              {/* Divider */}
+              <div className="border-t border-dark-100 dark:border-dark-700 my-2" />
+
+              {/* User Info */}
+              <div className="px-4 py-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/50 flex items-center justify-center">
+                    <User size={20} className="text-primary-600 dark:text-primary-400" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-dark-900 dark:text-white">{user?.username}</p>
+                    <p className="text-sm text-dark-500 dark:text-dark-400">{user?.email}</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => {
-                    closeMobileMenu();
-                    handleLogout();
-                  }}
-                  className="w-full text-left bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-md text-base font-medium mx-2"
-                  style={{ width: 'calc(100% - 1rem)' }}
-                >
-                  Logout
-                </button>
               </div>
+
+              <Link to="/profile" onClick={closeMobileMenu} className={mobileNavLinkClass('/profile')}>
+                <Settings size={20} />
+                Settings
+              </Link>
+
+              <Link to="/terms" onClick={closeMobileMenu} className={mobileNavLinkClass('/terms')}>
+                <FileText size={20} />
+                Terms of Service
+              </Link>
+
+              <a
+                href="mailto:smmdata.top@gmail.com"
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium text-dark-600 hover:text-dark-900 hover:bg-dark-100 dark:text-dark-300 dark:hover:text-white dark:hover:bg-dark-700 transition-colors"
+              >
+                <Mail size={20} />
+                Contact Support
+              </a>
+
+              {/* Logout */}
+              <button
+                onClick={() => {
+                  closeMobileMenu();
+                  handleLogout();
+                }}
+                className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-base font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 transition-colors"
+              >
+                <LogOut size={20} />
+                Logout
+              </button>
             </div>
           </div>
         )}
       </nav>
 
-      <main className={`${location.pathname === '/orders' || location.pathname === '/admin/orders' ? 'w-full' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'} py-6`}>
+      {/* Main Content */}
+      <main
+        className={`
+          ${location.pathname === '/orders' || location.pathname.startsWith('/admin')
+            ? 'w-full px-4 sm:px-6 lg:px-8'
+            : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'
+          }
+          py-6 sm:py-8
+        `}
+      >
         <Outlet />
       </main>
     </div>

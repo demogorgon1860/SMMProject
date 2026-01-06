@@ -1,5 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { apiKeyAPI } from '../services/api';
+import {
+  Key,
+  FileText,
+  Copy,
+  Check,
+  RefreshCw,
+  AlertTriangle,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  Shield,
+  Code,
+  Terminal,
+  Info,
+} from 'lucide-react';
 
 interface ApiKeyStatus {
   hasApiKey: boolean;
@@ -77,265 +93,306 @@ export const ProfileSettings: React.FC = () => {
 
   const baseUrl = window.location.origin;
 
+  const navItems = [
+    { id: 'api-keys', label: 'API Keys', icon: Key },
+    { id: 'api-docs', label: 'API Documentation', icon: FileText },
+  ];
+
   return (
-    <div className="flex h-full bg-gray-50">
+    <div className="flex flex-col lg:flex-row gap-6 animate-fade-in">
       {/* Sidebar Navigation */}
-      <div className="w-64 bg-white shadow-sm border-r border-gray-200">
-        <div className="p-6">
-          <h1 className="text-xl font-bold text-gray-800 mb-6">Profile Settings</h1>
-          <nav className="space-y-2">
-            <button
-              onClick={() => setActiveSection('api-keys')}
-              className={`w-full text-left px-4 py-2.5 rounded-md transition-colors flex items-center ${
-                activeSection === 'api-keys'
-                  ? 'bg-blue-50 text-blue-600 font-medium'
-                  : 'text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <svg
-                className="w-5 h-5 mr-3"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
-                />
-              </svg>
-              API Keys
-            </button>
-            <button
-              onClick={() => setActiveSection('api-docs')}
-              className={`w-full text-left px-4 py-2.5 rounded-md transition-colors flex items-center ${
-                activeSection === 'api-docs'
-                  ? 'bg-blue-50 text-blue-600 font-medium'
-                  : 'text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <svg
-                className="w-5 h-5 mr-3"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              API Documentation
-            </button>
+      <div className="lg:w-64 flex-shrink-0">
+        <div className="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft overflow-hidden">
+          <div className="p-6 border-b border-dark-100 dark:border-dark-700">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                <Shield size={20} className="text-primary-600 dark:text-primary-400" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-dark-900 dark:text-white">Settings</h1>
+                <p className="text-xs text-dark-500 dark:text-dark-400">API & Integration</p>
+              </div>
+            </div>
+          </div>
+          <nav className="p-3">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveSection(item.id as 'api-keys' | 'api-docs')}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                    activeSection === item.id
+                      ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-300'
+                      : 'text-dark-600 hover:text-dark-900 hover:bg-dark-100 dark:text-dark-400 dark:hover:text-white dark:hover:bg-dark-700'
+                  }`}
+                >
+                  <Icon size={18} />
+                  {item.label}
+                </button>
+              );
+            })}
           </nav>
         </div>
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-8">
-          {/* Error/Success Messages */}
-          {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-              {error}
-            </div>
-          )}
-          {successMessage && (
-            <div className="mb-6 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-              {successMessage}
-            </div>
-          )}
+      <div className="flex-1 min-w-0">
+        {/* Error/Success Messages */}
+        {error && (
+          <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-xl p-4 flex items-start gap-3">
+            <XCircle size={18} className="text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+          </div>
+        )}
+        {successMessage && (
+          <div className="mb-6 bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800/50 rounded-xl p-4 flex items-start gap-3">
+            <CheckCircle size={18} className="text-accent-600 dark:text-accent-400 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-accent-700 dark:text-accent-300">{successMessage}</p>
+          </div>
+        )}
 
-          {/* API Keys Section */}
-          {activeSection === 'api-keys' && (
-            <div className="bg-white rounded-lg shadow">
-              <div className="border-b border-gray-200 px-6 py-4">
-                <h2 className="text-xl font-semibold text-gray-900">API Key Generation</h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  Generate and manage your API key for external integrations
-                </p>
+        {/* API Keys Section */}
+        {activeSection === 'api-keys' && (
+          <div className="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft overflow-hidden">
+            <div className="p-6 border-b border-dark-100 dark:border-dark-700">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                  <Key size={20} className="text-primary-600 dark:text-primary-400" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-dark-900 dark:text-white">API Key Management</h2>
+                  <p className="text-sm text-dark-500 dark:text-dark-400">
+                    Generate and manage your API key for external integrations
+                  </p>
+                </div>
               </div>
+            </div>
 
-              <div className="p-6">
-                {loading ? (
-                  <div className="text-center py-8">
-                    <div className="text-gray-500">Loading...</div>
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {/* Current API Key Status */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        API Key Status
-                      </label>
-                      <div className="flex items-center space-x-2">
-                        <div
-                          className={`h-3 w-3 rounded-full ${
-                            apiKeyStatus?.isActive ? 'bg-green-500' :
-                            apiKeyStatus?.hasApiKey ? 'bg-yellow-500' : 'bg-red-500'
-                          }`}
-                        />
-                        <span className="text-sm text-gray-600">
-                          {apiKeyStatus?.isActive ? 'Active' :
-                           apiKeyStatus?.hasApiKey ? 'Inactive' : 'No API key generated'}
-                        </span>
-                      </div>
+            <div className="p-6">
+              {loading ? (
+                <div className="text-center py-12">
+                  <Loader2 size={24} className="animate-spin text-primary-500 mx-auto mb-3" />
+                  <p className="text-sm text-dark-500 dark:text-dark-400">Loading API key status...</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Current API Key Status */}
+                  <div>
+                    <label className="block text-sm font-medium text-dark-700 dark:text-dark-300 mb-3">
+                      API Key Status
+                    </label>
+                    <div className="flex items-center gap-3 p-4 rounded-xl bg-dark-50 dark:bg-dark-700/50">
+                      <div
+                        className={`w-3 h-3 rounded-full ${
+                          apiKeyStatus?.isActive ? 'bg-accent-500' :
+                          apiKeyStatus?.hasApiKey ? 'bg-yellow-500' : 'bg-red-500'
+                        }`}
+                      />
+                      <span className="text-sm font-medium text-dark-700 dark:text-dark-300">
+                        {apiKeyStatus?.isActive ? 'Active' :
+                         apiKeyStatus?.hasApiKey ? 'Inactive' : 'No API key generated'}
+                      </span>
                     </div>
+                  </div>
 
-                    {/* Display existing API key preview */}
-                    {apiKeyStatus?.hasApiKey && apiKeyStatus.maskedKey && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Current API Key Preview
-                        </label>
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="text"
-                            value={apiKeyStatus.maskedKey}
-                            readOnly
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded bg-gray-50 text-gray-600 font-mono text-sm"
-                          />
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                          For security, only a preview is shown
-                        </p>
+                  {/* Display existing API key preview */}
+                  {apiKeyStatus?.hasApiKey && apiKeyStatus.maskedKey && (
+                    <div>
+                      <label className="block text-sm font-medium text-dark-700 dark:text-dark-300 mb-2">
+                        Current API Key Preview
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={apiKeyStatus.maskedKey}
+                          readOnly
+                          className="flex-1 px-4 py-3 bg-dark-100 dark:bg-dark-700 border border-dark-200 dark:border-dark-600 rounded-xl text-dark-600 dark:text-dark-400 font-mono text-sm"
+                        />
                       </div>
-                    )}
+                      <p className="mt-2 text-xs text-dark-500 dark:text-dark-400 flex items-center gap-1">
+                        <Info size={12} />
+                        For security, only a preview is shown
+                      </p>
+                    </div>
+                  )}
 
-                    {/* Display newly generated API key */}
-                    {newApiKey && (
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                        <label className="block text-sm font-medium text-yellow-900 mb-2">
+                  {/* Display newly generated API key */}
+                  {newApiKey && (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/50 rounded-xl p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <AlertTriangle size={18} className="text-yellow-600 dark:text-yellow-400" />
+                        <label className="text-sm font-medium text-yellow-800 dark:text-yellow-300">
                           Your New API Key (Copy it now!)
                         </label>
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="text"
-                            value={newApiKey}
-                            readOnly
-                            className="flex-1 px-3 py-2 border border-yellow-300 rounded bg-white font-mono text-sm"
-                          />
-                          <button
-                            onClick={() => copyToClipboard(newApiKey, 'apiKey')}
-                            className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition text-sm"
-                          >
-                            {copiedField === 'apiKey' ? 'Copied!' : 'Copy'}
-                          </button>
-                        </div>
-                        <p className="text-xs text-yellow-800 mt-2">
-                          Save this key securely. You won't be able to see it again!
-                        </p>
                       </div>
-                    )}
-
-                    {/* Action Buttons */}
-                    <div className="space-y-3">
-                      {!apiKeyStatus?.hasApiKey ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={newApiKey}
+                          readOnly
+                          className="flex-1 px-4 py-3 bg-white dark:bg-dark-800 border border-yellow-300 dark:border-yellow-700 rounded-xl font-mono text-sm text-dark-900 dark:text-white"
+                        />
                         <button
-                          onClick={handleGenerateApiKey}
-                          disabled={actionLoading}
-                          className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={() => copyToClipboard(newApiKey, 'apiKey')}
+                          className="px-4 py-3 bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl transition-colors flex items-center gap-2"
                         >
-                          {actionLoading ? 'Generating...' : 'Generate API Key'}
+                          {copiedField === 'apiKey' ? <Check size={16} /> : <Copy size={16} />}
+                          {copiedField === 'apiKey' ? 'Copied!' : 'Copy'}
                         </button>
-                      ) : (
-                        <button
-                          onClick={handleRotateApiKey}
-                          disabled={actionLoading}
-                          className="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {actionLoading ? 'Rotating...' : 'Rotate API Key'}
-                        </button>
-                      )}
+                      </div>
+                      <p className="mt-3 text-xs text-yellow-700 dark:text-yellow-400">
+                        Save this key securely. You won't be able to see it again!
+                      </p>
                     </div>
+                  )}
 
-                    {/* Info Box */}
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <h3 className="text-sm font-medium text-blue-900 mb-2">API Key Information</h3>
-                      <ul className="text-xs text-blue-800 space-y-1">
-                        <li>• Use API keys to authenticate external scripts and applications</li>
-                        <li>• Rotating a key deactivates the old key and creates a new active one</li>
-                        <li>• Never share your API key publicly or commit it to version control</li>
-                        <li>• Only active API keys can be used for authentication</li>
-                      </ul>
+                  {/* Action Buttons */}
+                  <div className="pt-2">
+                    {!apiKeyStatus?.hasApiKey ? (
+                      <button
+                        onClick={handleGenerateApiKey}
+                        disabled={actionLoading}
+                        className="w-full bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white px-6 py-3.5 rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        {actionLoading ? (
+                          <>
+                            <Loader2 size={18} className="animate-spin" />
+                            Generating...
+                          </>
+                        ) : (
+                          <>
+                            <Key size={18} />
+                            Generate API Key
+                          </>
+                        )}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleRotateApiKey}
+                        disabled={actionLoading}
+                        className="w-full bg-gradient-to-r from-accent-600 to-accent-700 hover:from-accent-700 hover:to-accent-800 text-white px-6 py-3.5 rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        {actionLoading ? (
+                          <>
+                            <Loader2 size={18} className="animate-spin" />
+                            Rotating...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw size={18} />
+                            Rotate API Key
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Info Box */}
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-xl p-4">
+                    <div className="flex items-start gap-3">
+                      <Info size={18} className="text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <h3 className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">API Key Information</h3>
+                        <ul className="text-xs text-blue-700 dark:text-blue-400 space-y-1.5">
+                          <li className="flex items-start gap-2">
+                            <span className="text-blue-500">•</span>
+                            Use API keys to authenticate external scripts and applications
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="text-blue-500">•</span>
+                            Rotating a key deactivates the old key and creates a new active one
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="text-blue-500">•</span>
+                            Never share your API key publicly or commit it to version control
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="text-blue-500">•</span>
+                            Only active API keys can be used for authentication
+                          </li>
+                        </ul>
+                      </div>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
-          )}
+          </div>
+        )}
 
-          {/* API Documentation Section */}
-          {activeSection === 'api-docs' && (
-            <div className="bg-white rounded-lg shadow">
-              <div className="border-b border-gray-200 px-6 py-4">
-                <h2 className="text-xl font-semibold text-gray-900">API Documentation</h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  Complete guide to integrate with our API
-                </p>
+        {/* API Documentation Section */}
+        {activeSection === 'api-docs' && (
+          <div className="space-y-6">
+            {/* Header Card */}
+            <div className="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft overflow-hidden">
+              <div className="p-6 border-b border-dark-100 dark:border-dark-700">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                    <Code size={20} className="text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-dark-900 dark:text-white">API Documentation</h2>
+                    <p className="text-sm text-dark-500 dark:text-dark-400">
+                      Complete guide to integrate with our API
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div className="p-6 space-y-6">
                 {/* Base URL */}
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-2">Base URL</h3>
-                  <div className="flex items-center space-x-2">
-                    <code className="flex-1 bg-gray-100 px-3 py-2 rounded text-sm font-mono">
+                  <h3 className="text-sm font-semibold text-dark-900 dark:text-white mb-2">Base URL</h3>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 bg-dark-100 dark:bg-dark-700 px-4 py-3 rounded-xl text-sm font-mono text-dark-700 dark:text-dark-300">
                       {baseUrl}/api/v2
                     </code>
                     <button
                       onClick={() => copyToClipboard(`${baseUrl}/api/v2`, 'baseUrl')}
-                      className="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm transition"
+                      className="px-4 py-3 bg-dark-200 dark:bg-dark-600 hover:bg-dark-300 dark:hover:bg-dark-500 rounded-xl transition-colors flex items-center gap-2 text-dark-700 dark:text-dark-300"
                     >
-                      {copiedField === 'baseUrl' ? 'Copied!' : 'Copy'}
+                      {copiedField === 'baseUrl' ? <Check size={16} /> : <Copy size={16} />}
                     </button>
                   </div>
                 </div>
 
                 {/* Authentication */}
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-2">Authentication</h3>
-                  <p className="text-sm text-gray-600 mb-2">
-                    Include your API key in all requests using the <code className="bg-gray-100 px-1 rounded">key</code> parameter:
+                  <h3 className="text-sm font-semibold text-dark-900 dark:text-white mb-2">Authentication</h3>
+                  <p className="text-sm text-dark-600 dark:text-dark-400 mb-3">
+                    Include your API key in all requests using the <code className="bg-dark-100 dark:bg-dark-700 px-1.5 py-0.5 rounded text-xs">key</code> parameter:
                   </p>
-                  <code className="block bg-gray-100 px-3 py-2 rounded text-xs font-mono">
+                  <code className="block bg-dark-100 dark:bg-dark-700 px-4 py-3 rounded-xl text-xs font-mono text-dark-700 dark:text-dark-300 overflow-x-auto">
                     POST {baseUrl}/api/v2?key=YOUR_API_KEY&action=...
                   </code>
                 </div>
+              </div>
+            </div>
 
-                {/* Endpoints */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-semibold text-gray-900">Available Endpoints</h3>
+            {/* Endpoints */}
+            <div className="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft overflow-hidden">
+              <div className="p-6 border-b border-dark-100 dark:border-dark-700">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                    <Terminal size={20} className="text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-dark-900 dark:text-white">Available Endpoints</h3>
+                </div>
+              </div>
 
-                  {/* Create Order */}
-                  <div className="border border-gray-200 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-2">1. Create Order</h4>
-                    <div className="space-y-2 text-sm">
-                      <div>
-                        <span className="text-gray-600">Action:</span>
-                        <code className="ml-2 bg-gray-100 px-2 py-1 rounded">add</code>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Parameters:</span>
-                        <ul className="ml-4 mt-1 text-xs space-y-1">
-                          <li>• <code className="bg-gray-100 px-1 rounded">service</code> - Service ID (integer)</li>
-                          <li>• <code className="bg-gray-100 px-1 rounded">link</code> - YouTube video URL</li>
-                          <li>• <code className="bg-gray-100 px-1 rounded">quantity</code> - Number of views (integer)</li>
-                        </ul>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Example:</span>
-                        <code className="block bg-gray-900 text-green-400 px-3 py-2 rounded mt-1 text-xs overflow-x-auto">
-                          curl -X POST "{baseUrl}/api/v2?key=YOUR_KEY&action=add&service=1&link=https://youtube.com/watch?v=VIDEO_ID&quantity=1000"
-                        </code>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Response:</span>
-                        <pre className="bg-gray-900 text-green-400 px-3 py-2 rounded mt-1 text-xs overflow-x-auto">
-{`{
+              <div className="p-6 space-y-4">
+                {/* Create Order */}
+                <EndpointCard
+                  title="1. Create Order"
+                  action="add"
+                  parameters={[
+                    { name: 'service', desc: 'Service ID (integer)' },
+                    { name: 'link', desc: 'YouTube video URL' },
+                    { name: 'quantity', desc: 'Number of views (integer)' },
+                  ]}
+                  example={`curl -X POST "${baseUrl}/api/v2?key=YOUR_KEY&action=add&service=1&link=https://youtube.com/watch?v=VIDEO_ID&quantity=1000"`}
+                  response={`{
   "status": "Success",
   "order": 12345,
   "charge": "4.00",
@@ -344,64 +401,35 @@ export const ProfileSettings: React.FC = () => {
   "remaining_balance": "95.50",
   "currency": "USD"
 }`}
-                        </pre>
-                      </div>
-                    </div>
-                  </div>
+                  copyToClipboard={copyToClipboard}
+                  copiedField={copiedField}
+                />
 
-                  {/* Check Order Status */}
-                  <div className="border border-gray-200 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-2">2. Check Order Status</h4>
-                    <div className="space-y-2 text-sm">
-                      <div>
-                        <span className="text-gray-600">Action:</span>
-                        <code className="ml-2 bg-gray-100 px-2 py-1 rounded">status</code>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Parameters:</span>
-                        <ul className="ml-4 mt-1 text-xs space-y-1">
-                          <li>• <code className="bg-gray-100 px-1 rounded">order</code> - Order ID (integer)</li>
-                        </ul>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Example:</span>
-                        <code className="block bg-gray-900 text-green-400 px-3 py-2 rounded mt-1 text-xs overflow-x-auto">
-                          curl -X POST "{baseUrl}/api/v2?key=YOUR_KEY&action=status&order=12345"
-                        </code>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Response:</span>
-                        <pre className="bg-gray-900 text-green-400 px-3 py-2 rounded mt-1 text-xs overflow-x-auto">
-{`{
+                {/* Check Order Status */}
+                <EndpointCard
+                  title="2. Check Order Status"
+                  action="status"
+                  parameters={[
+                    { name: 'order', desc: 'Order ID (integer)' },
+                  ]}
+                  example={`curl -X POST "${baseUrl}/api/v2?key=YOUR_KEY&action=status&order=12345"`}
+                  response={`{
   "charge": "4.00",
   "start_count": 1523,
   "status": "In progress",
   "remains": 450,
   "currency": "USDT"
 }`}
-                        </pre>
-                      </div>
-                    </div>
-                  </div>
+                  copyToClipboard={copyToClipboard}
+                  copiedField={copiedField}
+                />
 
-                  {/* Get Services */}
-                  <div className="border border-gray-200 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-2">3. Get Available Services</h4>
-                    <div className="space-y-2 text-sm">
-                      <div>
-                        <span className="text-gray-600">Action:</span>
-                        <code className="ml-2 bg-gray-100 px-2 py-1 rounded">services</code>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Example:</span>
-                        <code className="block bg-gray-900 text-green-400 px-3 py-2 rounded mt-1 text-xs overflow-x-auto">
-                          curl -X POST "{baseUrl}/api/v2?key=YOUR_KEY&action=services"
-                        </code>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Response:</span>
-                        <pre className="bg-gray-900 text-green-400 px-3 py-2 rounded mt-1 text-xs overflow-x-auto">
-{`[
+                {/* Get Services */}
+                <EndpointCard
+                  title="3. Get Available Services"
+                  action="services"
+                  example={`curl -X POST "${baseUrl}/api/v2?key=YOUR_KEY&action=services"`}
+                  response={`[
   {
     "service": 1,
     "name": "YouTube Views - USA",
@@ -411,174 +439,204 @@ export const ProfileSettings: React.FC = () => {
     "max": 100000
   }
 ]`}
-                        </pre>
-                      </div>
-                    </div>
-                  </div>
+                  copyToClipboard={copyToClipboard}
+                  copiedField={copiedField}
+                />
 
-                  {/* Check Balance */}
-                  <div className="border border-gray-200 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-2">4. Check Balance</h4>
-                    <div className="space-y-2 text-sm">
-                      <div>
-                        <span className="text-gray-600">Action:</span>
-                        <code className="ml-2 bg-gray-100 px-2 py-1 rounded">balance</code>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Example:</span>
-                        <code className="block bg-gray-900 text-green-400 px-3 py-2 rounded mt-1 text-xs overflow-x-auto">
-                          curl -X POST "{baseUrl}/api/v2?key=YOUR_KEY&action=balance"
-                        </code>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Response:</span>
-                        <pre className="bg-gray-900 text-green-400 px-3 py-2 rounded mt-1 text-xs overflow-x-auto">
-{`{
+                {/* Check Balance */}
+                <EndpointCard
+                  title="4. Check Balance"
+                  action="balance"
+                  example={`curl -X POST "${baseUrl}/api/v2?key=YOUR_KEY&action=balance"`}
+                  response={`{
   "balance": "95.50",
   "currency": "USDT"
 }`}
-                        </pre>
-                      </div>
-                    </div>
-                  </div>
+                  copyToClipboard={copyToClipboard}
+                  copiedField={copiedField}
+                />
 
-                  {/* Batch Status Check */}
-                  <div className="border border-gray-200 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-2">5. Batch Order Status</h4>
-                    <div className="space-y-2 text-sm">
-                      <div>
-                        <span className="text-gray-600">Action:</span>
-                        <code className="ml-2 bg-gray-100 px-2 py-1 rounded">statuses</code>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Parameters:</span>
-                        <ul className="ml-4 mt-1 text-xs space-y-1">
-                          <li>• <code className="bg-gray-100 px-1 rounded">orders</code> - Comma-separated order IDs</li>
-                        </ul>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Example:</span>
-                        <code className="block bg-gray-900 text-green-400 px-3 py-2 rounded mt-1 text-xs overflow-x-auto">
-                          curl -X POST "{baseUrl}/api/v2?key=YOUR_KEY&action=statuses&orders=123,456,789"
-                        </code>
-                      </div>
-                    </div>
-                  </div>
+                {/* Batch Status Check */}
+                <EndpointCard
+                  title="5. Batch Order Status"
+                  action="statuses"
+                  parameters={[
+                    { name: 'orders', desc: 'Comma-separated order IDs' },
+                  ]}
+                  example={`curl -X POST "${baseUrl}/api/v2?key=YOUR_KEY&action=statuses&orders=123,456,789"`}
+                  copyToClipboard={copyToClipboard}
+                  copiedField={copiedField}
+                />
 
-                  {/* Cancel Order */}
-                  <div className="border border-gray-200 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-2">6. Cancel Order</h4>
-                    <div className="space-y-2 text-sm">
-                      <div>
-                        <span className="text-gray-600">Action:</span>
-                        <code className="ml-2 bg-gray-100 px-2 py-1 rounded">cancel</code>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Parameters:</span>
-                        <ul className="ml-4 mt-1 text-xs space-y-1">
-                          <li>• <code className="bg-gray-100 px-1 rounded">order</code> - Order ID to cancel (integer)</li>
-                        </ul>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Example:</span>
-                        <code className="block bg-gray-900 text-green-400 px-3 py-2 rounded mt-1 text-xs overflow-x-auto">
-                          curl -X POST "{baseUrl}/api/v2?key=YOUR_KEY&action=cancel&order=12345"
-                        </code>
-                      </div>
-                    </div>
-                  </div>
+                {/* Cancel Order */}
+                <EndpointCard
+                  title="6. Cancel Order"
+                  action="cancel"
+                  parameters={[
+                    { name: 'order', desc: 'Order ID to cancel (integer)' },
+                  ]}
+                  example={`curl -X POST "${baseUrl}/api/v2?key=YOUR_KEY&action=cancel&order=12345"`}
+                  copyToClipboard={copyToClipboard}
+                  copiedField={copiedField}
+                />
 
-                  {/* Mass Order Creation */}
-                  <div className="border border-gray-200 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-2">7. Mass Order (Bulk Creation)</h4>
-                    <div className="space-y-2 text-sm">
-                      <div>
-                        <span className="text-gray-600">Action:</span>
-                        <code className="ml-2 bg-gray-100 px-2 py-1 rounded">mass</code>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Description:</span>
-                        <p className="text-xs text-gray-600 mt-1">Create multiple orders in a single API call (max 100 orders). Requires JSON request body.</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Example:</span>
-                        <code className="block bg-gray-900 text-green-400 px-3 py-2 rounded mt-1 text-xs overflow-x-auto">
-{`curl -X POST "{baseUrl}/api/v2?key=YOUR_KEY&action=mass" \\
+                {/* Mass Order */}
+                <EndpointCard
+                  title="7. Mass Order (Bulk Creation)"
+                  action="mass"
+                  description="Create multiple orders in a single API call (max 100 orders). Requires JSON request body."
+                  example={`curl -X POST "${baseUrl}/api/v2?key=YOUR_KEY&action=mass" \\
   -H "Content-Type: application/json" \\
   -d '{
     "orders": [
-      {
-        "service": 1,
-        "link": "https://youtube.com/watch?v=VIDEO1",
-        "quantity": 1000
-      },
-      {
-        "service": 2,
-        "link": "https://youtube.com/watch?v=VIDEO2",
-        "quantity": 500
-      }
+      {"service": 1, "link": "https://youtube.com/watch?v=VIDEO1", "quantity": 1000},
+      {"service": 2, "link": "https://youtube.com/watch?v=VIDEO2", "quantity": 500}
     ]
   }'`}
-                        </code>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Response:</span>
-                        <pre className="bg-gray-900 text-green-400 px-3 py-2 rounded mt-1 text-xs overflow-x-auto">
-{`{
+                  response={`{
   "status": "Success",
   "orders": [
-    {
-      "order": 12345,
-      "charge": "4.00",
-      "start_count": 1523,
-      "created_at": "2025-11-06T10:30:45",
-      "status": "Success"
-    },
-    {
-      "order": 12346,
-      "charge": "2.00",
-      "start_count": 892,
-      "created_at": "2025-11-06T10:30:46",
-      "status": "Success"
-    }
+    {"order": 12345, "charge": "4.00", "status": "Success"},
+    {"order": 12346, "charge": "2.00", "status": "Success"}
   ],
   "total_orders": 2,
   "total_charge": "6.00",
   "remaining_balance": "93.50",
   "currency": "USD"
 }`}
-                        </pre>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                  copyToClipboard={copyToClipboard}
+                  copiedField={copiedField}
+                />
+              </div>
+            </div>
 
-                {/* Error Handling */}
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-2">Error Handling</h3>
-                  <p className="text-sm text-gray-600 mb-2">
-                    All errors return a JSON response with an error field:
-                  </p>
-                  <pre className="bg-gray-900 text-red-400 px-3 py-2 rounded text-xs">
+            {/* Error Handling & Rate Limits */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 p-6 shadow-soft dark:shadow-dark-soft">
+                <div className="flex items-center gap-2 mb-4">
+                  <AlertCircle size={18} className="text-red-500" />
+                  <h3 className="text-sm font-semibold text-dark-900 dark:text-white">Error Handling</h3>
+                </div>
+                <p className="text-sm text-dark-600 dark:text-dark-400 mb-3">
+                  All errors return a JSON response with an error field:
+                </p>
+                <pre className="bg-dark-900 text-red-400 px-4 py-3 rounded-xl text-xs font-mono overflow-x-auto">
 {`{
   "error": "Invalid API key"
 }`}
-                  </pre>
-                </div>
+                </pre>
+              </div>
 
-                {/* Rate Limits */}
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <h3 className="text-sm font-semibold text-yellow-900 mb-2">Rate Limits</h3>
-                  <ul className="text-xs text-yellow-800 space-y-1">
-                    <li>• Order creation: Limited per user</li>
-                    <li>• Status checks: Reasonable usage expected</li>
-                    <li>• Exceeding limits returns HTTP 429</li>
-                  </ul>
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-2xl border border-yellow-200 dark:border-yellow-800/50 p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <AlertTriangle size={18} className="text-yellow-600 dark:text-yellow-400" />
+                  <h3 className="text-sm font-semibold text-yellow-800 dark:text-yellow-300">Rate Limits</h3>
                 </div>
+                <ul className="text-xs text-yellow-700 dark:text-yellow-400 space-y-2">
+                  <li className="flex items-start gap-2">
+                    <span className="text-yellow-500">•</span>
+                    Order creation: Limited per user
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-yellow-500">•</span>
+                    Status checks: Reasonable usage expected
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-yellow-500">•</span>
+                    Exceeding limits returns HTTP 429
+                  </li>
+                </ul>
               </div>
             </div>
-          )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Endpoint Card Component
+interface EndpointCardProps {
+  title: string;
+  action: string;
+  description?: string;
+  parameters?: { name: string; desc: string }[];
+  example: string;
+  response?: string;
+  copyToClipboard: (text: string, field: string) => void;
+  copiedField: string | null;
+}
+
+const EndpointCard: React.FC<EndpointCardProps> = ({
+  title,
+  action,
+  description,
+  parameters,
+  example,
+  response,
+  copyToClipboard,
+  copiedField,
+}) => {
+  const fieldId = `example-${action}`;
+
+  return (
+    <div className="border border-dark-200 dark:border-dark-700 rounded-xl overflow-hidden">
+      <div className="px-4 py-3 bg-dark-50 dark:bg-dark-700/50 border-b border-dark-200 dark:border-dark-700">
+        <h4 className="font-medium text-dark-900 dark:text-white">{title}</h4>
+      </div>
+      <div className="p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-dark-600 dark:text-dark-400">Action:</span>
+          <code className="bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 px-2 py-1 rounded-lg text-xs font-medium">
+            {action}
+          </code>
         </div>
+
+        {description && (
+          <p className="text-xs text-dark-600 dark:text-dark-400">{description}</p>
+        )}
+
+        {parameters && parameters.length > 0 && (
+          <div>
+            <span className="text-sm text-dark-600 dark:text-dark-400">Parameters:</span>
+            <ul className="mt-1 space-y-1">
+              {parameters.map((param) => (
+                <li key={param.name} className="text-xs text-dark-500 dark:text-dark-400 flex items-center gap-2">
+                  <span className="text-dark-400">•</span>
+                  <code className="bg-dark-100 dark:bg-dark-700 px-1.5 py-0.5 rounded text-dark-700 dark:text-dark-300">
+                    {param.name}
+                  </code>
+                  <span>- {param.desc}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-sm text-dark-600 dark:text-dark-400">Example:</span>
+            <button
+              onClick={() => copyToClipboard(example, fieldId)}
+              className="text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 flex items-center gap-1"
+            >
+              {copiedField === fieldId ? <Check size={12} /> : <Copy size={12} />}
+              {copiedField === fieldId ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+          <pre className="bg-dark-900 text-accent-400 px-4 py-3 rounded-xl text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all">
+            {example}
+          </pre>
+        </div>
+
+        {response && (
+          <div>
+            <span className="text-sm text-dark-600 dark:text-dark-400">Response:</span>
+            <pre className="mt-1 bg-dark-900 text-accent-400 px-4 py-3 rounded-xl text-xs font-mono overflow-x-auto">
+              {response}
+            </pre>
+          </div>
+        )}
       </div>
     </div>
   );

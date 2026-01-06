@@ -3,6 +3,20 @@ import { Link } from 'react-router-dom';
 import { orderAPI } from '../services/api';
 import { Order } from '../types';
 import { useAuthStore } from '../store/authStore';
+import {
+  Plus,
+  Search,
+  Filter,
+  RefreshCw,
+  Package,
+  ExternalLink,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  XCircle,
+  Calendar,
+  ChevronDown,
+} from 'lucide-react';
 
 export const Orders: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -13,6 +27,7 @@ export const Orders: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const { user } = useAuthStore();
 
   useEffect(() => {
@@ -20,25 +35,28 @@ export const Orders: React.FC = () => {
   }, [statusFilter, startDate, endDate]);
 
   const fetchOrders = async () => {
+    setLoading(true);
     try {
       const response = await orderAPI.getOrders(
         statusFilter || undefined,
         startDate || undefined,
         endDate || undefined
       );
-      // Ensure we always have an array
       if (Array.isArray(response.data)) {
         setOrders(response.data);
       } else if (response.data && Array.isArray(response.data.content)) {
-        // Handle paginated response
         setOrders(response.data.content);
+      } else if (Array.isArray(response.content)) {
+        setOrders(response.content);
+      } else if (Array.isArray(response)) {
+        setOrders(response);
       } else {
         setOrders([]);
       }
     } catch (error: any) {
       console.error('Error fetching orders:', error);
       setError(error.response?.data?.message || 'Failed to fetch orders');
-      setOrders([]); // Set empty array on error
+      setOrders([]);
     } finally {
       setLoading(false);
     }
@@ -62,70 +80,62 @@ export const Orders: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
+  const getStatusIcon = (status: string) => {
+    switch (status?.toUpperCase()) {
       case 'COMPLETED':
-      case 'Completed':
-        return 'text-green-700 bg-green-50';
+        return <CheckCircle size={14} />;
       case 'IN_PROGRESS':
-      case 'Processing':
-        return 'text-blue-700 bg-blue-50';
+      case 'PROCESSING':
+        return <Clock size={14} />;
       case 'PENDING':
-      case 'Pending':
-        return 'text-yellow-700 bg-yellow-50';
+        return <Clock size={14} />;
       case 'FAILED':
-      case 'Failed':
-        return 'text-red-700 bg-red-50';
+        return <AlertCircle size={14} />;
       case 'CANCELED':
-      case 'Canceled':
       case 'CANCELLED':
-      case 'Cancelled':
-        return 'text-gray-700 bg-gray-50';
+        return <XCircle size={14} />;
       default:
-        return 'text-gray-700 bg-gray-50';
+        return <Clock size={14} />;
     }
   };
 
-  const getServiceBadgeColor = (serviceId?: number) => {
-    if (!serviceId) return 'bg-gray-100 text-gray-700';
-    const colors = [
-      'bg-blue-100 text-blue-700',
-      'bg-green-100 text-green-700',
-      'bg-purple-100 text-purple-700',
-      'bg-pink-100 text-pink-700',
-      'bg-indigo-100 text-indigo-700',
-      'bg-red-100 text-red-700',
-      'bg-yellow-100 text-yellow-700',
-      'bg-teal-100 text-teal-700',
-    ];
-    return colors[serviceId % colors.length];
+  const getStatusColor = (status: string) => {
+    switch (status?.toUpperCase()) {
+      case 'COMPLETED':
+        return 'bg-accent-100 text-accent-700 dark:bg-accent-900/30 dark:text-accent-400';
+      case 'IN_PROGRESS':
+      case 'PROCESSING':
+        return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+      case 'PENDING':
+        return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+      case 'FAILED':
+        return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+      case 'CANCELED':
+      case 'CANCELLED':
+        return 'bg-dark-100 text-dark-600 dark:bg-dark-700 dark:text-dark-400';
+      default:
+        return 'bg-dark-100 text-dark-600 dark:bg-dark-700 dark:text-dark-400';
+    }
   };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }) + ' ' + date.toLocaleTimeString('en-US', {
+      month: 'short',
+      day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit',
-      hour12: false
     });
   };
 
   const formatLink = (link: string) => {
-    if (link.length > 40) {
-      return link.substring(0, 37) + '...';
+    if (link.length > 35) {
+      return link.substring(0, 32) + '...';
     }
     return link;
   };
 
-  // Backend now handles all filtering (status, dates)
-  // No need for client-side filtering
   const filteredOrders = orders.filter(order => {
-    // Client-side search by order ID, link, or service name (not supported by backend yet)
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
       return (
@@ -138,250 +148,301 @@ export const Orders: React.FC = () => {
     return true;
   });
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="mt-2 text-gray-600">Loading orders...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center text-red-600">
-          <p className="text-xl font-semibold">Error</p>
-          <p>{error}</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="w-full">
-      {/* Header and Filters with padding */}
-      <div className="px-4 py-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">My Orders</h1>
-        {user?.role !== 'ADMIN' && (
-          <Link
-            to="/orders/new"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-md transition font-medium"
+    <div className="space-y-6 animate-fade-in">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-dark-900 dark:text-white">Orders</h1>
+          <p className="text-dark-500 dark:text-dark-400 mt-1">
+            Manage and track your service orders
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={fetchOrders}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-dark-600 hover:text-dark-900 dark:text-dark-400 dark:hover:text-white bg-white dark:bg-dark-800 border border-dark-200 dark:border-dark-700 rounded-xl hover:bg-dark-50 dark:hover:bg-dark-700 transition-colors disabled:opacity-50"
           >
-            + New Order
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+          {user?.role !== 'ADMIN' && (
+            <Link
+              to="/orders/new"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-xl transition-colors shadow-soft"
+            >
+              <Plus size={16} />
+              New Order
             </Link>
           )}
         </div>
-
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow p-4 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Search
-            </label>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by ID, order ID, link, or service..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Status Filter
-            </label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">All Statuses</option>
-              <option value="PENDING">Pending</option>
-              <option value="IN_PROGRESS">In Progress</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="FAILED">Failed</option>
-              <option value="CANCELED">Canceled</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              From Date
-            </label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              To Date
-            </label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          <div className="flex items-end">
-            <button
-              onClick={fetchOrders}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md transition font-medium w-full"
-            >
-              Refresh
-            </button>
-          </div>
-          </div>
-        </div>
       </div>
 
-      {/* Table without padding - full width */}
-      {filteredOrders.length === 0 ? (
-        <div className="px-4">
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <div className="text-gray-400 mb-4">
-              <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <p className="text-gray-500 text-lg">No orders found</p>
-              <p className="text-gray-400 text-sm mt-2">
-                {searchTerm || statusFilter
-                  ? 'Try adjusting your filters'
-                  : 'Your orders will appear here once you create them'}
-              </p>
+      {/* Search and Filters Card */}
+      <div className="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft overflow-hidden">
+        {/* Search Bar */}
+        <div className="p-4 border-b border-dark-100 dark:border-dark-700">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search by ID, link, or service..."
+                className="w-full pl-10 pr-4 py-2.5 border border-dark-200 dark:border-dark-600 rounded-xl bg-white dark:bg-dark-700 text-dark-900 dark:text-white placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all"
+              />
             </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl border transition-colors ${
+                showFilters || statusFilter || startDate || endDate
+                  ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 border-primary-200 dark:border-primary-800'
+                  : 'bg-white dark:bg-dark-700 text-dark-600 dark:text-dark-300 border-dark-200 dark:border-dark-600 hover:bg-dark-50 dark:hover:bg-dark-600'
+              }`}
+            >
+              <Filter size={16} />
+              Filters
+              <ChevronDown size={16} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+            </button>
           </div>
-        ) : (
-          <div className="w-full bg-white shadow-md overflow-hidden">
+        </div>
+
+        {/* Expandable Filters */}
+        {showFilters && (
+          <div className="p-4 bg-dark-50 dark:bg-dark-700/50 border-b border-dark-100 dark:border-dark-700 animate-fade-in">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-dark-700 dark:text-dark-300 mb-2">
+                  Status
+                </label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-dark-200 dark:border-dark-600 rounded-xl bg-white dark:bg-dark-700 text-dark-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="IN_PROGRESS">In Progress</option>
+                  <option value="COMPLETED">Completed</option>
+                  <option value="FAILED">Failed</option>
+                  <option value="CANCELED">Canceled</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-dark-700 dark:text-dark-300 mb-2">
+                  From Date
+                </label>
+                <div className="relative">
+                  <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 border border-dark-200 dark:border-dark-600 rounded-xl bg-white dark:bg-dark-700 text-dark-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-dark-700 dark:text-dark-300 mb-2">
+                  To Date
+                </label>
+                <div className="relative">
+                  <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 border border-dark-200 dark:border-dark-600 rounded-xl bg-white dark:bg-dark-700 text-dark-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+            {(statusFilter || startDate || endDate) && (
+              <button
+                onClick={() => {
+                  setStatusFilter('');
+                  setStartDate('');
+                  setEndDate('');
+                }}
+                className="mt-3 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium"
+              >
+                Clear all filters
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Loading State */}
+        {loading && (
+          <div className="p-12 text-center">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary-100 dark:bg-primary-900/30 mb-4">
+              <RefreshCw size={24} className="text-primary-600 dark:text-primary-400 animate-spin" />
+            </div>
+            <p className="text-dark-500 dark:text-dark-400">Loading orders...</p>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && !loading && (
+          <div className="p-12 text-center">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 mb-4">
+              <AlertCircle size={24} className="text-red-600 dark:text-red-400" />
+            </div>
+            <p className="text-red-600 dark:text-red-400 font-medium">{error}</p>
+            <button
+              onClick={fetchOrders}
+              className="mt-4 px-4 py-2 text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700"
+            >
+              Try again
+            </button>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && !error && filteredOrders.length === 0 && (
+          <div className="p-12 text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-dark-100 dark:bg-dark-700 mb-4">
+              <Package size={32} className="text-dark-400" />
+            </div>
+            <p className="text-dark-600 dark:text-dark-300 font-medium">No orders found</p>
+            <p className="text-sm text-dark-400 dark:text-dark-500 mt-1">
+              {searchTerm || statusFilter || startDate || endDate
+                ? 'Try adjusting your filters'
+                : 'Create your first order to get started'}
+            </p>
+            {user?.role !== 'ADMIN' && !searchTerm && !statusFilter && (
+              <Link
+                to="/orders/new"
+                className="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-xl bg-primary-600 text-white font-medium hover:bg-primary-700 transition-colors"
+              >
+                <Plus size={18} />
+                Create Order
+              </Link>
+            )}
+          </div>
+        )}
+
+        {/* Orders Table */}
+        {!loading && !error && filteredOrders.length > 0 && (
+          <>
             <div className="overflow-x-auto">
-              <table className="w-full table-auto divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-4 py-3 text-left">
-                    <input
-                      type="checkbox"
-                      checked={selectedOrders.size === filteredOrders.length && filteredOrders.length > 0}
-                      onChange={toggleAllOrders}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                    ID
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                    User
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                    Charge
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                    Link
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
-                    Start count
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
-                    Quantity
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                    Service
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
-                    Remains
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                    Created
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50 transition">
-                    <td className="px-4 py-4">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-dark-50 dark:bg-dark-700/50">
+                    <th className="px-4 py-3 text-left">
                       <input
                         type="checkbox"
-                        checked={selectedOrders.has(order.id)}
-                        onChange={() => toggleOrderSelection(order.id)}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        checked={selectedOrders.size === filteredOrders.length && filteredOrders.length > 0}
+                        onChange={toggleAllOrders}
+                        className="rounded border-dark-300 dark:border-dark-600 text-primary-600 focus:ring-primary-500 bg-white dark:bg-dark-700"
                       />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{order.id}</div>
-                      <div className="text-xs text-gray-400">{order.orderId || '-'}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{user?.username || 'N/A'}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{order.charge ? Number(order.charge).toFixed(4) : '0.0000'}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900 max-w-xs truncate" title={order.link}>
-                        <a href={order.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
-                          {formatLink(order.link)}
-                        </a>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="text-sm text-gray-900">{order.startCount || 0}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getServiceBadgeColor(order.service?.id)}`}>
-                        {order.quantity || 0}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900 max-w-xs truncate" title={order.service?.name}>
-                        {order.service?.name || 'N/A'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(order.status)}`}>
-                        {order.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="text-sm text-gray-900">{order.remains !== null && order.remains !== undefined ? order.remains : '-'}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{formatDate(order.createdAt || new Date().toISOString())}</div>
-                    </td>
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-dark-600 dark:text-dark-400 uppercase tracking-wider">
+                      ID
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-dark-600 dark:text-dark-400 uppercase tracking-wider">
+                      Service
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-dark-600 dark:text-dark-400 uppercase tracking-wider">
+                      Link
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-dark-600 dark:text-dark-400 uppercase tracking-wider">
+                      Quantity
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-dark-600 dark:text-dark-400 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-dark-600 dark:text-dark-400 uppercase tracking-wider">
+                      Charge
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-dark-600 dark:text-dark-400 uppercase tracking-wider">
+                      Created
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-dark-100 dark:divide-dark-700">
+                  {filteredOrders.map((order) => (
+                    <tr
+                      key={order.id}
+                      className="hover:bg-dark-50 dark:hover:bg-dark-700/50 transition-colors"
+                    >
+                      <td className="px-4 py-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedOrders.has(order.id)}
+                          onChange={() => toggleOrderSelection(order.id)}
+                          className="rounded border-dark-300 dark:border-dark-600 text-primary-600 focus:ring-primary-500 bg-white dark:bg-dark-700"
+                        />
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="text-sm font-medium text-dark-900 dark:text-white">#{order.id}</div>
+                        {order.orderId && (
+                          <div className="text-xs text-dark-400">{order.orderId}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="text-sm text-dark-900 dark:text-white max-w-[200px] truncate" title={order.service?.name}>
+                          {order.service?.name || 'N/A'}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <a
+                          href={order.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 max-w-[200px] truncate"
+                          title={order.link}
+                        >
+                          {formatLink(order.link)}
+                          <ExternalLink size={12} className="flex-shrink-0" />
+                        </a>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <span className="text-sm font-medium text-dark-900 dark:text-white">
+                          {order.quantity?.toLocaleString() || 0}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${getStatusColor(order.status)}`}>
+                          {getStatusIcon(order.status)}
+                          {order.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <span className="text-sm font-medium text-dark-900 dark:text-white">
+                          ${order.charge ? Number(order.charge).toFixed(4) : '0.0000'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <span className="text-sm text-dark-500 dark:text-dark-400">
+                          {formatDate(order.createdAt || new Date().toISOString())}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-          {/* Table footer with row count */}
-          <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-600">
-                Showing <span className="font-medium">{filteredOrders.length}</span> of <span className="font-medium">{orders.length}</span> order{orders.length !== 1 ? 's' : ''}
-              </div>
-              {selectedOrders.size > 0 && (
-                <div className="text-sm text-gray-600">
-                  <span className="font-medium">{selectedOrders.size}</span> selected
+            {/* Table Footer */}
+            <div className="px-4 py-3 bg-dark-50 dark:bg-dark-700/50 border-t border-dark-100 dark:border-dark-700">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-dark-500 dark:text-dark-400">
+                  Showing <span className="font-medium text-dark-700 dark:text-dark-300">{filteredOrders.length}</span> of{' '}
+                  <span className="font-medium text-dark-700 dark:text-dark-300">{orders.length}</span> orders
+                </div>
+                {selectedOrders.size > 0 && (
+                  <div className="text-sm text-primary-600 dark:text-primary-400 font-medium">
+                    {selectedOrders.size} selected
                   </div>
                 )}
               </div>
             </div>
-          </div>
+          </>
         )}
+      </div>
     </div>
   );
 };

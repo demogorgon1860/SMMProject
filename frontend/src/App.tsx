@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 // Components
 import { Layout } from './components/Layout';
@@ -30,8 +31,9 @@ function App() {
   }, [checkAuth]);
   
   return (
-    <Router>
-      <Routes>
+    <ThemeProvider>
+      <Router>
+        <Routes>
         {/* Public routes */}
         <Route path="/login" element={<LoginForm />} />
         <Route path="/register" element={<RegisterForm />} />
@@ -100,8 +102,9 @@ function App() {
         
         {/* Catch all */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </Router>
+        </Routes>
+      </Router>
+    </ThemeProvider>
   );
 }
 

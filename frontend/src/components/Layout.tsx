@@ -119,7 +119,7 @@ export const Layout: React.FC = () => {
                 className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-accent-100 text-accent-700 dark:bg-accent-900/50 dark:text-accent-300 hover:bg-accent-200 dark:hover:bg-accent-900/70 transition-colors"
               >
                 <Wallet size={16} />
-                <span className="font-semibold">${user?.balance?.toFixed(2) || '0.00'}</span>
+                <span className="font-semibold">${Number(user?.balance || 0).toFixed(2)}</span>
               </Link>
 
               {/* Theme Toggle */}

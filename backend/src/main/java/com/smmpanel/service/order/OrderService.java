@@ -304,51 +304,26 @@ public class OrderService {
                     // If startCount was successfully set before exception, continue processing
                 }
             } else if (isInstagramOrder(order)) {
-                // INSTAGRAM ORDER - Send to Instagram bot
+                // INSTAGRAM ORDER - Send to Kafka for async processing
                 log.info(
-                        "Order {} - Instagram order detected, sending to Instagram bot",
+                        "Order {} - Instagram order detected, publishing to Kafka for async"
+                                + " processing",
                         order.getId());
-                try {
-                    var instagramResponse = instagramService.createInstagramOrder(order);
-                    if (instagramResponse.isSuccess()) {
-                        log.info(
-                                "Order {} - Successfully sent to Instagram bot: {}",
-                                order.getId(),
-                                instagramResponse.getId());
-                        // Instagram orders are processed by the bot, return immediately
-                        return mapToOrderResponse(order);
-                    } else {
-                        log.error(
-                                "Order {} - Instagram bot returned error: {}",
-                                order.getId(),
-                                instagramResponse.getError());
-                        // Refund and mark as failed
-                        order.setStatus(OrderStatus.CANCELLED);
-                        order.setErrorMessage(
-                                "Instagram bot error: " + instagramResponse.getError());
-                        orderRepository.save(order);
-                        balanceService.refund(
-                                user,
-                                charge,
-                                order,
-                                "Refund for failed Instagram order #" + order.getId());
-                        return mapToOrderResponse(order);
-                    }
-                } catch (Exception e) {
-                    log.error(
-                            "Order {} - Failed to send to Instagram bot: {}",
-                            order.getId(),
-                            e.getMessage());
-                    order.setStatus(OrderStatus.CANCELLED);
-                    order.setErrorMessage("Instagram bot unavailable: " + e.getMessage());
-                    orderRepository.save(order);
-                    balanceService.refund(
-                            user,
-                            charge,
-                            order,
-                            "Refund for failed Instagram order #" + order.getId());
-                    return mapToOrderResponse(order);
-                }
+
+                // Publish OrderCreatedEvent for async processing by consumer
+                OrderCreatedEvent instagramOrderEvent = new OrderCreatedEvent();
+                instagramOrderEvent.setOrderId(order.getId());
+                instagramOrderEvent.setUserId(user.getId());
+                instagramOrderEvent.setServiceId(service.getId());
+                instagramOrderEvent.setQuantity(order.getQuantity());
+                instagramOrderEvent.setTimestamp(LocalDateTime.now());
+
+                orderEventProducer.publishOrderCreatedEvent(instagramOrderEvent);
+                log.info(
+                        "Published Instagram OrderCreatedEvent for order {} to Kafka",
+                        order.getId());
+
+                return mapToOrderResponse(order);
             } else {
                 log.info(
                         "Order {} - Not a YouTube or Instagram order, skipping special processing",
@@ -1138,44 +1113,23 @@ public class OrderService {
                 // Continue with order processing - will retry in processing phase
             }
         } else if (isInstagramOrder(order)) {
-            // INSTAGRAM ORDER - Send to Instagram bot
+            // INSTAGRAM ORDER - Send to Kafka for async processing
             log.info(
-                    "Order {} - Instagram order detected, sending to Instagram bot", order.getId());
-            try {
-                var instagramResponse = instagramService.createInstagramOrder(order);
-                if (instagramResponse.isSuccess()) {
-                    log.info(
-                            "Order {} - Successfully sent to Instagram bot: {}",
-                            order.getId(),
-                            instagramResponse.getId());
-                    return mapToOrderResponse(order);
-                } else {
-                    log.error(
-                            "Order {} - Instagram bot returned error: {}",
-                            order.getId(),
-                            instagramResponse.getError());
-                    order.setStatus(OrderStatus.CANCELLED);
-                    order.setErrorMessage("Instagram bot error: " + instagramResponse.getError());
-                    orderRepository.save(order);
-                    balanceService.refund(
-                            user,
-                            charge,
-                            order,
-                            "Refund for failed Instagram order #" + order.getId());
-                    return mapToOrderResponse(order);
-                }
-            } catch (Exception e) {
-                log.error(
-                        "Order {} - Failed to send to Instagram bot: {}",
-                        order.getId(),
-                        e.getMessage());
-                order.setStatus(OrderStatus.CANCELLED);
-                order.setErrorMessage("Instagram bot unavailable: " + e.getMessage());
-                orderRepository.save(order);
-                balanceService.refund(
-                        user, charge, order, "Refund for failed Instagram order #" + order.getId());
-                return mapToOrderResponse(order);
-            }
+                    "Order {} - Instagram order detected, publishing to Kafka for async processing",
+                    order.getId());
+
+            // Publish OrderCreatedEvent for async processing by consumer
+            OrderCreatedEvent instagramOrderEvent = new OrderCreatedEvent();
+            instagramOrderEvent.setOrderId(order.getId());
+            instagramOrderEvent.setUserId(user.getId());
+            instagramOrderEvent.setServiceId(service.getId());
+            instagramOrderEvent.setQuantity(order.getQuantity());
+            instagramOrderEvent.setTimestamp(LocalDateTime.now());
+
+            orderEventProducer.publishOrderCreatedEvent(instagramOrderEvent);
+            log.info("Published Instagram OrderCreatedEvent for order {} to Kafka", order.getId());
+
+            return mapToOrderResponse(order);
         } else {
             log.info(
                     "Order {} - Not a YouTube or Instagram order, skipping special processing",

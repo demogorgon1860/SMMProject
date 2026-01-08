@@ -93,6 +93,7 @@ public class SecurityConfig {
 
                                                 // Webhooks (plural - collections)
                                                 "/api/v*/webhooks/**",
+                                                "/api/webhook/**",
                                                 "/api/v*/payments/cryptomus/callback",
 
                                                 // API Documentation

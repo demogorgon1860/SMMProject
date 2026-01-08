@@ -6,7 +6,9 @@ import com.smmpanel.event.OrderCreatedEvent;
 import com.smmpanel.event.OrderStatusChangedEvent;
 import com.smmpanel.producer.OrderEventProducer;
 import com.smmpanel.repository.jpa.OrderRepository;
+import com.smmpanel.service.balance.BalanceService;
 import com.smmpanel.service.core.MessageProcessingService;
+import com.smmpanel.service.integration.InstagramService;
 import com.smmpanel.service.integration.YouTubeService;
 import com.smmpanel.service.kafka.MessageIdempotencyService;
 import com.smmpanel.service.order.OrderProcessingContext;
@@ -38,6 +40,8 @@ public class OrderEventConsumer {
     private final OrderEventProducer orderEventProducer;
     private final MessageProcessingService messageProcessingService;
     private final MessageIdempotencyService deduplicationService;
+    private final InstagramService instagramService;
+    private final BalanceService balanceService;
 
     /** Process order created events with RetryTopic and DLT */
     @RetryableTopic(
@@ -282,6 +286,12 @@ public class OrderEventConsumer {
             return;
         }
 
+        // Check if this is an Instagram order
+        if (isInstagramOrder(order)) {
+            processInstagramOrder(order);
+            return;
+        }
+
         // Initialize order processing with modern flow that creates video_processing records
         OrderProcessingContext context =
                 youTubeProcessingService.initializeOrderProcessing(order.getId());
@@ -320,6 +330,58 @@ public class OrderEventConsumer {
                         order.getId(),
                         refreshedOrder.getStatus());
             }
+        }
+    }
+
+    /** Check if order is for Instagram service */
+    private boolean isInstagramOrder(Order order) {
+        if (order.getService() == null) return false;
+        String category = order.getService().getCategory();
+        String serviceName = order.getService().getName();
+        return (category != null && category.toLowerCase().contains("instagram"))
+                || (serviceName != null && serviceName.toLowerCase().contains("instagram"));
+    }
+
+    /** Process Instagram order - send to Instagram bot with retry support */
+    private void processInstagramOrder(Order order) {
+        log.info("Processing Instagram order {} via Kafka consumer", order.getId());
+
+        try {
+            var instagramResponse = instagramService.createInstagramOrder(order);
+
+            if (instagramResponse.isSuccess()) {
+                log.info(
+                        "Instagram order {} successfully sent to bot: {}",
+                        order.getId(),
+                        instagramResponse.getId());
+            } else {
+                log.error(
+                        "Instagram bot returned error for order {}: {}",
+                        order.getId(),
+                        instagramResponse.getError());
+
+                // Mark as cancelled and refund
+                order.setStatus(OrderStatus.CANCELLED);
+                order.setErrorMessage("Instagram bot error: " + instagramResponse.getError());
+                orderRepository.save(order);
+
+                // Refund user
+                balanceService.refund(
+                        order.getUser(),
+                        order.getCharge(),
+                        order,
+                        "Refund for failed Instagram order #" + order.getId());
+
+                log.info(
+                        "Refunded {} to user for failed Instagram order {}",
+                        order.getCharge(),
+                        order.getId());
+            }
+        } catch (Exception e) {
+            log.error("Failed to process Instagram order {}: {}", order.getId(), e.getMessage(), e);
+
+            // Re-throw to trigger Kafka retry mechanism
+            throw new RuntimeException("Instagram order processing failed: " + e.getMessage(), e);
         }
     }
 }

@@ -170,6 +170,42 @@ public class Order {
     @Column(name = "refill_parent_id")
     private Long refillParentId;
 
+    // ========= INSTAGRAM BOT TRACKING FIELDS =========
+
+    /** Instagram bot's internal order ID for correlation with webhooks */
+    @Column(name = "instagram_bot_order_id", length = 64)
+    private String instagramBotOrderId;
+
+    /** Initial like count when order was created (for verification) */
+    @Column(name = "start_like_count")
+    @Builder.Default
+    private Integer startLikeCount = 0;
+
+    /** Initial follower count when order was created */
+    @Column(name = "start_follower_count")
+    @Builder.Default
+    private Integer startFollowerCount = 0;
+
+    /** Initial comment count when order was created */
+    @Column(name = "start_comment_count")
+    @Builder.Default
+    private Integer startCommentCount = 0;
+
+    /** Current like count (updated from webhook) */
+    @Column(name = "current_like_count")
+    @Builder.Default
+    private Integer currentLikeCount = 0;
+
+    /** Current follower count (updated from webhook) */
+    @Column(name = "current_follower_count")
+    @Builder.Default
+    private Integer currentFollowerCount = 0;
+
+    /** Current comment count (updated from webhook) */
+    @Column(name = "current_comment_count")
+    @Builder.Default
+    private Integer currentCommentCount = 0;
+
     /**
      * Optimistic locking version counter - incremented on each update Prevents concurrent
      * modification issues during order processing

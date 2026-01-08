@@ -350,8 +350,13 @@ public class OrderEventConsumer {
             var instagramResponse = instagramService.createInstagramOrder(order);
 
             if (instagramResponse.isSuccess()) {
+                // Save bot's order ID for webhook correlation and set status
+                order.setInstagramBotOrderId(instagramResponse.getId());
+                order.setStatus(OrderStatus.IN_PROGRESS);
+                orderRepository.save(order);
+
                 log.info(
-                        "Instagram order {} successfully sent to bot: {}",
+                        "Instagram order {} successfully sent to bot, botOrderId: {}",
                         order.getId(),
                         instagramResponse.getId());
             } else {

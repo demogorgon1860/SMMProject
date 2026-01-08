@@ -81,7 +81,8 @@ public class InstagramService {
             InstagramOrderResponse response = botClient.createOrder(request);
 
             if (response.isSuccess()) {
-                // Store bot order ID mapping in Redis
+                // Store bot order ID in entity and Redis
+                order.setInstagramBotOrderId(response.getId());
                 String cacheKey = INSTAGRAM_BOT_ORDER_ID_PREFIX + order.getId();
                 redisTemplate.opsForValue().set(cacheKey, response.getId());
 
@@ -185,7 +186,27 @@ public class InstagramService {
         int actualDelivered = callback.getCompleted() != null ? callback.getCompleted() : 0;
         int failedCount = callback.getFailed() != null ? callback.getFailed() : 0;
 
-        // Set start count from callback if available
+        // Save all Instagram count fields from callback
+        if (callback.getStartLikeCount() != null) {
+            order.setStartLikeCount(callback.getStartLikeCount());
+        }
+        if (callback.getStartFollowerCount() != null) {
+            order.setStartFollowerCount(callback.getStartFollowerCount());
+        }
+        if (callback.getStartCommentCount() != null) {
+            order.setStartCommentCount(callback.getStartCommentCount());
+        }
+        if (callback.getCurrentLikeCount() != null) {
+            order.setCurrentLikeCount(callback.getCurrentLikeCount());
+        }
+        if (callback.getCurrentFollowerCount() != null) {
+            order.setCurrentFollowerCount(callback.getCurrentFollowerCount());
+        }
+        if (callback.getCurrentCommentCount() != null) {
+            order.setCurrentCommentCount(callback.getCurrentCommentCount());
+        }
+
+        // Set legacy start count from callback for backwards compatibility
         Integer startCount = determineStartCount(order, callback);
         if (startCount != null) {
             order.setStartCount(startCount);
@@ -230,6 +251,26 @@ public class InstagramService {
                 order.getId(),
                 callback.getCompleted(),
                 callback.getFailed());
+
+        // Save all Instagram count fields from callback
+        if (callback.getStartLikeCount() != null) {
+            order.setStartLikeCount(callback.getStartLikeCount());
+        }
+        if (callback.getStartFollowerCount() != null) {
+            order.setStartFollowerCount(callback.getStartFollowerCount());
+        }
+        if (callback.getStartCommentCount() != null) {
+            order.setStartCommentCount(callback.getStartCommentCount());
+        }
+        if (callback.getCurrentLikeCount() != null) {
+            order.setCurrentLikeCount(callback.getCurrentLikeCount());
+        }
+        if (callback.getCurrentFollowerCount() != null) {
+            order.setCurrentFollowerCount(callback.getCurrentFollowerCount());
+        }
+        if (callback.getCurrentCommentCount() != null) {
+            order.setCurrentCommentCount(callback.getCurrentCommentCount());
+        }
 
         int completed = callback.getCompleted() != null ? callback.getCompleted() : 0;
 

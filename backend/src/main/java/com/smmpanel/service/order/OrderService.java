@@ -868,6 +868,7 @@ public class OrderService {
         return OrderResponse.builder()
                 .id(order.getId())
                 .service(order.getService().getId().intValue())
+                .serviceName(order.getService().getName())
                 .link(order.getLink())
                 .quantity(order.getQuantity())
                 .startCount(order.getStartCount())

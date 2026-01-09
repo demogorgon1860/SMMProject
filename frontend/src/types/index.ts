@@ -19,7 +19,8 @@ export interface Order {
   id: number;
   orderId: string;
   userId: number;
-  service: Service;
+  service?: Service;
+  serviceName?: string;
   link: string;
   quantity: number;
   charge: number;

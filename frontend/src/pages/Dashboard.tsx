@@ -18,7 +18,8 @@ import {
 
 interface Order {
   id: number;
-  service: { name: string };
+  service?: { name: string };
+  serviceName?: string;
   status: string;
   quantity: number;
   charge: number;
@@ -31,6 +32,8 @@ export const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
+  const [totalOrders, setTotalOrders] = useState<number>(0);
+  const [totalSpent, setTotalSpent] = useState<number>(0);
 
   useEffect(() => {
     fetchBalance();
@@ -50,8 +53,37 @@ export const Dashboard: React.FC = () => {
 
   const fetchRecentOrders = async () => {
     try {
-      const response = await orderAPI.getOrders(undefined, undefined, undefined, 0, 5);
-      setRecentOrders(response.content || []);
+      // Fetch more orders to calculate totalSpent accurately
+      const response = await orderAPI.getOrders(undefined, undefined, undefined, 0, 100);
+
+      // Handle PerfectPanelResponse<Page<OrderResponse>> format
+      let orders: Order[] = [];
+      let total = 0;
+
+      if (response?.data?.content && Array.isArray(response.data.content)) {
+        // Main format: PerfectPanelResponse<Page<OrderResponse>>
+        orders = response.data.content;
+        total = response.data.totalElements || orders.length;
+      } else if (response?.content && Array.isArray(response.content)) {
+        // Page<OrderResponse> directly
+        orders = response.content;
+        total = response.totalElements || orders.length;
+      } else if (response?.data && Array.isArray(response.data)) {
+        // Array wrapped in data
+        orders = response.data;
+        total = orders.length;
+      } else if (Array.isArray(response)) {
+        // Direct array
+        orders = response;
+        total = orders.length;
+      }
+
+      setRecentOrders(orders.slice(0, 5));
+      setTotalOrders(total);
+
+      // Calculate total spent from all fetched orders
+      const spent = orders.reduce((sum, order) => sum + Number(order.charge || 0), 0);
+      setTotalSpent(spent);
     } catch (error) {
       console.error('Failed to fetch orders:', error);
     } finally {
@@ -160,7 +192,7 @@ export const Dashboard: React.FC = () => {
             <div>
               <p className="text-dark-500 dark:text-dark-400 text-sm font-medium">Total Spent</p>
               <p className="text-2xl font-bold text-dark-900 dark:text-white mt-1">
-                ${(user as any)?.totalSpent?.toFixed(2) || '0.00'}
+                ${totalSpent.toFixed(2)}
               </p>
             </div>
             <div className="w-12 h-12 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
@@ -175,7 +207,7 @@ export const Dashboard: React.FC = () => {
             <div>
               <p className="text-dark-500 dark:text-dark-400 text-sm font-medium">Total Orders</p>
               <p className="text-2xl font-bold text-dark-900 dark:text-white mt-1">
-                {recentOrders.length > 0 ? `${recentOrders.length}+` : '0'}
+                {totalOrders}
               </p>
             </div>
             <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
@@ -296,10 +328,10 @@ export const Dashboard: React.FC = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-dark-900 dark:text-white truncate">
-                      {order.service?.name || `Order #${order.id}`}
+                      {order.serviceName || order.service?.name || `Order #${order.id}`}
                     </p>
                     <p className="text-sm text-dark-500 dark:text-dark-400">
-                      {order.quantity} units - ${order.charge?.toFixed(2)}
+                      {order.quantity} units - ${Number(order.charge || 0).toFixed(2)}
                     </p>
                   </div>
                   <div className="text-right">

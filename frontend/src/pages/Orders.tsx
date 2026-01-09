@@ -142,7 +142,7 @@ export const Orders: React.FC = () => {
         order.id.toString().includes(search) ||
         (order.orderId && order.orderId.toLowerCase().includes(search)) ||
         order.link.toLowerCase().includes(search) ||
-        (order.service?.name && order.service.name.toLowerCase().includes(search))
+        (order.serviceName && order.serviceName.toLowerCase().includes(search))
       );
     }
     return true;
@@ -352,6 +352,9 @@ export const Orders: React.FC = () => {
                       Quantity
                     </th>
                     <th className="px-4 py-3 text-center text-xs font-semibold text-dark-600 dark:text-dark-400 uppercase tracking-wider">
+                      Start Count
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-dark-600 dark:text-dark-400 uppercase tracking-wider">
                       Status
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-dark-600 dark:text-dark-400 uppercase tracking-wider">
@@ -383,8 +386,8 @@ export const Orders: React.FC = () => {
                         )}
                       </td>
                       <td className="px-4 py-4">
-                        <div className="text-sm text-dark-900 dark:text-white max-w-[200px] truncate" title={order.service?.name}>
-                          {order.service?.name || 'N/A'}
+                        <div className="text-sm text-dark-900 dark:text-white max-w-[200px] truncate" title={order.serviceName}>
+                          {order.serviceName || 'N/A'}
                         </div>
                       </td>
                       <td className="px-4 py-4">
@@ -402,6 +405,11 @@ export const Orders: React.FC = () => {
                       <td className="px-4 py-4 text-center">
                         <span className="text-sm font-medium text-dark-900 dark:text-white">
                           {order.quantity?.toLocaleString() || 0}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <span className="text-sm text-dark-900 dark:text-white">
+                          {order.startCount?.toLocaleString() || 0}
                         </span>
                       </td>
                       <td className="px-4 py-4 text-center">

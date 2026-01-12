@@ -410,7 +410,7 @@ app:
       hash-algorithm: SHA-256
       global-salt: ${API_KEY_GLOBAL_SALT:smm-panel-secure-salt-2024}
   cors:
-    allowed-origins: "${CORS_ORIGINS:http://localhost:3000,https://demo.perfectpanel.com,https://www.youtubeprovider.com,https://youtubeprovider.com}"
+    allowed-origins: "${CORS_ORIGINS:http://localhost:3000,https://demo.perfectpanel.com,https://www.youtubeprovider.com,https://youtubeprovider.com,https://smmworld.vip,https://www.smmworld.vip}"
     allowed-methods: "GET,POST,PUT,DELETE,OPTIONS"
     allowed-headers: "Authorization,Content-Type,X-API-Key,Accept,Origin"
     allow-credentials: true

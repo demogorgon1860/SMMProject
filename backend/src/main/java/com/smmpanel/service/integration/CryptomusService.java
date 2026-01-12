@@ -74,9 +74,9 @@ public class CryptomusService {
                         .currency("USD")
                         .orderId(orderId)
                         .urlCallback(
-                                "https://youtubeprovider.com/api/v1/payments/cryptomus/callback")
-                        .urlSuccess("https://youtubeprovider.com/dashboard/balance?deposit=success")
-                        .urlReturn("https://youtubeprovider.com/dashboard/balance?deposit=cancel")
+                                "https://smmworld.vip/api/v1/payments/cryptomus/callback")
+                        .urlSuccess("https://smmworld.vip/dashboard/balance?deposit=success")
+                        .urlReturn("https://smmworld.vip/dashboard/balance?deposit=cancel")
                         .lifetime(1440) // 24 hours in minutes
                         .isPaymentMultiple(false) // Each deposit gets unique payment address
                         .build();
@@ -272,7 +272,7 @@ public class CryptomusService {
                             .network(network)
                             .orderId(orderId)
                             .urlCallback(
-                                    "https://youtubeprovider.com/api/v2/webhooks/cryptomus/wallet")
+                                    "https://smmworld.vip/api/v2/webhooks/cryptomus/wallet")
                             .build();
 
             var walletResponse = cryptomusClient.createWallet(walletRequest);

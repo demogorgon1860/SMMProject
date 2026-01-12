@@ -415,6 +415,8 @@ app:
     allowed-headers: "Authorization,Content-Type,X-API-Key,Accept,Origin"
     allow-credentials: true
     max-age: 3600
+  websocket:
+    allowed-origins: "http://localhost:3000,https://smmworld.vip,https://www.smmworld.vip"
 
   # ===============================
   # OAUTH2 CONFIGURATION
@@ -696,7 +698,7 @@ app:
   instagram:
     bot:
       url: ${INSTAGRAM_BOT_URL:http://45.142.211.90:8080}
-      callback-url: ${INSTAGRAM_CALLBACK_BASE_URL:https://youtubeprovider.com}
+      callback-url: ${INSTAGRAM_CALLBACK_BASE_URL:https://smmworld.vip}
       timeout: ${INSTAGRAM_BOT_TIMEOUT:30000}
       retry-attempts: ${INSTAGRAM_BOT_RETRY_ATTEMPTS:3}
     enabled: ${INSTAGRAM_ENABLED:true}

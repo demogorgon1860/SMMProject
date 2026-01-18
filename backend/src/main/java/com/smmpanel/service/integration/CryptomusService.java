@@ -73,8 +73,7 @@ public class CryptomusService {
                         .amount(request.getAmount())
                         .currency("USD")
                         .orderId(orderId)
-                        .urlCallback(
-                                "https://smmworld.vip/api/v1/payments/cryptomus/callback")
+                        .urlCallback("https://smmworld.vip/api/v1/payments/cryptomus/callback")
                         .urlSuccess("https://smmworld.vip/dashboard/balance?deposit=success")
                         .urlReturn("https://smmworld.vip/dashboard/balance?deposit=cancel")
                         .lifetime(1440) // 24 hours in minutes
@@ -271,8 +270,7 @@ public class CryptomusService {
                             .currency(currency)
                             .network(network)
                             .orderId(orderId)
-                            .urlCallback(
-                                    "https://smmworld.vip/api/v2/webhooks/cryptomus/wallet")
+                            .urlCallback("https://smmworld.vip/api/v2/webhooks/cryptomus/wallet")
                             .build();
 
             var walletResponse = cryptomusClient.createWallet(walletRequest);

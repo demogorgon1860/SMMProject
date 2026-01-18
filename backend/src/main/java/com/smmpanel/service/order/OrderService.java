@@ -23,6 +23,7 @@ import com.smmpanel.service.integration.BinomService;
 import com.smmpanel.service.integration.InstagramService;
 import com.smmpanel.service.integration.YouTubeService;
 import com.smmpanel.service.notification.NotificationService;
+import com.smmpanel.service.notification.TelegramNotificationService;
 import com.smmpanel.service.order.state.OrderStateManager;
 import com.smmpanel.service.validation.OrderValidationService;
 import com.smmpanel.service.video.VideoProcessingService;
@@ -78,6 +79,7 @@ public class OrderService {
     private final OrderStateManager orderStateManager;
     private final VideoProcessingService videoProcessingService;
     private final NotificationService notificationService;
+    private final TelegramNotificationService telegramNotificationService;
     private final OrderValidationService orderValidationService;
     private final FraudDetectionService fraudDetectionService;
     private final ConversionCoefficientRepository conversionCoefficientRepository;
@@ -1069,6 +1071,9 @@ public class OrderService {
         order.setUpdatedAt(LocalDateTime.now());
 
         order = orderRepository.save(order);
+
+        // Send Telegram notification for new order
+        telegramNotificationService.notifyNewOrder(order);
 
         // Deduct balance
         balanceService.deductBalance(user, charge, order, "Order #" + order.getId());

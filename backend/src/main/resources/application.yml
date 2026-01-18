@@ -417,6 +417,10 @@ app:
     max-age: 3600
   websocket:
     allowed-origins: "http://localhost:3000,https://smmworld.vip,https://www.smmworld.vip"
+  telegram:
+    webhook:
+      url: "${TELEGRAM_WEBHOOK_URL:https://startduck.app.n8n.cloud/webhook/a62cc4bf-10d1-476c-aa26-58802ba8a564}"
+      enabled: "${TELEGRAM_NOTIFICATIONS_ENABLED:true}"
 
   # ===============================
   # OAUTH2 CONFIGURATION

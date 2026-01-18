@@ -6,6 +6,7 @@ import com.smmpanel.entity.Order;
 import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.entity.Service;
 import com.smmpanel.repository.jpa.OrderRepository;
+import com.smmpanel.service.notification.TelegramNotificationService;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ public class InstagramService {
     private final InstagramBotClient botClient;
     private final OrderRepository orderRepository;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final TelegramNotificationService telegramNotificationService;
 
     private static final String INSTAGRAM_ORDER_CACHE_PREFIX = "instagram:order:";
     private static final String INSTAGRAM_BOT_ORDER_ID_PREFIX = "instagram:bot_order:";
@@ -242,6 +244,9 @@ public class InstagramService {
         // Clear cache
         String cacheKey = INSTAGRAM_BOT_ORDER_ID_PREFIX + order.getId();
         redisTemplate.delete(cacheKey);
+
+        // Send Telegram notification
+        telegramNotificationService.notifyOrderCompleted(order, actualDelivered);
     }
 
     /** Handle failed order callback. */
@@ -295,6 +300,9 @@ public class InstagramService {
         // Clear cache
         String cacheKey = INSTAGRAM_BOT_ORDER_ID_PREFIX + order.getId();
         redisTemplate.delete(cacheKey);
+
+        // Send Telegram notification
+        telegramNotificationService.notifyOrderFailed(order, completed);
     }
 
     /** Determine start count from callback. */

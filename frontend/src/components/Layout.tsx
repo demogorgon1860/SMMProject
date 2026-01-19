@@ -72,12 +72,13 @@ export const Layout: React.FC = () => {
             <div className="flex items-center gap-8">
               <Link
                 to="/dashboard"
-                className="flex items-center gap-2 text-xl font-bold text-dark-900 dark:text-white"
+                className="flex items-center"
               >
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center">
-                  <span className="text-white text-sm font-bold">S</span>
-                </div>
-                <span className="hidden sm:block">SMM Panel</span>
+                <img
+                  src="/logo.png"
+                  alt="SMM World"
+                  className="h-10 w-auto"
+                />
               </Link>
 
               {/* Desktop Navigation */}

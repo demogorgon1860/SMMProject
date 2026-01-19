@@ -90,8 +90,8 @@ public class AsyncVideoProcessingConfig {
     }
 
     /**
-     * General purpose async executor for notifications, emails, etc.
-     * Used by @Async("asyncExecutor") annotations
+     * General purpose async executor for notifications, emails, etc. Used
+     * by @Async("asyncExecutor") annotations
      */
     @Bean("asyncExecutor")
     public TaskExecutor asyncExecutor() {

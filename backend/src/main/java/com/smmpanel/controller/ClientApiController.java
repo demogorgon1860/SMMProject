@@ -10,6 +10,7 @@ import com.smmpanel.service.auth.ApiKeyService;
 import com.smmpanel.service.balance.BalanceService;
 import com.smmpanel.service.core.ServiceService;
 import com.smmpanel.service.order.OrderService;
+import jakarta.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -43,22 +44,53 @@ public class ClientApiController {
     /**
      * PRODUCTION-READY: GET endpoint for read-only operations Supports: balance, services, status,
      * statuses/multi_status Rejects write operations (add, cancel, mass) for CSRF protection
+     * Supports both query parameters and request body (for compatibility)
      *
-     * @param apiKey User's API key for authentication
-     * @param action Action to perform (balance, services, status, statuses)
-     * @param orderId Order ID for status queries
-     * @param orders Comma-separated order IDs for multi-status queries
+     * @param request HTTP request for unified parameter reading
+     * @param apiKeyParam User's API key for authentication
+     * @param actionParam Action to perform (balance, services, status, statuses)
+     * @param orderIdParam Order ID for status queries
+     * @param ordersParam Comma-separated order IDs for multi-status queries
      * @return Response entity with requested data
      */
     @GetMapping
     public ResponseEntity<Object> handleApiGetRequest(
-            @RequestParam("key") String apiKey,
-            @RequestParam("action") String action,
-            @RequestParam(value = "order", required = false) Long orderId,
-            @RequestParam(value = "orders", required = false) String orders) {
+            HttpServletRequest request,
+            @RequestParam(value = "key", required = false) String apiKeyParam,
+            @RequestParam(value = "action", required = false) String actionParam,
+            @RequestParam(value = "order", required = false) Long orderIdParam,
+            @RequestParam(value = "orders", required = false) String ordersParam) {
 
         try {
+            // Read parameters (supports query parameters)
+            String apiKey = apiKeyParam != null ? apiKeyParam : request.getParameter("key");
+            String action = actionParam != null ? actionParam : request.getParameter("action");
+            Long orderId = orderIdParam;
+            String orders = ordersParam != null ? ordersParam : request.getParameter("orders");
+
+            // Try to parse order from request if not provided
+            if (orderId == null) {
+                String orderStr = request.getParameter("order");
+                if (orderStr != null && !orderStr.isEmpty()) {
+                    try {
+                        orderId = Long.parseLong(orderStr);
+                    } catch (NumberFormatException e) {
+                        // ignore
+                    }
+                }
+            }
+
             log.info("Client API GET request: action={}", action);
+
+            // Validate required parameters
+            if (apiKey == null || apiKey.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Missing required parameter: key"));
+            }
+            if (action == null || action.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Missing required parameter: action"));
+            }
 
             // Validate API key and get user
             User user = validateApiKeyAndGetUser(apiKey);
@@ -124,8 +156,8 @@ public class ClientApiController {
 
     /**
      * CRITICAL: Main API endpoint - MUST match Perfect Panel format exactly Endpoint: POST /api/v2
-     * Parameters: key, action, and action-specific parameters Supports both URL parameters and JSON
-     * body (for mass operations)
+     * Parameters: key, action, and action-specific parameters Supports: query parameters,
+     * form-urlencoded body, AND JSON body
      */
     @PostMapping(
             consumes = {
@@ -134,17 +166,37 @@ public class ClientApiController {
                 org.springframework.http.MediaType.ALL_VALUE
             })
     public ResponseEntity<Object> handleApiRequest(
-            @RequestParam("key") String apiKey,
-            @RequestParam("action") String action,
-            @RequestParam(value = "service", required = false) Integer service,
-            @RequestParam(value = "link", required = false) String link,
-            @RequestParam(value = "quantity", required = false) Integer quantity,
-            @RequestParam(value = "order", required = false) Long orderId,
-            @RequestParam(value = "orders", required = false) String orders,
+            HttpServletRequest request,
+            @RequestParam(value = "key", required = false) String apiKeyParam,
+            @RequestParam(value = "action", required = false) String actionParam,
+            @RequestParam(value = "service", required = false) Integer serviceParam,
+            @RequestParam(value = "link", required = false) String linkParam,
+            @RequestParam(value = "quantity", required = false) Integer quantityParam,
+            @RequestParam(value = "order", required = false) Long orderIdParam,
+            @RequestParam(value = "orders", required = false) String ordersParam,
             @RequestBody(required = false) Map<String, Object> requestBody) {
 
         try {
+            // Read parameters from query string, form body, or JSON body
+            String apiKey = getParam(request, requestBody, "key", apiKeyParam);
+            String action = getParam(request, requestBody, "action", actionParam);
+            Integer service = getIntParam(request, requestBody, "service", serviceParam);
+            String link = getParam(request, requestBody, "link", linkParam);
+            Integer quantity = getIntParam(request, requestBody, "quantity", quantityParam);
+            Long orderId = getLongParam(request, requestBody, "order", orderIdParam);
+            String orders = getParam(request, requestBody, "orders", ordersParam);
+
             log.info("Client API POST request: action={}", action);
+
+            // Validate required parameters
+            if (apiKey == null || apiKey.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Missing required parameter: key"));
+            }
+            if (action == null || action.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Missing required parameter: action"));
+            }
 
             // Validate API key and get user
             User user = validateApiKeyAndGetUser(apiKey);
@@ -367,9 +419,30 @@ public class ClientApiController {
     /** CRITICAL: Refill order endpoint (Perfect Panel compatibility) */
     @PostMapping("/refill")
     public ResponseEntity<Object> handleRefillOrder(
-            @RequestParam("key") String apiKey, @RequestParam("order") Long orderId) {
+            HttpServletRequest request,
+            @RequestParam(value = "key", required = false) String apiKeyParam,
+            @RequestParam(value = "order", required = false) Long orderIdParam) {
 
         try {
+            // Read parameters from query string or form body
+            String apiKey = apiKeyParam != null ? apiKeyParam : request.getParameter("key");
+            Long orderId = orderIdParam;
+            if (orderId == null) {
+                String orderStr = request.getParameter("order");
+                if (orderStr != null && !orderStr.isEmpty()) {
+                    orderId = Long.parseLong(orderStr);
+                }
+            }
+
+            if (apiKey == null || apiKey.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Missing required parameter: key"));
+            }
+            if (orderId == null) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("error", "Missing required parameter: order"));
+            }
+
             User user = validateApiKeyAndGetUser(apiKey);
             // Note: Refill functionality needs to be implemented in OrderService
             // For now, return success response
@@ -614,5 +687,63 @@ public class ClientApiController {
             case "REFILL" -> "Refill";
             default -> "In progress";
         };
+    }
+
+    // =====================================================================
+    // Helper methods for reading parameters from multiple sources
+    // Supports: query parameters, form-urlencoded body, JSON body
+    // =====================================================================
+
+    /**
+     * Read string parameter from multiple sources in order: 1. @RequestParam (query string) 2.
+     * HttpServletRequest.getParameter() (query + form body) 3. JSON request body
+     */
+    private String getParam(
+            HttpServletRequest request, Map<String, Object> body, String name, String fallback) {
+        // 1. Check @RequestParam (query string) first
+        if (fallback != null && !fallback.isEmpty()) {
+            return fallback;
+        }
+        // 2. Check request.getParameter() (reads both query and form body)
+        String param = request.getParameter(name);
+        if (param != null && !param.isEmpty()) {
+            return param;
+        }
+        // 3. Check JSON body
+        if (body != null && body.containsKey(name)) {
+            Object value = body.get(name);
+            return value != null ? value.toString() : null;
+        }
+        return null;
+    }
+
+    /** Read Integer parameter from multiple sources */
+    private Integer getIntParam(
+            HttpServletRequest request, Map<String, Object> body, String name, Integer fallback) {
+        if (fallback != null) return fallback;
+        String param = getParam(request, body, name, null);
+        if (param != null) {
+            try {
+                return Integer.parseInt(param);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    /** Read Long parameter from multiple sources */
+    private Long getLongParam(
+            HttpServletRequest request, Map<String, Object> body, String name, Long fallback) {
+        if (fallback != null) return fallback;
+        String param = getParam(request, body, name, null);
+        if (param != null) {
+            try {
+                return Long.parseLong(param);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
     }
 }

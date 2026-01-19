@@ -75,7 +75,7 @@ export const Layout: React.FC = () => {
                 className="flex items-center"
               >
                 <img
-                  src="/logo.png"
+                  src="/logo-v2.png"
                   alt="SMM World"
                   className="h-10 w-auto"
                 />

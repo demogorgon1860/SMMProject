@@ -90,6 +90,32 @@ public class AsyncVideoProcessingConfig {
     }
 
     /**
+     * General purpose async executor for notifications, emails, etc.
+     * Used by @Async("asyncExecutor") annotations
+     */
+    @Bean("asyncExecutor")
+    public TaskExecutor asyncExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+
+        executor.setCorePoolSize(50);
+        executor.setMaxPoolSize(100);
+        executor.setQueueCapacity(500);
+        executor.setKeepAliveSeconds(60);
+        executor.setThreadNamePrefix("Async-");
+
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        executor.setAllowCoreThreadTimeOut(true);
+
+        executor.initialize();
+
+        log.info("Initialized Async ThreadPoolTaskExecutor: core=50, max=100, queue=500");
+
+        return executor;
+    }
+
+    /**
      * Secondary executor for lightweight async operations Handles monitoring, progress updates, and
      * cleanup tasks
      */

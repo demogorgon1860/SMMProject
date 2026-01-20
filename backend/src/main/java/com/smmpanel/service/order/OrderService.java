@@ -1187,9 +1187,10 @@ public class OrderService {
                         .findByUsername(username)
                         .orElseThrow(() -> new OrderValidationException("User not found"));
         // Get order and verify ownership
+        // Uses findByIdWithDetails to eagerly load Service (prevents LazyInitializationException)
         Order order =
                 orderRepository
-                        .findById(orderId)
+                        .findByIdWithDetails(orderId)
                         .orElseThrow(() -> new OrderValidationException("Order not found"));
 
         if (!order.getUser().getId().equals(user.getId())) {

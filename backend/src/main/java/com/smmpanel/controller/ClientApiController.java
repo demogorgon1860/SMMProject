@@ -1,5 +1,7 @@
 package com.smmpanel.controller;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smmpanel.dto.request.CreateOrderRequest;
 import com.smmpanel.dto.response.OrderResponse;
 import com.smmpanel.entity.User;
@@ -11,6 +13,7 @@ import com.smmpanel.service.balance.BalanceService;
 import com.smmpanel.service.core.ServiceService;
 import com.smmpanel.service.order.OrderService;
 import jakarta.servlet.http.HttpServletRequest;
+import java.io.BufferedReader;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -158,33 +161,26 @@ public class ClientApiController {
      * CRITICAL: Main API endpoint - MUST match Perfect Panel format exactly Endpoint: POST /api/v2
      * Parameters: key, action, and action-specific parameters Supports: query parameters,
      * form-urlencoded body, AND JSON body
+     *
+     * <p>NOTE: We don't use @RequestBody because it doesn't work with
+     * application/x-www-form-urlencoded. Instead, we manually read JSON body when Content-Type is
+     * application/json.
      */
-    @PostMapping(
-            consumes = {
-                org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED_VALUE,
-                org.springframework.http.MediaType.APPLICATION_JSON_VALUE,
-                org.springframework.http.MediaType.ALL_VALUE
-            })
-    public ResponseEntity<Object> handleApiRequest(
-            HttpServletRequest request,
-            @RequestParam(value = "key", required = false) String apiKeyParam,
-            @RequestParam(value = "action", required = false) String actionParam,
-            @RequestParam(value = "service", required = false) Integer serviceParam,
-            @RequestParam(value = "link", required = false) String linkParam,
-            @RequestParam(value = "quantity", required = false) Integer quantityParam,
-            @RequestParam(value = "order", required = false) Long orderIdParam,
-            @RequestParam(value = "orders", required = false) String ordersParam,
-            @RequestBody(required = false) Map<String, Object> requestBody) {
+    @PostMapping
+    public ResponseEntity<Object> handleApiRequest(HttpServletRequest request) {
 
         try {
+            // Parse JSON body if content type is application/json
+            Map<String, Object> requestBody = parseJsonBodyIfPresent(request);
+
             // Read parameters from query string, form body, or JSON body
-            String apiKey = getParam(request, requestBody, "key", apiKeyParam);
-            String action = getParam(request, requestBody, "action", actionParam);
-            Integer service = getIntParam(request, requestBody, "service", serviceParam);
-            String link = getParam(request, requestBody, "link", linkParam);
-            Integer quantity = getIntParam(request, requestBody, "quantity", quantityParam);
-            Long orderId = getLongParam(request, requestBody, "order", orderIdParam);
-            String orders = getParam(request, requestBody, "orders", ordersParam);
+            String apiKey = getParam(request, requestBody, "key", null);
+            String action = getParam(request, requestBody, "action", null);
+            Integer service = getIntParam(request, requestBody, "service", null);
+            String link = getParam(request, requestBody, "link", null);
+            Integer quantity = getIntParam(request, requestBody, "quantity", null);
+            Long orderId = getLongParam(request, requestBody, "order", null);
+            String orders = getParam(request, requestBody, "orders", null);
 
             log.info("Client API POST request: action={}", action);
 
@@ -694,13 +690,42 @@ public class ClientApiController {
     // Supports: query parameters, form-urlencoded body, JSON body
     // =====================================================================
 
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
     /**
-     * Read string parameter from multiple sources in order: 1. @RequestParam (query string) 2.
-     * HttpServletRequest.getParameter() (query + form body) 3. JSON request body
+     * Parse JSON body if Content-Type is application/json. Returns null for form-urlencoded or
+     * other content types.
+     */
+    private Map<String, Object> parseJsonBodyIfPresent(HttpServletRequest request) {
+        String contentType = request.getContentType();
+        if (contentType != null && contentType.toLowerCase().contains("application/json")) {
+            try {
+                StringBuilder sb = new StringBuilder();
+                try (BufferedReader reader = request.getReader()) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        sb.append(line);
+                    }
+                }
+                String body = sb.toString();
+                if (body != null && !body.trim().isEmpty()) {
+                    return objectMapper.readValue(
+                            body, new TypeReference<Map<String, Object>>() {});
+                }
+            } catch (Exception e) {
+                log.warn("Failed to parse JSON body: {}", e.getMessage());
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Read string parameter from multiple sources in order: 1. HttpServletRequest.getParameter()
+     * (query + form body) 2. JSON request body
      */
     private String getParam(
             HttpServletRequest request, Map<String, Object> body, String name, String fallback) {
-        // 1. Check @RequestParam (query string) first
+        // 1. Check fallback first (for backwards compatibility)
         if (fallback != null && !fallback.isEmpty()) {
             return fallback;
         }

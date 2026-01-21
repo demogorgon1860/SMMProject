@@ -59,9 +59,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
             response.setContentType("application/json");
             response.getWriter()
                     .write(
-                            "{\"error\":\"Rate limit exceeded\",\"message\":\""
-                                    + e.getMessage()
-                                    + "\"}");
+                            "{\"error\":\"Rate limit exceeded\",\"message\":\"Too many requests."
+                                    + " Please wait before trying again.\"}");
         }
     }
 

@@ -279,31 +279,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(
             Exception ex, HttpServletRequest request) {
-        // TEMPORARY: Include detailed error for debugging
-        String detailedMessage =
-                String.format(
-                        "DEBUG MODE - Error: %s | Cause: %s | Type: %s",
-                        ex.getMessage(),
-                        ex.getCause() != null ? ex.getCause().getMessage() : "No cause",
-                        ex.getClass().getSimpleName());
-
+        // Production-friendly error message (no internal details exposed)
         ErrorResponse errorResponse =
                 createErrorResponse(
                         HttpStatus.INTERNAL_SERVER_ERROR,
                         "INTERNAL_ERROR",
-                        detailedMessage, // TEMPORARY: Show detailed error
+                        "An unexpected error occurred. Please try again later.",
                         request);
 
-        // Log with full stack trace for debugging
+        // Log full details for debugging (server-side only)
         log.error("Unexpected error: {}", ex.getMessage(), ex);
-
-        // TEMPORARY: Add stack trace to response for debugging
-        if (includeDebugInfo && ex.getStackTrace().length > 0) {
-            Map<String, Object> debugMap = new HashMap<>();
-            debugMap.put("stackTrace", ex.getStackTrace()[0].toString());
-            debugMap.put("exceptionType", ex.getClass().getName());
-            errorResponse.setDebugInfo(debugMap);
-        }
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
     }

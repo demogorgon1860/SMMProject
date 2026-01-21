@@ -88,13 +88,14 @@ public class JwtService {
                     .getPayload();
         } catch (ExpiredJwtException ex) {
             log.warn("Expired JWT token: {}", ex.getMessage());
-            throw new JwtAuthenticationException("JWT token has expired", ex);
+            throw new JwtAuthenticationException("Session expired. Please login again.", ex);
         } catch (UnsupportedJwtException | MalformedJwtException | SecurityException ex) {
             log.warn("Invalid JWT token: {}", ex.getMessage());
-            throw new JwtAuthenticationException("Invalid JWT token", ex);
+            throw new JwtAuthenticationException("Invalid session. Please login again.", ex);
         } catch (Exception ex) {
             log.error("JWT token validation failed: {}", ex.getMessage());
-            throw new JwtAuthenticationException("JWT token validation failed", ex);
+            throw new JwtAuthenticationException(
+                    "Session validation failed. Please login again.", ex);
         }
     }
 

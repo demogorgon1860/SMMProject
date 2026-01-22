@@ -65,6 +65,9 @@ public class InstagramService {
             InstagramOrderType orderType =
                     InstagramOrderType.fromServiceCategory(service.getCategory());
 
+            // Determine profile group from service geo-targeting
+            String profileGroup = determineProfileGroup(service);
+
             // Build request
             InstagramOrderRequest request =
                     InstagramOrderRequest.builder()
@@ -77,6 +80,7 @@ public class InstagramService {
                                     order.getProcessingPriority() != null
                                             ? order.getProcessingPriority()
                                             : 0)
+                            .profileGroup(profileGroup)
                             .build();
 
             // Send to bot
@@ -383,5 +387,24 @@ public class InstagramService {
     /** Control bot workers. */
     public boolean controlBotWorkers(String action) {
         return botClient.controlWorkers(action);
+    }
+
+    /**
+     * Determine the AdsPower profile group based on service geo-targeting.
+     *
+     * @param service The service
+     * @return Profile group name (e.g., "Success_KR", "Success_DE")
+     */
+    private String determineProfileGroup(Service service) {
+        String geo = service.getGeoTargeting();
+        if (geo == null || geo.isEmpty()) {
+            return "Success"; // Default
+        }
+
+        return switch (geo.toUpperCase()) {
+            case "KR", "KOREA" -> "Success_KR";
+            case "DE", "GERMANY" -> "Success_DE";
+            default -> "Success";
+        };
     }
 }

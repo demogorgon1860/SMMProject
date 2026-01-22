@@ -39,4 +39,8 @@ public class InstagramOrderRequest {
 
     /** Order priority (0 = normal) */
     @Builder.Default private Integer priority = 0;
+
+    /** AdsPower profile group for geo-targeting (e.g., "Success_KR", "Success_DE") */
+    @JsonProperty("profile_group")
+    private String profileGroup;
 }

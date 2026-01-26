@@ -1,7 +1,7 @@
 package com.smmpanel.dto.instagram;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -48,7 +48,7 @@ public class InstagramOrderMessage {
     /** Order creation timestamp */
     @JsonProperty("created_at")
     @Builder.Default
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private Instant createdAt = Instant.now();
 
     /** Retry count for failed orders */
     @JsonProperty("retry_count")

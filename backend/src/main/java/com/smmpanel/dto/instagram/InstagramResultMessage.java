@@ -1,7 +1,7 @@
 package com.smmpanel.dto.instagram;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -63,5 +63,5 @@ public class InstagramResultMessage {
 
     /** Timestamp when order was completed */
     @JsonProperty("finished_at")
-    private LocalDateTime finishedAt;
+    private OffsetDateTime finishedAt;
 }

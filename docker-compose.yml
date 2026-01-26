@@ -419,6 +419,8 @@ services:
     ports:
       - "5672:5672"     # AMQP protocol (open for external bot connections)
       - "15672:15672"   # Management UI
+    env_file:
+      - .env.docker
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-smm_admin}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}

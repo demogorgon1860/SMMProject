@@ -5,6 +5,7 @@ import com.smmpanel.dto.instagram.InstagramResultMessage;
 import com.smmpanel.entity.Order;
 import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.repository.jpa.OrderRepository;
+import com.smmpanel.service.notification.TelegramNotificationService;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class InstagramResultConsumer {
 
     private final OrderRepository orderRepository;
+    private final TelegramNotificationService telegramNotificationService;
 
     @RabbitListener(queues = RabbitMQConfig.QUEUE_RESULTS)
     @Transactional
@@ -57,6 +59,14 @@ public class InstagramResultConsumer {
                     orderId,
                     order.getStatus(),
                     order.getRemains());
+
+            // Send Telegram notification for completed/failed orders
+            if (order.getStatus() == OrderStatus.COMPLETED) {
+                telegramNotificationService.notifyOrderCompleted(order, result.getCompleted());
+            } else if (order.getStatus() == OrderStatus.ERROR
+                    || order.getStatus() == OrderStatus.PARTIAL) {
+                telegramNotificationService.notifyOrderFailed(order, result.getCompleted());
+            }
 
         } catch (NumberFormatException e) {
             log.error(

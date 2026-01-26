@@ -411,6 +411,36 @@ services:
       timeout: 10s
       retries: 3
 
+  # RabbitMQ for Instagram bot geo-routing
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: smm_rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"     # AMQP protocol (open for external bot connections)
+      - "15672:15672"   # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-smm_admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_VHOST: smm
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - smm_network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
   # Frontend React Application
   frontend:
@@ -624,4 +654,6 @@ volumes:
   portainer_data:
     driver: local
   nginx_logs:
+    driver: local
+  rabbitmq_data:
     driver: local

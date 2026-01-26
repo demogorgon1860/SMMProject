@@ -98,7 +98,10 @@ dependencies {
     
     // Kafka
     implementation 'org.springframework.kafka:spring-kafka'
-    
+
+    // RabbitMQ - for Instagram bot geo-routing
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+
     // Redis - Using Lettuce client (better performance, non-blocking I/O)
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     // Jedis removed - using Lettuce instead for better performance

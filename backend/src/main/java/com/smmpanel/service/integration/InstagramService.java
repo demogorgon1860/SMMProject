@@ -6,11 +6,13 @@ import com.smmpanel.entity.Order;
 import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.entity.Service;
 import com.smmpanel.repository.jpa.OrderRepository;
+import com.smmpanel.service.instagram.InstagramRabbitPublisher;
 import com.smmpanel.service.notification.TelegramNotificationService;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +29,10 @@ public class InstagramService {
     private final OrderRepository orderRepository;
     private final RedisTemplate<String, Object> redisTemplate;
     private final TelegramNotificationService telegramNotificationService;
+    private final InstagramRabbitPublisher rabbitPublisher;
+
+    @Value("${app.instagram.use-rabbitmq:true}")
+    private boolean useRabbitMQ;
 
     private static final String INSTAGRAM_ORDER_CACHE_PREFIX = "instagram:order:";
     private static final String INSTAGRAM_BOT_ORDER_ID_PREFIX = "instagram:bot_order:";
@@ -41,14 +47,18 @@ public class InstagramService {
     }
 
     /**
-     * Create an Instagram order in the bot.
+     * Create an Instagram order in the bot. Uses RabbitMQ for geo-based routing if enabled,
+     * otherwise falls back to HTTP.
      *
      * @param order The panel order
      * @return Bot order response
      */
     @Transactional
     public InstagramOrderResponse createInstagramOrder(Order order) {
-        log.info("Creating Instagram order for panel order {}", order.getId());
+        log.info(
+                "Creating Instagram order for panel order {} (useRabbitMQ={})",
+                order.getId(),
+                useRabbitMQ);
 
         try {
             // Validate service
@@ -61,59 +71,12 @@ public class InstagramService {
                         .build();
             }
 
-            // Determine order type from service category
-            InstagramOrderType orderType =
-                    InstagramOrderType.fromServiceCategory(service.getCategory());
-
-            // Determine profile group from service geo-targeting
-            String profileGroup = determineProfileGroup(service);
-
-            // Build request
-            InstagramOrderRequest request =
-                    InstagramOrderRequest.builder()
-                            .type(orderType.getValue())
-                            .targetUrl(order.getLink())
-                            .count(order.getQuantity())
-                            .externalId(String.valueOf(order.getId()))
-                            .callbackUrl(botClient.getCallbackUrl())
-                            .priority(
-                                    order.getProcessingPriority() != null
-                                            ? order.getProcessingPriority()
-                                            : 0)
-                            .profileGroup(profileGroup)
-                            .build();
-
-            // Send to bot
-            InstagramOrderResponse response = botClient.createOrder(request);
-
-            if (response.isSuccess()) {
-                // Store bot order ID in entity and Redis
-                order.setInstagramBotOrderId(response.getId());
-                String cacheKey = INSTAGRAM_BOT_ORDER_ID_PREFIX + order.getId();
-                redisTemplate.opsForValue().set(cacheKey, response.getId());
-
-                // Update order status
-                order.setStatus(OrderStatus.PROCESSING);
-                order.setTrafficStatus("SENT_TO_BOT");
-                orderRepository.save(order);
-
-                log.info(
-                        "Instagram order created: panel={}, bot={}",
-                        order.getId(),
-                        response.getId());
+            // Use RabbitMQ if enabled (for geo-based routing)
+            if (useRabbitMQ) {
+                return createInstagramOrderViaRabbitMQ(order, service);
             } else {
-                // Update order with error
-                order.setErrorMessage("Instagram bot error: " + response.getError());
-                order.setRetryCount(order.getRetryCount() != null ? order.getRetryCount() + 1 : 1);
-                orderRepository.save(order);
-
-                log.error(
-                        "Failed to create Instagram order {}: {}",
-                        order.getId(),
-                        response.getError());
+                return createInstagramOrderViaHttp(order, service);
             }
-
-            return response;
 
         } catch (IllegalArgumentException e) {
             log.error(
@@ -137,6 +100,99 @@ public class InstagramService {
                     .error("Instagram bot error: " + e.getMessage())
                     .build();
         }
+    }
+
+    /**
+     * Create Instagram order via RabbitMQ for geo-based routing. Orders are routed to KR or DE
+     * queues based on service geo_targeting.
+     */
+    private InstagramOrderResponse createInstagramOrderViaRabbitMQ(Order order, Service service) {
+        String geo = service.getGeoTargeting() != null ? service.getGeoTargeting() : "DE";
+
+        log.info("Publishing Instagram order {} to RabbitMQ queue for geo: {}", order.getId(), geo);
+
+        boolean published = rabbitPublisher.publishOrder(order, service);
+
+        if (published) {
+            // Update order status
+            order.setStatus(OrderStatus.PROCESSING);
+            order.setTrafficStatus("SENT_TO_RABBITMQ_" + geo.toUpperCase());
+            orderRepository.save(order);
+
+            log.info(
+                    "Instagram order {} published to RabbitMQ queue instagram.orders.{}",
+                    order.getId(),
+                    geo.toLowerCase());
+
+            return InstagramOrderResponse.builder()
+                    .success(true)
+                    .id("rabbitmq:" + order.getId())
+                    .build();
+        } else {
+            order.setErrorMessage("Failed to publish to RabbitMQ");
+            order.setRetryCount(order.getRetryCount() != null ? order.getRetryCount() + 1 : 1);
+            orderRepository.save(order);
+
+            return InstagramOrderResponse.builder()
+                    .success(false)
+                    .error("Failed to publish to RabbitMQ")
+                    .build();
+        }
+    }
+
+    /** Create Instagram order via direct HTTP call to bot (legacy method). */
+    private InstagramOrderResponse createInstagramOrderViaHttp(Order order, Service service) {
+        // Determine order type from service category
+        InstagramOrderType orderType =
+                InstagramOrderType.fromServiceCategory(service.getCategory());
+
+        // Determine profile group from service geo-targeting
+        String profileGroup = determineProfileGroup(service);
+
+        // Build request
+        InstagramOrderRequest request =
+                InstagramOrderRequest.builder()
+                        .type(orderType.getValue())
+                        .targetUrl(order.getLink())
+                        .count(order.getQuantity())
+                        .externalId(String.valueOf(order.getId()))
+                        .callbackUrl(botClient.getCallbackUrl())
+                        .priority(
+                                order.getProcessingPriority() != null
+                                        ? order.getProcessingPriority()
+                                        : 0)
+                        .profileGroup(profileGroup)
+                        .build();
+
+        // Send to bot
+        InstagramOrderResponse response = botClient.createOrder(request);
+
+        if (response.isSuccess()) {
+            // Store bot order ID in entity and Redis
+            order.setInstagramBotOrderId(response.getId());
+            String cacheKey = INSTAGRAM_BOT_ORDER_ID_PREFIX + order.getId();
+            redisTemplate.opsForValue().set(cacheKey, response.getId());
+
+            // Update order status
+            order.setStatus(OrderStatus.PROCESSING);
+            order.setTrafficStatus("SENT_TO_BOT");
+            orderRepository.save(order);
+
+            log.info(
+                    "Instagram order created via HTTP: panel={}, bot={}",
+                    order.getId(),
+                    response.getId());
+        } else {
+            // Update order with error
+            order.setErrorMessage("Instagram bot error: " + response.getError());
+            order.setRetryCount(order.getRetryCount() != null ? order.getRetryCount() + 1 : 1);
+            orderRepository.save(order);
+
+            log.error(
+                    "Failed to create Instagram order {}: {}", order.getId(), response.getError());
+        }
+
+        return response;
     }
 
     /**

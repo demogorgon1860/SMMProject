@@ -7,7 +7,6 @@ import com.smmpanel.entity.Service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -24,8 +23,7 @@ public class InstagramRabbitPublisher {
 
     private final RabbitTemplate rabbitTemplate;
 
-    @Value("${app.instagram.callback-base-url:http://45.142.211.90}")
-    private String callbackBaseUrl;
+    // Callback URL not needed - results come back via instagram.results queue
 
     /**
      * Publishes an Instagram order to the appropriate geo-specific queue.
@@ -70,7 +68,7 @@ public class InstagramRabbitPublisher {
                 .type(mapServiceCategoryToType(service.getCategory()))
                 .targetUrl(order.getLink())
                 .count(order.getQuantity())
-                .callbackUrl(callbackBaseUrl + "/api/webhook/instagram")
+                // No callbackUrl - results come back via instagram.results queue
                 .priority(order.getProcessingPriority() != null ? order.getProcessingPriority() : 0)
                 .build();
     }

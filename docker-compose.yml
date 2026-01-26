@@ -241,6 +241,12 @@ services:
       INSTAGRAM_BOT_URL: http://host.docker.internal:8080
       INSTAGRAM_CALLBACK_BASE_URL: ${INSTAGRAM_CALLBACK_BASE_URL:-http://45.142.211.90}
       INSTAGRAM_ENABLED: ${INSTAGRAM_ENABLED:-true}
+      # RabbitMQ configuration - use Docker service name
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-smm_admin}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-RabbitMQ_Secure_2025}
+      SPRING_RABBITMQ_VIRTUAL_HOST: ${RABBITMQ_VHOST:-smm}
       # Disable OpenTelemetry/Jaeger tracing completely
       OTEL_SDK_DISABLED: true
       OTEL_EXPORTER_OTLP_ENABLED: false
@@ -261,6 +267,8 @@ services:
         condition: service_started
       selenium-hub:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
     networks:
       - smm_network
     volumes:

@@ -87,18 +87,32 @@ public class InstagramResultConsumer {
         // Update counts
         if (result.getStartLikeCount() != null) {
             order.setStartLikeCount(result.getStartLikeCount());
+            // Also update generic startCount for frontend display
+            if (result.getStartLikeCount() > 0) {
+                order.setStartCount(result.getStartLikeCount());
+            }
         }
         if (result.getCurrentLikeCount() != null) {
             order.setCurrentLikeCount(result.getCurrentLikeCount());
         }
         if (result.getStartCommentCount() != null) {
             order.setStartCommentCount(result.getStartCommentCount());
+            // Also update generic startCount for frontend display
+            if (result.getStartCommentCount() > 0
+                    && (order.getStartCount() == null || order.getStartCount() == 0)) {
+                order.setStartCount(result.getStartCommentCount());
+            }
         }
         if (result.getCurrentCommentCount() != null) {
             order.setCurrentCommentCount(result.getCurrentCommentCount());
         }
         if (result.getStartFollowerCount() != null) {
             order.setStartFollowerCount(result.getStartFollowerCount());
+            // Also update generic startCount for frontend display
+            if (result.getStartFollowerCount() > 0
+                    && (order.getStartCount() == null || order.getStartCount() == 0)) {
+                order.setStartCount(result.getStartFollowerCount());
+            }
         }
         if (result.getCurrentFollowerCount() != null) {
             order.setCurrentFollowerCount(result.getCurrentFollowerCount());

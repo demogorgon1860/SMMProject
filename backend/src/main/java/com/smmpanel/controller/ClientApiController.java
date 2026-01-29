@@ -299,7 +299,7 @@ public class ClientApiController {
                             "start_count",
                                     order.getStartCount() != null ? order.getStartCount() : 0,
                             "status", mapToPerfectPanelStatus(order.getStatus()),
-                            "remains", order.getRemains(),
+                            "remains", order.getRemains() != null ? order.getRemains() : 0,
                             "currency", "USDT" // All prices in USDT
                             ));
 
@@ -394,7 +394,7 @@ public class ClientApiController {
                                                         ? order.getStartCount()
                                                         : 0,
                                         "status", mapToPerfectPanelStatus(order.getStatus()),
-                                        "remains", order.getRemains(),
+                                        "remains", order.getRemains() != null ? order.getRemains() : 0,
                                         "currency", "USDT"));
                     } else {
                         results.put(idStr, Map.of("error", "Order not found"));
@@ -681,6 +681,7 @@ public class ClientApiController {
             case "PAUSED" -> "Paused";
             case "HOLDING" -> "In progress";
             case "REFILL" -> "Refill";
+            case "ERROR" -> "Error";
             default -> "In progress";
         };
     }

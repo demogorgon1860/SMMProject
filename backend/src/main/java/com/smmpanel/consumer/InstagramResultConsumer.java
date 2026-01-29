@@ -5,7 +5,10 @@ import com.smmpanel.dto.instagram.InstagramResultMessage;
 import com.smmpanel.entity.Order;
 import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.repository.jpa.OrderRepository;
+import com.smmpanel.service.balance.BalanceService;
 import com.smmpanel.service.notification.TelegramNotificationService;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +29,7 @@ public class InstagramResultConsumer {
 
     private final OrderRepository orderRepository;
     private final TelegramNotificationService telegramNotificationService;
+    private final BalanceService balanceService;
 
     @RabbitListener(queues = RabbitMQConfig.QUEUE_RESULTS)
     @Transactional
@@ -60,11 +64,11 @@ public class InstagramResultConsumer {
                     order.getStatus(),
                     order.getRemains());
 
-            // Send Telegram notification for completed/failed orders
+            // Send Telegram notification for terminal states
             if (order.getStatus() == OrderStatus.COMPLETED) {
                 telegramNotificationService.notifyOrderCompleted(order, result.getCompleted());
-            } else if (order.getStatus() == OrderStatus.ERROR
-                    || order.getStatus() == OrderStatus.PARTIAL) {
+            } else if (order.getStatus() == OrderStatus.PARTIAL
+                    || order.getStatus() == OrderStatus.CANCELLED) {
                 telegramNotificationService.notifyOrderFailed(order, result.getCompleted());
             }
 
@@ -120,12 +124,11 @@ public class InstagramResultConsumer {
 
         // Calculate remains
         int completed = result.getCompleted();
-        int failed = result.getFailed();
         int remains = order.getQuantity() - completed;
         order.setRemains(Math.max(0, remains));
 
-        // Update status based on result
-        OrderStatus newStatus = mapResultStatusToOrderStatus(result.getStatus(), completed, failed);
+        // Update status and process refund based on result
+        OrderStatus newStatus = determineStatusAndProcessRefund(order, result.getStatus(), completed);
         order.setStatus(newStatus);
 
         // Update error message if failed
@@ -137,28 +140,96 @@ public class InstagramResultConsumer {
         order.setUpdatedAt(LocalDateTime.now());
     }
 
-    private OrderStatus mapResultStatusToOrderStatus(
-            String resultStatus, int completed, int failed) {
-        if (resultStatus == null) {
+    /**
+     * Determines the final order status and processes refund if needed.
+     *
+     * Logic for "failed" status from bot:
+     * - If completed > 0: PARTIAL status, refund for undelivered items
+     * - If completed == 0: CANCELLED status, full refund
+     */
+    private OrderStatus determineStatusAndProcessRefund(Order order, String botStatus, int completed) {
+        if (botStatus == null) {
             return OrderStatus.PROCESSING;
         }
 
-        return switch (resultStatus.toLowerCase()) {
+        return switch (botStatus.toLowerCase()) {
             case "completed" -> OrderStatus.COMPLETED;
-            case "failed" -> OrderStatus.ERROR;
-            case "partial" -> {
-                // If some completed but also some failed
-                if (completed > 0 && failed > 0) {
+
+            case "failed" -> {
+                if (completed > 0) {
+                    // Partial delivery - refund for undelivered items
+                    processPartialRefund(order, completed);
                     yield OrderStatus.PARTIAL;
-                } else if (completed > 0) {
-                    yield OrderStatus.COMPLETED;
                 } else {
-                    yield OrderStatus.ERROR;
+                    // No delivery at all - full refund and cancel
+                    processFullRefund(order);
+                    yield OrderStatus.CANCELLED;
                 }
             }
+
+            case "partial" -> {
+                // Bot explicitly says partial
+                if (completed > 0) {
+                    processPartialRefund(order, completed);
+                    yield OrderStatus.PARTIAL;
+                } else {
+                    processFullRefund(order);
+                    yield OrderStatus.CANCELLED;
+                }
+            }
+
             case "processing", "in_progress" -> OrderStatus.PROCESSING;
-            case "cancelled" -> OrderStatus.CANCELLED;
+            case "cancelled" -> {
+                processFullRefund(order);
+                yield OrderStatus.CANCELLED;
+            }
             default -> OrderStatus.PROCESSING;
         };
     }
+
+    /**
+     * Process partial refund for undelivered items.
+     * Refund = charge * (remains / quantity)
+     */
+    private void processPartialRefund(Order order, int completed) {
+        if (order.getCharge() == null || order.getQuantity() == null || order.getQuantity() == 0) {
+            log.warn("Cannot calculate partial refund for order {}: missing charge or quantity", order.getId());
+            return;
+        }
+
+        int remains = order.getQuantity() - completed;
+        if (remains <= 0) {
+            log.info("No refund needed for order {} - all items delivered", order.getId());
+            return;
+        }
+
+        // Calculate proportional refund: charge * (remains / quantity)
+        BigDecimal refundAmount = order.getCharge()
+                .multiply(BigDecimal.valueOf(remains))
+                .divide(BigDecimal.valueOf(order.getQuantity()), 4, RoundingMode.HALF_UP);
+
+        if (refundAmount.compareTo(BigDecimal.ZERO) > 0 && order.getUser() != null) {
+            String reason = String.format("Partial refund for Instagram order #%d: %d/%d delivered",
+                    order.getId(), completed, order.getQuantity());
+            balanceService.refund(order.getUser(), refundAmount, order, reason);
+            log.info("Processed partial refund of {} for order {}", refundAmount, order.getId());
+        }
+    }
+
+    /**
+     * Process full refund for cancelled/failed orders with no delivery.
+     */
+    private void processFullRefund(Order order) {
+        if (order.getCharge() == null || order.getCharge().compareTo(BigDecimal.ZERO) <= 0) {
+            log.warn("Cannot process full refund for order {}: no charge", order.getId());
+            return;
+        }
+
+        if (order.getUser() != null) {
+            String reason = String.format("Full refund for Instagram order #%d: no items delivered", order.getId());
+            balanceService.refund(order.getUser(), order.getCharge(), order, reason);
+            log.info("Processed full refund of {} for order {}", order.getCharge(), order.getId());
+        }
+    }
+
 }

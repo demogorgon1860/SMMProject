@@ -36,6 +36,7 @@ export const Dashboard: React.FC = () => {
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [totalOrders, setTotalOrders] = useState<number>(0);
   const [totalSpent, setTotalSpent] = useState<number>(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchBalance();
@@ -43,6 +44,7 @@ export const Dashboard: React.FC = () => {
   }, []);
 
   const fetchBalance = async () => {
+    setLoading(true);
     try {
       const response = await userAPI.getBalance();
       setBalance(response.balance);
@@ -54,6 +56,7 @@ export const Dashboard: React.FC = () => {
   };
 
   const fetchRecentOrders = async () => {
+    setOrdersLoading(true);
     try {
       let orders: Order[] = [];
       let total = 0;
@@ -161,13 +164,15 @@ export const Dashboard: React.FC = () => {
           </p>
         </div>
         <button
-          onClick={() => {
-            fetchBalance();
-            fetchRecentOrders();
+          onClick={async () => {
+            setRefreshing(true);
+            await Promise.all([fetchBalance(), fetchRecentOrders()]);
+            setRefreshing(false);
           }}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-dark-600 hover:text-dark-900 dark:text-dark-400 dark:hover:text-white bg-white dark:bg-dark-800 border border-dark-200 dark:border-dark-700 rounded-xl hover:bg-dark-50 dark:hover:bg-dark-700 transition-colors"
+          disabled={refreshing}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-dark-600 hover:text-dark-900 dark:text-dark-400 dark:hover:text-white bg-white dark:bg-dark-800 border border-dark-200 dark:border-dark-700 rounded-xl hover:bg-dark-50 dark:hover:bg-dark-700 transition-colors disabled:opacity-50"
         >
-          <RefreshCw size={16} />
+          <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
           Refresh
         </button>
       </div>

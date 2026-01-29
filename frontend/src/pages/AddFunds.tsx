@@ -14,6 +14,7 @@ import {
   Loader2,
   Bitcoin,
 } from 'lucide-react';
+import { formatDateOnly, formatDate } from '../utils/timezone';
 
 interface Deposit {
   id: number;
@@ -359,10 +360,10 @@ export const AddFunds: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm text-dark-600 dark:text-dark-400">
-                          {new Date(deposit.createdAt).toLocaleDateString()}
+                          {formatDateOnly(deposit.createdAt)}
                         </span>
                         <span className="block text-xs text-dark-400 dark:text-dark-500">
-                          {new Date(deposit.createdAt).toLocaleTimeString()}
+                          {formatDate(deposit.createdAt, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

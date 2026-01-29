@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { adminAPI } from '../services/api';
+import { formatDateShort } from '../utils/timezone';
 
 interface AdminRefill {
   refillId: number;
@@ -48,14 +49,7 @@ export const AdminRefills: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return formatDateShort(dateString);
   };
 
   const getStatusColor = (status: string) => {

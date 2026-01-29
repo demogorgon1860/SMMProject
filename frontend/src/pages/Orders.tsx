@@ -17,6 +17,7 @@ import {
   Calendar,
   ChevronDown,
 } from 'lucide-react';
+import { formatDateShort } from '../utils/timezone';
 
 export const Orders: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -119,13 +120,7 @@ export const Orders: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return formatDateShort(dateString);
   };
 
   const formatLink = (link: string) => {

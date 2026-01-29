@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { adminAPI } from '../services/api';
+import { formatDateLong } from '../utils/timezone';
 
 interface AdminDeposit {
   id: number;
@@ -67,7 +68,7 @@ export const AdminPayments: React.FC = () => {
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '-';
-    return new Date(dateString).toLocaleString();
+    return formatDateLong(dateString);
   };
 
   const formatAmount = (amount: number) => {

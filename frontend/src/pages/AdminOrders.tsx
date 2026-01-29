@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { adminAPI } from '../services/api';
+import { formatDateTime } from '../utils/timezone';
 
 interface AdminOrder {
   id: number;
@@ -189,17 +190,7 @@ export const AdminOrders: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }) + ' ' + date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
-    });
+    return formatDateTime(dateString);
   };
 
   const formatLink = (link: string) => {

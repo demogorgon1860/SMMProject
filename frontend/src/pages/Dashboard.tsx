@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { userAPI, orderAPI } from '../services/api';
+import { userAPI, orderAPI, adminAPI } from '../services/api';
 import {
   Wallet,
   Plus,
@@ -14,6 +14,7 @@ import {
   AlertCircle,
   ArrowRight,
   RefreshCw,
+  TestTube,
 } from 'lucide-react';
 
 interface Order {
@@ -24,6 +25,7 @@ interface Order {
   quantity: number;
   charge: number;
   createdAt: string;
+  username?: string;
 }
 
 export const Dashboard: React.FC = () => {
@@ -53,37 +55,48 @@ export const Dashboard: React.FC = () => {
 
   const fetchRecentOrders = async () => {
     try {
-      // Fetch more orders to calculate totalSpent accurately
-      const response = await orderAPI.getOrders(undefined, undefined, undefined, 0, 100);
-
-      // Handle PerfectPanelResponse<Page<OrderResponse>> format
       let orders: Order[] = [];
       let total = 0;
 
-      if (response?.data?.content && Array.isArray(response.data.content)) {
-        // Main format: PerfectPanelResponse<Page<OrderResponse>>
-        orders = response.data.content;
-        total = response.data.totalElements || orders.length;
-      } else if (response?.content && Array.isArray(response.content)) {
-        // Page<OrderResponse> directly
-        orders = response.content;
-        total = response.totalElements || orders.length;
-      } else if (response?.data && Array.isArray(response.data)) {
-        // Array wrapped in data
-        orders = response.data;
-        total = orders.length;
-      } else if (Array.isArray(response)) {
-        // Direct array
-        orders = response;
-        total = orders.length;
+      // Admin users fetch all orders, regular users fetch their own
+      if (user?.role === 'ADMIN') {
+        const response = await adminAPI.getAllOrders(undefined, undefined, undefined, undefined, 0, 10);
+        if (response?.orders && Array.isArray(response.orders)) {
+          orders = response.orders;
+          total = response.totalElements || orders.length;
+        }
+      } else {
+        // Fetch more orders to calculate totalSpent accurately
+        const response = await orderAPI.getOrders(undefined, undefined, undefined, 0, 100);
+
+        // Handle PerfectPanelResponse<Page<OrderResponse>> format
+        if (response?.data?.content && Array.isArray(response.data.content)) {
+          // Main format: PerfectPanelResponse<Page<OrderResponse>>
+          orders = response.data.content;
+          total = response.data.totalElements || orders.length;
+        } else if (response?.content && Array.isArray(response.content)) {
+          // Page<OrderResponse> directly
+          orders = response.content;
+          total = response.totalElements || orders.length;
+        } else if (response?.data && Array.isArray(response.data)) {
+          // Array wrapped in data
+          orders = response.data;
+          total = orders.length;
+        } else if (Array.isArray(response)) {
+          // Direct array
+          orders = response;
+          total = orders.length;
+        }
       }
 
       setRecentOrders(orders.slice(0, 5));
       setTotalOrders(total);
 
-      // Calculate total spent from all fetched orders
-      const spent = orders.reduce((sum, order) => sum + Number(order.charge || 0), 0);
-      setTotalSpent(spent);
+      // Calculate total spent from all fetched orders (only for regular users)
+      if (user?.role !== 'ADMIN') {
+        const spent = orders.reduce((sum, order) => sum + Number(order.charge || 0), 0);
+        setTotalSpent(spent);
+      }
     } catch (error) {
       console.error('Failed to fetch orders:', error);
     } finally {
@@ -236,59 +249,115 @@ export const Dashboard: React.FC = () => {
         <div className="bg-white dark:bg-dark-800 rounded-2xl p-6 border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft">
           <h2 className="text-lg font-semibold text-dark-900 dark:text-white mb-4">Quick Actions</h2>
           <div className="space-y-3">
-            {user?.role !== 'ADMIN' && (
-              <Link
-                to="/orders/new"
-                className="flex items-center gap-3 p-4 rounded-xl bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-900/30 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors group"
-              >
-                <div className="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/50 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Plus size={20} className="text-primary-600 dark:text-primary-400" />
-                </div>
-                <div>
-                  <p className="font-medium">New Order</p>
-                  <p className="text-sm text-primary-600/70 dark:text-primary-400/70">Create a new service order</p>
-                </div>
-              </Link>
+            {user?.role === 'ADMIN' ? (
+              <>
+                <Link
+                  to="/admin/orders"
+                  className="flex items-center gap-3 p-4 rounded-xl bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-900/30 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors group"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Package size={20} className="text-primary-600 dark:text-primary-400" />
+                  </div>
+                  <div>
+                    <p className="font-medium">All Orders</p>
+                    <p className="text-sm text-primary-600/70 dark:text-primary-400/70">View and manage orders</p>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/admin/payments"
+                  className="flex items-center gap-3 p-4 rounded-xl bg-accent-50 dark:bg-accent-900/20 border border-accent-100 dark:border-accent-900/30 text-accent-700 dark:text-accent-300 hover:bg-accent-100 dark:hover:bg-accent-900/30 transition-colors group"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-accent-100 dark:bg-accent-900/50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <CreditCard size={20} className="text-accent-600 dark:text-accent-400" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Payments</p>
+                    <p className="text-sm text-accent-600/70 dark:text-accent-400/70">Review payment history</p>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/admin/refills"
+                  className="flex items-center gap-3 p-4 rounded-xl bg-dark-50 dark:bg-dark-700/50 border border-dark-100 dark:border-dark-600 text-dark-700 dark:text-dark-300 hover:bg-dark-100 dark:hover:bg-dark-700 transition-colors group"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-dark-100 dark:bg-dark-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <TrendingUp size={20} className="text-dark-600 dark:text-dark-400" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Refills</p>
+                    <p className="text-sm text-dark-500 dark:text-dark-400">Manage refill requests</p>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/services-test"
+                  className="flex items-center gap-3 p-4 rounded-xl bg-dark-50 dark:bg-dark-700/50 border border-dark-100 dark:border-dark-600 text-dark-700 dark:text-dark-300 hover:bg-dark-100 dark:hover:bg-dark-700 transition-colors group"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-dark-100 dark:bg-dark-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <TestTube size={20} className="text-dark-600 dark:text-dark-400" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Test Services</p>
+                    <p className="text-sm text-dark-500 dark:text-dark-400">Debug and test services</p>
+                  </div>
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/orders/new"
+                  className="flex items-center gap-3 p-4 rounded-xl bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-900/30 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors group"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Plus size={20} className="text-primary-600 dark:text-primary-400" />
+                  </div>
+                  <div>
+                    <p className="font-medium">New Order</p>
+                    <p className="text-sm text-primary-600/70 dark:text-primary-400/70">Create a new service order</p>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/orders"
+                  className="flex items-center gap-3 p-4 rounded-xl bg-dark-50 dark:bg-dark-700/50 border border-dark-100 dark:border-dark-600 text-dark-700 dark:text-dark-300 hover:bg-dark-100 dark:hover:bg-dark-700 transition-colors group"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-dark-100 dark:bg-dark-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Package size={20} className="text-dark-600 dark:text-dark-400" />
+                  </div>
+                  <div>
+                    <p className="font-medium">View Orders</p>
+                    <p className="text-sm text-dark-500 dark:text-dark-400">Check your order history</p>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/add-funds"
+                  className="flex items-center gap-3 p-4 rounded-xl bg-accent-50 dark:bg-accent-900/20 border border-accent-100 dark:border-accent-900/30 text-accent-700 dark:text-accent-300 hover:bg-accent-100 dark:hover:bg-accent-900/30 transition-colors group"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-accent-100 dark:bg-accent-900/50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <CreditCard size={20} className="text-accent-600 dark:text-accent-400" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Add Funds</p>
+                    <p className="text-sm text-accent-600/70 dark:text-accent-400/70">Top up your balance</p>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/profile"
+                  className="flex items-center gap-3 p-4 rounded-xl bg-dark-50 dark:bg-dark-700/50 border border-dark-100 dark:border-dark-600 text-dark-700 dark:text-dark-300 hover:bg-dark-100 dark:hover:bg-dark-700 transition-colors group"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-dark-100 dark:bg-dark-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Settings size={20} className="text-dark-600 dark:text-dark-400" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Settings</p>
+                    <p className="text-sm text-dark-500 dark:text-dark-400">Manage your account</p>
+                  </div>
+                </Link>
+              </>
             )}
-
-            <Link
-              to="/orders"
-              className="flex items-center gap-3 p-4 rounded-xl bg-dark-50 dark:bg-dark-700/50 border border-dark-100 dark:border-dark-600 text-dark-700 dark:text-dark-300 hover:bg-dark-100 dark:hover:bg-dark-700 transition-colors group"
-            >
-              <div className="w-10 h-10 rounded-lg bg-dark-100 dark:bg-dark-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Package size={20} className="text-dark-600 dark:text-dark-400" />
-              </div>
-              <div>
-                <p className="font-medium">View Orders</p>
-                <p className="text-sm text-dark-500 dark:text-dark-400">Check your order history</p>
-              </div>
-            </Link>
-
-            <Link
-              to="/add-funds"
-              className="flex items-center gap-3 p-4 rounded-xl bg-accent-50 dark:bg-accent-900/20 border border-accent-100 dark:border-accent-900/30 text-accent-700 dark:text-accent-300 hover:bg-accent-100 dark:hover:bg-accent-900/30 transition-colors group"
-            >
-              <div className="w-10 h-10 rounded-lg bg-accent-100 dark:bg-accent-900/50 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <CreditCard size={20} className="text-accent-600 dark:text-accent-400" />
-              </div>
-              <div>
-                <p className="font-medium">Add Funds</p>
-                <p className="text-sm text-accent-600/70 dark:text-accent-400/70">Top up your balance</p>
-              </div>
-            </Link>
-
-            <Link
-              to="/profile"
-              className="flex items-center gap-3 p-4 rounded-xl bg-dark-50 dark:bg-dark-700/50 border border-dark-100 dark:border-dark-600 text-dark-700 dark:text-dark-300 hover:bg-dark-100 dark:hover:bg-dark-700 transition-colors group"
-            >
-              <div className="w-10 h-10 rounded-lg bg-dark-100 dark:bg-dark-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Settings size={20} className="text-dark-600 dark:text-dark-400" />
-              </div>
-              <div>
-                <p className="font-medium">Settings</p>
-                <p className="text-sm text-dark-500 dark:text-dark-400">Manage your account</p>
-              </div>
-            </Link>
           </div>
         </div>
 
@@ -297,7 +366,7 @@ export const Dashboard: React.FC = () => {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-dark-900 dark:text-white">Recent Orders</h2>
             <Link
-              to="/orders"
+              to={user?.role === 'ADMIN' ? '/admin/orders' : '/orders'}
               className="text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 flex items-center gap-1 transition-colors"
             >
               View all <ArrowRight size={16} />
@@ -328,6 +397,9 @@ export const Dashboard: React.FC = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-dark-900 dark:text-white truncate">
+                      {user?.role === 'ADMIN' && order.username && (
+                        <span className="text-primary-600 dark:text-primary-400">{order.username}: </span>
+                      )}
                       {order.serviceName || order.service?.name || `Order #${order.id}`}
                     </p>
                     <p className="text-sm text-dark-500 dark:text-dark-400">
@@ -352,7 +424,7 @@ export const Dashboard: React.FC = () => {
                 <Package size={32} className="text-dark-400" />
               </div>
               <p className="text-dark-500 dark:text-dark-400 font-medium">No orders yet</p>
-              <p className="text-sm text-dark-400 dark:text-dark-500 mt-1">Create your first order to get started</p>
+              <p className="text-sm text-dark-400 dark:text-dark-500 mt-1">{user?.role === 'ADMIN' ? 'No orders have been placed yet' : 'Create your first order to get started'}</p>
               {user?.role !== 'ADMIN' && (
                 <Link
                   to="/orders/new"

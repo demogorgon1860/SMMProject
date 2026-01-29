@@ -159,6 +159,10 @@ public class OrderService {
             order.setCreatedAt(LocalDateTime.now());
             order.setUpdatedAt(LocalDateTime.now());
 
+            // Set user-specific order number (1, 2, 3... per user)
+            Integer maxUserOrderNumber = orderRepository.findMaxUserOrderNumberByUserId(user.getId());
+            order.setUserOrderNumber(maxUserOrderNumber + 1);
+
             order = orderRepository.save(order);
 
             // 6. Save order event for event sourcing
@@ -868,7 +872,7 @@ public class OrderService {
 
     private OrderResponse mapToOrderResponse(Order order) {
         return OrderResponse.builder()
-                .id(order.getId())
+                .id(order.getUserOrderNumber() != null ? order.getUserOrderNumber().longValue() : order.getId())
                 .service(order.getService().getId().intValue())
                 .serviceName(order.getService().getName())
                 .link(order.getLink())
@@ -1205,6 +1209,14 @@ public class OrderService {
                 userRepository
                         .findByUsername(username)
                         .orElseThrow(() -> new OrderValidationException("User not found"));
+
+        // Default sort by userOrderNumber DESC if no sort specified
+        if (pageable.getSort().isUnsorted()) {
+            pageable = org.springframework.data.domain.PageRequest.of(
+                    pageable.getPageNumber(),
+                    pageable.getPageSize(),
+                    org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "userOrderNumber"));
+        }
 
         Page<Order> orders;
         if (status != null && !status.isEmpty()) {

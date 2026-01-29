@@ -21,7 +21,9 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -109,6 +111,14 @@ public class AdminService {
         if (dateTo != null && !dateTo.isEmpty()) {
             LocalDateTime to = LocalDate.parse(dateTo).atTime(23, 59, 59);
             spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("createdAt"), to));
+        }
+
+        // Default sort by ID descending if no sort specified
+        if (pageable.getSort().isUnsorted()) {
+            pageable = PageRequest.of(
+                    pageable.getPageNumber(),
+                    pageable.getPageSize(),
+                    Sort.by(Sort.Direction.DESC, "id"));
         }
 
         Page<Order> orders = orderRepository.findAll(spec, pageable);

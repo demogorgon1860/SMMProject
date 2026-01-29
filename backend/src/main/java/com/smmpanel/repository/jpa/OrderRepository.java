@@ -403,4 +403,11 @@ public interface OrderRepository
      * history and limits
      */
     List<Order> findByRefillParentId(Long refillParentId);
+
+    /**
+     * Get the maximum user_order_number for a given user Used when creating new orders to assign
+     * sequential order numbers per user
+     */
+    @Query("SELECT COALESCE(MAX(o.userOrderNumber), 0) FROM Order o WHERE o.user.id = :userId")
+    Integer findMaxUserOrderNumberByUserId(@Param("userId") Long userId);
 }

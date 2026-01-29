@@ -140,6 +140,10 @@ public class Order {
     @Column(name = "operator_notes", columnDefinition = "TEXT")
     private String operatorNotes;
 
+    /** User-specific order number (1, 2, 3... per user) */
+    @Column(name = "user_order_number")
+    private Integer userOrderNumber;
+
     // ========= NEW BINOM TRACKING FIELDS =========
     // binomCampaignId removed - using direct campaign connections via binomOfferId
 

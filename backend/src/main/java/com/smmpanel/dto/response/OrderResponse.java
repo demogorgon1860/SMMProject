@@ -43,7 +43,7 @@ public class OrderResponse {
      */
     public static OrderResponse fromEntityWithFetchedRelations(Order order) {
         return OrderResponse.builder()
-                .id(order.getId())
+                .id(order.getUserOrderNumber() != null ? order.getUserOrderNumber().longValue() : order.getId())
                 .service(order.getService().getId().intValue())
                 .serviceName(order.getService().getName())
                 .status(order.getStatus().name())
@@ -66,7 +66,7 @@ public class OrderResponse {
     /** OPTIMIZED: Create minimal response for listing views Avoids accessing any relationships */
     public static OrderResponse fromEntityMinimal(Order order, String serviceName) {
         return OrderResponse.builder()
-                .id(order.getId())
+                .id(order.getUserOrderNumber() != null ? order.getUserOrderNumber().longValue() : order.getId())
                 .service(order.getService() != null ? order.getService().getId().intValue() : null)
                 .serviceName(serviceName)
                 .status(order.getStatus().name())

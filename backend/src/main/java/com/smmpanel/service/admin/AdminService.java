@@ -115,10 +115,11 @@ public class AdminService {
 
         // Default sort by ID descending if no sort specified
         if (pageable.getSort().isUnsorted()) {
-            pageable = PageRequest.of(
-                    pageable.getPageNumber(),
-                    pageable.getPageSize(),
-                    Sort.by(Sort.Direction.DESC, "id"));
+            pageable =
+                    PageRequest.of(
+                            pageable.getPageNumber(),
+                            pageable.getPageSize(),
+                            Sort.by(Sort.Direction.DESC, "id"));
         }
 
         Page<Order> orders = orderRepository.findAll(spec, pageable);

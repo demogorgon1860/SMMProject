@@ -210,6 +210,10 @@ public class Order {
     @Builder.Default
     private Integer currentCommentCount = 0;
 
+    /** Custom comments for Instagram comment orders (one per line, bot picks randomly) */
+    @Column(name = "custom_comments", columnDefinition = "TEXT")
+    private String customComments;
+
     /**
      * Optimistic locking version counter - incremented on each update Prevents concurrent
      * modification issues during order processing

@@ -68,6 +68,7 @@ public class InstagramRabbitPublisher {
                 .type(mapServiceCategoryToType(service.getCategory()))
                 .targetUrl(order.getLink())
                 .count(order.getQuantity())
+                .commentText(order.getCustomComments())
                 // No callbackUrl - results come back via instagram.results queue
                 .priority(order.getProcessingPriority() != null ? order.getProcessingPriority() : 0)
                 .build();

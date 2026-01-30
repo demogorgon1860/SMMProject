@@ -19,4 +19,7 @@ public class CreateOrderRequest {
     private String link;
 
     @NotNull(message = "Quantity is required") @Positive(message = "Quantity must be positive") private Integer quantity;
+
+    /** Custom comments for Instagram comment orders (one per line, bot picks randomly) */
+    private String customComments;
 }

@@ -30,6 +30,7 @@ export const NewOrder: React.FC = () => {
     service: '',
     link: '',
     quantity: '',
+    customComments: '',
   });
 
   const [selectedService, setSelectedService] = useState<Service | null>(null);
@@ -55,9 +56,32 @@ export const NewOrder: React.FC = () => {
 
   const handleServiceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const serviceId = e.target.value;
-    setFormData(prev => ({ ...prev, service: serviceId }));
+    setFormData(prev => ({ ...prev, service: serviceId, customComments: '' }));
     const service = services.find(s => s.id.toString() === serviceId);
     setSelectedService(service || null);
+  };
+
+  // Check if service requires custom comments (e.g., "Instagram Comments Custom")
+  const requiresCustomComments = (service: Service | null): boolean => {
+    if (!service) return false;
+    const name = service.name?.toLowerCase() || '';
+    return name.includes('custom') && name.includes('comment');
+  };
+
+  // Count non-empty comment lines
+  const getCommentCount = (): number => {
+    if (!formData.customComments.trim()) return 0;
+    return formData.customComments
+      .split('\n')
+      .filter(line => line.trim().length > 0)
+      .length;
+  };
+
+  // Check if comment count matches quantity
+  const isCommentCountValid = (): boolean => {
+    if (!requiresCustomComments(selectedService)) return true;
+    const quantity = parseInt(formData.quantity) || 0;
+    return getCommentCount() === quantity;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,11 +90,18 @@ export const NewOrder: React.FC = () => {
     setLoading(true);
 
     try {
-      await orderAPI.createOrder({
+      const orderData: any = {
         service: parseInt(formData.service),
         link: formData.link,
         quantity: parseInt(formData.quantity),
-      });
+      };
+
+      // Include custom comments if provided
+      if (formData.customComments.trim()) {
+        orderData.customComments = formData.customComments.trim();
+      }
+
+      await orderAPI.createOrder(orderData);
       navigate('/orders');
     } catch (error: any) {
       setError(error.response?.data?.message || 'Failed to create order');
@@ -254,6 +285,55 @@ export const NewOrder: React.FC = () => {
                 />
               </div>
             </div>
+
+            {/* Custom Comments (for custom comment services) */}
+            {requiresCustomComments(selectedService) && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-medium text-dark-700 dark:text-dark-300">
+                    Custom Comments
+                  </label>
+                  <span className={`text-sm font-medium ${
+                    isCommentCountValid()
+                      ? 'text-green-600 dark:text-green-400'
+                      : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    {getCommentCount()} / {formData.quantity || 0} comments
+                  </span>
+                </div>
+                <textarea
+                  value={formData.customComments}
+                  onChange={(e) => setFormData(prev => ({ ...prev, customComments: e.target.value }))}
+                  required
+                  rows={8}
+                  placeholder="Enter your custom comments (one per line)&#10;Example:&#10;Great content!&#10;Love this post!&#10;Amazing work!"
+                  className={`block w-full px-4 py-3 border rounded-xl bg-white dark:bg-dark-700 text-dark-900 dark:text-white placeholder-dark-400 focus:outline-none focus:ring-2 transition-all resize-none ${
+                    isCommentCountValid()
+                      ? 'border-dark-200 dark:border-dark-600 focus:ring-primary-500/50 focus:border-primary-500'
+                      : 'border-red-300 dark:border-red-600 focus:ring-red-500/50 focus:border-red-500'
+                  }`}
+                />
+                <div className={`flex items-start gap-2 p-3 rounded-lg ${
+                  isCommentCountValid()
+                    ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+                    : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+                }`}>
+                  <Info size={16} className={`flex-shrink-0 mt-0.5 ${
+                    isCommentCountValid() ? 'text-green-500' : 'text-red-500'
+                  }`} />
+                  <p className={`text-sm ${
+                    isCommentCountValid()
+                      ? 'text-green-700 dark:text-green-400'
+                      : 'text-red-700 dark:text-red-400'
+                  }`}>
+                    {isCommentCountValid()
+                      ? 'Comment count matches quantity. Ready to submit!'
+                      : `Enter exactly ${formData.quantity || 0} comments (one per line). You have ${getCommentCount()}.`
+                    }
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Total & Actions */}
@@ -276,7 +356,7 @@ export const NewOrder: React.FC = () => {
               </button>
               <button
                 type="submit"
-                disabled={loading || !formData.service || !formData.link || !formData.quantity}
+                disabled={loading || !formData.service || !formData.link || !formData.quantity || !isCommentCountValid()}
                 className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-white font-medium bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-soft"
               >
                 {loading ? (

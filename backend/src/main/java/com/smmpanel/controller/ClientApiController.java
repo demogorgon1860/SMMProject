@@ -295,12 +295,16 @@ public class ClientApiController {
             // CRITICAL: Perfect Panel status response format
             return ResponseEntity.ok(
                     Map.of(
-                            "charge", order.getCharge(),
+                            "charge",
+                            order.getCharge(),
                             "start_count",
-                                    order.getStartCount() != null ? order.getStartCount() : 0,
-                            "status", mapToPerfectPanelStatus(order.getStatus()),
-                            "remains", order.getRemains() != null ? order.getRemains() : 0,
-                            "currency", "USDT" // All prices in USDT
+                            order.getStartCount() != null ? order.getStartCount() : 0,
+                            "status",
+                            mapToPerfectPanelStatus(order.getStatus()),
+                            "remains",
+                            order.getRemains() != null ? order.getRemains() : 0,
+                            "currency",
+                            "USDT" // All prices in USDT
                             ));
 
         } catch (Exception e) {
@@ -388,14 +392,16 @@ public class ClientApiController {
                         results.put(
                                 idStr,
                                 Map.of(
-                                        "charge", order.getCharge(),
+                                        "charge",
+                                        order.getCharge(),
                                         "start_count",
-                                                order.getStartCount() != null
-                                                        ? order.getStartCount()
-                                                        : 0,
-                                        "status", mapToPerfectPanelStatus(order.getStatus()),
-                                        "remains", order.getRemains() != null ? order.getRemains() : 0,
-                                        "currency", "USDT"));
+                                        order.getStartCount() != null ? order.getStartCount() : 0,
+                                        "status",
+                                        mapToPerfectPanelStatus(order.getStatus()),
+                                        "remains",
+                                        order.getRemains() != null ? order.getRemains() : 0,
+                                        "currency",
+                                        "USDT"));
                     } else {
                         results.put(idStr, Map.of("error", "Order not found"));
                     }

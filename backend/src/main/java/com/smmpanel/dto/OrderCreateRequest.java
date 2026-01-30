@@ -25,4 +25,7 @@ public class OrderCreateRequest {
     @NotNull(message = "Quantity is required") @Min(value = 1, message = "Quantity must be at least 1")
     @Max(value = 1000000, message = "Quantity cannot exceed 1,000,000")
     private Integer quantity;
+
+    /** Custom comments for Instagram comment orders (one per line, bot picks randomly) */
+    private String customComments;
 }

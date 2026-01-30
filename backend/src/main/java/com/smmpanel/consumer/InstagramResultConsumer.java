@@ -128,7 +128,8 @@ public class InstagramResultConsumer {
         order.setRemains(Math.max(0, remains));
 
         // Update status and process refund based on result
-        OrderStatus newStatus = determineStatusAndProcessRefund(order, result.getStatus(), completed);
+        OrderStatus newStatus =
+                determineStatusAndProcessRefund(order, result.getStatus(), completed);
         order.setStatus(newStatus);
 
         // Update error message if failed
@@ -143,11 +144,11 @@ public class InstagramResultConsumer {
     /**
      * Determines the final order status and processes refund if needed.
      *
-     * Logic for "failed" status from bot:
-     * - If completed > 0: PARTIAL status, refund for undelivered items
-     * - If completed == 0: CANCELLED status, full refund
+     * <p>Logic for "failed" status from bot: - If completed > 0: PARTIAL status, refund for
+     * undelivered items - If completed == 0: CANCELLED status, full refund
      */
-    private OrderStatus determineStatusAndProcessRefund(Order order, String botStatus, int completed) {
+    private OrderStatus determineStatusAndProcessRefund(
+            Order order, String botStatus, int completed) {
         if (botStatus == null) {
             return OrderStatus.PROCESSING;
         }
@@ -187,13 +188,12 @@ public class InstagramResultConsumer {
         };
     }
 
-    /**
-     * Process partial refund for undelivered items.
-     * Refund = charge * (remains / quantity)
-     */
+    /** Process partial refund for undelivered items. Refund = charge * (remains / quantity) */
     private void processPartialRefund(Order order, int completed) {
         if (order.getCharge() == null || order.getQuantity() == null || order.getQuantity() == 0) {
-            log.warn("Cannot calculate partial refund for order {}: missing charge or quantity", order.getId());
+            log.warn(
+                    "Cannot calculate partial refund for order {}: missing charge or quantity",
+                    order.getId());
             return;
         }
 
@@ -204,21 +204,22 @@ public class InstagramResultConsumer {
         }
 
         // Calculate proportional refund: charge * (remains / quantity)
-        BigDecimal refundAmount = order.getCharge()
-                .multiply(BigDecimal.valueOf(remains))
-                .divide(BigDecimal.valueOf(order.getQuantity()), 4, RoundingMode.HALF_UP);
+        BigDecimal refundAmount =
+                order.getCharge()
+                        .multiply(BigDecimal.valueOf(remains))
+                        .divide(BigDecimal.valueOf(order.getQuantity()), 4, RoundingMode.HALF_UP);
 
         if (refundAmount.compareTo(BigDecimal.ZERO) > 0 && order.getUser() != null) {
-            String reason = String.format("Partial refund for Instagram order #%d: %d/%d delivered",
-                    order.getId(), completed, order.getQuantity());
+            String reason =
+                    String.format(
+                            "Partial refund for Instagram order #%d: %d/%d delivered",
+                            order.getId(), completed, order.getQuantity());
             balanceService.refund(order.getUser(), refundAmount, order, reason);
             log.info("Processed partial refund of {} for order {}", refundAmount, order.getId());
         }
     }
 
-    /**
-     * Process full refund for cancelled/failed orders with no delivery.
-     */
+    /** Process full refund for cancelled/failed orders with no delivery. */
     private void processFullRefund(Order order) {
         if (order.getCharge() == null || order.getCharge().compareTo(BigDecimal.ZERO) <= 0) {
             log.warn("Cannot process full refund for order {}: no charge", order.getId());
@@ -226,10 +227,12 @@ public class InstagramResultConsumer {
         }
 
         if (order.getUser() != null) {
-            String reason = String.format("Full refund for Instagram order #%d: no items delivered", order.getId());
+            String reason =
+                    String.format(
+                            "Full refund for Instagram order #%d: no items delivered",
+                            order.getId());
             balanceService.refund(order.getUser(), order.getCharge(), order, reason);
             log.info("Processed full refund of {} for order {}", order.getCharge(), order.getId());
         }
     }
-
 }

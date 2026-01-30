@@ -158,9 +158,11 @@ public class OrderService {
             order.setProcessingPriority(0);
             order.setCreatedAt(LocalDateTime.now());
             order.setUpdatedAt(LocalDateTime.now());
+            order.setCustomComments(request.getCustomComments());
 
             // Set user-specific order number (1, 2, 3... per user)
-            Integer maxUserOrderNumber = orderRepository.findMaxUserOrderNumberByUserId(user.getId());
+            Integer maxUserOrderNumber =
+                    orderRepository.findMaxUserOrderNumberByUserId(user.getId());
             order.setUserOrderNumber(maxUserOrderNumber + 1);
 
             order = orderRepository.save(order);
@@ -872,7 +874,10 @@ public class OrderService {
 
     private OrderResponse mapToOrderResponse(Order order) {
         return OrderResponse.builder()
-                .id(order.getUserOrderNumber() != null ? order.getUserOrderNumber().longValue() : order.getId())
+                .id(
+                        order.getUserOrderNumber() != null
+                                ? order.getUserOrderNumber().longValue()
+                                : order.getId())
                 .service(order.getService().getId().intValue())
                 .serviceName(order.getService().getName())
                 .link(order.getLink())
@@ -1020,6 +1025,7 @@ public class OrderService {
                         .serviceId(Long.valueOf(request.getService()))
                         .link(request.getLink())
                         .quantity(request.getQuantity())
+                        .customComments(request.getCustomComments())
                         .build();
 
         return createOrder(orderCreateRequest, username);
@@ -1071,6 +1077,7 @@ public class OrderService {
         order.setStartCount(0);
         order.setStatus(OrderStatus.PENDING);
         order.setProcessingPriority(0);
+        order.setCustomComments(request.getCustomComments());
         order.setCreatedAt(LocalDateTime.now());
         order.setUpdatedAt(LocalDateTime.now());
 
@@ -1212,10 +1219,13 @@ public class OrderService {
 
         // Default sort by userOrderNumber DESC if no sort specified
         if (pageable.getSort().isUnsorted()) {
-            pageable = org.springframework.data.domain.PageRequest.of(
-                    pageable.getPageNumber(),
-                    pageable.getPageSize(),
-                    org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "userOrderNumber"));
+            pageable =
+                    org.springframework.data.domain.PageRequest.of(
+                            pageable.getPageNumber(),
+                            pageable.getPageSize(),
+                            org.springframework.data.domain.Sort.by(
+                                    org.springframework.data.domain.Sort.Direction.DESC,
+                                    "userOrderNumber"));
         }
 
         Page<Order> orders;

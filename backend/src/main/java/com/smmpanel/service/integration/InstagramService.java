@@ -157,6 +157,7 @@ public class InstagramService {
                         .count(order.getQuantity())
                         .externalId(String.valueOf(order.getId()))
                         .callbackUrl(botClient.getCallbackUrl())
+                        .commentText(order.getCustomComments())
                         .priority(
                                 order.getProcessingPriority() != null
                                         ? order.getProcessingPriority()

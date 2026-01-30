@@ -313,23 +313,10 @@ export const NewOrder: React.FC = () => {
                       : 'border-red-300 dark:border-red-600 focus:ring-red-500/50 focus:border-red-500'
                   }`}
                 />
-                <div className={`flex items-start gap-2 p-3 rounded-lg ${
-                  isCommentCountValid()
-                    ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
-                    : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
-                }`}>
-                  <Info size={16} className={`flex-shrink-0 mt-0.5 ${
-                    isCommentCountValid() ? 'text-green-500' : 'text-red-500'
-                  }`} />
-                  <p className={`text-sm ${
-                    isCommentCountValid()
-                      ? 'text-green-700 dark:text-green-400'
-                      : 'text-red-700 dark:text-red-400'
-                  }`}>
-                    {isCommentCountValid()
-                      ? 'Comment count matches quantity. Ready to submit!'
-                      : `Enter exactly ${formData.quantity || 0} comments (one per line). You have ${getCommentCount()}.`
-                    }
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                  <Info size={16} className="flex-shrink-0 mt-0.5 text-blue-500" />
+                  <p className="text-sm text-blue-700 dark:text-blue-400">
+                    Number of comments must match quantity exactly.
                   </p>
                 </div>
               </div>

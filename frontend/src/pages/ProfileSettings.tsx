@@ -481,37 +481,6 @@ export const ProfileSettings: React.FC = () => {
                   copiedField={copiedField}
                 />
 
-                {/* Available Services */}
-                <div className="border border-dark-200 dark:border-dark-700 rounded-xl overflow-hidden">
-                  <div className="px-4 py-3 bg-dark-50 dark:bg-dark-700/50 border-b border-dark-200 dark:border-dark-700">
-                    <h4 className="font-medium text-dark-900 dark:text-white">Available Services</h4>
-                  </div>
-                  <div className="p-4 overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="text-left text-dark-600 dark:text-dark-400">
-                          <th className="pb-2 pr-4">ID</th>
-                          <th className="pb-2 pr-4">Service</th>
-                          <th className="pb-2 pr-4">Min</th>
-                          <th className="pb-2 pr-4">Max</th>
-                          <th className="pb-2">Special</th>
-                        </tr>
-                      </thead>
-                      <tbody className="text-dark-700 dark:text-dark-300">
-                        <tr><td className="py-1 pr-4">1</td><td className="pr-4">YouTube Views</td><td className="pr-4">100</td><td className="pr-4">1M</td><td>-</td></tr>
-                        <tr><td className="py-1 pr-4">2</td><td className="pr-4">Instagram Likes (KR)</td><td className="pr-4">10</td><td className="pr-4">350</td><td>-</td></tr>
-                        <tr><td className="py-1 pr-4">3</td><td className="pr-4">Instagram Followers (KR)</td><td className="pr-4">10</td><td className="pr-4">350</td><td>-</td></tr>
-                        <tr><td className="py-1 pr-4">4</td><td className="pr-4">Instagram Comments (KR)</td><td className="pr-4">10</td><td className="pr-4">350</td><td>-</td></tr>
-                        <tr className="bg-yellow-50 dark:bg-yellow-900/20"><td className="py-1 pr-4">5</td><td className="pr-4">Instagram Emoji Comments (KR)</td><td className="pr-4">10</td><td className="pr-4">50</td><td className="text-yellow-700 dark:text-yellow-400">customComments required</td></tr>
-                        <tr><td className="py-1 pr-4">6</td><td className="pr-4">Instagram Likes (DE)</td><td className="pr-4">10</td><td className="pr-4">200</td><td>-</td></tr>
-                        <tr><td className="py-1 pr-4">7</td><td className="pr-4">Instagram Followers (DE)</td><td className="pr-4">10</td><td className="pr-4">200</td><td>-</td></tr>
-                        <tr><td className="py-1 pr-4">8</td><td className="pr-4">Instagram Comments (DE)</td><td className="pr-4">10</td><td className="pr-4">200</td><td>-</td></tr>
-                        <tr className="bg-yellow-50 dark:bg-yellow-900/20"><td className="py-1 pr-4">9</td><td className="pr-4">Instagram Custom Comments (DE)</td><td className="pr-4">10</td><td className="pr-4">50</td><td className="text-yellow-700 dark:text-yellow-400">customComments required</td></tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
                 {/* Emoji Comments */}
                 <EndpointCard
                   title="Service 5: Emoji Comments"

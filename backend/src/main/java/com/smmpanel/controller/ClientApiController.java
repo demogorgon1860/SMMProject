@@ -683,7 +683,7 @@ public class ClientApiController {
             case "ACTIVE" -> "In progress";
             case "PARTIAL" -> "Partial";
             case "COMPLETED" -> "Completed";
-            case "CANCELLED" -> "Canceled"; // Note: Perfect Panel uses "Canceled" not "Cancelled"
+            case "CANCELLED", "CANCELED" -> "Canceled"; // Support both spellings
             case "PAUSED" -> "Paused";
             case "HOLDING" -> "In progress";
             case "REFILL" -> "Refill";

@@ -181,6 +181,7 @@ public class ClientApiController {
             Integer quantity = getIntParam(request, requestBody, "quantity", null);
             Long orderId = getLongParam(request, requestBody, "order", null);
             String orders = getParam(request, requestBody, "orders", null);
+            String customComments = getParam(request, requestBody, "customComments", null);
 
             log.info("Client API POST request: action={}", action);
 
@@ -199,7 +200,7 @@ public class ClientApiController {
 
             switch (action.toLowerCase()) {
                 case "add":
-                    return handleAddOrder(user, service, link, quantity);
+                    return handleAddOrder(user, service, link, quantity, customComments);
 
                 case "status":
                     return handleOrderStatus(user, orderId);
@@ -239,9 +240,12 @@ public class ClientApiController {
     /**
      * CRITICAL: Add order - Returns enhanced response with complete order details Includes: order
      * ID, charge, start_count, created_at, remaining_balance, currency
+     *
+     * @param customComments For custom comment services (service 9): comments separated by
+     *     newlines. For emoji comment services (service 5): "EMOJI:POSITIVE" or "EMOJI:NEGATIVE"
      */
     private ResponseEntity<Object> handleAddOrder(
-            User user, Integer service, String link, Integer quantity) {
+            User user, Integer service, String link, Integer quantity, String customComments) {
         if (service == null || link == null || quantity == null) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Missing required parameters: service, link, quantity"));
@@ -252,6 +256,7 @@ public class ClientApiController {
             request.setService(Long.valueOf(service));
             request.setLink(link);
             request.setQuantity(quantity);
+            request.setCustomComments(customComments);
 
             OrderResponse order = orderService.createOrder(request, user.getUsername());
 
@@ -530,6 +535,10 @@ public class ClientApiController {
                 Integer serviceId = ((Number) orderData.get("service")).intValue();
                 String link = (String) orderData.get("link");
                 Integer quantity = ((Number) orderData.get("quantity")).intValue();
+                String orderCustomComments =
+                        orderData.containsKey("customComments")
+                                ? (String) orderData.get("customComments")
+                                : null;
 
                 // Validate quantity
                 if (quantity < 1 || quantity > 1000000) {
@@ -570,6 +579,7 @@ public class ClientApiController {
                 orderRequest.setService(Long.valueOf(serviceId));
                 orderRequest.setLink(link);
                 orderRequest.setQuantity(quantity);
+                orderRequest.setCustomComments(orderCustomComments);
                 validOrders.add(orderRequest);
             }
 

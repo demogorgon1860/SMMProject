@@ -31,6 +31,7 @@ export const NewOrder: React.FC = () => {
     link: '',
     quantity: '',
     customComments: '',
+    emojiType: '' as 'POSITIVE' | 'NEGATIVE' | '',
   });
 
   const [selectedService, setSelectedService] = useState<Service | null>(null);
@@ -56,7 +57,7 @@ export const NewOrder: React.FC = () => {
 
   const handleServiceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const serviceId = e.target.value;
-    setFormData(prev => ({ ...prev, service: serviceId, customComments: '' }));
+    setFormData(prev => ({ ...prev, service: serviceId, customComments: '', emojiType: '' }));
     const service = services.find(s => s.id.toString() === serviceId);
     setSelectedService(service || null);
   };
@@ -66,6 +67,19 @@ export const NewOrder: React.FC = () => {
     if (!service) return false;
     const name = service.name?.toLowerCase() || '';
     return name.includes('custom') && name.includes('comment');
+  };
+
+  // Check if service requires emoji type selection (e.g., "Instagram Emoji Comments")
+  const requiresEmojiType = (service: Service | null): boolean => {
+    if (!service) return false;
+    const name = service.name?.toLowerCase() || '';
+    return name.includes('emoji') && name.includes('comment');
+  };
+
+  // Check if emoji type is selected
+  const isEmojiTypeValid = (): boolean => {
+    if (!requiresEmojiType(selectedService)) return true;
+    return formData.emojiType === 'POSITIVE' || formData.emojiType === 'NEGATIVE';
   };
 
   // Count non-empty comment lines
@@ -96,9 +110,11 @@ export const NewOrder: React.FC = () => {
         quantity: parseInt(formData.quantity),
       };
 
-      // Include custom comments if provided
+      // Include custom comments or emoji type
       if (formData.customComments.trim()) {
         orderData.customComments = formData.customComments.trim();
+      } else if (formData.emojiType) {
+        orderData.customComments = `EMOJI:${formData.emojiType}`;
       }
 
       await orderAPI.createOrder(orderData);
@@ -286,6 +302,63 @@ export const NewOrder: React.FC = () => {
               </div>
             </div>
 
+            {/* Emoji Type Selection (for emoji comment services) */}
+            {requiresEmojiType(selectedService) && (
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-dark-700 dark:text-dark-300">
+                  Emoji Type
+                </label>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, emojiType: 'POSITIVE' }))}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      formData.emojiType === 'POSITIVE'
+                        ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                        : 'border-dark-200 dark:border-dark-600 hover:border-green-300 dark:hover:border-green-700'
+                    }`}
+                  >
+                    <div className="text-center">
+                      <div className="text-2xl mb-2">😊 🔥 ❤️ 👍</div>
+                      <p className={`font-medium ${
+                        formData.emojiType === 'POSITIVE'
+                          ? 'text-green-700 dark:text-green-300'
+                          : 'text-dark-700 dark:text-dark-300'
+                      }`}>
+                        Positive
+                      </p>
+                      <p className="text-xs text-dark-500 dark:text-dark-400 mt-1">
+                        Happy, love, fire
+                      </p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, emojiType: 'NEGATIVE' }))}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      formData.emojiType === 'NEGATIVE'
+                        ? 'border-red-500 bg-red-50 dark:bg-red-900/20'
+                        : 'border-dark-200 dark:border-dark-600 hover:border-red-300 dark:hover:border-red-700'
+                    }`}
+                  >
+                    <div className="text-center">
+                      <div className="text-2xl mb-2">😒 🙄 😡 👎</div>
+                      <p className={`font-medium ${
+                        formData.emojiType === 'NEGATIVE'
+                          ? 'text-red-700 dark:text-red-300'
+                          : 'text-dark-700 dark:text-dark-300'
+                      }`}>
+                        Negative
+                      </p>
+                      <p className="text-xs text-dark-500 dark:text-dark-400 mt-1">
+                        Angry, annoyed, dislike
+                      </p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Custom Comments (for custom comment services) */}
             {requiresCustomComments(selectedService) && (
               <div className="space-y-2">
@@ -343,7 +416,7 @@ export const NewOrder: React.FC = () => {
               </button>
               <button
                 type="submit"
-                disabled={loading || !formData.service || !formData.link || !formData.quantity || !isCommentCountValid()}
+                disabled={loading || !formData.service || !formData.link || !formData.quantity || !isCommentCountValid() || !isEmojiTypeValid()}
                 className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-white font-medium bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-soft"
               >
                 {loading ? (

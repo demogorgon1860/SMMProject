@@ -183,7 +183,8 @@ public class OrderService {
             Order order = new Order();
             order.setUser(user);
             order.setService(service);
-            order.setLink(request.getLink());
+            order.setLink(
+                    normalizeInstagramUrl(request.getLink())); // Normalize /reel/, /reels/ → /p/
             order.setQuantity(effectiveQuantity); // Use calculated quantity
             order.setCharge(charge);
             // StartCount will be set immediately after save for YouTube orders
@@ -1114,6 +1115,36 @@ public class OrderService {
         return validCommentCount;
     }
 
+    /**
+     * Normalize Instagram URL - convert /reel/ and /reels/ to /p/ format. Both formats point to the
+     * same content, but /p/ is the standard format that the Instagram bot expects.
+     *
+     * <p>Examples:
+     * <li>https://www.instagram.com/reels/DUVukATkjkc/ → https://www.instagram.com/p/DUVukATkjkc/
+     * <li>https://www.instagram.com/reel/DUVukATkjkc/ → https://www.instagram.com/p/DUVukATkjkc/
+     *
+     * @param url The original URL
+     * @return Normalized URL with /p/ instead of /reel/ or /reels/
+     */
+    private String normalizeInstagramUrl(String url) {
+        if (url == null || url.isEmpty()) {
+            return url;
+        }
+
+        String original = url;
+
+        // Convert /reels/ to /p/ (check /reels/ before /reel/ to avoid partial replacement)
+        url = url.replace("/reels/", "/p/");
+        // Convert /reel/ to /p/
+        url = url.replace("/reel/", "/p/");
+
+        if (!original.equals(url)) {
+            log.debug("Normalized Instagram URL: {} -> {}", original, url);
+        }
+
+        return url;
+    }
+
     /** Extract YouTube video ID from various URL formats */
     private String extractYouTubeVideoId(String url) {
         if (url == null) return null;
@@ -1238,7 +1269,7 @@ public class OrderService {
         Order order = new Order();
         order.setUser(user);
         order.setService(service);
-        order.setLink(request.getLink());
+        order.setLink(normalizeInstagramUrl(request.getLink())); // Normalize /reel/, /reels/ → /p/
         order.setQuantity(effectiveQuantity);
         order.setCharge(charge);
         order.setRemains(effectiveQuantity);

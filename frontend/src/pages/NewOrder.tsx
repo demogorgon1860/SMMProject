@@ -15,6 +15,9 @@ import {
   Send,
   ArrowLeft,
   Info,
+  MessageSquare,
+  AlertTriangle,
+  CheckCircle2,
 } from 'lucide-react';
 
 export const NewOrder: React.FC = () => {
@@ -82,20 +85,56 @@ export const NewOrder: React.FC = () => {
     return formData.emojiType === 'POSITIVE' || formData.emojiType === 'NEGATIVE';
   };
 
-  // Count non-empty comment lines
-  const getCommentCount = (): number => {
-    if (!formData.customComments.trim()) return 0;
-    return formData.customComments
-      .split('\n')
-      .filter(line => line.trim().length > 0)
-      .length;
+  const MAX_COMMENT_LENGTH = 2200; // Instagram comment limit
+
+  // Parse comments and get validation info
+  const getCommentsInfo = (): {
+    lines: { text: string; lineNumber: number }[];
+    count: number;
+    invalidLines: { text: string; lineNumber: number }[];
+    isValid: boolean;
+    minOrder: number;
+    maxOrder: number;
+  } => {
+    const minOrder = selectedService?.minOrder || selectedService?.min || 1;
+    const maxOrder = selectedService?.maxOrder || selectedService?.max || 100000;
+
+    if (!formData.customComments.trim()) {
+      return { lines: [], count: 0, invalidLines: [], isValid: false, minOrder, maxOrder };
+    }
+
+    const lines = formData.customComments.split('\n');
+    const nonEmptyLines = lines
+      .map((line, index) => ({ text: line.trim(), lineNumber: index + 1 }))
+      .filter(line => line.text.length > 0);
+
+    const invalidLines = nonEmptyLines.filter(line => line.text.length > MAX_COMMENT_LENGTH);
+
+    const count = nonEmptyLines.length;
+    const isValid = count >= minOrder && count <= maxOrder && invalidLines.length === 0;
+
+    return {
+      lines: nonEmptyLines,
+      count,
+      invalidLines,
+      isValid,
+      minOrder,
+      maxOrder
+    };
   };
 
-  // Check if comment count matches quantity
-  const isCommentCountValid = (): boolean => {
+  // Get auto-calculated quantity for custom comments
+  const getEffectiveQuantity = (): number => {
+    if (requiresCustomComments(selectedService)) {
+      return getCommentsInfo().count;
+    }
+    return parseInt(formData.quantity) || 0;
+  };
+
+  // Check if custom comments are valid
+  const isCustomCommentsValid = (): boolean => {
     if (!requiresCustomComments(selectedService)) return true;
-    const quantity = parseInt(formData.quantity) || 0;
-    return getCommentCount() === quantity;
+    return getCommentsInfo().isValid;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -104,10 +143,15 @@ export const NewOrder: React.FC = () => {
     setLoading(true);
 
     try {
+      // For custom comments, use auto-calculated quantity from line count
+      const quantity = requiresCustomComments(selectedService)
+        ? getCommentsInfo().count
+        : parseInt(formData.quantity);
+
       const orderData: any = {
         service: parseInt(formData.service),
         link: formData.link,
-        quantity: parseInt(formData.quantity),
+        quantity,
       };
 
       // Include custom comments or emoji type
@@ -127,9 +171,10 @@ export const NewOrder: React.FC = () => {
   };
 
   const calculateCharge = () => {
-    if (!selectedService || !formData.quantity) return '0.00';
+    const quantity = getEffectiveQuantity();
+    if (!selectedService || quantity === 0) return '0.00';
     const price = selectedService.pricePer1000 || selectedService.rate || 0;
-    const charge = (price * parseInt(formData.quantity)) / 1000;
+    const charge = (price * quantity) / 1000;
     return charge.toFixed(4);
   };
 
@@ -280,27 +325,29 @@ export const NewOrder: React.FC = () => {
               </div>
             </div>
 
-            {/* Quantity */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-dark-700 dark:text-dark-300">
-                Quantity
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Hash size={18} className="text-dark-400" />
+            {/* Quantity - hidden for custom comments services */}
+            {!requiresCustomComments(selectedService) && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-dark-700 dark:text-dark-300">
+                  Quantity
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Hash size={18} className="text-dark-400" />
+                  </div>
+                  <input
+                    type="number"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData(prev => ({ ...prev, quantity: e.target.value }))}
+                    required
+                    min={selectedService?.minOrder || selectedService?.min || 1}
+                    max={selectedService?.maxOrder || selectedService?.max || 100000}
+                    placeholder="Enter quantity"
+                    className="block w-full pl-10 pr-4 py-3 border border-dark-200 dark:border-dark-600 rounded-xl bg-white dark:bg-dark-700 text-dark-900 dark:text-white placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all"
+                  />
                 </div>
-                <input
-                  type="number"
-                  value={formData.quantity}
-                  onChange={(e) => setFormData(prev => ({ ...prev, quantity: e.target.value }))}
-                  required
-                  min={selectedService?.minOrder || selectedService?.min || 1}
-                  max={selectedService?.maxOrder || selectedService?.max || 100000}
-                  placeholder="Enter quantity"
-                  className="block w-full pl-10 pr-4 py-3 border border-dark-200 dark:border-dark-600 rounded-xl bg-white dark:bg-dark-700 text-dark-900 dark:text-white placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all"
-                />
               </div>
-            </div>
+            )}
 
             {/* Emoji Type Selection (for emoji comment services) */}
             {requiresEmojiType(selectedService) && (
@@ -360,40 +407,101 @@ export const NewOrder: React.FC = () => {
             )}
 
             {/* Custom Comments (for custom comment services) */}
-            {requiresCustomComments(selectedService) && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-sm font-medium text-dark-700 dark:text-dark-300">
-                    Custom Comments
-                  </label>
-                  <span className={`text-sm font-medium ${
-                    isCommentCountValid()
-                      ? 'text-green-600 dark:text-green-400'
-                      : 'text-red-600 dark:text-red-400'
-                  }`}>
-                    {getCommentCount()} / {formData.quantity || 0} comments
-                  </span>
+            {requiresCustomComments(selectedService) && (() => {
+              const commentsInfo = getCommentsInfo();
+              const isCountValid = commentsInfo.count >= commentsInfo.minOrder && commentsInfo.count <= commentsInfo.maxOrder;
+              const hasInvalidLines = commentsInfo.invalidLines.length > 0;
+
+              return (
+                <div className="space-y-3">
+                  {/* Header with counter */}
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 text-sm font-medium text-dark-700 dark:text-dark-300">
+                      <MessageSquare size={16} />
+                      Comments (1 per line)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      {commentsInfo.count > 0 && (
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${
+                          commentsInfo.isValid
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                            : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                        }`}>
+                          {commentsInfo.isValid ? (
+                            <CheckCircle2 size={14} />
+                          ) : (
+                            <AlertTriangle size={14} />
+                          )}
+                          {commentsInfo.count} comment{commentsInfo.count !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Textarea */}
+                  <div className="relative">
+                    <textarea
+                      value={formData.customComments}
+                      onChange={(e) => setFormData(prev => ({ ...prev, customComments: e.target.value }))}
+                      required
+                      rows={10}
+                      placeholder={`Enter your comments here, one per line:\n\nGreat content! 🔥\nLove this post! ❤️\nAmazing work!\nKeep it up! 👍\nSo inspiring! ✨`}
+                      className={`block w-full px-4 py-3 border-2 rounded-xl bg-white dark:bg-dark-700 text-dark-900 dark:text-white placeholder-dark-400 focus:outline-none transition-all resize-none font-mono text-sm leading-relaxed ${
+                        commentsInfo.count === 0
+                          ? 'border-dark-200 dark:border-dark-600 focus:border-primary-500'
+                          : commentsInfo.isValid
+                            ? 'border-green-300 dark:border-green-600 focus:border-green-500'
+                            : 'border-amber-300 dark:border-amber-600 focus:border-amber-500'
+                      }`}
+                    />
+                  </div>
+
+                  {/* Validation messages */}
+                  <div className="space-y-2">
+                    {/* Character limit warning */}
+                    {hasInvalidLines && (
+                      <div className="flex items-start gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                        <AlertCircle size={16} className="flex-shrink-0 mt-0.5 text-red-500" />
+                        <div className="text-sm text-red-700 dark:text-red-400">
+                          <p className="font-medium">Comments too long (max {MAX_COMMENT_LENGTH} characters):</p>
+                          <ul className="mt-1 space-y-0.5">
+                            {commentsInfo.invalidLines.slice(0, 3).map(line => (
+                              <li key={line.lineNumber}>
+                                Line {line.lineNumber}: {line.text.length} characters
+                              </li>
+                            ))}
+                            {commentsInfo.invalidLines.length > 3 && (
+                              <li>...and {commentsInfo.invalidLines.length - 3} more</li>
+                            )}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Count validation */}
+                    {commentsInfo.count > 0 && !isCountValid && (
+                      <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                        <AlertTriangle size={16} className="flex-shrink-0 mt-0.5 text-amber-500" />
+                        <p className="text-sm text-amber-700 dark:text-amber-400">
+                          {commentsInfo.count < commentsInfo.minOrder
+                            ? `Minimum ${commentsInfo.minOrder} comments required. Add ${commentsInfo.minOrder - commentsInfo.count} more.`
+                            : `Maximum ${commentsInfo.maxOrder} comments allowed. Remove ${commentsInfo.count - commentsInfo.maxOrder}.`
+                          }
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Info box */}
+                    <div className="flex items-start gap-2 p-3 rounded-xl bg-dark-50 dark:bg-dark-700/50 border border-dark-200 dark:border-dark-600">
+                      <Info size={16} className="flex-shrink-0 mt-0.5 text-dark-400" />
+                      <div className="text-sm text-dark-600 dark:text-dark-400">
+                        <p>Each line = 1 comment • Min: {commentsInfo.minOrder} • Max: {commentsInfo.maxOrder} • Limit: {MAX_COMMENT_LENGTH} chars per comment</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <textarea
-                  value={formData.customComments}
-                  onChange={(e) => setFormData(prev => ({ ...prev, customComments: e.target.value }))}
-                  required
-                  rows={8}
-                  placeholder="Enter your custom comments (one per line)&#10;Example:&#10;Great content!&#10;Love this post!&#10;Amazing work!"
-                  className={`block w-full px-4 py-3 border rounded-xl bg-white dark:bg-dark-700 text-dark-900 dark:text-white placeholder-dark-400 focus:outline-none focus:ring-2 transition-all resize-none ${
-                    isCommentCountValid()
-                      ? 'border-dark-200 dark:border-dark-600 focus:ring-primary-500/50 focus:border-primary-500'
-                      : 'border-red-300 dark:border-red-600 focus:ring-red-500/50 focus:border-red-500'
-                  }`}
-                />
-                <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                  <Info size={16} className="flex-shrink-0 mt-0.5 text-blue-500" />
-                  <p className="text-sm text-blue-700 dark:text-blue-400">
-                    Number of comments must match quantity exactly.
-                  </p>
-                </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
 
           {/* Total & Actions */}
@@ -416,7 +524,14 @@ export const NewOrder: React.FC = () => {
               </button>
               <button
                 type="submit"
-                disabled={loading || !formData.service || !formData.link || !formData.quantity || !isCommentCountValid() || !isEmojiTypeValid()}
+                disabled={
+                  loading ||
+                  !formData.service ||
+                  !formData.link ||
+                  (!requiresCustomComments(selectedService) && !formData.quantity) ||
+                  !isCustomCommentsValid() ||
+                  !isEmojiTypeValid()
+                }
                 className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-white font-medium bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-soft"
               >
                 {loading ? (

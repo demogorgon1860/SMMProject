@@ -208,7 +208,14 @@ public class AdminService {
                 completeOrder(orderId);
                 break;
             case "partial":
-                markOrderAsPartial(orderId, request.getReason());
+                if (request.getRemains() != null) {
+                    // Admin provided custom remains value
+                    markOrderAsPartialWithRemains(
+                            orderId, request.getReason(), request.getRemains());
+                } else {
+                    // Use existing behavior (calculate from current state)
+                    markOrderAsPartial(orderId, request.getReason());
+                }
                 break;
             default:
                 throw new IllegalArgumentException("Unknown action: " + request.getAction());
@@ -235,18 +242,30 @@ public class AdminService {
 
         // Campaign stopping removed - no longer needed
 
-        // Calculate refund amount
+        // CRITICAL: Set remains to full quantity (nothing delivered, full refund expected)
+        // This ensures API returns correct remains value for cancelled orders
+        order.setRemains(order.getQuantity());
+
+        // Calculate refund amount (should be full refund for cancellation)
         BigDecimal refundAmount = calculateRefundAmount(order);
 
         if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
             balanceService.refund(order.getUser(), refundAmount, order, reason);
         }
 
+        // CRITICAL: Set charge to 0 after full refund (cancelled = nothing paid)
+        order.setCharge(BigDecimal.ZERO);
+
         order.setStatus(OrderStatus.CANCELLED);
         order.setErrorMessage(reason);
         orderRepository.save(order);
 
-        log.info("Cancelled order {} with refund ${} - reason: {}", orderId, refundAmount, reason);
+        log.info(
+                "Cancelled order {} with refund ${} - reason: {}, remains set to {}",
+                orderId,
+                refundAmount,
+                reason,
+                order.getQuantity());
     }
 
     @Transactional
@@ -434,6 +453,10 @@ public class AdminService {
                         refundAmount,
                         order.getUser().getUsername(),
                         orderId);
+
+                // CRITICAL: Update charge to reflect only the delivered portion
+                // charge = originalCharge - refundAmount (user only pays for what was delivered)
+                order.setCharge(order.getCharge().subtract(refundAmount));
             } catch (Exception e) {
                 log.error("Failed to refund partial order {}: {}", orderId, e.getMessage());
                 throw new RuntimeException("Refund failed: " + e.getMessage());
@@ -467,8 +490,110 @@ public class AdminService {
     }
 
     /**
-     * Calculate refund amount for partial order based on views delivered Full refund if
-     * PENDING/IN_PROGRESS Proportional refund based on remaining views for active orders
+     * Mark order as PARTIAL with admin-specified remains value. Automatically calculates and
+     * processes refund based on the provided remains value. This method allows admins to manually
+     * specify exactly how much of the order was not delivered.
+     *
+     * @param orderId The order ID to mark as partial
+     * @param reason Optional reason for the partial status
+     * @param customRemains Admin-specified remaining quantity (must be 0 <= remains <= quantity)
+     */
+    @Transactional
+    public void markOrderAsPartialWithRemains(Long orderId, String reason, Integer customRemains) {
+        Order order =
+                orderRepository
+                        .findById(orderId)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("Order not found: " + orderId));
+
+        // Validate remains value
+        if (customRemains == null) {
+            throw new IllegalArgumentException("Remains value is required for partial action");
+        }
+        if (customRemains < 0) {
+            throw new IllegalArgumentException(
+                    "Remains cannot be negative. Provided: " + customRemains);
+        }
+        if (customRemains > order.getQuantity()) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Remains (%d) cannot exceed quantity (%d)",
+                            customRemains, order.getQuantity()));
+        }
+
+        OrderStatus oldStatus = order.getStatus();
+
+        // Set the admin-provided remains value BEFORE calculating refund
+        order.setRemains(customRemains);
+
+        // Calculate refund based on the new remains value
+        BigDecimal refundAmount = calculatePartialRefund(order);
+
+        log.info(
+                "Marking order {} as PARTIAL. Old status: {}, Admin-set remains: {}, Refund: ${}",
+                orderId,
+                oldStatus,
+                customRemains,
+                refundAmount);
+
+        // Issue refund if any work was not completed
+        if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
+            try {
+                balanceService.refund(
+                        order.getUser(),
+                        refundAmount,
+                        order,
+                        "Partial refund - " + (reason != null ? reason : "Manual admin action"));
+                log.info(
+                        "Refunded ${} to user {} for partial order {}",
+                        refundAmount,
+                        order.getUser().getUsername(),
+                        orderId);
+
+                // CRITICAL: Update charge to reflect only the delivered portion
+                // charge = originalCharge - refundAmount (user only pays for what was delivered)
+                order.setCharge(order.getCharge().subtract(refundAmount));
+            } catch (Exception e) {
+                log.error("Failed to refund partial order {}: {}", orderId, e.getMessage());
+                throw new RuntimeException("Refund failed: " + e.getMessage());
+            }
+        }
+
+        // Stop order processing by deleting Binom offer if exists
+        if (order.getBinomOfferId() != null) {
+            try {
+                binomService.removeOfferForOrder(orderId);
+                log.info("Deleted Binom offer for partial order {}", orderId);
+            } catch (Exception e) {
+                log.error("Failed to delete Binom offer for order {}: {}", orderId, e.getMessage());
+                // Continue even if offer deletion fails
+            }
+        }
+
+        // Mark order as PARTIAL
+        order.setStatus(OrderStatus.PARTIAL);
+
+        // Set error message with reason
+        String errorMsg = "Manually marked as PARTIAL by admin";
+        if (reason != null && !reason.trim().isEmpty()) {
+            errorMsg += ": " + reason;
+        }
+        errorMsg += " (remains: " + customRemains + ")";
+        order.setErrorMessage(errorMsg);
+
+        orderRepository.save(order);
+
+        log.info(
+                "Successfully marked order {} as PARTIAL (was {}), remains={}",
+                orderId,
+                oldStatus,
+                customRemains);
+    }
+
+    /**
+     * Calculate refund amount for partial order based on remains field. Uses the 'remains' field
+     * which is set by the bot or can be manually adjusted in the database. This works for both
+     * YouTube and Instagram orders.
      */
     private BigDecimal calculatePartialRefund(Order order) {
         // Full refund for pending or in-progress orders (nothing delivered yet)
@@ -477,49 +602,72 @@ public class AdminService {
             return order.getCharge();
         }
 
-        // Full refund if order was already completed (user gets full amount back)
-        if (order.getStatus() == OrderStatus.COMPLETED) {
+        // Use the 'remains' field for calculation (works for all order types)
+        Integer remains = order.getRemains();
+        Integer quantity = order.getQuantity();
+
+        // If remains is null or not set, try to calculate for YouTube orders
+        if (remains == null || remains.equals(quantity)) {
+            // For YouTube orders, try to get current count
+            if (isYouTubeOrder(order)) {
+                try {
+                    int currentViews = getCurrentViewCount(order);
+                    int startCount =
+                            order.getStartCount() != null ? order.getStartCount() : currentViews;
+                    int viewsDelivered = currentViews - startCount;
+                    remains = Math.max(0, quantity - viewsDelivered);
+                } catch (Exception e) {
+                    log.warn(
+                            "Could not get current view count for YouTube order {}, using remains"
+                                    + " field: {}",
+                            order.getId(),
+                            e.getMessage());
+                }
+            }
+        }
+
+        // If still no valid remains, default to full refund
+        if (remains == null) {
+            log.warn("Order {} has no remains set, defaulting to full refund", order.getId());
             return order.getCharge();
         }
 
-        // For active orders, calculate based on current view count
-        try {
-            int currentViews = getCurrentViewCount(order);
-            int viewsDelivered = currentViews - order.getStartCount();
+        if (remains <= 0) {
+            // All items delivered - no refund
+            log.info("Order {} fully delivered (remains=0), no refund needed", order.getId());
+            return BigDecimal.ZERO;
+        }
 
-            if (viewsDelivered <= 0) {
-                // No views delivered - full refund
-                return order.getCharge();
-            }
-
-            if (viewsDelivered >= order.getQuantity()) {
-                // All views delivered - no refund
-                return BigDecimal.ZERO;
-            }
-
-            // Partial refund based on undelivered views
-            double deliveredPercentage = (double) viewsDelivered / order.getQuantity();
-            double remainingPercentage = 1.0 - deliveredPercentage;
-
-            BigDecimal refund = order.getCharge().multiply(BigDecimal.valueOf(remainingPercentage));
-
+        if (remains >= quantity) {
+            // Nothing delivered - full refund
             log.info(
-                    "Order {}: {} of {} views delivered ({:.1f}%). Refund: ${}",
-                    order.getId(),
-                    viewsDelivered,
-                    order.getQuantity(),
-                    deliveredPercentage * 100,
-                    refund);
-
-            return refund;
-        } catch (Exception e) {
-            log.error(
-                    "Failed to calculate partial refund for order {}: {}",
-                    order.getId(),
-                    e.getMessage());
-            // Default to full refund if we can't determine progress
+                    "Order {} nothing delivered (remains={}), full refund", order.getId(), remains);
             return order.getCharge();
         }
+
+        // Partial refund based on remains: refund = charge * (remains / quantity)
+        BigDecimal refund =
+                order.getCharge()
+                        .multiply(BigDecimal.valueOf(remains))
+                        .divide(BigDecimal.valueOf(quantity), 4, java.math.RoundingMode.HALF_UP);
+
+        int delivered = quantity - remains;
+        double deliveredPercentage = (double) delivered / quantity * 100;
+
+        log.info(
+                "Order {}: {}/{} delivered ({:.1f}%), remains={}, refund=${}",
+                order.getId(), delivered, quantity, deliveredPercentage, remains, refund);
+
+        return refund;
+    }
+
+    /** Check if order is a YouTube order based on service category */
+    private boolean isYouTubeOrder(Order order) {
+        if (order.getService() == null || order.getService().getCategory() == null) {
+            return false;
+        }
+        String category = order.getService().getCategory().toUpperCase();
+        return category.contains("YOUTUBE") || category.equals("YOUTUBE");
     }
 
     @Transactional

@@ -394,6 +394,10 @@ public class PaymentConfirmationConsumer {
                 Order order = orderRepository.findById(orderIdLong).orElse(null);
                 if (order != null) {
                     order.setStatus(OrderStatus.CANCELLED);
+                    // CRITICAL: Set remains to full quantity (cancelled = nothing delivered)
+                    order.setRemains(order.getQuantity());
+                    // CRITICAL: Set charge to 0 (refund processed)
+                    order.setCharge(BigDecimal.ZERO);
                     order.setUpdatedAt(LocalDateTime.now());
                     orderRepository.save(order);
                 }

@@ -152,7 +152,7 @@ export const adminAPI = {
     return response.data;
   },
 
-  performOrderAction: async (orderId: number, data: { action: string; reason?: string }) => {
+  performOrderAction: async (orderId: number, data: { action: string; reason?: string; remains?: number }) => {
     const response = await api.post(`/v2/admin/orders/${orderId}/actions`, data);
     return response.data;
   },

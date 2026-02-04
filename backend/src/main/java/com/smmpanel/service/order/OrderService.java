@@ -160,6 +160,18 @@ public class OrderService {
             order.setUpdatedAt(LocalDateTime.now());
             order.setCustomComments(request.getCustomComments());
 
+            // Auto-set customComments for emoji comment services (Perfect Panel API compatibility)
+            Long serviceId = service.getId();
+            if (serviceId == 11L
+                    && (request.getCustomComments() == null
+                            || request.getCustomComments().isEmpty())) {
+                order.setCustomComments("EMOJI:POSITIVE");
+            } else if (serviceId == 12L
+                    && (request.getCustomComments() == null
+                            || request.getCustomComments().isEmpty())) {
+                order.setCustomComments("EMOJI:NEGATIVE");
+            }
+
             // Set user-specific order number (1, 2, 3... per user)
             Integer maxUserOrderNumber =
                     orderRepository.findMaxUserOrderNumberByUserId(user.getId());
@@ -219,7 +231,6 @@ public class OrderService {
                             order.setStatus(OrderStatus.PARTIAL);
                             order.setRemains(order.getQuantity()); // No views delivered
                             order.setErrorMessage("Video deleted or unavailable");
-                            orderRepository.save(order);
 
                             // Full refund to user
                             try {
@@ -229,6 +240,8 @@ public class OrderService {
                                         order,
                                         "Refund for deleted/blocked video - Order #"
                                                 + order.getId());
+                                // CRITICAL: Set charge to 0 after full refund
+                                order.setCharge(BigDecimal.ZERO);
                                 log.info(
                                         "Order {} - Refunded {} to user {} for deleted/blocked"
                                                 + " video",
@@ -241,6 +254,8 @@ public class OrderService {
                                         order.getId(),
                                         e.getMessage());
                             }
+
+                            orderRepository.save(order);
 
                             // Don't send to processing queue - return early
                             return mapToOrderResponse(order);
@@ -282,7 +297,6 @@ public class OrderService {
                         reloadedOrder.setRemains(reloadedOrder.getQuantity()); // No views delivered
                         reloadedOrder.setErrorMessage(
                                 "Video unavailable or startCount check failed");
-                        orderRepository.save(reloadedOrder);
 
                         // Full refund to user
                         try {
@@ -293,6 +307,8 @@ public class OrderService {
                                     "Refund for unavailable video (startCount check failed) - Order"
                                             + " #"
                                             + order.getId());
+                            // CRITICAL: Set charge to 0 after full refund
+                            reloadedOrder.setCharge(BigDecimal.ZERO);
                             log.info(
                                     "Order {} - Refunded {} to user {} for unavailable video",
                                     order.getId(),
@@ -304,6 +320,8 @@ public class OrderService {
                                     order.getId(),
                                     refundEx.getMessage());
                         }
+
+                        orderRepository.save(reloadedOrder);
 
                         // Don't send to processing queue - return early
                         return mapToOrderResponse(reloadedOrder);
@@ -533,10 +551,19 @@ public class OrderService {
                         .orElseThrow(() -> new OrderValidationException("Order not found"));
 
         if (order.getStatus().equals(OrderStatus.COMPLETED)
-                || order.getStatus().equals(OrderStatus.CANCELLED)) {
+                || order.getStatus().equals(OrderStatus.CANCELLED)
+                || order.getStatus().equals(OrderStatus.PARTIAL)) {
             throw new OrderValidationException(
                     "Cannot cancel order in " + order.getStatus() + " status");
         }
+
+        // CRITICAL: Set remains to full quantity ONLY if not already partially delivered
+        // This ensures correct refund calculation
+        if (order.getRemains() == null || order.getRemains().equals(order.getQuantity())) {
+            // Nothing delivered yet - set remains to full quantity for full refund
+            order.setRemains(order.getQuantity());
+        }
+        // If remains < quantity, keep current remains for partial refund
 
         // Cancel order and refund balance
         BigDecimal refundAmount = calculateRefund(order);
@@ -545,15 +572,19 @@ public class OrderService {
                     user, refundAmount, order, "Refund for cancelled order " + orderId);
         }
 
+        // CRITICAL: Set charge to 0 after full refund (cancelled = nothing paid)
+        order.setCharge(BigDecimal.ZERO);
+
         order.setStatus(OrderStatus.CANCELLED);
         order.setUpdatedAt(LocalDateTime.now());
         orderRepository.save(order);
 
         log.info(
-                "Order {} cancelled by user {}, refund: {}",
+                "Order {} cancelled by user {}, refund: {}, remains set to {}",
                 orderId,
                 user.getUsername(),
-                refundAmount);
+                refundAmount,
+                order.getQuantity());
     }
 
     // Get order by ID
@@ -621,6 +652,10 @@ public class OrderService {
     @Transactional
     public void markPaymentFailed(Long orderId) {
         Order order = orderRepository.findById(orderId).orElseThrow();
+        // CRITICAL: Set remains to full quantity (payment failed = nothing delivered)
+        order.setRemains(order.getQuantity());
+        // CRITICAL: Set charge to 0 (payment failed = nothing was paid)
+        order.setCharge(BigDecimal.ZERO);
         order.setStatus(OrderStatus.CANCELLED);
         order.setErrorMessage("Payment failed");
         orderRepository.save(order);
@@ -688,7 +723,21 @@ public class OrderService {
     public void markPartialCompletion(Long orderId, Integer completedQuantity) {
         Order order = orderRepository.findById(orderId).orElseThrow();
         order.setStatus(OrderStatus.PARTIAL);
-        order.setRemains(order.getQuantity() - completedQuantity);
+        int remains = order.getQuantity() - completedQuantity;
+        order.setRemains(remains);
+
+        // CRITICAL: Update charge to reflect only delivered portion
+        // charge = originalCharge * (completed / quantity)
+        if (order.getQuantity() > 0 && completedQuantity >= 0) {
+            BigDecimal deliveredRatio =
+                    BigDecimal.valueOf(completedQuantity)
+                            .divide(
+                                    BigDecimal.valueOf(order.getQuantity()),
+                                    4,
+                                    java.math.RoundingMode.HALF_UP);
+            order.setCharge(order.getCharge().multiply(deliveredRatio));
+        }
+
         orderRepository.save(order);
     }
 
@@ -703,6 +752,10 @@ public class OrderService {
     @Transactional
     public void cancelOrder(Long orderId, String reason) {
         Order order = orderRepository.findById(orderId).orElseThrow();
+        // CRITICAL: Set remains to full quantity (nothing delivered, full refund expected)
+        order.setRemains(order.getQuantity());
+        // CRITICAL: Set charge to 0 (cancelled = nothing paid)
+        order.setCharge(BigDecimal.ZERO);
         order.setStatus(OrderStatus.CANCELLED);
         order.setOperatorNotes(reason);
         orderRepository.save(order);
@@ -711,15 +764,20 @@ public class OrderService {
     @Transactional
     public void cancelOrderWithRefund(Long orderId, String reason) {
         Order order = orderRepository.findById(orderId).orElseThrow();
+        // CRITICAL: Set remains to full quantity BEFORE calculating refund
+        order.setRemains(order.getQuantity());
         order.setStatus(OrderStatus.CANCELLED);
         order.setOperatorNotes(reason);
-        orderRepository.save(order);
 
         // Process refund
         BigDecimal refundAmount = calculateRefund(order);
         if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
             balanceService.refund(order.getUser(), refundAmount, order, "Refund: " + reason);
         }
+
+        // CRITICAL: Set charge to 0 after full refund (cancelled = nothing paid)
+        order.setCharge(BigDecimal.ZERO);
+        orderRepository.save(order);
     }
 
     @Transactional
@@ -1078,6 +1136,17 @@ public class OrderService {
         order.setStatus(OrderStatus.PENDING);
         order.setProcessingPriority(0);
         order.setCustomComments(request.getCustomComments());
+
+        // Auto-set customComments for emoji comment services (Perfect Panel API compatibility)
+        Long serviceId = service.getId();
+        if (serviceId == 11L
+                && (request.getCustomComments() == null || request.getCustomComments().isEmpty())) {
+            order.setCustomComments("EMOJI:POSITIVE");
+        } else if (serviceId == 12L
+                && (request.getCustomComments() == null || request.getCustomComments().isEmpty())) {
+            order.setCustomComments("EMOJI:NEGATIVE");
+        }
+
         order.setCreatedAt(LocalDateTime.now());
         order.setUpdatedAt(LocalDateTime.now());
 

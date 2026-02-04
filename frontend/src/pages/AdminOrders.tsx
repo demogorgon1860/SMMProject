@@ -59,13 +59,47 @@ export const AdminOrders: React.FC = () => {
     }
   };
 
-  const handleOrderAction = async (orderId: number, action: string, reason?: string) => {
+  const handleOrderAction = async (orderId: number, action: string, reason?: string, remains?: number) => {
     try {
-      await adminAPI.performOrderAction(orderId, { action, reason });
+      await adminAPI.performOrderAction(orderId, { action, reason, remains });
       fetchOrders(); // Refresh the orders list
       alert(`Order ${action} successful`);
     } catch (error: any) {
       alert(error.response?.data?.message || `Failed to ${action} order`);
+    }
+  };
+
+  const handlePartialAction = async (orderId: number, quantity: number, currentRemains: number | null) => {
+    const remainsInput = prompt(
+      `Enter remaining quantity (0 to ${quantity}):\n\n` +
+      `Original quantity: ${quantity}\n` +
+      `Current remains: ${currentRemains ?? 'Not set'}\n\n` +
+      `Refund will be calculated as: charge × (remains / quantity)\n` +
+      `Example: If remains=400 and quantity=1000, refund = 40% of charge`
+    );
+
+    if (remainsInput === null) return; // User cancelled
+
+    const remains = parseInt(remainsInput, 10);
+
+    if (isNaN(remains) || remains < 0 || remains > quantity) {
+      alert(`Invalid remains value. Must be between 0 and ${quantity}`);
+      return;
+    }
+
+    const reason = prompt('Partial reason (optional):');
+
+    try {
+      await adminAPI.performOrderAction(orderId, {
+        action: 'partial',
+        reason: reason || undefined,
+        remains: remains
+      });
+      fetchOrders();
+      const delivered = quantity - remains;
+      alert(`Order marked as partial.\n\nRemains: ${remains}\nDelivered: ${delivered}\nRefund processed for undelivered portion.`);
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Failed to mark order as partial');
     }
   };
 
@@ -83,12 +117,32 @@ export const AdminOrders: React.FC = () => {
       return;
     }
 
-    const reason = action === 'partial' ? prompt('Partial reason (optional):') : undefined;
+    let reason: string | undefined;
+    let remains: number | undefined;
+
+    if (action === 'partial') {
+      const remainsInput = prompt(
+        `Enter remaining quantity for all ${selectedOrders.size} selected orders:\n\n` +
+        `This value will be applied to ALL selected orders.\n` +
+        `Refund = charge × (remains / quantity) for each order.\n\n` +
+        `Enter remains value (or cancel for auto-calculation):`
+      );
+
+      if (remainsInput !== null && remainsInput.trim() !== '') {
+        remains = parseInt(remainsInput, 10);
+        if (isNaN(remains) || remains < 0) {
+          alert('Invalid remains value. Must be a non-negative number.');
+          return;
+        }
+      }
+
+      reason = prompt('Partial reason (optional):') || undefined;
+    }
 
     try {
       // Process all selected orders
       const promises = Array.from(selectedOrders).map(orderId =>
-        adminAPI.performOrderAction(orderId, { action, reason: reason || undefined })
+        adminAPI.performOrderAction(orderId, { action, reason, remains })
       );
 
       await Promise.all(promises);
@@ -498,8 +552,8 @@ export const AdminOrders: React.FC = () => {
                           onChange={(e) => {
                             const action = e.target.value;
                             if (action === 'partial') {
-                              const reason = prompt('Partial reason (optional):');
-                              handleOrderAction(order.id, 'partial', reason || undefined);
+                              // Use enhanced partial action with remains input
+                              handlePartialAction(order.id, order.quantity, order.remains);
                             } else if (action === 'delete') {
                               if (window.confirm(`DELETE order ${order.id}? This action CANNOT be undone!`)) {
                                 handleOrderAction(order.id, 'delete');

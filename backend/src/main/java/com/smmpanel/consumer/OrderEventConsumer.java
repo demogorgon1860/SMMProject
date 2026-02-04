@@ -14,6 +14,7 @@ import com.smmpanel.service.kafka.MessageIdempotencyService;
 import com.smmpanel.service.order.OrderProcessingContext;
 import com.smmpanel.service.order.OrderStateManagementService;
 import com.smmpanel.service.video.YouTubeProcessingService;
+import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -368,18 +369,24 @@ public class OrderEventConsumer {
                 // Mark as cancelled and refund
                 order.setStatus(OrderStatus.CANCELLED);
                 order.setErrorMessage("Instagram bot error: " + instagramResponse.getError());
-                orderRepository.save(order);
+                // CRITICAL: Set remains to full quantity (nothing delivered)
+                order.setRemains(order.getQuantity());
 
                 // Refund user
+                BigDecimal refundAmount = order.getCharge();
                 balanceService.refund(
                         order.getUser(),
-                        order.getCharge(),
+                        refundAmount,
                         order,
                         "Refund for failed Instagram order #" + order.getId());
 
+                // CRITICAL: Set charge to 0 after full refund
+                order.setCharge(BigDecimal.ZERO);
+                orderRepository.save(order);
+
                 log.info(
                         "Refunded {} to user for failed Instagram order {}",
-                        order.getCharge(),
+                        refundAmount,
                         order.getId());
             }
         } catch (Exception e) {

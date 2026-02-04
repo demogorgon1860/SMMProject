@@ -172,6 +172,10 @@ public class DeadLetterQueueService {
             }
 
             // Update order status to cancelled (permanent removal)
+            // CRITICAL: Set remains to full quantity (cancelled = nothing delivered)
+            order.setRemains(order.getQuantity());
+            // CRITICAL: Set charge to 0 (cancelled = nothing paid)
+            order.setCharge(java.math.BigDecimal.ZERO);
             order.setStatus(OrderStatus.CANCELLED);
             order.setOperatorNotes(operatorNotes);
             order.setErrorMessage("PURGED FROM DLQ: " + operatorNotes);

@@ -416,6 +416,8 @@ public class InstagramService {
             Optional<Order> orderOpt = orderRepository.findById(orderId);
             if (orderOpt.isPresent()) {
                 Order order = orderOpt.get();
+                // CRITICAL: Set remains to full quantity (cancelled = nothing delivered)
+                order.setRemains(order.getQuantity());
                 order.setStatus(OrderStatus.CANCELLED);
                 order.setTrafficStatus("CANCELLED");
                 orderRepository.save(order);

@@ -87,7 +87,14 @@ public class AdminController {
                 adminService.completeOrder(orderId);
                 break;
             case "partial":
-                adminService.markOrderAsPartial(orderId, request.getReason());
+                if (request.getRemains() != null) {
+                    // Admin provided custom remains value for precise refund calculation
+                    adminService.markOrderAsPartialWithRemains(
+                            orderId, request.getReason(), request.getRemains());
+                } else {
+                    // Use existing behavior (calculate from current state)
+                    adminService.markOrderAsPartial(orderId, request.getReason());
+                }
                 break;
             default:
                 return ResponseEntity.badRequest()

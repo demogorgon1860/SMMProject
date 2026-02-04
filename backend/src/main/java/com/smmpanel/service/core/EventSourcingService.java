@@ -284,6 +284,12 @@ public class EventSourcingService {
 
             case OrderEvent.ORDER_CANCELLED:
                 order.setStatus(OrderStatus.CANCELLED);
+                // CRITICAL: Set remains to full quantity if not specified in event data
+                if (data != null && data.containsKey("remains")) {
+                    order.setRemains(((Number) data.get("remains")).intValue());
+                } else {
+                    order.setRemains(order.getQuantity());
+                }
                 break;
 
             default:

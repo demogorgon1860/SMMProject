@@ -363,6 +363,8 @@ public class OrderStateManagementService {
             order.setStatus(OrderStatus.PARTIAL);
             order.setStartCount(0); // Video has 0 views (deleted/blocked)
             order.setRemains(order.getQuantity()); // No views delivered
+            // CRITICAL: Set charge to 0 (nothing delivered = nothing paid)
+            order.setCharge(java.math.BigDecimal.ZERO);
             order.setErrorMessage(reason);
             order.setUpdatedAt(LocalDateTime.now());
 

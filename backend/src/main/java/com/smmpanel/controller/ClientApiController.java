@@ -242,7 +242,8 @@ public class ClientApiController {
      * ID, charge, start_count, created_at, remaining_balance, currency
      *
      * @param customComments For custom comment services (service 9): comments separated by
-     *     newlines. For emoji comment services (service 5): "EMOJI:POSITIVE" or "EMOJI:NEGATIVE"
+     *     newlines. Note: For emoji services 11 (Positive) and 12 (Negative), customComments is
+     *     auto-set based on service ID - no need to pass it manually.
      */
     private ResponseEntity<Object> handleAddOrder(
             User user, Integer service, String link, Integer quantity, String customComments) {

@@ -352,6 +352,9 @@ export const Orders: React.FC = () => {
                     <th className="px-4 py-3 text-center text-xs font-semibold text-dark-600 dark:text-dark-400 uppercase tracking-wider">
                       Status
                     </th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold text-dark-600 dark:text-dark-400 uppercase tracking-wider">
+                      Remains
+                    </th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-dark-600 dark:text-dark-400 uppercase tracking-wider">
                       Charge
                     </th>
@@ -411,6 +414,13 @@ export const Orders: React.FC = () => {
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${getStatusColor(order.status)}`}>
                           {getStatusIcon(order.status)}
                           {order.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <span className="text-sm text-dark-900 dark:text-white">
+                          {order.remains !== null && order.remains !== undefined
+                            ? order.remains.toLocaleString()
+                            : '-'}
                         </span>
                       </td>
                       <td className="px-4 py-4 text-right">

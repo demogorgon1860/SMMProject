@@ -132,28 +132,63 @@ public class OrderService {
                 throw new OrderValidationException("Service is not active");
             }
 
-            // 3. Validate quantity
-            if (request.getQuantity() < service.getMinOrder()
-                    || request.getQuantity() > service.getMaxOrder()) {
-                throw new OrderValidationException(
-                        String.format(
-                                "Quantity must be between %d and %d",
-                                service.getMinOrder(), service.getMaxOrder()));
+            // 3. Handle custom comments services - auto-calculate quantity from comments
+            int effectiveQuantity = request.getQuantity();
+
+            if (isCustomCommentsService(service)) {
+                // For custom comments services, quantity = number of comment lines
+                if (request.getCustomComments() == null
+                        || request.getCustomComments().trim().isEmpty()) {
+                    throw new OrderValidationException(
+                            "Custom comments are required for this service. "
+                                    + "Please provide comments (one per line).");
+                }
+
+                // Parse and validate comments (also checks 2200 char limit per comment)
+                int commentCount = parseAndValidateCustomComments(request.getCustomComments());
+
+                if (commentCount == 0) {
+                    throw new OrderValidationException(
+                            "No valid comments found. Please provide at least one comment.");
+                }
+
+                // Auto-set quantity from comment count (ignore user-provided quantity)
+                effectiveQuantity = commentCount;
+                log.info(
+                        "Custom comments service [{}]: auto-calculated quantity={} from {} comment"
+                                + " lines",
+                        service.getName(),
+                        effectiveQuantity,
+                        commentCount);
             }
 
-            // 4. Calculate charge
-            BigDecimal charge = calculateCharge(service, request.getQuantity());
+            // 4. Validate effective quantity against service limits
+            if (effectiveQuantity < service.getMinOrder()
+                    || effectiveQuantity > service.getMaxOrder()) {
+                throw new OrderValidationException(
+                        String.format(
+                                "Quantity must be between %d and %d. Got: %d%s",
+                                service.getMinOrder(),
+                                service.getMaxOrder(),
+                                effectiveQuantity,
+                                isCustomCommentsService(service)
+                                        ? " (based on number of comments)"
+                                        : ""));
+            }
 
-            // 5. Create order first (optimistic approach)
+            // 5. Calculate charge based on effective quantity
+            BigDecimal charge = calculateCharge(service, effectiveQuantity);
+
+            // 6. Create order first (optimistic approach)
             Order order = new Order();
             order.setUser(user);
             order.setService(service);
             order.setLink(request.getLink());
-            order.setQuantity(request.getQuantity());
+            order.setQuantity(effectiveQuantity); // Use calculated quantity
             order.setCharge(charge);
             // StartCount will be set immediately after save for YouTube orders
             order.setStartCount(0);
-            order.setRemains(request.getQuantity());
+            order.setRemains(effectiveQuantity); // Use calculated quantity
             order.setStatus(OrderStatus.PENDING);
             order.setProcessingPriority(0);
             order.setCreatedAt(LocalDateTime.now());
@@ -179,11 +214,11 @@ public class OrderService {
 
             order = orderRepository.save(order);
 
-            // 6. Save order event for event sourcing
+            // 7. Save order event for event sourcing
             eventSourcingService.saveOrderEvent(
                     order,
                     "ORDER_CREATED",
-                    Map.of("service", service.getName(), "quantity", request.getQuantity()));
+                    Map.of("service", service.getName(), "quantity", effectiveQuantity));
 
             // 7. Atomically check and deduct balance (prevents race conditions)
             boolean balanceDeducted =
@@ -1037,6 +1072,48 @@ public class OrderService {
                 || (serviceName != null && serviceName.toLowerCase().contains("instagram"));
     }
 
+    /**
+     * Check if service is a custom comments service (requires user-provided comments). Custom
+     * comment services have "custom" AND "comment" in their name.
+     */
+    private boolean isCustomCommentsService(com.smmpanel.entity.Service service) {
+        if (service == null || service.getName() == null) return false;
+        String name = service.getName().toLowerCase();
+        return name.contains("custom") && name.contains("comment");
+    }
+
+    /** Instagram comment character limit */
+    private static final int MAX_COMMENT_LENGTH = 2200;
+
+    /**
+     * Parse and validate custom comments. Returns the count of valid non-empty comment lines.
+     * Throws OrderValidationException if any comment exceeds MAX_COMMENT_LENGTH.
+     */
+    private int parseAndValidateCustomComments(String customComments) {
+        if (customComments == null || customComments.trim().isEmpty()) {
+            return 0;
+        }
+
+        String[] lines = customComments.split("\n");
+        int validCommentCount = 0;
+
+        for (int i = 0; i < lines.length; i++) {
+            String trimmed = lines[i].trim();
+            if (!trimmed.isEmpty()) {
+                if (trimmed.length() > MAX_COMMENT_LENGTH) {
+                    throw new OrderValidationException(
+                            String.format(
+                                    "Comment on line %d is too long (%d characters). Maximum"
+                                            + " allowed: %d characters.",
+                                    i + 1, trimmed.length(), MAX_COMMENT_LENGTH));
+                }
+                validCommentCount++;
+            }
+        }
+
+        return validCommentCount;
+    }
+
     /** Extract YouTube video ID from various URL formats */
     private String extractYouTubeVideoId(String url) {
         if (url == null) return null;
@@ -1107,17 +1184,50 @@ public class OrderService {
             throw new OrderValidationException("Service is not active");
         }
 
-        // Validate quantity
-        if (request.getQuantity() < service.getMinOrder()
-                || request.getQuantity() > service.getMaxOrder()) {
-            throw new OrderValidationException(
-                    String.format(
-                            "Quantity must be between %d and %d",
-                            service.getMinOrder(), service.getMaxOrder()));
+        // Handle custom comments services - auto-calculate quantity from comments
+        int effectiveQuantity = request.getQuantity();
+
+        if (isCustomCommentsService(service)) {
+            // For custom comments services, quantity = number of comment lines
+            if (request.getCustomComments() == null
+                    || request.getCustomComments().trim().isEmpty()) {
+                throw new OrderValidationException(
+                        "Custom comments are required for this service. "
+                                + "Please provide comments (one per line).");
+            }
+
+            // Parse and validate comments (also checks 2200 char limit per comment)
+            int commentCount = parseAndValidateCustomComments(request.getCustomComments());
+
+            if (commentCount == 0) {
+                throw new OrderValidationException(
+                        "No valid comments found. Please provide at least one comment.");
+            }
+
+            // Auto-set quantity from comment count
+            effectiveQuantity = commentCount;
+            log.info(
+                    "Custom comments service [{}]: quantity auto-set to {} based on comment count",
+                    service.getName(),
+                    effectiveQuantity);
         }
 
-        // Calculate charge
-        BigDecimal charge = calculateCharge(service, request.getQuantity());
+        // Validate effective quantity
+        if (effectiveQuantity < service.getMinOrder()
+                || effectiveQuantity > service.getMaxOrder()) {
+            throw new OrderValidationException(
+                    String.format(
+                            "Quantity must be between %d and %d. Got: %d%s",
+                            service.getMinOrder(),
+                            service.getMaxOrder(),
+                            effectiveQuantity,
+                            isCustomCommentsService(service)
+                                    ? " (based on number of comments)"
+                                    : ""));
+        }
+
+        // Calculate charge based on effective quantity
+        BigDecimal charge = calculateCharge(service, effectiveQuantity);
 
         // Check balance
         if (user.getBalance().compareTo(charge) < 0) {
@@ -1129,9 +1239,9 @@ public class OrderService {
         order.setUser(user);
         order.setService(service);
         order.setLink(request.getLink());
-        order.setQuantity(request.getQuantity());
+        order.setQuantity(effectiveQuantity);
         order.setCharge(charge);
-        order.setRemains(request.getQuantity());
+        order.setRemains(effectiveQuantity);
         order.setStartCount(0);
         order.setStatus(OrderStatus.PENDING);
         order.setProcessingPriority(0);

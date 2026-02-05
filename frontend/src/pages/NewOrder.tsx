@@ -26,6 +26,7 @@ export const NewOrder: React.FC = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<{ orderId: number; charge: string } | null>(null);
   const [showMassOrderModal, setShowMassOrderModal] = useState(false);
   const [orderType, setOrderType] = useState<'single' | 'mass'>('single');
 
@@ -161,8 +162,24 @@ export const NewOrder: React.FC = () => {
         orderData.customComments = `EMOJI:${formData.emojiType}`;
       }
 
-      await orderAPI.createOrder(orderData);
-      navigate('/orders');
+      const response = await orderAPI.createOrder(orderData);
+      const orderId = response?.data?.order || response?.order || response?.data?.id || response?.id;
+      const charge = calculateCharge();
+
+      // Show success message
+      setSuccess({ orderId, charge });
+
+      // Reset form but keep service selected for quick re-ordering
+      setFormData(prev => ({
+        ...prev,
+        link: '',
+        quantity: '',
+        customComments: '',
+        emojiType: '',
+      }));
+
+      // Auto-hide success after 5 seconds
+      setTimeout(() => setSuccess(null), 5000);
     } catch (error: any) {
       setError(error.response?.data?.message || 'Failed to create order');
     } finally {
@@ -259,10 +276,31 @@ export const NewOrder: React.FC = () => {
         <form onSubmit={handleSubmit} className="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft overflow-hidden">
           <div className="p-6 space-y-5">
             {/* Error */}
+            {/* Error Message */}
             {error && (
               <div className="flex items-center gap-3 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400">
                 <AlertCircle size={20} className="flex-shrink-0" />
                 <span className="text-sm">{error}</span>
+              </div>
+            )}
+
+            {/* Success Message */}
+            {success && (
+              <div className="flex items-center justify-between p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 animate-fade-in">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 size={20} className="flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium">Order #{success.orderId} created successfully!</p>
+                    <p className="text-xs opacity-80">Charge: ${success.charge}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSuccess(null)}
+                  className="text-green-500 hover:text-green-700 dark:hover:text-green-300 transition-colors"
+                >
+                  ✕
+                </button>
               </div>
             )}
 

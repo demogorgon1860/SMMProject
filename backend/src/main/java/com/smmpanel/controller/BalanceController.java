@@ -5,6 +5,7 @@ import com.smmpanel.dto.response.BalanceResponse;
 import com.smmpanel.dto.response.TransactionHistoryResponse;
 import com.smmpanel.entity.User;
 import com.smmpanel.exception.ResourceNotFoundException;
+import com.smmpanel.repository.jpa.OrderRepository;
 import com.smmpanel.repository.jpa.UserRepository;
 import com.smmpanel.service.balance.BalanceService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,6 +34,7 @@ public class BalanceController {
 
     private final BalanceService balanceService;
     private final UserRepository userRepository;
+    private final OrderRepository orderRepository;
 
     @GetMapping
     @Operation(
@@ -45,6 +47,8 @@ public class BalanceController {
         response.setBalance(user.getBalance());
         response.setCurrency("USD");
         response.setLastUpdated(user.getUpdatedAt());
+        response.setTotalSpent(orderRepository.sumChargeByUser_Username(user.getUsername()));
+        response.setTotalOrders(orderRepository.countByUser_Username(user.getUsername()));
 
         return ResponseEntity.ok(response);
     }

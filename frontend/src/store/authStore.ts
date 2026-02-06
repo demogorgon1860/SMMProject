@@ -15,6 +15,7 @@ interface AuthState {
   logout: () => void;
   checkAuth: () => Promise<void>;
   clearError: () => void;
+  updateBalance: (balance: number) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -107,4 +108,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
   
   clearError: () => set({ error: null }),
+
+  updateBalance: (balance: number) => {
+    set((state) => {
+      const updatedUser = state.user ? { ...state.user, balance } : null;
+      if (updatedUser) {
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+      }
+      return { user: updatedUser };
+    });
+  },
 }));

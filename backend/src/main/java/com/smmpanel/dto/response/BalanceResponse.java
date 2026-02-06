@@ -13,4 +13,6 @@ public class BalanceResponse {
     private BigDecimal balance;
     private String currency;
     private LocalDateTime lastUpdated;
+    private BigDecimal totalSpent;
+    private Long totalOrders;
 }

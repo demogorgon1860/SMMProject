@@ -30,7 +30,7 @@ interface Order {
 }
 
 export const Dashboard: React.FC = () => {
-  const { user } = useAuthStore();
+  const { user, updateBalance } = useAuthStore();
   const [balance, setBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
@@ -49,6 +49,13 @@ export const Dashboard: React.FC = () => {
     try {
       const response = await userAPI.getBalance();
       setBalance(response.balance);
+      updateBalance(Number(response.balance));
+      if (response.totalSpent !== undefined && response.totalSpent !== null) {
+        setTotalSpent(Number(response.totalSpent));
+      }
+      if (response.totalOrders !== undefined && response.totalOrders !== null) {
+        setTotalOrders(Number(response.totalOrders));
+      }
     } catch (error) {
       console.error('Failed to fetch balance:', error);
     } finally {
@@ -60,47 +67,29 @@ export const Dashboard: React.FC = () => {
     setOrdersLoading(true);
     try {
       let orders: Order[] = [];
-      let total = 0;
 
       // Admin users fetch all orders, regular users fetch their own
       if (user?.role === 'ADMIN') {
-        const response = await adminAPI.getAllOrders(undefined, undefined, undefined, undefined, 0, 10);
+        const response = await adminAPI.getAllOrders(undefined, undefined, undefined, undefined, 0, 5);
         if (response?.orders && Array.isArray(response.orders)) {
           orders = response.orders;
-          total = response.totalElements || orders.length;
         }
       } else {
-        // Fetch more orders to calculate totalSpent accurately
-        const response = await orderAPI.getOrders(undefined, undefined, undefined, 0, 100);
+        const response = await orderAPI.getOrders(undefined, undefined, undefined, 0, 5);
 
         // Handle PerfectPanelResponse<Page<OrderResponse>> format
         if (response?.data?.content && Array.isArray(response.data.content)) {
-          // Main format: PerfectPanelResponse<Page<OrderResponse>>
           orders = response.data.content;
-          total = response.data.totalElements || orders.length;
         } else if (response?.content && Array.isArray(response.content)) {
-          // Page<OrderResponse> directly
           orders = response.content;
-          total = response.totalElements || orders.length;
         } else if (response?.data && Array.isArray(response.data)) {
-          // Array wrapped in data
           orders = response.data;
-          total = orders.length;
         } else if (Array.isArray(response)) {
-          // Direct array
           orders = response;
-          total = orders.length;
         }
       }
 
       setRecentOrders(orders.slice(0, 5));
-      setTotalOrders(total);
-
-      // Calculate total spent from all fetched orders (only for regular users)
-      if (user?.role !== 'ADMIN') {
-        const spent = orders.reduce((sum, order) => sum + Number(order.charge || 0), 0);
-        setTotalSpent(spent);
-      }
     } catch (error) {
       console.error('Failed to fetch orders:', error);
     } finally {

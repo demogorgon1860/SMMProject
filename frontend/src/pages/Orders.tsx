@@ -16,6 +16,8 @@ import {
   XCircle,
   Calendar,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { formatDateShort } from '../utils/timezone';
 
@@ -29,11 +31,14 @@ export const Orders: React.FC = () => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
   const { user } = useAuthStore();
 
   useEffect(() => {
     fetchOrders();
-  }, [statusFilter, startDate, endDate]);
+  }, [statusFilter, startDate, endDate, currentPage]);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -41,18 +46,32 @@ export const Orders: React.FC = () => {
       const response = await orderAPI.getOrders(
         statusFilter || undefined,
         startDate || undefined,
-        endDate || undefined
+        endDate || undefined,
+        currentPage,
+        100
       );
-      if (Array.isArray(response.data)) {
-        setOrders(response.data);
-      } else if (response.data && Array.isArray(response.data.content)) {
+
+      // Extract orders and pagination info from response
+      if (response?.data?.content && Array.isArray(response.data.content)) {
         setOrders(response.data.content);
-      } else if (Array.isArray(response.content)) {
+        setTotalPages(response.data.totalPages || 1);
+        setTotalElements(response.data.totalElements || response.data.content.length);
+      } else if (response?.content && Array.isArray(response.content)) {
         setOrders(response.content);
+        setTotalPages(response.totalPages || 1);
+        setTotalElements(response.totalElements || response.content.length);
+      } else if (Array.isArray(response?.data)) {
+        setOrders(response.data);
+        setTotalPages(1);
+        setTotalElements(response.data.length);
       } else if (Array.isArray(response)) {
         setOrders(response);
+        setTotalPages(1);
+        setTotalElements(response.length);
       } else {
         setOrders([]);
+        setTotalPages(1);
+        setTotalElements(0);
       }
     } catch (error: any) {
       console.error('Error fetching orders:', error);
@@ -123,12 +142,6 @@ export const Orders: React.FC = () => {
     return formatDateShort(dateString);
   };
 
-  const formatLink = (link: string) => {
-    if (link.length > 35) {
-      return link.substring(0, 32) + '...';
-    }
-    return link;
-  };
 
   const filteredOrders = orders.filter(order => {
     if (searchTerm) {
@@ -214,7 +227,7 @@ export const Orders: React.FC = () => {
                 </label>
                 <select
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
+                  onChange={(e) => { setCurrentPage(0); setStatusFilter(e.target.value); }}
                   className="w-full px-3 py-2.5 border border-dark-200 dark:border-dark-600 rounded-xl bg-white dark:bg-dark-700 text-dark-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all"
                 >
                   <option value="">All Statuses</option>
@@ -234,7 +247,7 @@ export const Orders: React.FC = () => {
                   <input
                     type="date"
                     value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
+                    onChange={(e) => { setCurrentPage(0); setStartDate(e.target.value); }}
                     className="w-full pl-10 pr-4 py-2.5 border border-dark-200 dark:border-dark-600 rounded-xl bg-white dark:bg-dark-700 text-dark-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all"
                   />
                 </div>
@@ -248,7 +261,7 @@ export const Orders: React.FC = () => {
                   <input
                     type="date"
                     value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
+                    onChange={(e) => { setCurrentPage(0); setEndDate(e.target.value); }}
                     className="w-full pl-10 pr-4 py-2.5 border border-dark-200 dark:border-dark-600 rounded-xl bg-white dark:bg-dark-700 text-dark-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all"
                   />
                 </div>
@@ -257,6 +270,7 @@ export const Orders: React.FC = () => {
             {(statusFilter || startDate || endDate) && (
               <button
                 onClick={() => {
+                  setCurrentPage(0);
                   setStatusFilter('');
                   setStartDate('');
                   setEndDate('');
@@ -384,7 +398,7 @@ export const Orders: React.FC = () => {
                         )}
                       </td>
                       <td className="px-4 py-4">
-                        <div className="text-sm text-dark-900 dark:text-white max-w-[200px] truncate" title={order.serviceName}>
+                        <div className="text-sm text-dark-900 dark:text-white">
                           {order.serviceName || 'N/A'}
                         </div>
                       </td>
@@ -393,10 +407,9 @@ export const Orders: React.FC = () => {
                           href={order.link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 max-w-[200px] truncate"
-                          title={order.link}
+                          className="inline-flex items-center gap-1 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 break-all"
                         >
-                          {formatLink(order.link)}
+                          {order.link}
                           <ExternalLink size={12} className="flex-shrink-0" />
                         </a>
                       </td>
@@ -439,16 +452,39 @@ export const Orders: React.FC = () => {
               </table>
             </div>
 
-            {/* Table Footer */}
+            {/* Table Footer with Pagination */}
             <div className="px-4 py-3 bg-dark-50 dark:bg-dark-700/50 border-t border-dark-100 dark:border-dark-700">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-dark-500 dark:text-dark-400">
                   Showing <span className="font-medium text-dark-700 dark:text-dark-300">{filteredOrders.length}</span> of{' '}
-                  <span className="font-medium text-dark-700 dark:text-dark-300">{orders.length}</span> orders
+                  <span className="font-medium text-dark-700 dark:text-dark-300">{totalElements}</span> orders
+                  {selectedOrders.size > 0 && (
+                    <span className="ml-3 text-primary-600 dark:text-primary-400 font-medium">
+                      ({selectedOrders.size} selected)
+                    </span>
+                  )}
                 </div>
-                {selectedOrders.size > 0 && (
-                  <div className="text-sm text-primary-600 dark:text-primary-400 font-medium">
-                    {selectedOrders.size} selected
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+                      disabled={currentPage === 0}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg border border-dark-200 dark:border-dark-600 bg-white dark:bg-dark-700 text-dark-600 dark:text-dark-300 hover:bg-dark-50 dark:hover:bg-dark-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronLeft size={16} />
+                      Prev
+                    </button>
+                    <span className="text-sm text-dark-600 dark:text-dark-300 font-medium px-2">
+                      {currentPage + 1} / {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+                      disabled={currentPage >= totalPages - 1}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-lg border border-dark-200 dark:border-dark-600 bg-white dark:bg-dark-700 text-dark-600 dark:text-dark-300 hover:bg-dark-50 dark:hover:bg-dark-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Next
+                      <ChevronRight size={16} />
+                    </button>
                   </div>
                 )}
               </div>

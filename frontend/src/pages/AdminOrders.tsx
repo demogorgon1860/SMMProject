@@ -32,10 +32,13 @@ export const AdminOrders: React.FC = () => {
   const [endDate, setEndDate] = useState('');
   const [selectedOrders, setSelectedOrders] = useState<Set<number>>(new Set());
   const [refillLoading, setRefillLoading] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
 
   useEffect(() => {
     fetchOrders();
-  }, [statusFilter, searchTerm, startDate, endDate]);
+  }, [statusFilter, searchTerm, startDate, endDate, currentPage]);
 
   const fetchOrders = async () => {
     try {
@@ -43,13 +46,17 @@ export const AdminOrders: React.FC = () => {
         statusFilter || undefined,
         searchTerm || undefined,
         startDate || undefined,
-        endDate || undefined
+        endDate || undefined,
+        currentPage,
+        100
       );
       if (response.orders) {
         setOrders(response.orders);
       } else {
         setOrders([]);
       }
+      setTotalPages(response.totalPages || 1);
+      setTotalElements(response.totalElements || (response.orders?.length ?? 0));
     } catch (error: any) {
       console.error('Error fetching orders:', error);
       setError(error.response?.data?.message || 'Failed to fetch orders');
@@ -247,12 +254,6 @@ export const AdminOrders: React.FC = () => {
     return formatDateTime(dateString);
   };
 
-  const formatLink = (link: string) => {
-    if (link.length > 40) {
-      return link.substring(0, 37) + '...';
-    }
-    return link;
-  };
 
   // Backend now handles all filtering (status, username, dates)
   // No need for client-side filtering
@@ -318,7 +319,7 @@ export const AdminOrders: React.FC = () => {
               <input
                 type="text"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => { setCurrentPage(0); setSearchTerm(e.target.value); }}
                 placeholder="Search by ID, username, link, or Binom ID..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
@@ -330,7 +331,7 @@ export const AdminOrders: React.FC = () => {
               </label>
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => { setCurrentPage(0); setStatusFilter(e.target.value); }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">All Statuses</option>
@@ -349,7 +350,7 @@ export const AdminOrders: React.FC = () => {
               <input
                 type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={(e) => { setCurrentPage(0); setStartDate(e.target.value); }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -361,7 +362,7 @@ export const AdminOrders: React.FC = () => {
               <input
                 type="date"
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
+                onChange={(e) => { setCurrentPage(0); setEndDate(e.target.value); }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -516,9 +517,9 @@ export const AdminOrders: React.FC = () => {
                       <div className="text-xs text-gray-400">{(order.charge && order.charge > 0) ? (order.charge * 0.97125).toFixed(5) : '0.00000'}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900 max-w-xs truncate" title={order.link}>
+                      <div className="text-sm text-gray-900 break-all">
                         <a href={order.link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800">
-                          {formatLink(order.link)}
+                          {order.link}
                         </a>
                       </div>
                     </td>
@@ -531,7 +532,7 @@ export const AdminOrders: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900 max-w-xs truncate" title={order.serviceName}>
+                      <div className="text-sm text-gray-900">
                         {order.serviceName || 'N/A'}
                       </div>
                     </td>
@@ -588,20 +589,39 @@ export const AdminOrders: React.FC = () => {
             </table>
           </div>
 
-          {/* Table footer with row count */}
+          {/* Table footer with pagination */}
           <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
             <div className="flex items-center justify-between">
               <div className="text-sm text-gray-600">
-                Showing <span className="font-medium">{filteredOrders.length}</span> of <span className="font-medium">{orders.length}</span> order{orders.length !== 1 ? 's' : ''}
-              </div>
-              {selectedOrders.size > 0 && (
-                <div className="text-sm text-gray-600">
-                  <span className="font-medium">{selectedOrders.size}</span> selected
-                  </div>
+                Showing <span className="font-medium">{filteredOrders.length}</span> of <span className="font-medium">{totalElements}</span> order{totalElements !== 1 ? 's' : ''}
+                {selectedOrders.size > 0 && (
+                  <span className="ml-3 font-medium">({selectedOrders.size} selected)</span>
                 )}
               </div>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+                    disabled={currentPage === 0}
+                    className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-sm text-gray-600 font-medium px-2">
+                    {currentPage + 1} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+                    disabled={currentPage >= totalPages - 1}
+                    className="px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </div>
           </div>
+        </div>
         )}
     </div>
   );

@@ -232,8 +232,10 @@ public class AuthController {
                 ResponseCookie.from(refreshCookieName, token)
                         .httpOnly(true)
                         .secure(cookieSecure)
-                        .sameSite("Strict")
-                        .path("/api/v1/auth")
+                        .sameSite("Lax") // Changed from Strict to Lax for mobile compatibility (iOS
+                        // Face ID)
+                        .path("/") // Changed from /api/v1/auth to / so cookie is sent with all
+                        // requests
                         .maxAge(Duration.ofDays(refreshTokenDurationDays))
                         .domain(cookieDomain.isEmpty() ? null : cookieDomain)
                         .build();
@@ -246,8 +248,8 @@ public class AuthController {
                 ResponseCookie.from(refreshCookieName, "")
                         .httpOnly(true)
                         .secure(cookieSecure)
-                        .sameSite("Strict")
-                        .path("/api/v1/auth")
+                        .sameSite("Lax") // Changed from Strict to Lax for mobile compatibility
+                        .path("/") // Changed from /api/v1/auth to / to match setRefreshTokenCookie
                         .maxAge(0)
                         .domain(cookieDomain.isEmpty() ? null : cookieDomain)
                         .build();

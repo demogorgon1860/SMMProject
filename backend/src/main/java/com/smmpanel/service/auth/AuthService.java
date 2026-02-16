@@ -80,17 +80,29 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getUsername(), request.getPassword()));
+        log.debug("Login attempt for user: {}", request.getUsername());
+
+        try {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.getUsername(), request.getPassword()));
+        } catch (Exception e) {
+            log.error(
+                    "Authentication failed for user {}: {}", request.getUsername(), e.getMessage());
+            throw e;
+        }
 
         User user =
                 userRepository
                         .findByUsername(request.getUsername())
                         .orElseThrow(() -> new UserNotFoundException("User not found"));
 
+        log.debug("User found: {}, active: {}", user.getUsername(), user.isActive());
+
         String accessToken = jwtService.generateToken(user.getUsername());
         String refreshToken = jwtService.generateRefreshToken(user.getUsername());
+
+        log.info("Login successful for user: {}", request.getUsername());
 
         return AuthResponse.builder()
                 .token(accessToken)

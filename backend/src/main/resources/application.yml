@@ -412,6 +412,10 @@ app:
     secret: ${JWT_SECRET}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
     refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}
+    refresh-cookie-name: ${JWT_REFRESH_COOKIE_NAME:refresh_token}
+    refresh-expiration-days: ${JWT_REFRESH_EXPIRATION_DAYS:7}
+    cookie-domain: ${JWT_COOKIE_DOMAIN:}
+    cookie-secure: ${JWT_COOKIE_SECURE:true}
   security:
     api-key:
       enabled: true

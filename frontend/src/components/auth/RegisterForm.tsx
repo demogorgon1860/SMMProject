@@ -120,6 +120,7 @@ export const RegisterForm: React.FC = () => {
                   id="username"
                   name="username"
                   type="text"
+                  autoComplete="username"
                   required
                   value={formData.username}
                   onChange={handleChange}
@@ -142,6 +143,7 @@ export const RegisterForm: React.FC = () => {
                   id="email"
                   name="email"
                   type="email"
+                  autoComplete="email"
                   required
                   value={formData.email}
                   onChange={handleChange}
@@ -164,6 +166,7 @@ export const RegisterForm: React.FC = () => {
                   id="password"
                   name="password"
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
                   required
                   value={formData.password}
                   onChange={handleChange}
@@ -213,6 +216,7 @@ export const RegisterForm: React.FC = () => {
                   id="confirmPassword"
                   name="confirmPassword"
                   type={showConfirmPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
                   required
                   value={formData.confirmPassword}
                   onChange={handleChange}

@@ -212,9 +212,9 @@ export const NewOrder: React.FC = () => {
       </div>
 
       {/* Order Type Selection */}
-      <div className="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 p-6 shadow-soft dark:shadow-dark-soft">
+      <div className="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 p-4 sm:p-6 shadow-soft dark:shadow-dark-soft">
         <h2 className="text-sm font-medium text-dark-700 dark:text-dark-300 mb-4">Order Type</h2>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <button
             type="button"
             onClick={() => setOrderType('single')}
@@ -393,7 +393,7 @@ export const NewOrder: React.FC = () => {
                 <label className="block text-sm font-medium text-dark-700 dark:text-dark-300">
                   Emoji Type
                 </label>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <button
                     type="button"
                     onClick={() => setFormData(prev => ({ ...prev, emojiType: 'POSITIVE' }))}

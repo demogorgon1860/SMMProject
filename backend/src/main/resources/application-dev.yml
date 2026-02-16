@@ -98,8 +98,12 @@ app:
   # JWT settings for development
   jwt:
     secret: ${JWT_SECRET}  # From .env file
-    expiration: 86400000  # 24 hours
-    refresh-expiration: 604800000  # 7 days
+    expiration-ms: 86400000  # 24 hours
+    refresh-expiration-ms: 604800000  # 7 days
+    refresh-cookie-name: refresh_token
+    refresh-expiration-days: 7
+    cookie-domain: ""  # Empty for localhost
+    cookie-secure: false  # Disable HTTPS requirement for local development
   
   # CORS settings for local frontend
   cors:

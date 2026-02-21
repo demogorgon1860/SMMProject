@@ -18,11 +18,15 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        // Normalize to lowercase to match stored format (User entity @PrePersist lowercases)
+        String normalizedUsername = username != null ? username.trim().toLowerCase() : username;
         User user =
                 userRepository
-                        .findByUsername(username)
+                        .findByUsername(normalizedUsername)
                         .orElseThrow(
-                                () -> new UsernameNotFoundException("User not found: " + username));
+                                () ->
+                                        new UsernameNotFoundException(
+                                                "User not found: " + normalizedUsername));
 
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getUsername())

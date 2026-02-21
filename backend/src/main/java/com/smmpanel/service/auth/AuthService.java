@@ -43,11 +43,15 @@ public class AuthService {
             throw new IllegalArgumentException("Password is required");
         }
 
-        if (userRepository.existsByUsername(request.getUsername())) {
+        // Normalize username and email to lowercase to match @PrePersist behavior
+        String normalizedUsername = request.getUsername().trim().toLowerCase();
+        String normalizedEmail = request.getEmail().trim().toLowerCase();
+
+        if (userRepository.existsByUsername(normalizedUsername)) {
             throw new IllegalArgumentException("Username already exists");
         }
 
-        if (userRepository.existsByEmail(request.getEmail())) {
+        if (userRepository.existsByEmail(normalizedEmail)) {
             throw new IllegalArgumentException("Email already registered");
         }
 
@@ -80,21 +84,22 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        log.debug("Login attempt for user: {}", request.getUsername());
+        // Normalize username to lowercase to match stored format
+        String normalizedUsername = request.getUsername().trim().toLowerCase();
+        log.debug("Login attempt for user: {}", normalizedUsername);
 
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
-                            request.getUsername(), request.getPassword()));
+                            normalizedUsername, request.getPassword()));
         } catch (Exception e) {
-            log.error(
-                    "Authentication failed for user {}: {}", request.getUsername(), e.getMessage());
+            log.error("Authentication failed for user {}: {}", normalizedUsername, e.getMessage());
             throw e;
         }
 
         User user =
                 userRepository
-                        .findByUsername(request.getUsername())
+                        .findByUsername(normalizedUsername)
                         .orElseThrow(() -> new UserNotFoundException("User not found"));
 
         log.debug("User found: {}, active: {}", user.getUsername(), user.isActive());

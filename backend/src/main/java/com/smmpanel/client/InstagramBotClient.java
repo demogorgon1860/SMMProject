@@ -219,7 +219,7 @@ public class InstagramBotClient {
     /**
      * List all orders from the bot. GET /api/orders
      *
-     * @return List of orders
+     * @return List of orders as raw maps
      */
     @SuppressWarnings("unchecked")
     public List<Map<String, Object>> listOrders() {
@@ -230,12 +230,15 @@ public class InstagramBotClient {
                                     try {
                                         String url = botBaseUrl + "/api/orders";
 
-                                        ResponseEntity<List> response =
-                                                restTemplate.getForEntity(url, List.class);
+                                        ResponseEntity<Map> response =
+                                                restTemplate.getForEntity(url, Map.class);
 
                                         if (response.getStatusCode() == HttpStatus.OK
                                                 && response.getBody() != null) {
-                                            return response.getBody();
+                                            Object orders = response.getBody().get("orders");
+                                            if (orders instanceof List) {
+                                                return (List<Map<String, Object>>) orders;
+                                            }
                                         }
 
                                         return List.of();
@@ -243,6 +246,91 @@ public class InstagramBotClient {
                                     } catch (Exception e) {
                                         log.error(
                                                 "Error listing Instagram orders: {}",
+                                                e.getMessage());
+                                        throw new RuntimeException(
+                                                "Order list retrieval failed", e);
+                                    }
+                                }));
+    }
+
+    /**
+     * Get all orders from bot as typed DTOs. GET /api/orders
+     *
+     * @return List of InstagramOrderStatus
+     */
+    @SuppressWarnings("unchecked")
+    public List<InstagramOrderStatus> getAllOrders() {
+        return circuitBreaker.executeSupplier(
+                () ->
+                        readRetry.executeSupplier(
+                                () -> {
+                                    try {
+                                        String url = botBaseUrl + "/api/orders";
+
+                                        ResponseEntity<Map> response =
+                                                restTemplate.getForEntity(url, Map.class);
+
+                                        if (response.getStatusCode() == HttpStatus.OK
+                                                && response.getBody() != null) {
+                                            Object orders = response.getBody().get("orders");
+                                            if (orders instanceof List) {
+                                                List<Map<String, Object>> orderList =
+                                                        (List<Map<String, Object>>) orders;
+                                                return orderList.stream()
+                                                        .map(
+                                                                body ->
+                                                                        InstagramOrderStatus
+                                                                                .builder()
+                                                                                .id(
+                                                                                        (String)
+                                                                                                body
+                                                                                                        .get(
+                                                                                                                "id"))
+                                                                                .type(
+                                                                                        (String)
+                                                                                                body
+                                                                                                        .get(
+                                                                                                                "type"))
+                                                                                .targetUrl(
+                                                                                        (String)
+                                                                                                body
+                                                                                                        .get(
+                                                                                                                "target_url"))
+                                                                                .count(
+                                                                                        (Integer)
+                                                                                                body
+                                                                                                        .get(
+                                                                                                                "count"))
+                                                                                .externalId(
+                                                                                        (String)
+                                                                                                body
+                                                                                                        .get(
+                                                                                                                "external_id"))
+                                                                                .status(
+                                                                                        (String)
+                                                                                                body
+                                                                                                        .get(
+                                                                                                                "status"))
+                                                                                .completed(
+                                                                                        (Integer)
+                                                                                                body
+                                                                                                        .get(
+                                                                                                                "completed"))
+                                                                                .failed(
+                                                                                        (Integer)
+                                                                                                body
+                                                                                                        .get(
+                                                                                                                "failed"))
+                                                                                .build())
+                                                        .toList();
+                                            }
+                                        }
+
+                                        return List.of();
+
+                                    } catch (Exception e) {
+                                        log.error(
+                                                "Error getting all Instagram orders: {}",
                                                 e.getMessage());
                                         throw new RuntimeException(
                                                 "Order list retrieval failed", e);

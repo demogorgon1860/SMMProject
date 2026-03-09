@@ -215,7 +215,19 @@ public class InstagramResultConsumer {
                             "Partial refund for Instagram order #%d: %d/%d delivered",
                             order.getId(), completed, order.getQuantity());
             balanceService.refund(order.getUser(), refundAmount, order, reason);
-            log.info("Processed partial refund of {} for order {}", refundAmount, order.getId());
+
+            // Update charge to reflect only the delivered portion
+            BigDecimal newCharge = order.getCharge().subtract(refundAmount);
+            // DB constraint requires charge > 0, use minimum 0.01
+            if (newCharge.compareTo(new BigDecimal("0.01")) < 0) {
+                newCharge = new BigDecimal("0.01");
+            }
+            order.setCharge(newCharge);
+            log.info(
+                    "Processed partial refund of {} for order {}, new charge: {}",
+                    refundAmount,
+                    order.getId(),
+                    order.getCharge());
         }
     }
 
@@ -233,6 +245,9 @@ public class InstagramResultConsumer {
                             order.getId());
             balanceService.refund(order.getUser(), order.getCharge(), order, reason);
             log.info("Processed full refund of {} for order {}", order.getCharge(), order.getId());
+
+            // Set charge to minimum since nothing was delivered (DB constraint: charge > 0)
+            order.setCharge(new BigDecimal("0.01"));
         }
     }
 }

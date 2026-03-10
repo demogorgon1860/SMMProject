@@ -12,9 +12,9 @@ import org.springframework.stereotype.Component;
 /**
  * Publishes Instagram orders to RabbitMQ for geo-based routing.
  *
- * <p>Orders are routed to different queues based on service geo_targeting: - KR (Korean) →
- * instagram.orders.kr queue → Korean bot server - DE (German) → instagram.orders.de queue → German
- * bot server
+ * <p>Orders are routed to the DE queue based on service geo_targeting: - DE (German) →
+ * instagram.orders.de queue → Bot server - ENG (USA/Europe) → instagram.orders.de queue → same Bot
+ * server
  */
 @Slf4j
 @Component
@@ -74,11 +74,15 @@ public class InstagramRabbitPublisher {
                 .build();
     }
 
-    /** Determines geo targeting from service, defaults to DE. */
+    /** Determines routing key from service geo_targeting. ENG routes to same DE bot server. */
     private String determineGeoTargeting(Service service) {
         String geo = service.getGeoTargeting();
         if (geo == null || geo.isBlank()) {
-            return "DE"; // Default to German server
+            return "DE";
+        }
+        // ENG (USA/Europe) uses the same bot server as DE
+        if (geo.equalsIgnoreCase("ENG")) {
+            return "DE";
         }
         return geo.toUpperCase();
     }

@@ -59,11 +59,63 @@ export const NewOrder: React.FC = () => {
     }
   };
 
+  // Strip [Male] or [Female] from name to get the base group name
+  const getBaseName = (name: string): string =>
+    name.replace(/\s*\[(male|female)\]\s*/gi, ' ').replace(/\s+/g, ' ').trim();
+
+  // Check if service has a Male+Female pair (both exist in list)
+  const isGenderPaired = (service: Service): boolean => {
+    const name = service.name;
+    if (!/\[male\]|\[female\]/i.test(name) || /mix/i.test(name)) return false;
+    const base = getBaseName(name).toLowerCase();
+    const hasMale = services.some(s => /\[male\]/i.test(s.name) && !(/mix/i.test(s.name)) && getBaseName(s.name).toLowerCase() === base);
+    const hasFemale = services.some(s => /\[female\]/i.test(s.name) && !(/mix/i.test(s.name)) && getBaseName(s.name).toLowerCase() === base);
+    return hasMale && hasFemale;
+  };
+
+  // Find the Male or Female partner of a paired service
+  const getGenderPartner = (service: Service, gender: 'MALE' | 'FEMALE'): Service | null => {
+    const base = getBaseName(service.name).toLowerCase();
+    const pattern = gender === 'MALE' ? /\[male\]/i : /\[female\]/i;
+    return services.find(s =>
+      pattern.test(s.name) && !(/mix/i.test(s.name)) &&
+      getBaseName(s.name).toLowerCase() === base
+    ) || null;
+  };
+
+  // For dropdown: collapse Male+Female pairs — show only the Male as representative
+  const getDisplayServices = (): Service[] => {
+    const seen = new Set<string>();
+    return services.filter(service => {
+      if (!isGenderPaired(service)) return true;
+      const base = getBaseName(service.name).toLowerCase();
+      if (seen.has(base)) return false;
+      seen.add(base);
+      return /\[male\]/i.test(service.name); // show Male as group representative
+    });
+  };
+
   const handleServiceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const serviceId = e.target.value;
-    setFormData(prev => ({ ...prev, service: serviceId, customComments: '', genderType: '' }));
     const service = services.find(s => s.id.toString() === serviceId);
-    setSelectedService(service || null);
+    if (service && isGenderPaired(service)) {
+      // Default to Male when a gender-paired group is selected
+      const maleService = getGenderPartner(service, 'MALE') || service;
+      setSelectedService(maleService);
+      setFormData(prev => ({ ...prev, service: maleService.id.toString(), customComments: '', genderType: 'MALE' }));
+    } else {
+      setSelectedService(service || null);
+      setFormData(prev => ({ ...prev, service: serviceId, customComments: '', genderType: '' }));
+    }
+  };
+
+  const handleGenderToggle = (gender: 'MALE' | 'FEMALE') => {
+    if (!selectedService) return;
+    const partner = getGenderPartner(selectedService, gender);
+    if (partner) {
+      setSelectedService(partner);
+      setFormData(prev => ({ ...prev, service: partner.id.toString(), genderType: gender }));
+    }
   };
 
   // Check if service requires custom comments (e.g., "Instagram Comments Custom")
@@ -73,11 +125,10 @@ export const NewOrder: React.FC = () => {
     return name.includes('custom') && name.includes('comment');
   };
 
-  // Check if service requires gender type selection (e.g., "Instagram Comments [Male/Female]")
+  // Show gender toggle for Male/Female paired services
   const requiresGenderType = (service: Service | null): boolean => {
     if (!service) return false;
-    const name = service.name?.toLowerCase() || '';
-    return (name.includes('male') || name.includes('female')) && name.includes('comment');
+    return isGenderPaired(service);
   };
 
   // Check if gender type is selected
@@ -323,9 +374,9 @@ export const NewOrder: React.FC = () => {
                   className="block w-full pl-10 pr-10 py-3 border border-dark-200 dark:border-dark-600 rounded-xl bg-white dark:bg-dark-700 text-dark-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all appearance-none"
                 >
                   <option value="">Select a service</option>
-                  {services.map(service => (
+                  {getDisplayServices().map(service => (
                     <option key={service.id} value={service.id}>
-                      {service.name} - ${service.pricePer1000 || service.rate || '0'}/1000
+                      {isGenderPaired(service) ? getBaseName(service.name) : service.name} - ${service.pricePer1000 || service.rate || '0'}/1000
                     </option>
                   ))}
                 </select>
@@ -399,7 +450,7 @@ export const NewOrder: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <button
                     type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, genderType: 'MALE' }))}
+                    onClick={() => handleGenderToggle('MALE')}
                     className={`p-4 rounded-xl border-2 transition-all ${
                       formData.genderType === 'MALE'
                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
@@ -422,7 +473,7 @@ export const NewOrder: React.FC = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, genderType: 'FEMALE' }))}
+                    onClick={() => handleGenderToggle('FEMALE')}
                     className={`p-4 rounded-xl border-2 transition-all ${
                       formData.genderType === 'FEMALE'
                         ? 'border-pink-500 bg-pink-50 dark:bg-pink-900/20'

@@ -68,11 +68,11 @@ public class StartupService implements ApplicationRunner {
     }
 
     private void createDefaultServices() {
-        if (serviceRepository.count() == 0) {
-            // Service 1: YouTube Views (Standard)
-            com.smmpanel.entity.Service service1 =
+        boolean youtubeExists = serviceRepository.findAll().stream()
+                .anyMatch(s -> s.getName() != null && s.getName().startsWith("YouTube"));
+        if (!youtubeExists) {
+            com.smmpanel.entity.Service youtubeStandard =
                     com.smmpanel.entity.Service.builder()
-                            .id(1L)
                             .name("YouTube Views (Standard)")
                             .category("YouTube")
                             .minOrder(100)
@@ -81,52 +81,27 @@ public class StartupService implements ApplicationRunner {
                             .description("Standard YouTube views delivery")
                             .active(true)
                             .build();
-            serviceRepository.save(service1);
-
-            // Service 2: YouTube Views (Premium)
-            com.smmpanel.entity.Service service2 =
-                    com.smmpanel.entity.Service.builder()
-                            .id(2L)
-                            .name("YouTube Views (Premium)")
-                            .category("YouTube")
-                            .minOrder(100)
-                            .maxOrder(1000000)
-                            .pricePer1000(new BigDecimal("2.0000"))
-                            .description("Premium YouTube views with higher quality")
-                            .active(true)
-                            .build();
-            serviceRepository.save(service2);
-
-            // Service 3: YouTube Views (High Quality)
-            com.smmpanel.entity.Service service3 =
-                    com.smmpanel.entity.Service.builder()
-                            .id(3L)
-                            .name("YouTube Views (High Quality)")
-                            .category("YouTube")
-                            .minOrder(100)
-                            .maxOrder(1000000)
-                            .pricePer1000(new BigDecimal("3.0000"))
-                            .description("High quality YouTube views with best retention")
-                            .active(true)
-                            .build();
-            serviceRepository.save(service3);
-
-            log.info("Created default services");
+            serviceRepository.save(youtubeStandard);
+            log.info("Created default YouTube service");
         }
     }
 
     private void createDefaultCoefficients() {
-        for (long serviceId = 1; serviceId <= 3; serviceId++) {
-            if (coefficientRepository.findByServiceId(serviceId).isEmpty()) {
-                ConversionCoefficient coefficient = new ConversionCoefficient();
-                coefficient.setServiceId(serviceId);
-                coefficient.setCoefficient(new BigDecimal("3.5"));
-                coefficient.setWithClip(new BigDecimal("3.0"));
-                coefficient.setWithoutClip(new BigDecimal("4.0"));
-                coefficientRepository.save(coefficient);
-            }
-        }
-        log.info("Created default conversion coefficients");
+        serviceRepository.findAll().stream()
+                .filter(com.smmpanel.entity.Service::isActive)
+                .forEach(service -> {
+                    if (coefficientRepository.findByServiceId(service.getId()).isEmpty()) {
+                        ConversionCoefficient coefficient = new ConversionCoefficient();
+                        coefficient.setServiceId(service.getId());
+                        coefficient.setCoefficient(new BigDecimal("3.5"));
+                        coefficient.setWithClip(new BigDecimal("3.0"));
+                        coefficient.setWithoutClip(new BigDecimal("4.0"));
+                        coefficientRepository.save(coefficient);
+                        log.info("Created default conversion coefficient for service id={} name={}",
+                                service.getId(), service.getName());
+                    }
+                });
+        log.info("Conversion coefficients verified for all active services");
     }
 
     private String hashApiKey(String apiKey) {

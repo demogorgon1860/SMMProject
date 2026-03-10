@@ -1088,7 +1088,7 @@ public class OrderService {
 
         for (int i = 0; i < lines.length; i++) {
             String trimmed = lines[i].trim();
-            if (!trimmed.isEmpty()) {
+            if (!trimmed.isEmpty() && !trimmed.startsWith("GENDER:")) {
                 if (trimmed.length() > MAX_COMMENT_LENGTH) {
                     throw new OrderValidationException(
                             String.format(

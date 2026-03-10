@@ -73,12 +73,10 @@ export const NewOrder: React.FC = () => {
     return name.includes('custom') && name.includes('comment');
   };
 
-  // Check if service requires gender type selection (e.g., "Instagram Comments [Male]")
-  // Excludes custom comment services - gender is inherent in the service name for those
+  // Check if service requires gender type selection (e.g., "Instagram Comments [Male/Female]")
   const requiresGenderType = (service: Service | null): boolean => {
     if (!service) return false;
     const name = service.name?.toLowerCase() || '';
-    if (name.includes('custom')) return false;
     return (name.includes('male') || name.includes('female')) && name.includes('comment');
   };
 
@@ -157,8 +155,11 @@ export const NewOrder: React.FC = () => {
         quantity,
       };
 
-      // Include custom comments or gender type
-      if (formData.customComments.trim()) {
+      // Include custom comments and/or gender type
+      if (formData.customComments.trim() && formData.genderType) {
+        // Custom comments with gender: prefix with gender so bot knows which profiles to use
+        orderData.customComments = `GENDER:${formData.genderType}\n${formData.customComments.trim()}`;
+      } else if (formData.customComments.trim()) {
         orderData.customComments = formData.customComments.trim();
       } else if (formData.genderType) {
         orderData.customComments = `GENDER:${formData.genderType}`;

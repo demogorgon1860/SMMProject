@@ -88,7 +88,7 @@ public class StartupService implements ApplicationRunner {
 
     private void createDefaultCoefficients() {
         serviceRepository.findAll().stream()
-                .filter(com.smmpanel.entity.Service::isActive)
+                .filter(s -> Boolean.TRUE.equals(s.getActive()))
                 .forEach(service -> {
                     if (coefficientRepository.findByServiceId(service.getId()).isEmpty()) {
                         ConversionCoefficient coefficient = new ConversionCoefficient();

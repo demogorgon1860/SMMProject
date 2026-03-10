@@ -124,8 +124,10 @@ export const NewOrder: React.FC = () => {
     if (!selectedService) return;
     const partner = getGenderPartner(selectedService, gender);
     if (partner) {
+      // Update selectedService (source of truth for submission) but keep formData.service
+      // pointing to the Male representative so the dropdown doesn't lose its selection
       setSelectedService(partner);
-      setFormData(prev => ({ ...prev, service: partner.id.toString(), genderType: gender }));
+      setFormData(prev => ({ ...prev, genderType: gender }));
     }
   };
 
@@ -212,7 +214,7 @@ export const NewOrder: React.FC = () => {
         : parseInt(formData.quantity);
 
       const orderData: any = {
-        service: parseInt(formData.service),
+        service: selectedService!.id,
         link: formData.link,
         quantity,
       };
@@ -234,7 +236,13 @@ export const NewOrder: React.FC = () => {
       // Show success message
       setSuccess({ orderId, charge });
 
-      // Reset form but keep service selected for quick re-ordering
+      // Reset form but keep service selected for quick re-ordering.
+      // If a gender-paired service was active, reset selectedService back to the
+      // Male representative so it stays in sync with formData.service (the dropdown).
+      if (selectedService && isGenderPaired(selectedService)) {
+        const maleRep = getGenderPartner(selectedService, 'MALE') || selectedService;
+        setSelectedService(maleRep);
+      }
       setFormData(prev => ({
         ...prev,
         link: '',

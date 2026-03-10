@@ -83,16 +83,27 @@ export const NewOrder: React.FC = () => {
     ) || null;
   };
 
-  // For dropdown: collapse Male+Female pairs — show only the Male as representative
+  // For dropdown: collapse Male+Female pairs — always show Male as representative
   const getDisplayServices = (): Service[] => {
     const seen = new Set<string>();
-    return services.filter(service => {
-      if (!isGenderPaired(service)) return true;
+    const result: Service[] = [];
+    services.forEach(service => {
+      if (!isGenderPaired(service)) {
+        result.push(service);
+        return;
+      }
       const base = getBaseName(service.name).toLowerCase();
-      if (seen.has(base)) return false;
+      if (seen.has(base)) return; // pair already represented
       seen.add(base);
-      return /\[male\]/i.test(service.name); // show Male as group representative
+      // Always use the Male as the dropdown entry
+      if (/\[male\]/i.test(service.name)) {
+        result.push(service);
+      } else {
+        const maleService = getGenderPartner(service, 'MALE');
+        if (maleService) result.push(maleService);
+      }
     });
+    return result;
   };
 
   const handleServiceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {

@@ -35,7 +35,7 @@ export const NewOrder: React.FC = () => {
     link: '',
     quantity: '',
     customComments: '',
-    emojiType: '' as 'POSITIVE' | 'NEGATIVE' | '',
+    genderType: '' as 'MALE' | 'FEMALE' | '',
   });
 
   const [selectedService, setSelectedService] = useState<Service | null>(null);
@@ -61,7 +61,7 @@ export const NewOrder: React.FC = () => {
 
   const handleServiceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const serviceId = e.target.value;
-    setFormData(prev => ({ ...prev, service: serviceId, customComments: '', emojiType: '' }));
+    setFormData(prev => ({ ...prev, service: serviceId, customComments: '', genderType: '' }));
     const service = services.find(s => s.id.toString() === serviceId);
     setSelectedService(service || null);
   };
@@ -73,17 +73,19 @@ export const NewOrder: React.FC = () => {
     return name.includes('custom') && name.includes('comment');
   };
 
-  // Check if service requires emoji type selection (e.g., "Instagram Emoji Comments")
-  const requiresEmojiType = (service: Service | null): boolean => {
+  // Check if service requires gender type selection (e.g., "Instagram Comments [Male]")
+  // Excludes custom comment services - gender is inherent in the service name for those
+  const requiresGenderType = (service: Service | null): boolean => {
     if (!service) return false;
     const name = service.name?.toLowerCase() || '';
-    return name.includes('emoji') && name.includes('comment');
+    if (name.includes('custom')) return false;
+    return (name.includes('male') || name.includes('female')) && name.includes('comment');
   };
 
-  // Check if emoji type is selected
-  const isEmojiTypeValid = (): boolean => {
-    if (!requiresEmojiType(selectedService)) return true;
-    return formData.emojiType === 'POSITIVE' || formData.emojiType === 'NEGATIVE';
+  // Check if gender type is selected
+  const isGenderTypeValid = (): boolean => {
+    if (!requiresGenderType(selectedService)) return true;
+    return formData.genderType === 'MALE' || formData.genderType === 'FEMALE';
   };
 
   const MAX_COMMENT_LENGTH = 2200; // Instagram comment limit
@@ -155,11 +157,11 @@ export const NewOrder: React.FC = () => {
         quantity,
       };
 
-      // Include custom comments or emoji type
+      // Include custom comments or gender type
       if (formData.customComments.trim()) {
         orderData.customComments = formData.customComments.trim();
-      } else if (formData.emojiType) {
-        orderData.customComments = `EMOJI:${formData.emojiType}`;
+      } else if (formData.genderType) {
+        orderData.customComments = `GENDER:${formData.genderType}`;
       }
 
       const response = await orderAPI.createOrder(orderData);
@@ -175,7 +177,7 @@ export const NewOrder: React.FC = () => {
         link: '',
         quantity: '',
         customComments: '',
-        emojiType: '',
+        genderType: '',
       }));
 
       // Auto-hide success after 5 seconds
@@ -387,56 +389,56 @@ export const NewOrder: React.FC = () => {
               </div>
             )}
 
-            {/* Emoji Type Selection (for emoji comment services) */}
-            {requiresEmojiType(selectedService) && (
+            {/* Gender Type Selection (for male/female comment services) */}
+            {requiresGenderType(selectedService) && (
               <div className="space-y-3">
                 <label className="block text-sm font-medium text-dark-700 dark:text-dark-300">
-                  Emoji Type
+                  Gender Type
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <button
                     type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, emojiType: 'POSITIVE' }))}
+                    onClick={() => setFormData(prev => ({ ...prev, genderType: 'MALE' }))}
                     className={`p-4 rounded-xl border-2 transition-all ${
-                      formData.emojiType === 'POSITIVE'
-                        ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                        : 'border-dark-200 dark:border-dark-600 hover:border-green-300 dark:hover:border-green-700'
+                      formData.genderType === 'MALE'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                        : 'border-dark-200 dark:border-dark-600 hover:border-blue-300 dark:hover:border-blue-700'
                     }`}
                   >
                     <div className="text-center">
-                      <div className="text-2xl mb-2">😊 🔥 ❤️ 👍</div>
+                      <div className="text-2xl mb-2">👨 🧔 👦</div>
                       <p className={`font-medium ${
-                        formData.emojiType === 'POSITIVE'
-                          ? 'text-green-700 dark:text-green-300'
+                        formData.genderType === 'MALE'
+                          ? 'text-blue-700 dark:text-blue-300'
                           : 'text-dark-700 dark:text-dark-300'
                       }`}>
-                        Positive
+                        Male
                       </p>
                       <p className="text-xs text-dark-500 dark:text-dark-400 mt-1">
-                        Happy, love, fire
+                        Male profiles
                       </p>
                     </div>
                   </button>
                   <button
                     type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, emojiType: 'NEGATIVE' }))}
+                    onClick={() => setFormData(prev => ({ ...prev, genderType: 'FEMALE' }))}
                     className={`p-4 rounded-xl border-2 transition-all ${
-                      formData.emojiType === 'NEGATIVE'
-                        ? 'border-red-500 bg-red-50 dark:bg-red-900/20'
-                        : 'border-dark-200 dark:border-dark-600 hover:border-red-300 dark:hover:border-red-700'
+                      formData.genderType === 'FEMALE'
+                        ? 'border-pink-500 bg-pink-50 dark:bg-pink-900/20'
+                        : 'border-dark-200 dark:border-dark-600 hover:border-pink-300 dark:hover:border-pink-700'
                     }`}
                   >
                     <div className="text-center">
-                      <div className="text-2xl mb-2">😒 🙄 😡 👎</div>
+                      <div className="text-2xl mb-2">👩 💁 👧</div>
                       <p className={`font-medium ${
-                        formData.emojiType === 'NEGATIVE'
-                          ? 'text-red-700 dark:text-red-300'
+                        formData.genderType === 'FEMALE'
+                          ? 'text-pink-700 dark:text-pink-300'
                           : 'text-dark-700 dark:text-dark-300'
                       }`}>
-                        Negative
+                        Female
                       </p>
                       <p className="text-xs text-dark-500 dark:text-dark-400 mt-1">
-                        Angry, annoyed, dislike
+                        Female profiles
                       </p>
                     </div>
                   </button>
@@ -568,7 +570,7 @@ export const NewOrder: React.FC = () => {
                   !formData.link ||
                   (!requiresCustomComments(selectedService) && !formData.quantity) ||
                   !isCustomCommentsValid() ||
-                  !isEmojiTypeValid()
+                  !isGenderTypeValid()
                 }
                 className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-white font-medium bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-soft"
               >

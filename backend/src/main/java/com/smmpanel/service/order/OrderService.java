@@ -196,18 +196,6 @@ public class OrderService {
             order.setUpdatedAt(LocalDateTime.now());
             order.setCustomComments(request.getCustomComments());
 
-            // Auto-set customComments for emoji comment services (Perfect Panel API compatibility)
-            Long serviceId = service.getId();
-            if (serviceId == 11L
-                    && (request.getCustomComments() == null
-                            || request.getCustomComments().isEmpty())) {
-                order.setCustomComments("EMOJI:POSITIVE");
-            } else if (serviceId == 12L
-                    && (request.getCustomComments() == null
-                            || request.getCustomComments().isEmpty())) {
-                order.setCustomComments("EMOJI:NEGATIVE");
-            }
-
             // Set user-specific order number (1, 2, 3... per user)
             Integer maxUserOrderNumber =
                     orderRepository.findMaxUserOrderNumberByUserId(user.getId());

@@ -63,6 +63,7 @@ public class InstagramRabbitPublisher {
 
     /** Builds the order message from panel order and service. */
     private InstagramOrderMessage buildOrderMessage(Order order, Service service) {
+        String geoTargeting = resolveGeoTargeting(service);
         return InstagramOrderMessage.builder()
                 .externalId(String.valueOf(order.getId()))
                 .type(mapServiceCategoryToType(service.getCategory()))
@@ -71,20 +72,30 @@ public class InstagramRabbitPublisher {
                 .commentText(order.getCustomComments())
                 // No callbackUrl - results come back via instagram.results queue
                 .priority(order.getProcessingPriority() != null ? order.getProcessingPriority() : 0)
+                .geoTargeting(geoTargeting) // Bot uses this for gender/geo profile group selection
                 .build();
     }
 
-    /** Determines routing key from service geo_targeting. ENG routes to same DE bot server. */
-    private String determineGeoTargeting(Service service) {
+    /**
+     * Resolves the geo targeting string from the service.
+     * Returns "DE" or "ENG" (original values preserved for bot profile selection).
+     */
+    private String resolveGeoTargeting(Service service) {
         String geo = service.getGeoTargeting();
         if (geo == null || geo.isBlank()) {
             return "DE";
         }
+        return geo.toUpperCase();
+    }
+
+    /** Determines routing key from service geo_targeting. ENG routes to same DE bot server. */
+    private String determineGeoTargeting(Service service) {
+        String geo = resolveGeoTargeting(service);
         // ENG (USA/Europe) uses the same bot server as DE
         if (geo.equalsIgnoreCase("ENG")) {
             return "DE";
         }
-        return geo.toUpperCase();
+        return geo;
     }
 
     /** Maps service category to Instagram bot order type. */

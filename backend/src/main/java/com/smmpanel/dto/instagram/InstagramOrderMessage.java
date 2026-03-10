@@ -59,4 +59,8 @@ public class InstagramOrderMessage {
     @JsonProperty("max_retries")
     @Builder.Default
     private int maxRetries = 3;
+
+    /** Geo targeting: "DE" (Germany) or "ENG" (USA/Europe). Used by bot for profile group selection. */
+    @JsonProperty("geo_targeting")
+    private String geoTargeting;
 }

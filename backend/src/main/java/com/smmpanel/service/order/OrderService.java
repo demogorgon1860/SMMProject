@@ -43,7 +43,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
@@ -1440,36 +1439,35 @@ public class OrderService {
             return orders.map(this::mapToOrderResponse);
         }
 
-        // With search: use Specifications for OR-based filtering
+        // With search: use JPQL-based repository query (avoids Specification issues
+        // with partitioned tables)
         String term = search.trim().toLowerCase();
-        Specification<Order> spec = (root, query, cb) -> cb.equal(root.get("user"), user);
-
-        if (status != null && !status.isEmpty()) {
-            OrderStatus orderStatus = mapFromPerfectPanelStatus(status);
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), orderStatus));
+        try {
+            Long orderId = Long.parseLong(term);
+            // Search by exact order ID
+            Page<Order> orders;
+            if (status != null && !status.isEmpty()) {
+                OrderStatus orderStatus = mapFromPerfectPanelStatus(status);
+                orders =
+                        orderRepository.searchByUserAndIdAndStatus(
+                                user, orderId, orderStatus, pageable);
+            } else {
+                orders = orderRepository.searchByUserAndId(user, orderId, pageable);
+            }
+            return orders.map(this::mapToOrderResponse);
+        } catch (NumberFormatException e) {
+            // Search by link
+            Page<Order> orders;
+            if (status != null && !status.isEmpty()) {
+                OrderStatus orderStatus = mapFromPerfectPanelStatus(status);
+                orders =
+                        orderRepository.searchByUserAndLinkAndStatus(
+                                user, "%" + term + "%", orderStatus, pageable);
+            } else {
+                orders = orderRepository.searchByUserAndLink(user, "%" + term + "%", pageable);
+            }
+            return orders.map(this::mapToOrderResponse);
         }
-
-        spec =
-                spec.and(
-                        (root, query, cb) -> {
-                            jakarta.persistence.criteria.Predicate linkPred =
-                                    cb.like(cb.lower(root.get("link")), "%" + term + "%");
-                            jakarta.persistence.criteria.Predicate serviceNamePred =
-                                    cb.like(
-                                            cb.lower(root.get("service").get("name")),
-                                            "%" + term + "%");
-                            try {
-                                Long orderId = Long.parseLong(term);
-                                jakarta.persistence.criteria.Predicate idPred =
-                                        cb.equal(root.get("id"), orderId);
-                                return cb.or(idPred, linkPred, serviceNamePred);
-                            } catch (NumberFormatException e) {
-                                return cb.or(linkPred, serviceNamePred);
-                            }
-                        });
-
-        Page<Order> orders = orderRepository.findAll(spec, pageable);
-        return orders.map(this::mapToOrderResponse);
     }
 
     public com.smmpanel.dto.response.OrderStatistics getOrderStatistics(int days) {

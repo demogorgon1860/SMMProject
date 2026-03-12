@@ -10,7 +10,6 @@ import com.smmpanel.service.integration.BinomService;
 import com.smmpanel.service.integration.SeleniumService;
 import com.smmpanel.service.integration.YouTubeService;
 import com.smmpanel.service.order.state.OrderStateManager;
-import jakarta.persistence.criteria.Predicate;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -85,47 +84,6 @@ public class AdminService {
     @Transactional(readOnly = true)
     public Map<String, Object> getAllOrders(
             String status, String search, String dateFrom, String dateTo, Pageable pageable) {
-        Specification<Order> spec = Specification.where(null);
-
-        if (status != null && !status.isEmpty()) {
-            OrderStatus orderStatus = OrderStatus.valueOf(status.toUpperCase());
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), orderStatus));
-        }
-
-        if (search != null && !search.isEmpty()) {
-            String term = search.trim().toLowerCase();
-            spec =
-                    spec.and(
-                            (root, query, cb) -> {
-                                // Try to parse as order ID for exact match
-                                Predicate usernamePred =
-                                        cb.like(
-                                                cb.lower(root.get("user").get("username")),
-                                                "%" + term + "%");
-                                Predicate linkPred =
-                                        cb.like(cb.lower(root.get("link")), "%" + term + "%");
-                                try {
-                                    Long orderId = Long.parseLong(term);
-                                    Predicate idPred = cb.equal(root.get("id"), orderId);
-                                    return cb.or(idPred, usernamePred, linkPred);
-                                } catch (NumberFormatException e) {
-                                    return cb.or(usernamePred, linkPred);
-                                }
-                            });
-        }
-
-        if (dateFrom != null && !dateFrom.isEmpty()) {
-            LocalDateTime from = LocalDate.parse(dateFrom).atStartOfDay();
-            spec =
-                    spec.and(
-                            (root, query, cb) ->
-                                    cb.greaterThanOrEqualTo(root.get("createdAt"), from));
-        }
-
-        if (dateTo != null && !dateTo.isEmpty()) {
-            LocalDateTime to = LocalDate.parse(dateTo).atTime(23, 59, 59);
-            spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("createdAt"), to));
-        }
 
         // Default sort by ID descending if no sort specified
         if (pageable.getSort().isUnsorted()) {
@@ -136,7 +94,13 @@ public class AdminService {
                             Sort.by(Sort.Direction.DESC, "id"));
         }
 
-        Page<Order> orders = orderRepository.findAll(spec, pageable);
+        OrderStatus orderStatus = null;
+        if (status != null && !status.isEmpty()) {
+            orderStatus = OrderStatus.valueOf(status.toUpperCase());
+        }
+
+        // Use partition-safe JPQL queries instead of Specifications
+        Page<Order> orders = resolveAdminOrderQuery(search, orderStatus, pageable);
 
         List<AdminOrderDto> orderDtos =
                 orders.getContent().stream()
@@ -151,6 +115,47 @@ public class AdminService {
         response.put("pageSize", orders.getSize());
 
         return response;
+    }
+
+    private Page<Order> resolveAdminOrderQuery(
+            String search, OrderStatus status, Pageable pageable) {
+
+        // No search: return all (optionally filtered by status)
+        if (search == null || search.isEmpty()) {
+            if (status != null) {
+                return orderRepository.adminFindByStatus(status, pageable);
+            }
+            return orderRepository.adminFindAll(pageable);
+        }
+
+        String term = search.trim().toLowerCase();
+
+        // Try numeric ID first
+        try {
+            Long orderId = Long.parseLong(term);
+            if (status != null) {
+                return orderRepository.adminSearchByIdAndStatus(orderId, status, pageable);
+            }
+            return orderRepository.adminSearchById(orderId, pageable);
+        } catch (NumberFormatException ignored) {
+            // Not a number — search by username or link
+        }
+
+        // Determine if search looks like a URL (contains / or .)
+        if (term.contains("/") || term.contains("instagram")) {
+            if (status != null) {
+                return orderRepository.adminSearchByLinkAndStatus(
+                        "%" + term + "%", status, pageable);
+            }
+            return orderRepository.adminSearchByLink("%" + term + "%", pageable);
+        }
+
+        // Default: search by username
+        if (status != null) {
+            return orderRepository.adminSearchByUsernameAndStatus(
+                    "%" + term + "%", status, pageable);
+        }
+        return orderRepository.adminSearchByUsername("%" + term + "%", pageable);
     }
 
     @Transactional
@@ -1560,32 +1565,6 @@ public class AdminService {
     }
 
     // Private helper methods
-
-    private Specification<Order> buildOrderSpecification(
-            OrderStatus status, Long userId, String search) {
-        return (root, query, cb) -> {
-            var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
-
-            if (status != null) {
-                predicates.add(cb.equal(root.get("status"), status));
-            }
-
-            if (userId != null) {
-                predicates.add(cb.equal(root.get("user").get("id"), userId));
-            }
-
-            if (search != null && !search.trim().isEmpty()) {
-                String searchPattern = "%" + search.toLowerCase() + "%";
-                predicates.add(
-                        cb.or(
-                                cb.like(cb.lower(root.get("link")), searchPattern),
-                                cb.like(cb.lower(root.get("user").get("username")), searchPattern),
-                                cb.like(cb.lower(root.get("service").get("name")), searchPattern)));
-            }
-
-            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
-        };
-    }
 
     private String extractVideoId(String url) {
         if (url == null || url.isEmpty()) {

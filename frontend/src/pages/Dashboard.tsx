@@ -75,7 +75,7 @@ export const Dashboard: React.FC = () => {
           orders = response.orders;
         }
       } else {
-        const response = await orderAPI.getOrders(undefined, undefined, undefined, 0, 5);
+        const response = await orderAPI.getOrders(undefined, undefined, undefined, undefined, 0, 5);
 
         // Handle PerfectPanelResponse<Page<OrderResponse>> format
         if (response?.data?.content && Array.isArray(response.data.content)) {

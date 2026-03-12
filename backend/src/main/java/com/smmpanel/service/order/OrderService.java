@@ -1428,6 +1428,20 @@ public class OrderService {
                                     "userOrderNumber"));
         }
 
+        // When no search term, use original optimized repository methods
+        if (search == null || search.isEmpty()) {
+            Page<Order> orders;
+            if (status != null && !status.isEmpty()) {
+                OrderStatus orderStatus = mapFromPerfectPanelStatus(status);
+                orders = orderRepository.findByUserAndStatus(user, orderStatus, pageable);
+            } else {
+                orders = orderRepository.findByUser(user, pageable);
+            }
+            return orders.map(this::mapToOrderResponse);
+        }
+
+        // With search: use Specifications for OR-based filtering
+        String term = search.trim().toLowerCase();
         Specification<Order> spec = (root, query, cb) -> cb.equal(root.get("user"), user);
 
         if (status != null && !status.isEmpty()) {
@@ -1435,27 +1449,24 @@ public class OrderService {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), orderStatus));
         }
 
-        if (search != null && !search.isEmpty()) {
-            String term = search.trim().toLowerCase();
-            spec =
-                    spec.and(
-                            (root, query, cb) -> {
-                                jakarta.persistence.criteria.Predicate linkPred =
-                                        cb.like(cb.lower(root.get("link")), "%" + term + "%");
-                                jakarta.persistence.criteria.Predicate serviceNamePred =
-                                        cb.like(
-                                                cb.lower(root.get("service").get("name")),
-                                                "%" + term + "%");
-                                try {
-                                    Long orderId = Long.parseLong(term);
-                                    jakarta.persistence.criteria.Predicate idPred =
-                                            cb.equal(root.get("id"), orderId);
-                                    return cb.or(idPred, linkPred, serviceNamePred);
-                                } catch (NumberFormatException e) {
-                                    return cb.or(linkPred, serviceNamePred);
-                                }
-                            });
-        }
+        spec =
+                spec.and(
+                        (root, query, cb) -> {
+                            jakarta.persistence.criteria.Predicate linkPred =
+                                    cb.like(cb.lower(root.get("link")), "%" + term + "%");
+                            jakarta.persistence.criteria.Predicate serviceNamePred =
+                                    cb.like(
+                                            cb.lower(root.get("service").get("name")),
+                                            "%" + term + "%");
+                            try {
+                                Long orderId = Long.parseLong(term);
+                                jakarta.persistence.criteria.Predicate idPred =
+                                        cb.equal(root.get("id"), orderId);
+                                return cb.or(idPred, linkPred, serviceNamePred);
+                            } catch (NumberFormatException e) {
+                                return cb.or(linkPred, serviceNamePred);
+                            }
+                        });
 
         Page<Order> orders = orderRepository.findAll(spec, pageable);
         return orders.map(this::mapToOrderResponse);

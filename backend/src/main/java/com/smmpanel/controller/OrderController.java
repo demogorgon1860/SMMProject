@@ -126,6 +126,9 @@ public class OrderController {
                             regexp = "asc|desc",
                             message = "Sort direction must be 'asc' or 'desc'")
                     String direction,
+            @Parameter(description = "Search by order ID, link, or service name")
+                    @RequestParam(required = false)
+                    String search,
             Principal principal) {
 
         Sort.Direction sortDirection = Sort.Direction.fromString(direction);
@@ -133,7 +136,7 @@ public class OrderController {
 
         // OPTIMIZED: Uses optimized service method that prevents N+1 queries
         Page<OrderResponse> orders =
-                orderService.getUserOrdersOptimized(principal.getName(), status, pageable);
+                orderService.getUserOrdersOptimized(principal.getName(), status, search, pageable);
 
         PerfectPanelResponse<Page<OrderResponse>> response =
                 PerfectPanelResponse.<Page<OrderResponse>>builder()

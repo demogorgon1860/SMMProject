@@ -10,6 +10,7 @@ import com.smmpanel.service.integration.BinomService;
 import com.smmpanel.service.integration.SeleniumService;
 import com.smmpanel.service.integration.YouTubeService;
 import com.smmpanel.service.order.state.OrderStateManager;
+import jakarta.persistence.criteria.Predicate;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -83,7 +84,7 @@ public class AdminService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> getAllOrders(
-            String status, String username, String dateFrom, String dateTo, Pageable pageable) {
+            String status, String search, String dateFrom, String dateTo, Pageable pageable) {
         Specification<Order> spec = Specification.where(null);
 
         if (status != null && !status.isEmpty()) {
@@ -91,13 +92,26 @@ public class AdminService {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), orderStatus));
         }
 
-        if (username != null && !username.isEmpty()) {
+        if (search != null && !search.isEmpty()) {
+            String term = search.trim().toLowerCase();
             spec =
                     spec.and(
-                            (root, query, cb) ->
-                                    cb.like(
-                                            cb.lower(root.get("user").get("username")),
-                                            "%" + username.toLowerCase() + "%"));
+                            (root, query, cb) -> {
+                                // Try to parse as order ID for exact match
+                                Predicate usernamePred =
+                                        cb.like(
+                                                cb.lower(root.get("user").get("username")),
+                                                "%" + term + "%");
+                                Predicate linkPred =
+                                        cb.like(cb.lower(root.get("link")), "%" + term + "%");
+                                try {
+                                    Long orderId = Long.parseLong(term);
+                                    Predicate idPred = cb.equal(root.get("id"), orderId);
+                                    return cb.or(idPred, usernamePred, linkPred);
+                                } catch (NumberFormatException e) {
+                                    return cb.or(usernamePred, linkPred);
+                                }
+                            });
         }
 
         if (dateFrom != null && !dateFrom.isEmpty()) {

@@ -38,13 +38,14 @@ export const Orders: React.FC = () => {
 
   useEffect(() => {
     fetchOrders();
-  }, [statusFilter, startDate, endDate, currentPage]);
+  }, [statusFilter, searchTerm, startDate, endDate, currentPage]);
 
   const fetchOrders = async () => {
     setLoading(true);
     try {
       const response = await orderAPI.getOrders(
         statusFilter || undefined,
+        searchTerm || undefined,
         startDate || undefined,
         endDate || undefined,
         currentPage,
@@ -143,18 +144,8 @@ export const Orders: React.FC = () => {
   };
 
 
-  const filteredOrders = orders.filter(order => {
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      return (
-        order.id.toString().includes(search) ||
-        (order.orderId && order.orderId.toLowerCase().includes(search)) ||
-        order.link.toLowerCase().includes(search) ||
-        (order.serviceName && order.serviceName.toLowerCase().includes(search))
-      );
-    }
-    return true;
-  });
+  // Search is now handled server-side
+  const filteredOrders = orders;
 
   return (
     <div className="space-y-6 animate-fade-in">

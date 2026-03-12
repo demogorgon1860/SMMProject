@@ -36,13 +36,13 @@ public class AdminController {
     @GetMapping("/orders")
     public ResponseEntity<Map<String, Object>> getAllOrders(
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String search,
             @RequestParam(required = false) String dateFrom,
             @RequestParam(required = false) String dateTo,
             Pageable pageable) {
 
         Map<String, Object> orders =
-                adminService.getAllOrders(status, username, dateFrom, dateTo, pageable);
+                adminService.getAllOrders(status, search, dateFrom, dateTo, pageable);
         return ResponseEntity.ok(orders);
     }
 

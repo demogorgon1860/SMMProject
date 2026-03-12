@@ -60,7 +60,9 @@ public class InstagramOrderMessage {
     @Builder.Default
     private int maxRetries = 3;
 
-    /** Geo targeting: "DE" (Germany) or "ENG" (USA/Europe). Used by bot for profile group selection. */
+    /**
+     * Geo targeting: "DE" (Germany) or "ENG" (USA/Europe). Used by bot for profile group selection.
+     */
     @JsonProperty("geo_targeting")
     private String geoTargeting;
 }

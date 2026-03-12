@@ -77,8 +77,8 @@ public class InstagramRabbitPublisher {
     }
 
     /**
-     * Resolves the geo targeting string from the service.
-     * Returns "DE" or "ENG" (original values preserved for bot profile selection).
+     * Resolves the geo targeting string from the service. Returns "DE" or "ENG" (original values
+     * preserved for bot profile selection).
      */
     private String resolveGeoTargeting(Service service) {
         String geo = service.getGeoTargeting();

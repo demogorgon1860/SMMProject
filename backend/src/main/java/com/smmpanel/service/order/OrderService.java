@@ -43,6 +43,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
@@ -1409,7 +1410,8 @@ public class OrderService {
         return mapToOrderResponse(order);
     }
 
-    public Page<OrderResponse> getUserOrders(String username, String status, Pageable pageable) {
+    public Page<OrderResponse> getUserOrders(
+            String username, String status, String search, Pageable pageable) {
         User user =
                 userRepository
                         .findByUsername(username)
@@ -1426,14 +1428,36 @@ public class OrderService {
                                     "userOrderNumber"));
         }
 
-        Page<Order> orders;
+        Specification<Order> spec = (root, query, cb) -> cb.equal(root.get("user"), user);
+
         if (status != null && !status.isEmpty()) {
             OrderStatus orderStatus = mapFromPerfectPanelStatus(status);
-            orders = orderRepository.findByUserAndStatus(user, orderStatus, pageable);
-        } else {
-            orders = orderRepository.findByUser(user, pageable);
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), orderStatus));
         }
 
+        if (search != null && !search.isEmpty()) {
+            String term = search.trim().toLowerCase();
+            spec =
+                    spec.and(
+                            (root, query, cb) -> {
+                                jakarta.persistence.criteria.Predicate linkPred =
+                                        cb.like(cb.lower(root.get("link")), "%" + term + "%");
+                                jakarta.persistence.criteria.Predicate serviceNamePred =
+                                        cb.like(
+                                                cb.lower(root.get("service").get("name")),
+                                                "%" + term + "%");
+                                try {
+                                    Long orderId = Long.parseLong(term);
+                                    jakarta.persistence.criteria.Predicate idPred =
+                                            cb.equal(root.get("id"), orderId);
+                                    return cb.or(idPred, linkPred, serviceNamePred);
+                                } catch (NumberFormatException e) {
+                                    return cb.or(linkPred, serviceNamePred);
+                                }
+                            });
+        }
+
+        Page<Order> orders = orderRepository.findAll(spec, pageable);
         return orders.map(this::mapToOrderResponse);
     }
 
@@ -1486,8 +1510,8 @@ public class OrderService {
 
     // Optimized delegate methods
     public Page<OrderResponse> getUserOrdersOptimized(
-            String username, String status, Pageable pageable) {
-        return getUserOrders(username, status, pageable);
+            String username, String status, String search, Pageable pageable) {
+        return getUserOrders(username, status, search, pageable);
     }
 
     public OrderResponse getOrderOptimized(Long orderId, String username) {

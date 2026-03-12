@@ -78,9 +78,9 @@ export const orderAPI = {
     return response.data;
   },
   
-  getOrders: async (status?: string, dateFrom?: string, dateTo?: string, page = 0, size = 100) => {
+  getOrders: async (status?: string, search?: string, dateFrom?: string, dateTo?: string, page = 0, size = 100) => {
     const response = await api.get('/v1/orders', {
-      params: { status, dateFrom, dateTo, page, size }
+      params: { status, search, dateFrom, dateTo, page, size }
     });
     return response.data;
   },
@@ -150,9 +150,9 @@ export const adminAPI = {
     return response.data;
   },
 
-  getAllOrders: async (status?: string, username?: string, dateFrom?: string, dateTo?: string, page = 0, size = 100) => {
+  getAllOrders: async (status?: string, search?: string, dateFrom?: string, dateTo?: string, page = 0, size = 100) => {
     const response = await api.get('/v2/admin/orders', {
-      params: { status, username, dateFrom, dateTo, page, size }
+      params: { status, search, dateFrom, dateTo, page, size }
     });
     return response.data;
   },

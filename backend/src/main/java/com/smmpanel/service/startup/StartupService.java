@@ -68,8 +68,9 @@ public class StartupService implements ApplicationRunner {
     }
 
     private void createDefaultServices() {
-        boolean youtubeExists = serviceRepository.findAll().stream()
-                .anyMatch(s -> s.getName() != null && s.getName().startsWith("YouTube"));
+        boolean youtubeExists =
+                serviceRepository.findAll().stream()
+                        .anyMatch(s -> s.getName() != null && s.getName().startsWith("YouTube"));
         if (!youtubeExists) {
             com.smmpanel.entity.Service youtubeStandard =
                     com.smmpanel.entity.Service.builder()
@@ -89,18 +90,22 @@ public class StartupService implements ApplicationRunner {
     private void createDefaultCoefficients() {
         serviceRepository.findAll().stream()
                 .filter(s -> Boolean.TRUE.equals(s.getActive()))
-                .forEach(service -> {
-                    if (coefficientRepository.findByServiceId(service.getId()).isEmpty()) {
-                        ConversionCoefficient coefficient = new ConversionCoefficient();
-                        coefficient.setServiceId(service.getId());
-                        coefficient.setCoefficient(new BigDecimal("3.5"));
-                        coefficient.setWithClip(new BigDecimal("3.0"));
-                        coefficient.setWithoutClip(new BigDecimal("4.0"));
-                        coefficientRepository.save(coefficient);
-                        log.info("Created default conversion coefficient for service id={} name={}",
-                                service.getId(), service.getName());
-                    }
-                });
+                .forEach(
+                        service -> {
+                            if (coefficientRepository.findByServiceId(service.getId()).isEmpty()) {
+                                ConversionCoefficient coefficient = new ConversionCoefficient();
+                                coefficient.setServiceId(service.getId());
+                                coefficient.setCoefficient(new BigDecimal("3.5"));
+                                coefficient.setWithClip(new BigDecimal("3.0"));
+                                coefficient.setWithoutClip(new BigDecimal("4.0"));
+                                coefficientRepository.save(coefficient);
+                                log.info(
+                                        "Created default conversion coefficient for service id={}"
+                                                + " name={}",
+                                        service.getId(),
+                                        service.getName());
+                            }
+                        });
         log.info("Conversion coefficients verified for all active services");
     }
 

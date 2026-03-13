@@ -1098,7 +1098,7 @@ public class AdminService {
                 .serviceName(order.getService().getName())
                 .link(order.getLink())
                 .quantity(order.getQuantity())
-                .charge(order.getCharge())
+                .charge(calculateEffectiveCharge(order))
                 .startCount(order.getStartCount())
                 .remains(order.getRemains())
                 .status(order.getStatus().name())
@@ -1108,6 +1108,31 @@ public class AdminService {
                 .binomOfferId(binomOfferId != null ? binomOfferId : "No offer")
                 .youtubeVideoId(order.getYoutubeVideoId())
                 .build();
+    }
+
+    private BigDecimal calculateEffectiveCharge(Order order) {
+        if (order.getCharge() == null) {
+            return BigDecimal.ZERO;
+        }
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            return BigDecimal.ZERO;
+        }
+        if (order.getStatus() == OrderStatus.PARTIAL
+                && order.getRemains() != null
+                && order.getQuantity() != null
+                && order.getQuantity() > 0) {
+            int delivered = order.getQuantity() - order.getRemains();
+            if (delivered <= 0) {
+                return BigDecimal.ZERO;
+            }
+            return order.getCharge()
+                    .multiply(BigDecimal.valueOf(delivered))
+                    .divide(
+                            BigDecimal.valueOf(order.getQuantity()),
+                            4,
+                            java.math.RoundingMode.HALF_UP);
+        }
+        return order.getCharge();
     }
 
     private CoefficientDto mapToCoefficientDto(ConversionCoefficient coefficient) {

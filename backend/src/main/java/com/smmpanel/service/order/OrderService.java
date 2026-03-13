@@ -967,10 +967,35 @@ public class OrderService {
                 .startCount(order.getStartCount())
                 .remains(order.getRemains())
                 .status(mapToPerfectPanelStatus(order.getStatus()))
-                .charge(order.getCharge().toString())
+                .charge(calculateEffectiveCharge(order).toString())
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
                 .build();
+    }
+
+    private BigDecimal calculateEffectiveCharge(Order order) {
+        if (order.getCharge() == null) {
+            return BigDecimal.ZERO;
+        }
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            return BigDecimal.ZERO;
+        }
+        if (order.getStatus() == OrderStatus.PARTIAL
+                && order.getRemains() != null
+                && order.getQuantity() != null
+                && order.getQuantity() > 0) {
+            int delivered = order.getQuantity() - order.getRemains();
+            if (delivered <= 0) {
+                return BigDecimal.ZERO;
+            }
+            return order.getCharge()
+                    .multiply(BigDecimal.valueOf(delivered))
+                    .divide(
+                            BigDecimal.valueOf(order.getQuantity()),
+                            4,
+                            java.math.RoundingMode.HALF_UP);
+        }
+        return order.getCharge();
     }
 
     private Map<String, Object> mapToServiceMap(com.smmpanel.entity.Service service) {

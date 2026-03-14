@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <changeSet id="fix-charge-check-allow-zero" author="system">
+        <comment>Allow charge=0 for fully refunded/cancelled orders</comment>
+        <sql>
+            ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_charge_check;
+            ALTER TABLE orders ADD CONSTRAINT orders_charge_check CHECK (charge >= 0);
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

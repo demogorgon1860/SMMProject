@@ -757,4 +757,7 @@
     <!-- Add missing columns to audit_logs -->
     <include file="db/changelog/changes/v2025.01-add-missing-audit-columns.xml"/>
 
+    <!-- Allow charge=0 for fully refunded/cancelled orders -->
+    <include file="db/changelog/changes/v2025.03-fix-charge-check-constraint.xml"/>
+
 </databaseChangeLog>

@@ -311,21 +311,21 @@ export const AdminDashboard: React.FC = () => {
                 {stats.completedOrders > 0 && (
                   <div
                     className="h-3 bg-accent-500 rounded-full transition-all"
-                    style={{ width: `${(stats.completedOrders / stats.totalOrders) * 100}%` }}
+                    style={{ width: `${stats.totalOrders > 0 ? (stats.completedOrders / stats.totalOrders) * 100 : 0}%` }}
                     title={`Completed: ${stats.completedOrders}`}
                   />
                 )}
                 {stats.pendingOrders > 0 && (
                   <div
                     className="h-3 bg-yellow-500 rounded-full transition-all"
-                    style={{ width: `${(stats.pendingOrders / stats.totalOrders) * 100}%` }}
+                    style={{ width: `${stats.totalOrders > 0 ? (stats.pendingOrders / stats.totalOrders) * 100 : 0}%` }}
                     title={`Pending: ${stats.pendingOrders}`}
                   />
                 )}
                 {stats.failedOrders > 0 && (
                   <div
                     className="h-3 bg-red-500 rounded-full transition-all"
-                    style={{ width: `${(stats.failedOrders / stats.totalOrders) * 100}%` }}
+                    style={{ width: `${stats.totalOrders > 0 ? (stats.failedOrders / stats.totalOrders) * 100 : 0}%` }}
                     title={`Failed: ${stats.failedOrders}`}
                   />
                 )}

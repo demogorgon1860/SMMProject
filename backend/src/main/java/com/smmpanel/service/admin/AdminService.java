@@ -20,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -66,18 +67,16 @@ public class AdminService {
                 .revenueLast7Days(orderRepository.sumRevenueAfter(last7Days))
                 .revenueLast30Days(orderRepository.sumRevenueAfter(last30Days))
                 .activeOrders(
-                        orderRepository
-                                .findByStatusIn(
+                        (int)
+                                orderRepository.countByStatusIn(
                                         Arrays.asList(
                                                 OrderStatus.ACTIVE,
                                                 OrderStatus.PROCESSING,
-                                                OrderStatus.IN_PROGRESS))
-                                .size())
-                .pendingOrders(orderRepository.findByStatus(OrderStatus.PENDING).size())
-                .completedOrders(orderRepository.findByStatus(OrderStatus.COMPLETED).size())
+                                                OrderStatus.IN_PROGRESS)))
+                .pendingOrders((int) orderRepository.countByStatus(OrderStatus.PENDING))
+                .completedOrders((int) orderRepository.countByStatus(OrderStatus.COMPLETED))
                 .totalUsers(userRepository.count())
-                .activeYouTubeAccounts(
-                        youTubeAccountRepository.findByStatus(YouTubeAccountStatus.ACTIVE).size())
+                .activeYouTubeAccounts((int) youTubeAccountRepository.countActiveAccounts())
                 .build();
     }
 
@@ -722,6 +721,7 @@ public class AdminService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "coefficients", key = "'all'")
     public List<CoefficientDto> getConversionCoefficients() {
         return coefficientRepository.findAll().stream()
                 .map(this::mapToCoefficientDto)
@@ -1117,21 +1117,7 @@ public class AdminService {
         if (order.getStatus() == OrderStatus.CANCELLED) {
             return BigDecimal.ZERO;
         }
-        if (order.getStatus() == OrderStatus.PARTIAL
-                && order.getRemains() != null
-                && order.getQuantity() != null
-                && order.getQuantity() > 0) {
-            int delivered = order.getQuantity() - order.getRemains();
-            if (delivered <= 0) {
-                return BigDecimal.ZERO;
-            }
-            return order.getCharge()
-                    .multiply(BigDecimal.valueOf(delivered))
-                    .divide(
-                            BigDecimal.valueOf(order.getQuantity()),
-                            4,
-                            java.math.RoundingMode.HALF_UP);
-        }
+        // For PARTIAL orders, charge is already proportional (set by markPartialCompletion)
         return order.getCharge();
     }
 

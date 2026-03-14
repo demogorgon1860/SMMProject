@@ -128,7 +128,7 @@ public class RedisConfig implements CachingConfigurer {
      * issues
      */
     @EventListener(ContextRefreshedEvent.class)
-    @Async
+    @Async("asyncExecutor")
     public void warmUpCache() {
         log.info("Starting cache warm-up process...");
 

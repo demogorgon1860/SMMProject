@@ -292,7 +292,7 @@ public class YouTubeProcessingService {
     }
 
     /** LEGACY COMPATIBILITY: Process order from event (YouTubeOrderProcessor compatibility) */
-    @Async
+    @Async("asyncExecutor")
     @Transactional(propagation = Propagation.REQUIRED)
     public void processOrderFromEvent(Long orderId, Long userId) {
         try {

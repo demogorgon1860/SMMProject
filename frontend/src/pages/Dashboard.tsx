@@ -30,7 +30,8 @@ interface Order {
 }
 
 export const Dashboard: React.FC = () => {
-  const { user, updateBalance } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const updateBalance = useAuthStore((s) => s.updateBalance);
   const [balance, setBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);

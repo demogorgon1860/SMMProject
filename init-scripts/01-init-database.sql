@@ -33,10 +33,10 @@ ALTER DATABASE smm_panel SET maintenance_work_mem TO '256MB';
 ALTER DATABASE smm_panel SET max_connections TO 200;
 ALTER DATABASE smm_panel SET effective_io_concurrency TO 200;
 
--- Logging settings for development
-ALTER DATABASE smm_panel SET log_statement TO 'all';
-ALTER DATABASE smm_panel SET log_duration TO on;
-ALTER DATABASE smm_panel SET log_min_duration_statement TO 100;
+-- Logging settings: only log DDL and slow queries (>1s) for production safety
+ALTER DATABASE smm_panel SET log_statement TO 'ddl';
+ALTER DATABASE smm_panel SET log_duration TO off;
+ALTER DATABASE smm_panel SET log_min_duration_statement TO 1000;
 
 -- Create role for read-only access (optional)
 DO $$

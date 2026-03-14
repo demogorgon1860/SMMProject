@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { orderAPI, serviceAPI } from '../services/api';
 import { Service } from '../types';
@@ -22,7 +22,7 @@ import {
 
 export const NewOrder: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,7 +84,7 @@ export const NewOrder: React.FC = () => {
   };
 
   // For dropdown: collapse Male+Female pairs — always show Male as representative
-  const getDisplayServices = (): Service[] => {
+  const displayServices = useMemo((): Service[] => {
     const seen = new Set<string>();
     const result: Service[] = [];
     services.forEach(service => {
@@ -104,7 +104,7 @@ export const NewOrder: React.FC = () => {
       }
     });
     return result;
-  };
+  }, [services]);
 
   const handleServiceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const serviceId = e.target.value;
@@ -152,46 +152,32 @@ export const NewOrder: React.FC = () => {
 
   const MAX_COMMENT_LENGTH = 2200; // Instagram comment limit
 
-  // Parse comments and get validation info
-  const getCommentsInfo = (): {
-    lines: { text: string; lineNumber: number }[];
-    count: number;
-    invalidLines: { text: string; lineNumber: number }[];
-    isValid: boolean;
-    minOrder: number;
-    maxOrder: number;
-  } => {
+  // Parse comments and get validation info (memoized to avoid recalc on every render)
+  const commentsInfo = useMemo(() => {
     const minOrder = selectedService?.minOrder || selectedService?.min || 1;
     const maxOrder = selectedService?.maxOrder || selectedService?.max || 100000;
 
     if (!formData.customComments.trim()) {
-      return { lines: [], count: 0, invalidLines: [], isValid: false, minOrder, maxOrder };
+      return { lines: [] as { text: string; lineNumber: number }[], count: 0, invalidLines: [] as { text: string; lineNumber: number }[], isValid: false, minOrder, maxOrder };
     }
 
     const lines = formData.customComments.split('\n');
     const nonEmptyLines = lines
-      .map((line, index) => ({ text: line.trim(), lineNumber: index + 1 }))
-      .filter(line => line.text.length > 0);
+      .map((line: string, index: number) => ({ text: line.trim(), lineNumber: index + 1 }))
+      .filter((line: { text: string }) => line.text.length > 0);
 
-    const invalidLines = nonEmptyLines.filter(line => line.text.length > MAX_COMMENT_LENGTH);
+    const invalidLines = nonEmptyLines.filter((line: { text: string }) => line.text.length > MAX_COMMENT_LENGTH);
 
     const count = nonEmptyLines.length;
     const isValid = count >= minOrder && count <= maxOrder && invalidLines.length === 0;
 
-    return {
-      lines: nonEmptyLines,
-      count,
-      invalidLines,
-      isValid,
-      minOrder,
-      maxOrder
-    };
-  };
+    return { lines: nonEmptyLines, count, invalidLines, isValid, minOrder, maxOrder };
+  }, [formData.customComments, selectedService]);
 
   // Get auto-calculated quantity for custom comments
   const getEffectiveQuantity = (): number => {
     if (requiresCustomComments(selectedService)) {
-      return getCommentsInfo().count;
+      return commentsInfo.count;
     }
     return parseInt(formData.quantity) || 0;
   };
@@ -199,7 +185,7 @@ export const NewOrder: React.FC = () => {
   // Check if custom comments are valid
   const isCustomCommentsValid = (): boolean => {
     if (!requiresCustomComments(selectedService)) return true;
-    return getCommentsInfo().isValid;
+    return commentsInfo.isValid;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -210,7 +196,7 @@ export const NewOrder: React.FC = () => {
     try {
       // For custom comments, use auto-calculated quantity from line count
       const quantity = requiresCustomComments(selectedService)
-        ? getCommentsInfo().count
+        ? commentsInfo.count
         : parseInt(formData.quantity);
 
       const orderData: any = {
@@ -393,7 +379,7 @@ export const NewOrder: React.FC = () => {
                   className="block w-full pl-10 pr-10 py-3 border border-dark-200 dark:border-dark-600 rounded-xl bg-white dark:bg-dark-700 text-dark-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all appearance-none"
                 >
                   <option value="">Select a service</option>
-                  {getDisplayServices().map(service => (
+                  {displayServices.map(service => (
                     <option key={service.id} value={service.id}>
                       {isGenderPaired(service) ? getBaseName(service.name) : service.name} - ${service.pricePer1000 || service.rate || '0'}/1000
                     </option>
@@ -519,7 +505,6 @@ export const NewOrder: React.FC = () => {
 
             {/* Custom Comments (for custom comment services) */}
             {requiresCustomComments(selectedService) && (() => {
-              const commentsInfo = getCommentsInfo();
               const isCountValid = commentsInfo.count >= commentsInfo.minOrder && commentsInfo.count <= commentsInfo.maxOrder;
               const hasInvalidLines = commentsInfo.invalidLines.length > 0;
 

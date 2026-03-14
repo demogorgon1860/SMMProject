@@ -74,6 +74,7 @@ public class OrderService {
     private final CqrsReadModelService cqrsReadModelService;
     private final ApiKeyService apiKeyService;
     private final YouTubeService youTubeService;
+    private final YouTubeStartCountService youTubeStartCountService;
     private final InstagramService instagramService;
     private final org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
     private final OrderStateManager orderStateManager;
@@ -732,6 +733,12 @@ public class OrderService {
     @Transactional
     public void pauseOrder(Long orderId) {
         Order order = orderRepository.findById(orderId).orElseThrow();
+        if (order.getStatus() != OrderStatus.ACTIVE
+                && order.getStatus() != OrderStatus.PROCESSING) {
+            throw new IllegalStateException(
+                    "Can only pause ACTIVE or PROCESSING orders, current status: "
+                            + order.getStatus());
+        }
         order.setStatus(OrderStatus.PAUSED);
         orderRepository.save(order);
     }
@@ -739,6 +746,10 @@ public class OrderService {
     @Transactional
     public void resumeOrder(Long orderId) {
         Order order = orderRepository.findById(orderId).orElseThrow();
+        if (order.getStatus() != OrderStatus.PAUSED) {
+            throw new IllegalStateException(
+                    "Can only resume PAUSED orders, current status: " + order.getStatus());
+        }
         order.setStatus(OrderStatus.ACTIVE);
         orderRepository.save(order);
     }
@@ -773,12 +784,50 @@ public class OrderService {
         orderRepository.save(order);
     }
 
+    /**
+     * Cancel order with ownership verification and automatic refund. Used by user-facing endpoints.
+     *
+     * @param orderId the order ID
+     * @param username the username of the requesting user (for ownership check)
+     */
     @Transactional
-    public void cancelOrder(Long orderId, String reason) {
+    public void cancelOrder(Long orderId, String username) {
         Order order = orderRepository.findById(orderId).orElseThrow();
+
+        // Ownership check: users can only cancel their own orders
+        if (!order.getUser().getUsername().equals(username)) {
+            throw new OrderValidationException("You can only cancel your own orders");
+        }
+
+        // Status check: only PENDING orders can be cancelled by users
+        if (order.getStatus() != OrderStatus.PENDING
+                && order.getStatus() != OrderStatus.ACTIVE
+                && order.getStatus() != OrderStatus.PROCESSING) {
+            throw new OrderValidationException(
+                    "Order cannot be cancelled in current status: " + order.getStatus());
+        }
+
         // CRITICAL: Set remains to full quantity (nothing delivered, full refund expected)
         order.setRemains(order.getQuantity());
-        // CRITICAL: Set charge to 0 (cancelled = nothing paid)
+        order.setStatus(OrderStatus.CANCELLED);
+        order.setOperatorNotes(username);
+
+        // Process refund
+        BigDecimal refundAmount = order.getCharge() != null ? order.getCharge() : BigDecimal.ZERO;
+        if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
+            balanceService.refund(order.getUser(), refundAmount, order, "Order cancelled by user");
+        }
+
+        // CRITICAL: Set charge to 0 after refund (cancelled = nothing paid)
+        order.setCharge(BigDecimal.ZERO);
+        orderRepository.save(order);
+    }
+
+    /** Internal cancel without ownership check. Used by state machine and system processes. */
+    @Transactional
+    public void cancelOrderInternal(Long orderId, String reason) {
+        Order order = orderRepository.findById(orderId).orElseThrow();
+        order.setRemains(order.getQuantity());
         order.setCharge(BigDecimal.ZERO);
         order.setStatus(OrderStatus.CANCELLED);
         order.setOperatorNotes(reason);
@@ -980,21 +1029,7 @@ public class OrderService {
         if (order.getStatus() == OrderStatus.CANCELLED) {
             return BigDecimal.ZERO;
         }
-        if (order.getStatus() == OrderStatus.PARTIAL
-                && order.getRemains() != null
-                && order.getQuantity() != null
-                && order.getQuantity() > 0) {
-            int delivered = order.getQuantity() - order.getRemains();
-            if (delivered <= 0) {
-                return BigDecimal.ZERO;
-            }
-            return order.getCharge()
-                    .multiply(BigDecimal.valueOf(delivered))
-                    .divide(
-                            BigDecimal.valueOf(order.getQuantity()),
-                            4,
-                            java.math.RoundingMode.HALF_UP);
-        }
+        // For PARTIAL orders, charge is already proportional (set by markPartialCompletion)
         return order.getCharge();
     }
 
@@ -1210,6 +1245,7 @@ public class OrderService {
         return createOrder(orderCreateRequest, username);
     }
 
+    @Transactional
     public OrderResponse createOrder(OrderCreateRequest request, String username) {
         // Get user
         User user =
@@ -1312,46 +1348,9 @@ public class OrderService {
         // Deduct balance
         balanceService.deductBalance(user, charge, order, "Order #" + order.getId());
 
-        // CRITICAL: Immediately capture YouTube startCount for baseline
+        // Capture YouTube startCount asynchronously to avoid blocking response
         if (isYouTubeOrder(order)) {
-            try {
-                String videoId = extractYouTubeVideoId(order.getLink());
-                log.info(
-                        "Order {} - Extracted YouTube video ID: {} from URL: {}",
-                        order.getId(),
-                        videoId,
-                        order.getLink());
-
-                if (videoId != null) {
-                    // Get current view count from YouTube API
-                    int startCount = youTubeService.getVideoViewCount(videoId);
-
-                    // Update order with startCount
-                    order.setStartCount(startCount);
-                    order.setYoutubeVideoId(videoId);
-                    order = orderRepository.save(order);
-
-                    // Cache the startCount
-                    cacheStartCount(order.getId(), videoId, startCount);
-
-                    log.info(
-                            "Order {} - YouTube startCount captured: {}, video ID: {}",
-                            order.getId(),
-                            startCount,
-                            videoId);
-                } else {
-                    log.warn(
-                            "Order {} - Could not extract video ID from URL: {}",
-                            order.getId(),
-                            order.getLink());
-                }
-            } catch (Exception e) {
-                log.error(
-                        "Failed to capture startCount for order {}: {}",
-                        order.getId(),
-                        e.getMessage());
-                // Continue with order processing - will retry in processing phase
-            }
+            youTubeStartCountService.captureStartCountAsync(order.getId(), order.getLink());
         } else if (isInstagramOrder(order)) {
             // INSTAGRAM ORDER - Send to Kafka for async processing
             log.info(

@@ -37,7 +37,7 @@ public class AuditService {
 
     // ========== Payment Audit Methods ==========
 
-    @Async
+    @Async("asyncExecutor")
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void auditPaymentInitiated(
             User user, BigDecimal amount, String currency, String paymentMethod, String provider) {
@@ -71,7 +71,7 @@ public class AuditService {
         }
     }
 
-    @Async
+    @Async("asyncExecutor")
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void auditPaymentCompleted(BalanceDeposit deposit, String transactionId) {
         try {
@@ -108,7 +108,7 @@ public class AuditService {
         }
     }
 
-    @Async
+    @Async("asyncExecutor")
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void auditPaymentFailed(BalanceDeposit deposit, String reason) {
         try {
@@ -141,7 +141,7 @@ public class AuditService {
         }
     }
 
-    @Async
+    @Async("asyncExecutor")
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void auditRefundInitiated(Order order, BigDecimal amount, String reason) {
         try {
@@ -178,7 +178,7 @@ public class AuditService {
 
     // ========== Order Audit Methods ==========
 
-    @Async
+    @Async("asyncExecutor")
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void auditOrderCreated(Order order) {
         try {
@@ -213,7 +213,7 @@ public class AuditService {
 
     // ========== User Audit Methods ==========
 
-    @Async
+    @Async("asyncExecutor")
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void auditUserLogin(User user, String authMethod, boolean success) {
         try {

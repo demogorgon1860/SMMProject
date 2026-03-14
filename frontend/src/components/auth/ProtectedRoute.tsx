@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 
@@ -7,23 +7,20 @@ interface ProtectedRouteProps {
   requiredRole?: 'USER' | 'ADMIN';
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
-  children, 
-  requiredRole 
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  children,
+  requiredRole
 }) => {
-  const { isAuthenticated, user, checkAuth } = useAuthStore();
-  
-  useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
-  
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const user = useAuthStore((s) => s.user);
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  
+
   if (requiredRole && user?.role !== requiredRole && user?.role !== 'ADMIN') {
     return <Navigate to="/dashboard" replace />;
   }
-  
+
   return <>{children}</>;
 };

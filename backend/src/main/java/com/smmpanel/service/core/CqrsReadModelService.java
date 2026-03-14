@@ -21,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.scheduling.annotation.Async;
@@ -92,7 +93,7 @@ public class CqrsReadModelService {
         return readModel;
     }
 
-    @Async
+    @Async("asyncExecutor")
     @KafkaListener(
             topics = {"smm.order.processing", "smm.order.state.updates"},
             groupId = "cqrs-read-model-group")
@@ -201,25 +202,31 @@ public class CqrsReadModelService {
         log.info("Invalidated read model for order: {}", orderId);
     }
 
-    @Async
+    @Async("asyncExecutor")
     public void rebuildAllReadModels() {
         log.info("Starting rebuild of all read models");
 
-        List<Order> orders = orderRepository.findAll();
+        int pageNum = 0;
+        int batchSize = 500;
         int count = 0;
+        Page<Order> batch;
 
-        for (Order order : orders) {
-            try {
-                buildAndCacheReadModel(order.getId());
-                count++;
+        do {
+            batch = orderRepository.findAll(PageRequest.of(pageNum++, batchSize));
 
-                if (count % 100 == 0) {
-                    log.info("Rebuilt {} read models", count);
+            for (Order order : batch.getContent()) {
+                try {
+                    buildAndCacheReadModel(order.getId());
+                    count++;
+
+                    if (count % 500 == 0) {
+                        log.info("Rebuilt {} read models", count);
+                    }
+                } catch (Exception e) {
+                    log.error("Failed to rebuild read model for order: {}", order.getId(), e);
                 }
-            } catch (Exception e) {
-                log.error("Failed to rebuild read model for order: {}", order.getId(), e);
             }
-        }
+        } while (batch.hasNext());
 
         log.info("Completed rebuilding {} read models", count);
     }

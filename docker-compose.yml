@@ -64,11 +64,11 @@ services:
       - ./postgresql.conf:/etc/postgresql/postgresql.conf:ro
     command: >
       postgres
-      -c max_connections=200
+      -c max_connections=400
       -c shared_buffers=2GB
       -c effective_cache_size=6GB
       -c maintenance_work_mem=512MB
-      -c work_mem=20MB
+      -c work_mem=8MB
       -c random_page_cost=1.1
       -c effective_io_concurrency=200
       -c wal_buffers=16MB
@@ -281,6 +281,14 @@ services:
       timeout: 30s
       retries: 5
       start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '2'
+          memory: 2G
 
   # Kafka for event streaming (Traditional Zookeeper Mode)
   # Note: Consider using docker-compose-kafka-kraft.yml for KRaft mode (no Zookeeper)
@@ -362,7 +370,7 @@ services:
       KAFKA_SOCKET_REQUEST_MAX_BYTES: 104857600
       
       # Security Settings
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'  # Allow automatic topic creation for development
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'  # Disabled for production safety - topics must be created explicitly
       KAFKA_DELETE_TOPIC_ENABLE: 'true'
       
       # JMX Monitoring
@@ -473,6 +481,14 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
 
   # Nginx as reverse proxy and load balancer for scaled instances
   nginx:

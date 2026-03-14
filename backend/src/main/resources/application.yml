@@ -84,7 +84,7 @@ spring:
       idle-timeout: ${DB_IDLE_TIMEOUT:600000}        # 10 minutes
       max-lifetime: ${DB_MAX_LIFETIME:1800000}       # 30 minutes (must be < DB wait_timeout)
       connection-test-query: SELECT 1               # Health check query
-      leak-detection-threshold: ${DB_LEAK_DETECTION_THRESHOLD:60000}  # 60 seconds
+      leak-detection-threshold: ${DB_LEAK_DETECTION_THRESHOLD:15000}  # 15 seconds
       pool-name: SMM-HikariPool                     # Named pool for monitoring
       register-mbeans: true                         # Enable JMX monitoring
       connection-init-sql: "SET statement_timeout = 30000"  # 30 second query timeout
@@ -155,7 +155,7 @@ spring:
         # ===============================
         order_inserts: true
         order_updates: true
-        default_batch_fetch_size: ${HIBERNATE_DEFAULT_BATCH_FETCH_SIZE:20}
+        default_batch_fetch_size: ${HIBERNATE_DEFAULT_BATCH_FETCH_SIZE:50}
         max_fetch_depth: 3
         enable_lazy_load_no_trans: false
         
@@ -599,9 +599,9 @@ app:
     conversion-coefficients:
       ttl: ${CACHE_COEFFICIENTS_TTL:7200}  # 2 hours - coefficients change rarely
     youtube-stats:
-      ttl: ${CACHE_YOUTUBE_TTL:600}        # 10 minutes - stats need regular updates
+      ttl: ${CACHE_YOUTUBE_TTL:3600}       # 1 hour - reduces YouTube API quota usage
     binom-campaign-details:
-      ttl: ${CACHE_BINOM_CAMPAIGN_TTL:15}  # 15 seconds - matches sync interval for optimal performance
+      ttl: ${CACHE_BINOM_CAMPAIGN_TTL:300} # 5 minutes - balances freshness vs API load
 
   # ===============================
   # FILE UPLOAD & PROCESSING

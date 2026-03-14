@@ -165,7 +165,7 @@ public class BalanceAuditService {
     }
 
     /** Performs daily balance verification for all users */
-    @Async
+    @Async("asyncExecutor")
     @Transactional(readOnly = true)
     public CompletableFuture<DailyBalanceReport> performDailyBalanceVerification(LocalDate date) {
         log.info("Starting daily balance verification for date: {}", date);

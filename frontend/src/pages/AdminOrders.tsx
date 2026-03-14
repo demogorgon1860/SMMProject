@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { adminAPI } from '../services/api';
 import { formatDateTime } from '../utils/timezone';
@@ -27,6 +27,7 @@ export const AdminOrders: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -35,6 +36,15 @@ export const AdminOrders: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
+
+  // Debounce search input by 300ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput);
+      setCurrentPage(0);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   useEffect(() => {
     fetchOrders();
@@ -259,13 +269,15 @@ export const AdminOrders: React.FC = () => {
   // No need for client-side filtering
   const filteredOrders = orders;
 
-  // Calculate statistics for selected orders
-  const selectedOrdersData = filteredOrders.filter(order => selectedOrders.has(order.id));
-  const statistics = {
-    charge: selectedOrdersData.reduce((sum, order) => sum + order.charge, 0),
-    quantity: selectedOrdersData.reduce((sum, order) => sum + order.quantity, 0),
-    remains: selectedOrdersData.reduce((sum, order) => sum + order.remains, 0),
-  };
+  // Calculate statistics for selected orders (memoized)
+  const statistics = useMemo(() => {
+    const selectedOrdersData = filteredOrders.filter(order => selectedOrders.has(order.id));
+    return {
+      charge: selectedOrdersData.reduce((sum, order) => sum + order.charge, 0),
+      quantity: selectedOrdersData.reduce((sum, order) => sum + order.quantity, 0),
+      remains: selectedOrdersData.reduce((sum, order) => sum + order.remains, 0),
+    };
+  }, [filteredOrders, selectedOrders]);
 
   if (loading) {
     return (
@@ -318,8 +330,8 @@ export const AdminOrders: React.FC = () => {
               </label>
               <input
                 type="text"
-                value={searchTerm}
-                onChange={(e) => { setCurrentPage(0); setSearchTerm(e.target.value); }}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Search by ID, username, link, or Binom ID..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />

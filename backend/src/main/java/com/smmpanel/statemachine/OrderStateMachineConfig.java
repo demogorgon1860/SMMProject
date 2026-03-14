@@ -434,7 +434,7 @@ public class OrderStateMachineConfig
 
             log.info("Cancelling order: {} - Reason: {}", orderId, reason);
 
-            orderService.cancelOrder(orderId, reason);
+            orderService.cancelOrderInternal(orderId, reason);
             notificationService.sendCancellationNotification(orderId, reason);
         };
     }

@@ -6,8 +6,11 @@ import com.smmpanel.entity.Order;
 import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.entity.Service;
 import com.smmpanel.repository.jpa.OrderRepository;
+import com.smmpanel.service.balance.BalanceService;
 import com.smmpanel.service.instagram.InstagramRabbitPublisher;
 import com.smmpanel.service.notification.TelegramNotificationService;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +33,7 @@ public class InstagramService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final TelegramNotificationService telegramNotificationService;
     private final InstagramRabbitPublisher rabbitPublisher;
+    private final BalanceService balanceService;
 
     @Value("${app.instagram.use-rabbitmq:true}")
     private boolean useRabbitMQ;
@@ -289,9 +293,10 @@ public class InstagramService {
             order.setTrafficStatus("COMPLETED");
             log.info("Order {} fully completed", order.getId());
         } else if (actualDelivered > 0) {
-            // Partial completion
+            // Partial completion — refund for undelivered portion
             order.setStatus(OrderStatus.PARTIAL);
             order.setTrafficStatus("PARTIAL");
+            processPartialRefund(order, actualDelivered);
             log.info(
                     "Order {} partially completed: {}/{} delivered",
                     order.getId(),
@@ -341,17 +346,19 @@ public class InstagramService {
         int completed = callback.getCompleted() != null ? callback.getCompleted() : 0;
 
         if (completed > 0) {
-            // Some actions completed - partial
+            // Some actions completed - partial, refund undelivered portion
             order.setStatus(OrderStatus.PARTIAL);
             order.setTrafficStatus("PARTIAL_FAILED");
             order.setViewsDelivered(completed);
             order.setRemains(order.getQuantity() - completed);
+            processPartialRefund(order, completed);
         } else {
-            // Complete failure
+            // Complete failure - full refund
             order.setStatus(OrderStatus.CANCELLED);
             order.setTrafficStatus("FAILED");
             order.setViewsDelivered(0);
             order.setRemains(order.getQuantity());
+            processFullRefund(order);
         }
 
         order.setErrorMessage("Instagram order failed");
@@ -446,6 +453,55 @@ public class InstagramService {
     /** Control bot workers. */
     public boolean controlBotWorkers(String action) {
         return botClient.controlWorkers(action);
+    }
+
+    /** Process partial refund for undelivered items. */
+    private void processPartialRefund(Order order, int completed) {
+        if (order.getCharge() == null || order.getQuantity() == null || order.getQuantity() == 0) {
+            return;
+        }
+        int remains = order.getQuantity() - completed;
+        if (remains <= 0) return;
+
+        BigDecimal refundAmount =
+                order.getCharge()
+                        .multiply(BigDecimal.valueOf(remains))
+                        .divide(BigDecimal.valueOf(order.getQuantity()), 4, RoundingMode.HALF_UP);
+
+        if (refundAmount.compareTo(BigDecimal.ZERO) > 0 && order.getUser() != null) {
+            String reason =
+                    String.format(
+                            "Partial refund for Instagram order #%d: %d/%d delivered",
+                            order.getId(), completed, order.getQuantity());
+            balanceService.refund(order.getUser(), refundAmount, order, reason);
+
+            BigDecimal newCharge = order.getCharge().subtract(refundAmount);
+            if (newCharge.compareTo(BigDecimal.ZERO) < 0) {
+                newCharge = BigDecimal.ZERO;
+            }
+            order.setCharge(newCharge);
+            log.info(
+                    "Partial refund {} for order {}, new charge: {}",
+                    refundAmount,
+                    order.getId(),
+                    newCharge);
+        }
+    }
+
+    /** Process full refund for cancelled/failed orders. */
+    private void processFullRefund(Order order) {
+        if (order.getCharge() == null || order.getCharge().compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+        if (order.getUser() != null) {
+            String reason =
+                    String.format(
+                            "Full refund for Instagram order #%d: no items delivered",
+                            order.getId());
+            balanceService.refund(order.getUser(), order.getCharge(), order, reason);
+            log.info("Full refund {} for order {}", order.getCharge(), order.getId());
+            order.setCharge(BigDecimal.ZERO);
+        }
     }
 
     /**

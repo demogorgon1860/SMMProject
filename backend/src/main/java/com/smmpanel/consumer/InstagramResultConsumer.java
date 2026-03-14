@@ -218,9 +218,8 @@ public class InstagramResultConsumer {
 
             // Update charge to reflect only the delivered portion
             BigDecimal newCharge = order.getCharge().subtract(refundAmount);
-            // DB constraint requires charge > 0, use minimum 0.01
-            if (newCharge.compareTo(new BigDecimal("0.01")) < 0) {
-                newCharge = new BigDecimal("0.01");
+            if (newCharge.compareTo(BigDecimal.ZERO) < 0) {
+                newCharge = BigDecimal.ZERO;
             }
             order.setCharge(newCharge);
             log.info(
@@ -246,8 +245,7 @@ public class InstagramResultConsumer {
             balanceService.refund(order.getUser(), order.getCharge(), order, reason);
             log.info("Processed full refund of {} for order {}", order.getCharge(), order.getId());
 
-            // Set charge to minimum since nothing was delivered (DB constraint: charge > 0)
-            order.setCharge(new BigDecimal("0.01"));
+            order.setCharge(BigDecimal.ZERO);
         }
     }
 }

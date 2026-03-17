@@ -17,4 +17,6 @@ public class CancelPendingDecision {
     private Integer telegramMessageId;
     private LocalDateTime createdAt;
     private String orderStatusAtTime;
+    private Integer completedCount;
+    private Integer originalCount;
 }

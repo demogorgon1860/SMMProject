@@ -1,5 +1,6 @@
 package com.smmpanel.scheduler;
 
+import com.smmpanel.client.InstagramBotClient;
 import com.smmpanel.config.TelegramBotProperties;
 import com.smmpanel.dto.telegram.CancelPendingDecision;
 import com.smmpanel.entity.Order;
@@ -29,6 +30,7 @@ public class TelegramScheduler {
     private final OrderRepository orderRepository;
     private final BalanceService balanceService;
     private final TelegramBotProperties telegramBotProperties;
+    private final InstagramBotClient instagramBotClient;
 
     /** Send daily profit report at 23:55. */
     @Scheduled(cron = "0 55 23 * * *")
@@ -84,17 +86,27 @@ public class TelegramScheduler {
             cancelDecisionService.removePendingDecision(orderId);
 
             if ("cancel".equalsIgnoreCase(defaultAction)) {
-                applyDefaultCancel(orderId);
+                applyDefaultCancel(orderId, decision.getBotOrderId());
             } else {
-                // Default: proceed — order continues
+                // Default: proceed — resume the paused order in the bot
+                if (decision.getBotOrderId() != null && !decision.getBotOrderId().isBlank()) {
+                    boolean resumed = instagramBotClient.resumeOrder(decision.getBotOrderId());
+                    log.info(
+                            "Auto-proceed timeout for order {} — bot resume: {}", orderId, resumed);
+                }
                 telegramBotService.sendPlainMessage(
                         String.format(
-                                "⏰ Решение по заказу #%d истекло — заказ продолжается", orderId));
+                                "⏰ Решение по заказу #%d истекло — заказ возобновлён автоматически",
+                                orderId));
             }
         }
     }
 
-    private void applyDefaultCancel(Long orderId) {
+    private void applyDefaultCancel(Long orderId, String botOrderId) {
+        // Tell the bot to cancel the paused order
+        if (botOrderId != null && !botOrderId.isBlank()) {
+            instagramBotClient.cancelOrder(botOrderId);
+        }
         Optional<Order> orderOpt = orderRepository.findById(orderId);
         if (orderOpt.isEmpty()) return;
         Order order = orderOpt.get();

@@ -33,6 +33,10 @@ public class TelegramNotificationService {
     }
 
     public void notifyOrderCancelledPending(Order order) {
-        telegramBotService.notifyOrderCancelledPending(order);
+        telegramBotService.notifyOrderCancelledPending(order, null);
+    }
+
+    public void notifyOrderCancelledPending(Order order, Integer completedCount) {
+        telegramBotService.notifyOrderCancelledPending(order, completedCount);
     }
 }

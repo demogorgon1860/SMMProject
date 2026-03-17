@@ -181,10 +181,15 @@ public class InstagramResultConsumer {
             }
 
             case "processing", "in_progress" -> OrderStatus.PROCESSING;
-            case "cancelled" -> {
-                // Don't auto-cancel — send Telegram approval request and await admin decision
-                telegramNotificationService.notifyOrderCancelledPending(order);
+            case "pending_cancel" -> {
+                // Bot paused order due to errors — ask admin for decision
+                telegramNotificationService.notifyOrderCancelledPending(order, completed);
                 yield order.getStatus(); // keep current status unchanged
+            }
+            case "cancelled" -> {
+                // Panel-initiated cancel echo — bot acknowledged our cancel request
+                log.info("Bot acknowledged cancel for order {} (panel-initiated)", order.getId());
+                yield order.getStatus();
             }
             default -> OrderStatus.PROCESSING;
         };

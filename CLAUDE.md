@@ -86,6 +86,81 @@ Bot results arrive through TWO paths - both must be kept in sync:
 
 Both paths handle: order status updates, refund logic (full + partial), charge recalculation.
 
+### 5. Telegram Notification System (Native Java, no n8n)
+Telegram integration is fully in-house — **no n8n, no external webhook forwarder**.
+
+#### Architecture
+```
+OrderService / InstagramService / InstagramResultConsumer
+        │
+        ▼
+TelegramNotificationService   ← thin facade, zero business logic
+        │
+        ▼
+TelegramBotService            ← sends messages via Telegram Bot API directly
+    ├── CancelDecisionService  ← Redis-backed pending decision store
+    └── DailyProfitService     ← Redis counters + PostgreSQL persistence
+```
+
+#### Key classes (`service/notification/`)
+| Class | Role |
+|-------|------|
+| `TelegramNotificationService` | Facade called by all order-processing code. Never bypass this. |
+| `TelegramBotService` | Core: sends messages, inline keyboards, edits messages via `https://api.telegram.org/bot{token}/...` |
+| `CancelDecisionService` | Stores `CancelPendingDecision` in Redis (`telegram:cancel_pending:{orderId}`) with SETNX + TTL |
+| `DailyProfitService` | Increments Redis hash (`telegram:profit:{date}`) per COMPLETED/PARTIAL order; persists to `daily_profit_summary` at end of day |
+| `TelegramUpdateHandler` | Processes Telegram `callback_query` updates from inline buttons |
+
+#### Cancel Approval Flow
+When the Instagram bot fails/cancels an order, the panel does **not** auto-cancel. Instead:
+1. `TelegramBotService.notifyOrderCancelledPending()` sends admin a message with two inline buttons:
+   - `✅ Продолжить` → `callback_data: cancel_proceed:{orderId}` — order continues unchanged
+   - `❌ Отменить` → `callback_data: cancel_do:{orderId}` — full refund + status = CANCELLED
+2. Decision is stored in Redis with 4-hour TTL (`app.telegram.cancel.timeout-hours`)
+3. Admin clicks a button → Telegram sends POST to `/api/telegram/webhook` → `TelegramWebhookController` → `TelegramUpdateHandler.process()`
+4. On **proceed**: removes Redis key, removes inline keyboard, logs decision
+5. On **cancel**: full refund via `BalanceService.refund()`, status → `CANCELLED`, `trafficStatus` → `CANCELLED_BY_ADMIN`
+6. On **timeout** (scheduler, every 10 min): applies `app.telegram.cancel.default-action` (`proceed` or `cancel`), status → `CANCELLED_TIMEOUT` if auto-cancelled
+
+#### Daily Profit Report
+- Scheduler (`TelegramScheduler`) fires at `23:55` cron
+- Counts COMPLETED + PARTIAL orders accumulated in Redis during the day
+- Sends formatted report to admin chat, then persists to `daily_profit_summary` table
+- Redis keys: `telegram:profit:{yyyy-MM-dd}` (hash: `total`, `completed_count`, `partial_count`), TTL = 8 days
+
+#### Webhook registration
+`TelegramWebhookRegistrar` runs on startup (`ApplicationReadyEvent`) and calls Telegram `setWebhook` API to register `/api/telegram/webhook` as the incoming update URL.
+
+#### Config (`application.yml` → `app.telegram.*`)
+```yaml
+app:
+  telegram:
+    enabled: true
+    bot:
+      token: ${TELEGRAM_BOT_TOKEN}
+      chat-id: ${TELEGRAM_CHAT_ID}
+      webhook-secret: ${TELEGRAM_WEBHOOK_SECRET:}
+    cancel:
+      timeout-hours: 4
+      default-action: proceed   # proceed | cancel
+    profit:
+      redis-ttl-days: 8
+```
+
+#### Notification events
+| Method on TelegramNotificationService | When called | Profit recorded? |
+|---------------------------------------|-------------|-----------------|
+| `notifyNewOrder(order)` | Order created | No |
+| `notifyOrderCompleted(order, completed)` | Status → COMPLETED | Yes (COMPLETED counter) |
+| `notifyOrderPartial(order, completed)` | Status → PARTIAL | Yes (PARTIAL counter) |
+| `notifyOrderFailed(order, completed)` | Status → FAILED | No |
+| `notifyOrderCancelledPending(order)` | Bot reports cancel | No (pending decision) |
+
+#### IMPORTANT — what NOT to do
+- Do NOT call `TelegramBotService` directly from order-processing code — always go through `TelegramNotificationService`
+- Do NOT add a second `telegram:` key in `application.yml` — it already exists under `app:` (caused startup crash before)
+- Do NOT record profit for FAILED or CANCELLED orders — only COMPLETED and PARTIAL
+
 ## API Structure
 
 - REST API base path: `/api`

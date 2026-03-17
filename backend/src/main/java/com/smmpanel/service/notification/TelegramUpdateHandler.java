@@ -1,5 +1,6 @@
 package com.smmpanel.service.notification;
 
+import com.smmpanel.client.InstagramBotClient;
 import com.smmpanel.dto.telegram.CancelPendingDecision;
 import com.smmpanel.dto.telegram.TelegramCallbackQuery;
 import com.smmpanel.dto.telegram.TelegramUpdate;
@@ -27,6 +28,7 @@ public class TelegramUpdateHandler {
     private final TelegramBotService telegramBotService;
     private final OrderRepository orderRepository;
     private final BalanceService balanceService;
+    private final InstagramBotClient instagramBotClient;
 
     @Async("asyncExecutor")
     public void process(TelegramUpdate update) {
@@ -74,12 +76,32 @@ public class TelegramUpdateHandler {
             return;
         }
 
+        CancelPendingDecision decision = decisionOpt.get();
+        String botOrderId = decision.getBotOrderId();
+
+        // Resume the paused order in the bot so it continues from where it stopped
+        boolean resumed = false;
+        if (botOrderId != null && !botOrderId.isBlank()) {
+            resumed = instagramBotClient.resumeOrder(botOrderId);
+            if (!resumed) {
+                log.warn("Could not resume bot order {} for panel order {}", botOrderId, orderId);
+            }
+        }
+
         cancelDecisionService.removePendingDecision(orderId);
         telegramBotService.removeInlineKeyboard(messageId);
-        telegramBotService.answerCallbackQuery(callbackQueryId, "✅ Заказ продолжается");
-        telegramBotService.sendPlainMessage(
-                String.format("✅ Заказ #%d продолжается по решению администратора", orderId));
-        log.info("Admin chose PROCEED for order {}", orderId);
+        telegramBotService.answerCallbackQuery(callbackQueryId, "✅ Заказ возобновлён");
+
+        String msg =
+                resumed
+                        ? String.format(
+                                "✅ Заказ #%d возобновлён — бот продолжает с места остановки",
+                                orderId)
+                        : String.format(
+                                "⚠️ Заказ #%d: сигнал боту не прошёл (возможно уже завершён)",
+                                orderId);
+        telegramBotService.sendPlainMessage(msg);
+        log.info("Admin chose PROCEED for order {} (bot resume: {})", orderId, resumed);
     }
 
     @Transactional
@@ -101,6 +123,13 @@ public class TelegramUpdateHandler {
         }
 
         Order order = orderOpt.get();
+
+        // Tell the bot to cancel (it may be in paused state waiting for our decision)
+        String botOrderId = decisionOpt.get().getBotOrderId();
+        if (botOrderId != null && !botOrderId.isBlank()) {
+            instagramBotClient.cancelOrder(botOrderId);
+        }
+
         processFullRefund(order);
         order.setStatus(OrderStatus.CANCELLED);
         order.setTrafficStatus("CANCELLED_BY_ADMIN");

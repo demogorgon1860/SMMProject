@@ -229,6 +229,57 @@ public class InstagramBotClient {
         return false;
     }
 
+    /**
+     * Resume a paused order. Called when admin clicks "Продолжить" on a pending_cancel decision.
+     * Tries each bot instance; succeeds if any one resumes it.
+     */
+    public boolean resumeOrder(String botOrderId) {
+        for (String instance : botInstances) {
+            try {
+                boolean result =
+                        executeOnInstance(
+                                instance,
+                                true,
+                                () -> {
+                                    String url = instance + "/api/orders/resume";
+
+                                    HttpHeaders headers = new HttpHeaders();
+                                    headers.setContentType(MediaType.APPLICATION_JSON);
+
+                                    Map<String, String> body = new HashMap<>();
+                                    body.put("order_id", botOrderId);
+
+                                    String jsonPayload = objectMapper.writeValueAsString(body);
+                                    HttpEntity<String> entity =
+                                            new HttpEntity<>(jsonPayload, headers);
+
+                                    ResponseEntity<Map> response =
+                                            restTemplate.exchange(
+                                                    url, HttpMethod.POST, entity, Map.class);
+
+                                    if (response.getStatusCode() == HttpStatus.OK
+                                            && response.getBody() != null) {
+                                        Boolean success =
+                                                (Boolean) response.getBody().get("success");
+                                        if (Boolean.TRUE.equals(success)) {
+                                            log.info(
+                                                    "Instagram order {} resumed on {}",
+                                                    botOrderId,
+                                                    instance);
+                                            return true;
+                                        }
+                                    }
+                                    return false;
+                                });
+                if (result) return true;
+            } catch (Exception e) {
+                log.debug("Resume failed on {}: {}", instance, e.getMessage());
+            }
+        }
+        log.warn("Failed to resume Instagram order {} on any instance", botOrderId);
+        return false;
+    }
+
     /** List all orders from all bot instances. Merges results from each bot. */
     @SuppressWarnings("unchecked")
     public List<Map<String, Object>> listOrders() {

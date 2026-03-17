@@ -230,8 +230,11 @@ public class InstagramService {
                 handleOrderCompleted(order, callback);
             } else if ("failed".equalsIgnoreCase(callback.getStatus())) {
                 handleOrderFailed(order, callback);
+            } else if ("pending_cancel".equalsIgnoreCase(callback.getStatus())) {
+                handleOrderPendingCancelFromBot(order, callback);
             } else if ("cancelled".equalsIgnoreCase(callback.getStatus())) {
-                handleOrderCancelledByBot(order, callback);
+                // Panel-initiated cancel echo — bot acknowledged our cancel request
+                log.info("Bot acknowledged cancel for order {} (panel-initiated)", order.getId());
             } else {
                 log.warn("Unknown callback status: {}", callback.getStatus());
             }
@@ -380,13 +383,25 @@ public class InstagramService {
     }
 
     /**
-     * Handle cancelled status from bot — do NOT auto-cancel. Send Telegram inline keyboard and
-     * await admin decision.
+     * Handle pending_cancel status from bot — bot paused the order due to errors and admin approval
+     * is needed. Updates progress and sends Telegram inline keyboard.
      */
-    private void handleOrderCancelledByBot(Order order, InstagramWebhookCallback callback) {
-        log.info("Instagram bot cancelled order {} — awaiting admin decision", order.getId());
-        // Do NOT change order status — let it remain as-is until admin decides
-        telegramNotificationService.notifyOrderCancelledPending(order);
+    private void handleOrderPendingCancelFromBot(Order order, InstagramWebhookCallback callback) {
+        log.info(
+                "Instagram bot paused order {} (pending admin decision) — completed: {}",
+                order.getId(),
+                callback.getCompleted());
+
+        int completed = callback.getCompleted() != null ? callback.getCompleted() : 0;
+
+        // Update progress on panel side with what the bot completed before stopping
+        if (completed > 0) {
+            order.setViewsDelivered(completed);
+            order.setRemains(Math.max(0, order.getQuantity() - completed));
+        }
+        orderRepository.save(order);
+
+        telegramNotificationService.notifyOrderCancelledPending(order, completed);
     }
 
     /** Determine start count from callback. */

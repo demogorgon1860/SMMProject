@@ -91,19 +91,21 @@ public class TelegramBotService {
     }
 
     @Async("asyncExecutor")
-    public void notifyOrderCancelledPending(Order order) {
+    public void notifyOrderCancelledPending(Order order, Integer completedCount) {
         if (!props.isEnabled()) return;
+
+        String progress =
+                (completedCount != null)
+                        ? String.format("Выполнено: %d из %d", completedCount, order.getQuantity())
+                        : String.format("Количество: %d", order.getQuantity());
 
         String text =
                 String.format(
-                        "⚠️ Бот отменил заказ #%d\n"
-                                + "Услуга: %s | Количество: %d\n"
-                                + "Статус: %s\n\n"
+                        "⚠️ Бот остановил заказ #%d\n"
+                                + "Услуга: %s\n"
+                                + "%s\n\n"
                                 + "Что делать с заказом?",
-                        order.getId(),
-                        serviceName(order),
-                        order.getQuantity(),
-                        order.getStatus().name());
+                        order.getId(), serviceName(order), progress);
 
         Integer messageId = sendMessageWithInlineKeyboard(text, order.getId());
 
@@ -114,6 +116,8 @@ public class TelegramBotService {
                         .telegramMessageId(messageId)
                         .createdAt(LocalDateTime.now())
                         .orderStatusAtTime(order.getStatus().name())
+                        .completedCount(completedCount)
+                        .originalCount(order.getQuantity())
                         .build();
 
         cancelDecisionService.storePendingDecision(order.getId(), decision);

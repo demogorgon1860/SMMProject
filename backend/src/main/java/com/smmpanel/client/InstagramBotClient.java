@@ -96,7 +96,7 @@ public class InstagramBotClient {
      */
     public InstagramOrderResponse createOrder(InstagramOrderRequest request) {
         int size = botInstances.size();
-        int startIdx = Math.abs(rrCounter.getAndIncrement() % size);
+        int startIdx = (rrCounter.getAndIncrement() & Integer.MAX_VALUE) % size;
         for (int i = 0; i < size; i++) {
             String instance = botInstances.get((startIdx + i) % size);
             try {

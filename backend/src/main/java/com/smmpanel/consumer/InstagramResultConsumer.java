@@ -182,7 +182,11 @@ public class InstagramResultConsumer {
 
             case "processing", "in_progress" -> OrderStatus.PROCESSING;
             case "pending_cancel" -> {
-                // Bot paused order due to errors — ask admin for decision
+                // Bot paused order due to errors — update progress, ask admin for decision
+                if (completed > 0) {
+                    order.setViewsDelivered(completed);
+                    order.setRemains(Math.max(0, order.getQuantity() - completed));
+                }
                 telegramNotificationService.notifyOrderCancelledPending(order, completed);
                 yield order.getStatus(); // keep current status unchanged
             }

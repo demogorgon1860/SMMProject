@@ -94,6 +94,16 @@ public class TelegramBotService {
     public void notifyOrderCancelledPending(Order order, Integer completedCount) {
         if (!props.isEnabled()) return;
 
+        // Guard against duplicate notifications from concurrent RabbitMQ + webhook paths.
+        // Check before sending to avoid sending a Telegram message we can't track.
+        if (cancelDecisionService.getPendingDecision(order.getId()).isPresent()) {
+            log.info(
+                    "Cancel pending decision already exists for order {} — skipping duplicate"
+                            + " notification",
+                    order.getId());
+            return;
+        }
+
         String progress =
                 (completedCount != null)
                         ? String.format("Выполнено: %d из %d", completedCount, order.getQuantity())
@@ -120,7 +130,15 @@ public class TelegramBotService {
                         .originalCount(order.getQuantity())
                         .build();
 
-        cancelDecisionService.storePendingDecision(order.getId(), decision);
+        boolean stored = cancelDecisionService.storePendingDecision(order.getId(), decision);
+        if (!stored) {
+            // Narrow race between check and store — another thread got there first.
+            // Log only; the other thread's message is already in Telegram.
+            log.warn(
+                    "Cancel pending decision race for order {} — duplicate Telegram message may"
+                            + " have been sent",
+                    order.getId());
+        }
     }
 
     // ===================== Edit message (remove buttons on expiry) =====================

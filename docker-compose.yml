@@ -237,8 +237,9 @@ services:
       # Connection pool per instance (75 total / 3 instances = 25 each)
       DB_MAX_POOL_SIZE: 25
       DB_MIN_IDLE: 8
-      # Instagram bot running on host machine (not in Docker)
+      # Instagram bot instances (comma-separated for load balancing)
       INSTAGRAM_BOT_URL: http://host.docker.internal:8080
+      INSTAGRAM_BOT_URLS: ${INSTAGRAM_BOT_URLS:-http://host.docker.internal:8080}
       INSTAGRAM_CALLBACK_BASE_URL: ${INSTAGRAM_CALLBACK_BASE_URL:-http://45.142.211.90}
       INSTAGRAM_ENABLED: ${INSTAGRAM_ENABLED:-true}
       # RabbitMQ configuration - use Docker service name

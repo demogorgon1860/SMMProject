@@ -67,8 +67,9 @@ public class InstagramResultConsumer {
             // Send Telegram notification for terminal states
             if (order.getStatus() == OrderStatus.COMPLETED) {
                 telegramNotificationService.notifyOrderCompleted(order, result.getCompleted());
-            } else if (order.getStatus() == OrderStatus.PARTIAL
-                    || order.getStatus() == OrderStatus.CANCELLED) {
+            } else if (order.getStatus() == OrderStatus.PARTIAL) {
+                telegramNotificationService.notifyOrderPartial(order, result.getCompleted());
+            } else if (order.getStatus() == OrderStatus.CANCELLED) {
                 telegramNotificationService.notifyOrderFailed(order, result.getCompleted());
             }
 
@@ -181,8 +182,9 @@ public class InstagramResultConsumer {
 
             case "processing", "in_progress" -> OrderStatus.PROCESSING;
             case "cancelled" -> {
-                processFullRefund(order);
-                yield OrderStatus.CANCELLED;
+                // Don't auto-cancel — send Telegram approval request and await admin decision
+                telegramNotificationService.notifyOrderCancelledPending(order);
+                yield order.getStatus(); // keep current status unchanged
             }
             default -> OrderStatus.PROCESSING;
         };

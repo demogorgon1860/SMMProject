@@ -230,6 +230,8 @@ public class InstagramService {
                 handleOrderCompleted(order, callback);
             } else if ("failed".equalsIgnoreCase(callback.getStatus())) {
                 handleOrderFailed(order, callback);
+            } else if ("cancelled".equalsIgnoreCase(callback.getStatus())) {
+                handleOrderCancelledByBot(order, callback);
             } else {
                 log.warn("Unknown callback status: {}", callback.getStatus());
             }
@@ -370,7 +372,21 @@ public class InstagramService {
         redisTemplate.delete(cacheKey);
 
         // Send Telegram notification
-        telegramNotificationService.notifyOrderFailed(order, completed);
+        if (order.getStatus() == OrderStatus.PARTIAL) {
+            telegramNotificationService.notifyOrderPartial(order, completed);
+        } else {
+            telegramNotificationService.notifyOrderFailed(order, completed);
+        }
+    }
+
+    /**
+     * Handle cancelled status from bot — do NOT auto-cancel. Send Telegram inline keyboard and
+     * await admin decision.
+     */
+    private void handleOrderCancelledByBot(Order order, InstagramWebhookCallback callback) {
+        log.info("Instagram bot cancelled order {} — awaiting admin decision", order.getId());
+        // Do NOT change order status — let it remain as-is until admin decides
+        telegramNotificationService.notifyOrderCancelledPending(order);
     }
 
     /** Determine start count from callback. */

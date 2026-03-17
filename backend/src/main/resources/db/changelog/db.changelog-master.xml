@@ -760,4 +760,7 @@
     <!-- Allow charge=0 for fully refunded/cancelled orders -->
     <include file="db/changelog/changes/v2025.03-fix-charge-check-constraint.xml"/>
 
+    <!-- Daily profit summary table for Telegram reports -->
+    <include file="db/changelog/changes/v2026.03-add-telegram-profit-table.xml"/>
+
 </databaseChangeLog>

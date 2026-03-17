@@ -43,6 +43,9 @@ public class InstagramBotClient {
     private final Map<String, CircuitBreaker> circuitBreakers = new ConcurrentHashMap<>();
     private final Map<String, Retry> readRetries = new ConcurrentHashMap<>();
     private final Map<String, Retry> writeRetries = new ConcurrentHashMap<>();
+    // Round-robin counter for distributing new orders across bot instances
+    private final java.util.concurrent.atomic.AtomicInteger rrCounter =
+            new java.util.concurrent.atomic.AtomicInteger(0);
 
     public InstagramBotClient(
             @Qualifier("instagramBotRestTemplate") RestTemplate restTemplate,
@@ -88,11 +91,14 @@ public class InstagramBotClient {
     }
 
     /**
-     * Create a new order in the Instagram bot. POST /api/orders/create Uses the first available bot
-     * instance.
+     * Create a new order in the Instagram bot. POST /api/orders/create Uses round-robin to
+     * distribute orders across bot instances, falling back to the next instance on failure.
      */
     public InstagramOrderResponse createOrder(InstagramOrderRequest request) {
-        for (String instance : botInstances) {
+        int size = botInstances.size();
+        int startIdx = Math.abs(rrCounter.getAndIncrement() % size);
+        for (int i = 0; i < size; i++) {
+            String instance = botInstances.get((startIdx + i) % size);
             try {
                 return executeOnInstance(
                         instance,

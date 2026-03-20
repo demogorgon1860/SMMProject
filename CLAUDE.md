@@ -84,7 +84,13 @@ Bot results arrive through TWO paths - both must be kept in sync:
 1. **RabbitMQ**: `InstagramResultConsumer.java` - consumes from RabbitMQ queue
 2. **HTTP Webhook**: `InstagramService.java` - receives POST callbacks
 
-Both paths handle: order status updates, refund logic (full + partial), charge recalculation.
+Both paths handle: order status updates, refund logic (full + partial), charge recalculation, `pending_cancel` and `cancelled` statuses.
+
+### 4b. Multi-Bot Round-Robin Load Balancing
+`InstagramBotClient.createOrder()` distributes new orders across all bot instances using an `AtomicInteger` round-robin counter.
+- Uses `(rrCounter.getAndIncrement() & Integer.MAX_VALUE) % size` — the `& Integer.MAX_VALUE` bitmask avoids `Math.abs(Integer.MIN_VALUE)` overflow on counter wrap
+- On failure, falls through to the next instance; returns `null` only if ALL instances fail
+- `cancelOrder()` and `resumeOrder()` try ALL instances (not round-robin) since the order may be on any bot
 
 ### 5. Telegram Notification System (Native Java, no n8n)
 Telegram integration is fully in-house — **no n8n, no external webhook forwarder**.
@@ -111,16 +117,25 @@ TelegramBotService            ← sends messages via Telegram Bot API directly
 | `DailyProfitService` | Increments Redis hash (`telegram:profit:{date}`) per COMPLETED/PARTIAL order; persists to `daily_profit_summary` at end of day |
 | `TelegramUpdateHandler` | Processes Telegram `callback_query` updates from inline buttons |
 
-#### Cancel Approval Flow
-When the Instagram bot fails/cancels an order, the panel does **not** auto-cancel. Instead:
-1. `TelegramBotService.notifyOrderCancelledPending()` sends admin a message with two inline buttons:
-   - `✅ Продолжить` → `callback_data: cancel_proceed:{orderId}` — order continues unchanged
+#### Cancel Approval Flow (Bot Pause → Admin Decision)
+When the Instagram bot hits the circuit breaker (10 consecutive errors), it **pauses** the order (not cancels) and sends a `pending_cancel` webhook. The panel asks admin what to do:
+
+1. Bot transitions order to `status="paused"`, releases AdsPower profiles, sends webhook with `status=pending_cancel` and `completed=N`
+2. Panel (`InstagramService` or `InstagramResultConsumer`) receives `pending_cancel` → calls `notifyOrderCancelledPending(order, completedCount)`
+3. **Dedup guard**: checks Redis before sending — if decision already exists (race condition), skips duplicate notification
+4. `TelegramBotService.notifyOrderCancelledPending()` sends admin a message showing progress ("Выполнено: X из Y") with inline buttons:
+   - `✅ Продолжить` → `callback_data: cancel_proceed:{orderId}` — bot resumes from where it stopped
    - `❌ Отменить` → `callback_data: cancel_do:{orderId}` — full refund + status = CANCELLED
-2. Decision is stored in Redis with 4-hour TTL (`app.telegram.cancel.timeout-hours`)
-3. Admin clicks a button → Telegram sends POST to `/api/telegram/webhook` → `TelegramWebhookController` → `TelegramUpdateHandler.process()`
-4. On **proceed**: removes Redis key, removes inline keyboard, logs decision
-5. On **cancel**: full refund via `BalanceService.refund()`, status → `CANCELLED`, `trafficStatus` → `CANCELLED_BY_ADMIN`
-6. On **timeout** (scheduler, every 10 min): applies `app.telegram.cancel.default-action` (`proceed` or `cancel`), status → `CANCELLED_TIMEOUT` if auto-cancelled
+5. Decision is stored in Redis with 4-hour TTL (`app.telegram.cancel.timeout-hours`)
+6. Admin clicks a button → Telegram sends POST to `/api/telegram/webhook` → `TelegramWebhookController` → `TelegramUpdateHandler.process()`
+7. On **proceed**: calls `instagramBotClient.resumeOrder(botOrderId)` → bot transitions `paused → pending` → `getNextPendingActionN()` naturally continues from last completed action; removes Redis key + inline keyboard
+8. On **cancel**: calls `instagramBotClient.cancelOrder(botOrderId)` first, then full refund via `BalanceService.refund()`, status → `CANCELLED`, `trafficStatus` → `CANCELLED_BY_ADMIN`
+9. On **timeout** (scheduler, every 10 min): applies `app.telegram.cancel.default-action` (`proceed` or `cancel`); on proceed also calls `instagramBotClient.resumeOrder()`; status → `CANCELLED_TIMEOUT` if auto-cancelled
+
+**Important distinctions:**
+- `pending_cancel` webhook = bot paused itself (needs admin decision) → show inline keyboard
+- `cancelled` webhook = panel-initiated cancel echo (bot acknowledged our request) → **do NOT** ask admin again, just log
+- AdsPower comments are **NOT** cleaned when order is paused — only cleaned on actual complete/cancel (admin may resume the order)
 
 #### Daily Profit Report
 - Scheduler (`TelegramScheduler`) fires at `23:55` cron
@@ -154,12 +169,13 @@ app:
 | `notifyOrderCompleted(order, completed)` | Status → COMPLETED | Yes (COMPLETED counter) |
 | `notifyOrderPartial(order, completed)` | Status → PARTIAL | Yes (PARTIAL counter) |
 | `notifyOrderFailed(order, completed)` | Status → FAILED | No |
-| `notifyOrderCancelledPending(order)` | Bot reports cancel | No (pending decision) |
+| `notifyOrderCancelledPending(order, completedCount)` | Bot reports `pending_cancel` (circuit breaker) | No (pending decision) |
 
 #### IMPORTANT — what NOT to do
 - Do NOT call `TelegramBotService` directly from order-processing code — always go through `TelegramNotificationService`
 - Do NOT add a second `telegram:` key in `application.yml` — it already exists under `app:` (caused startup crash before)
 - Do NOT record profit for FAILED or CANCELLED orders — only COMPLETED and PARTIAL
+- Do NOT call `notifyOrderCancelledPending` for `cancelled` webhook events — those are panel-initiated cancel echoes, not bot-initiated pauses
 
 ## API Structure
 
@@ -205,7 +221,7 @@ POST /api/orders/create
   "event": "order.completed",
   "id": "order_xxx",
   "external_id": "panel_order_12345",
-  "status": "completed|failed",
+  "status": "completed|failed|partial|pending_cancel|cancelled",
   "completed": 95,
   "failed": 5,
   "start_like_count": 100,
@@ -215,6 +231,15 @@ POST /api/orders/create
 }
 ```
 
+**Webhook status values:**
+| Status | Meaning | Panel action |
+|--------|---------|-------------|
+| `completed` | Order fully done | → `COMPLETED`, record profit |
+| `failed` | Order failed (completed=0 → full refund; completed>0 → partial) | → `CANCELLED` or `PARTIAL` |
+| `partial` | Explicit partial delivery | → `PARTIAL`, partial refund |
+| `pending_cancel` | Bot paused (circuit breaker) — needs admin decision | Ask admin via Telegram inline keyboard |
+| `cancelled` | Bot acknowledged panel-initiated cancel (echo) | Log only — do NOT ask admin |
+
 ### Bot Endpoints
 
 | Endpoint | Method | Description |
@@ -223,6 +248,7 @@ POST /api/orders/create
 | `/api/orders` | GET | List all orders |
 | `/api/orders/get?id=X` | GET | Get order by ID |
 | `/api/orders/cancel` | POST | Cancel order |
+| `/api/orders/resume` | POST | Resume paused order (`{"order_id":"..."}` or `{"external_id":"..."}`) |
 | `/api/orders/stats` | GET | Queue statistics |
 | `/api/orders/workers` | POST | Start/stop workers |
 | `/api/health` | GET | Health check |

@@ -36,6 +36,9 @@ public class InstagramBotClient {
     @Value("${app.instagram.bot.url:http://45.142.211.90:8080}")
     private String botBaseUrl;
 
+    @Value("${app.instagram.bot.api-key:}")
+    private String botApiKey;
+
     @Value("${app.instagram.bot.callback-url:}")
     private String callbackBaseUrl;
 
@@ -77,6 +80,18 @@ public class InstagramBotClient {
                     instance, circuitBreakerRegistry.circuitBreaker("instagramBot-" + suffix));
             readRetries.put(instance, retryRegistry.retry("instagramBotRead-" + suffix));
             writeRetries.put(instance, retryRegistry.retry("instagramBotWrite-" + suffix));
+        }
+
+        // Add API key interceptor if configured
+        if (botApiKey != null && !botApiKey.isBlank()) {
+            restTemplate
+                    .getInterceptors()
+                    .add(
+                            (request, body, execution) -> {
+                                request.getHeaders().set("X-API-Key", botApiKey);
+                                return execution.execute(request, body);
+                            });
+            log.info("Instagram bot API key configured");
         }
 
         log.info(

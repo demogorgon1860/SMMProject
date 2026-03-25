@@ -253,6 +253,9 @@ public class ClientApiController {
         }
 
         try {
+            // Validate user has access to this service
+            serviceService.validateUserAccessToService(user, Long.valueOf(service));
+
             CreateOrderRequest request = new CreateOrderRequest();
             request.setService(Long.valueOf(service));
             request.setLink(link);
@@ -327,7 +330,7 @@ public class ClientApiController {
         try {
             // OPTIMIZED: Uses service method that implements caching
             List<Map<String, Object>> services =
-                    serviceService.getAllActiveServicesCached().stream()
+                    serviceService.getActiveServicesForUser(user).stream()
                             .map(
                                     service -> {
                                         Map<String, Object> serviceMap = new HashMap<>();
@@ -564,6 +567,9 @@ public class ClientApiController {
                                                                 + serviceId
                                                                 + " not found at order index "
                                                                 + orderIndex));
+
+                // Validate user has access to this service
+                serviceService.validateUserAccessToService(user, service.getId());
 
                 BigDecimal orderCost =
                         service.getPricePer1000()

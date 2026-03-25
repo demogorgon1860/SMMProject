@@ -2,6 +2,8 @@ package com.smmpanel.service.core;
 
 import com.smmpanel.dto.ServiceResponse;
 import com.smmpanel.entity.Service;
+import com.smmpanel.entity.User;
+import com.smmpanel.exception.OrderValidationException;
 import com.smmpanel.repository.jpa.ServiceRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,34 @@ public class ServiceService {
     @Cacheable(value = "services", key = "'active-services-cached'")
     public List<ServiceResponse> getAllActiveServicesCached() {
         return getAllActiveServices();
+    }
+
+    /** Returns services visible to the given user. Admin and unrestricted users see all. */
+    public List<ServiceResponse> getActiveServicesForUser(User user) {
+        if (user.isAdmin()) {
+            return getAllActiveServices();
+        }
+        long accessCount = serviceRepository.countAccessEntriesForUser(user.getId());
+        if (accessCount == 0) {
+            return getAllActiveServices();
+        }
+        return getFilteredServicesForUser(user.getId());
+    }
+
+    @Cacheable(value = "services", key = "'user-services-' + #userId")
+    public List<ServiceResponse> getFilteredServicesForUser(Long userId) {
+        List<Service> services = serviceRepository.findActiveServicesForUser(userId);
+        return services.stream().map(this::toServiceResponse).toList();
+    }
+
+    /** Validates that user has access to a specific service. Throws if not. */
+    public void validateUserAccessToService(User user, Long serviceId) {
+        if (user.isAdmin()) return;
+        long accessCount = serviceRepository.countAccessEntriesForUser(user.getId());
+        if (accessCount == 0) return;
+        if (!serviceRepository.hasAccessToService(user.getId(), serviceId)) {
+            throw new OrderValidationException("Service not available");
+        }
     }
 
     private ServiceResponse toServiceResponse(Service service) {

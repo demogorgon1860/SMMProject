@@ -65,4 +65,10 @@ public class InstagramOrderMessage {
      */
     @JsonProperty("geo_targeting")
     private String geoTargeting;
+
+    @JsonProperty("min_action_delay_seconds")
+    private Integer minActionDelaySeconds;
+
+    @JsonProperty("max_action_delay_seconds")
+    private Integer maxActionDelaySeconds;
 }

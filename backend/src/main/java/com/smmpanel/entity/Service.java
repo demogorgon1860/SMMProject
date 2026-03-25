@@ -57,6 +57,12 @@ public class Service {
     @Builder.Default
     private String geoTargeting = "US";
 
+    @Column(name = "min_action_delay_seconds")
+    private Integer minActionDelaySeconds;
+
+    @Column(name = "max_action_delay_seconds")
+    private Integer maxActionDelaySeconds;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

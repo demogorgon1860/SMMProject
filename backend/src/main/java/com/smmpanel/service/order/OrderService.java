@@ -81,6 +81,7 @@ public class OrderService {
     private final VideoProcessingService videoProcessingService;
     private final NotificationService notificationService;
     private final TelegramNotificationService telegramNotificationService;
+    private final com.smmpanel.service.core.ServiceService serviceService;
     private final OrderValidationService orderValidationService;
     private final FraudDetectionService fraudDetectionService;
     private final ConversionCoefficientRepository conversionCoefficientRepository;
@@ -1263,6 +1264,9 @@ public class OrderService {
         if (!service.getActive()) {
             throw new OrderValidationException("Service is not active");
         }
+
+        // Validate user has access to this service
+        serviceService.validateUserAccessToService(user, service.getId());
 
         // Handle custom comments services - auto-calculate quantity from comments
         int effectiveQuantity = request.getQuantity();

@@ -73,6 +73,8 @@ public class InstagramRabbitPublisher {
                 // No callbackUrl - results come back via instagram.results queue
                 .priority(order.getProcessingPriority() != null ? order.getProcessingPriority() : 0)
                 .geoTargeting(geoTargeting) // Bot uses this for gender/geo profile group selection
+                .minActionDelaySeconds(service.getMinActionDelaySeconds())
+                .maxActionDelaySeconds(service.getMaxActionDelaySeconds())
                 .build();
     }
 

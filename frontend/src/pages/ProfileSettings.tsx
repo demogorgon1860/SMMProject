@@ -387,18 +387,18 @@ export const ProfileSettings: React.FC = () => {
                   title="1. Create Order"
                   action="add"
                   parameters={[
-                    { name: 'service', desc: 'Service ID (see Available Services below)' },
-                    { name: 'link', desc: 'Target URL (YouTube or Instagram)' },
+                    { name: 'service', desc: 'Service ID (use action=services to get the list)' },
+                    { name: 'link', desc: 'Target Instagram URL' },
                     { name: 'quantity', desc: 'Order quantity (integer)' },
-                    { name: 'customComments', desc: '(Optional) For services 5 and 9 only' },
+                    { name: 'customComments', desc: '(Optional) For Custom Comments services — one comment per line' },
                   ]}
-                  example={`curl -X POST "${baseUrl}/api/v2?key=YOUR_KEY&action=add&service=1&link=https://youtube.com/watch?v=VIDEO_ID&quantity=1000"`}
+                  example={`curl -X POST "${baseUrl}/api/v2?key=YOUR_KEY&action=add&service=8&link=https://instagram.com/p/ABC123/&quantity=50"`}
                   response={`{
   "status": "Success",
   "order": 12345,
-  "charge": "4.00",
-  "start_count": 1523,
-  "created_at": "2025-11-06T10:30:45",
+  "charge": "0.20",
+  "start_count": 150,
+  "created_at": "2026-03-26T10:30:45",
   "remaining_balance": "95.50",
   "currency": "USD"
 }`}
@@ -432,13 +432,14 @@ export const ProfileSettings: React.FC = () => {
                   example={`curl -X POST "${baseUrl}/api/v2?key=YOUR_KEY&action=services"`}
                   response={`[
   {
-    "service": 1,
-    "name": "YouTube Views - USA",
-    "category": "YouTube",
-    "rate": "4.00",
-    "min": 100,
-    "max": 100000
-  }
+    "service": 8,
+    "name": "Instagram Likes [Mix Gender] [USA/Europe]",
+    "category": "INSTAGRAM_LIKES",
+    "rate": "4.0000",
+    "min": 10,
+    "max": 107
+  },
+  ...
 ]`}
                   copyToClipboard={copyToClipboard}
                   copiedField={copiedField}
@@ -481,40 +482,25 @@ export const ProfileSettings: React.FC = () => {
                   copiedField={copiedField}
                 />
 
-                {/* Emoji Comments */}
-                <EndpointCard
-                  title="Service 5: Emoji Comments"
-                  action="add"
-                  description="For emoji comments, pass emoji type via customComments parameter."
-                  parameters={[
-                    { name: 'customComments', desc: 'EMOJI:POSITIVE or EMOJI:NEGATIVE' },
-                  ]}
-                  example={`curl -X POST "${baseUrl}/api/v2?key=YOUR_KEY&action=add&service=5&link=https://instagram.com/p/ABC123/&quantity=20&customComments=EMOJI:POSITIVE"`}
-                  response={`EMOJI:POSITIVE → 😄😊😍🥰😘🔥💯✨⭐️🌟❤️🧡💛💖💕💞👍👏🙌🤍😎🤩😆🎉
-EMOJI:NEGATIVE → 😒😑😐🙄😤😠😡👎❌🚫⛔️🤨🤔😕😟😬`}
-                  copyToClipboard={copyToClipboard}
-                  copiedField={copiedField}
-                />
-
                 {/* Custom Comments */}
                 <EndpointCard
-                  title="Service 9: Custom Comments"
+                  title="Custom Comments"
                   action="add"
-                  description="For custom comments, pass your comments separated by newlines. Number of comments must equal quantity."
+                  description="For Custom Comments services, pass your comments separated by newlines. The number of comments determines the quantity."
                   parameters={[
-                    { name: 'customComments', desc: 'Comments separated by newlines (\\n)' },
+                    { name: 'customComments', desc: 'Comments separated by newlines (\\n). One comment = one action.' },
                   ]}
                   example={`curl -X POST "${baseUrl}/api/v2" \\
   -d "key=YOUR_KEY" \\
   -d "action=add" \\
-  -d "service=9" \\
+  -d "service=SERVICE_ID" \\
   -d "link=https://instagram.com/p/ABC123/" \\
   -d "quantity=5" \\
   --data-urlencode "customComments=Great post!
-Love this!
-Amazing!
-Beautiful!
-Perfect!"`}
+Love this content!
+Amazing work!
+Keep it up!
+Incredible!"`}
                   copyToClipboard={copyToClipboard}
                   copiedField={copiedField}
                 />
@@ -528,18 +514,18 @@ Perfect!"`}
   -H "Content-Type: application/json" \\
   -d '{
     "orders": [
-      {"service": 1, "link": "https://youtube.com/watch?v=VIDEO1", "quantity": 1000},
-      {"service": 2, "link": "https://youtube.com/watch?v=VIDEO2", "quantity": 500}
+      {"service": 8, "link": "https://instagram.com/p/POST1/", "quantity": 50},
+      {"service": 5, "link": "https://instagram.com/p/POST2/", "quantity": 20}
     ]
   }'`}
                   response={`{
   "status": "Success",
   "orders": [
-    {"order": 12345, "charge": "4.00", "status": "Success"},
-    {"order": 12346, "charge": "2.00", "status": "Success"}
+    {"order": 12345, "charge": "0.20", "status": "Success"},
+    {"order": 12346, "charge": "1.80", "status": "Success"}
   ],
   "total_orders": 2,
-  "total_charge": "6.00",
+  "total_charge": "2.00",
   "remaining_balance": "93.50",
   "currency": "USD"
 }`}

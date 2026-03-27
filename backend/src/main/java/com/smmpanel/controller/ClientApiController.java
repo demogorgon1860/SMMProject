@@ -337,6 +337,13 @@ public class ClientApiController {
                                         serviceMap.put("service", service.getId());
                                         serviceMap.put("name", service.getName());
                                         serviceMap.put("category", service.getCategory());
+                                        serviceMap.put(
+                                                "type",
+                                                service.getName() != null
+                                                                && service.getName()
+                                                                        .contains("Custom Comments")
+                                                        ? "Custom Comments"
+                                                        : "Default");
                                         serviceMap.put("rate", service.getPricePer1000());
                                         serviceMap.put("min", service.getMinOrder());
                                         serviceMap.put("max", service.getMaxOrder());

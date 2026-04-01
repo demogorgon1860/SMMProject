@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { userAPI, orderAPI, adminAPI } from '../services/api';
+import { motion } from 'framer-motion';
 import {
   Wallet,
   Plus,
@@ -28,6 +29,24 @@ interface Order {
   createdAt: string;
   username?: string;
 }
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08, delayChildren: 0.05 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } },
+};
+
+const cardHover = {
+  y: -2,
+  transition: { duration: 0.2, ease: 'easeOut' },
+};
 
 export const Dashboard: React.FC = () => {
   const user = useAuthStore((s) => s.user);
@@ -68,8 +87,6 @@ export const Dashboard: React.FC = () => {
     setOrdersLoading(true);
     try {
       let orders: Order[] = [];
-
-      // Admin users fetch all orders, regular users fetch their own
       if (user?.role === 'ADMIN') {
         const response = await adminAPI.getAllOrders(undefined, undefined, undefined, undefined, 0, 5);
         if (response?.orders && Array.isArray(response.orders)) {
@@ -77,8 +94,6 @@ export const Dashboard: React.FC = () => {
         }
       } else {
         const response = await orderAPI.getOrders(undefined, undefined, undefined, undefined, 0, 5);
-
-        // Handle PerfectPanelResponse<Page<OrderResponse>> format
         if (response?.data?.content && Array.isArray(response.data.content)) {
           orders = response.data.content;
         } else if (response?.content && Array.isArray(response.content)) {
@@ -89,7 +104,6 @@ export const Dashboard: React.FC = () => {
           orders = response;
         }
       }
-
       setRecentOrders(orders.slice(0, 5));
     } catch (error) {
       console.error('Failed to fetch orders:', error);
@@ -137,9 +151,17 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <motion.div
+      className="space-y-6"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
       {/* Welcome Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <motion.div
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+        variants={itemVariants}
+      >
         <div>
           <h1 className="text-2xl font-bold text-dark-900 dark:text-white">
             Welcome back, {user?.username}
@@ -148,7 +170,7 @@ export const Dashboard: React.FC = () => {
             Here's what's happening with your account
           </p>
         </div>
-        <button
+        <motion.button
           onClick={async () => {
             setRefreshing(true);
             await Promise.all([fetchBalance(), fetchRecentOrders()]);
@@ -156,231 +178,160 @@ export const Dashboard: React.FC = () => {
           }}
           disabled={refreshing}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-dark-600 hover:text-dark-900 dark:text-dark-400 dark:hover:text-white bg-white dark:bg-dark-800 border border-dark-200 dark:border-dark-700 rounded-xl hover:bg-dark-50 dark:hover:bg-dark-700 transition-colors disabled:opacity-50"
+          whileTap={{ scale: 0.97 }}
         >
-          <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
+          <motion.div animate={{ rotate: refreshing ? 360 : 0 }} transition={{ duration: 0.8, repeat: refreshing ? Infinity : 0, ease: 'linear' }}>
+            <RefreshCw size={16} />
+          </motion.div>
           Refresh
-        </button>
-      </div>
+        </motion.button>
+      </motion.div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Balance Card */}
-        <div className="bg-gradient-to-br from-accent-500 to-accent-600 rounded-2xl p-6 text-white shadow-soft dark:shadow-dark-soft">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-accent-100 text-sm font-medium">Current Balance</p>
-              <p className="text-3xl font-bold mt-1">
-                {loading ? (
-                  <span className="animate-pulse">$---.--</span>
-                ) : (
-                  `$${balance?.toFixed(2) || '0.00'}`
-                )}
-              </p>
+        <motion.div variants={itemVariants} whileHover={cardHover}>
+          <div className="bg-gradient-to-br from-accent-500 to-accent-600 rounded-2xl p-6 text-white shadow-lg shadow-accent-500/20 dark:shadow-accent-500/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-accent-100 text-sm font-medium">Current Balance</p>
+                <p className="text-3xl font-bold mt-1">
+                  {loading ? (
+                    <span className="inline-block w-28 h-9 bg-white/20 rounded-lg animate-pulse" />
+                  ) : (
+                    `$${balance?.toFixed(2) || '0.00'}`
+                  )}
+                </p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-sm">
+                <Wallet size={24} />
+              </div>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-              <Wallet size={24} />
-            </div>
+            <Link
+              to="/add-funds"
+              className="mt-4 flex items-center gap-1 text-sm font-medium text-accent-100 hover:text-white transition-colors group"
+            >
+              Add funds <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+            </Link>
           </div>
-          <Link
-            to="/add-funds"
-            className="mt-4 flex items-center gap-1 text-sm font-medium text-accent-100 hover:text-white transition-colors"
-          >
-            Add funds <ArrowRight size={16} />
-          </Link>
-        </div>
+        </motion.div>
 
         {/* Total Spent Card */}
-        <div className="bg-white dark:bg-dark-800 rounded-2xl p-6 border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-dark-500 dark:text-dark-400 text-sm font-medium">Total Spent</p>
-              <p className="text-2xl font-bold text-dark-900 dark:text-white mt-1">
-                ${totalSpent.toFixed(2)}
-              </p>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
-              <TrendingUp size={24} className="text-primary-600 dark:text-primary-400" />
+        <motion.div variants={itemVariants} whileHover={cardHover}>
+          <div className="bg-white dark:bg-dark-800 rounded-2xl p-6 border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft h-full">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-dark-500 dark:text-dark-400 text-sm font-medium">Total Spent</p>
+                <p className="text-2xl font-bold text-dark-900 dark:text-white mt-1">
+                  ${totalSpent.toFixed(2)}
+                </p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                <TrendingUp size={24} className="text-primary-600 dark:text-primary-400" />
+              </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Orders Card */}
-        <div className="bg-white dark:bg-dark-800 rounded-2xl p-6 border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-dark-500 dark:text-dark-400 text-sm font-medium">Total Orders</p>
-              <p className="text-2xl font-bold text-dark-900 dark:text-white mt-1">
-                {totalOrders}
-              </p>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-              <Package size={24} className="text-blue-600 dark:text-blue-400" />
+        <motion.div variants={itemVariants} whileHover={cardHover}>
+          <div className="bg-white dark:bg-dark-800 rounded-2xl p-6 border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft h-full">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-dark-500 dark:text-dark-400 text-sm font-medium">Total Orders</p>
+                <p className="text-2xl font-bold text-dark-900 dark:text-white mt-1">
+                  {totalOrders}
+                </p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                <Package size={24} className="text-blue-600 dark:text-blue-400" />
+              </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Role Card */}
-        <div className="bg-white dark:bg-dark-800 rounded-2xl p-6 border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-dark-500 dark:text-dark-400 text-sm font-medium">Account Type</p>
-              <p className="text-2xl font-bold text-dark-900 dark:text-white mt-1">{user?.role || 'USER'}</p>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-              <Settings size={24} className="text-purple-600 dark:text-purple-400" />
+        <motion.div variants={itemVariants} whileHover={cardHover}>
+          <div className="bg-white dark:bg-dark-800 rounded-2xl p-6 border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft h-full">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-dark-500 dark:text-dark-400 text-sm font-medium">Account Type</p>
+                <p className="text-2xl font-bold text-dark-900 dark:text-white mt-1">{user?.role || 'USER'}</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                <Settings size={24} className="text-purple-600 dark:text-purple-400" />
+              </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Quick Actions & Recent Orders */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Quick Actions */}
-        <div className="bg-white dark:bg-dark-800 rounded-2xl p-6 border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft">
+        <motion.div
+          className="bg-white dark:bg-dark-800 rounded-2xl p-6 border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft"
+          variants={itemVariants}
+        >
           <h2 className="text-lg font-semibold text-dark-900 dark:text-white mb-4">Quick Actions</h2>
           <div className="space-y-3">
             {user?.role === 'ADMIN' ? (
               <>
-                <Link
-                  to="/admin/orders"
-                  className="flex items-center gap-3 p-4 rounded-xl bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-900/30 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors group"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/50 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Package size={20} className="text-primary-600 dark:text-primary-400" />
-                  </div>
-                  <div>
-                    <p className="font-medium">All Orders</p>
-                    <p className="text-sm text-primary-600/70 dark:text-primary-400/70">View and manage orders</p>
-                  </div>
-                </Link>
-
-                <Link
-                  to="/admin/payments"
-                  className="flex items-center gap-3 p-4 rounded-xl bg-accent-50 dark:bg-accent-900/20 border border-accent-100 dark:border-accent-900/30 text-accent-700 dark:text-accent-300 hover:bg-accent-100 dark:hover:bg-accent-900/30 transition-colors group"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-accent-100 dark:bg-accent-900/50 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <CreditCard size={20} className="text-accent-600 dark:text-accent-400" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Payments</p>
-                    <p className="text-sm text-accent-600/70 dark:text-accent-400/70">Review payment history</p>
-                  </div>
-                </Link>
-
-                <Link
-                  to="/admin/refills"
-                  className="flex items-center gap-3 p-4 rounded-xl bg-dark-50 dark:bg-dark-700/50 border border-dark-100 dark:border-dark-600 text-dark-700 dark:text-dark-300 hover:bg-dark-100 dark:hover:bg-dark-700 transition-colors group"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-dark-100 dark:bg-dark-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <TrendingUp size={20} className="text-dark-600 dark:text-dark-400" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Refills</p>
-                    <p className="text-sm text-dark-500 dark:text-dark-400">Manage refill requests</p>
-                  </div>
-                </Link>
-
-                <Link
-                  to="/services-test"
-                  className="flex items-center gap-3 p-4 rounded-xl bg-dark-50 dark:bg-dark-700/50 border border-dark-100 dark:border-dark-600 text-dark-700 dark:text-dark-300 hover:bg-dark-100 dark:hover:bg-dark-700 transition-colors group"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-dark-100 dark:bg-dark-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <TestTube size={20} className="text-dark-600 dark:text-dark-400" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Test Services</p>
-                    <p className="text-sm text-dark-500 dark:text-dark-400">Debug and test services</p>
-                  </div>
-                </Link>
+                <QuickAction to="/admin/orders" icon={Package} label="All Orders" desc="View and manage orders" color="primary" />
+                <QuickAction to="/admin/payments" icon={CreditCard} label="Payments" desc="Review payment history" color="accent" />
+                <QuickAction to="/admin/refills" icon={TrendingUp} label="Refills" desc="Manage refill requests" color="neutral" />
+                <QuickAction to="/services-test" icon={TestTube} label="Test Services" desc="Debug and test services" color="neutral" />
               </>
             ) : (
               <>
-                <Link
-                  to="/orders/new"
-                  className="flex items-center gap-3 p-4 rounded-xl bg-primary-50 dark:bg-primary-900/20 border border-primary-100 dark:border-primary-900/30 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors group"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/50 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Plus size={20} className="text-primary-600 dark:text-primary-400" />
-                  </div>
-                  <div>
-                    <p className="font-medium">New Order</p>
-                    <p className="text-sm text-primary-600/70 dark:text-primary-400/70">Create a new service order</p>
-                  </div>
-                </Link>
-
-                <Link
-                  to="/orders"
-                  className="flex items-center gap-3 p-4 rounded-xl bg-dark-50 dark:bg-dark-700/50 border border-dark-100 dark:border-dark-600 text-dark-700 dark:text-dark-300 hover:bg-dark-100 dark:hover:bg-dark-700 transition-colors group"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-dark-100 dark:bg-dark-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Package size={20} className="text-dark-600 dark:text-dark-400" />
-                  </div>
-                  <div>
-                    <p className="font-medium">View Orders</p>
-                    <p className="text-sm text-dark-500 dark:text-dark-400">Check your order history</p>
-                  </div>
-                </Link>
-
-                <Link
-                  to="/add-funds"
-                  className="flex items-center gap-3 p-4 rounded-xl bg-accent-50 dark:bg-accent-900/20 border border-accent-100 dark:border-accent-900/30 text-accent-700 dark:text-accent-300 hover:bg-accent-100 dark:hover:bg-accent-900/30 transition-colors group"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-accent-100 dark:bg-accent-900/50 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <CreditCard size={20} className="text-accent-600 dark:text-accent-400" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Add Funds</p>
-                    <p className="text-sm text-accent-600/70 dark:text-accent-400/70">Top up your balance</p>
-                  </div>
-                </Link>
-
-                <Link
-                  to="/profile"
-                  className="flex items-center gap-3 p-4 rounded-xl bg-dark-50 dark:bg-dark-700/50 border border-dark-100 dark:border-dark-600 text-dark-700 dark:text-dark-300 hover:bg-dark-100 dark:hover:bg-dark-700 transition-colors group"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-dark-100 dark:bg-dark-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Settings size={20} className="text-dark-600 dark:text-dark-400" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Settings</p>
-                    <p className="text-sm text-dark-500 dark:text-dark-400">Manage your account</p>
-                  </div>
-                </Link>
+                <QuickAction to="/orders/new" icon={Plus} label="New Order" desc="Create a new service order" color="primary" />
+                <QuickAction to="/orders" icon={Package} label="View Orders" desc="Check your order history" color="neutral" />
+                <QuickAction to="/add-funds" icon={CreditCard} label="Add Funds" desc="Top up your balance" color="accent" />
+                <QuickAction to="/profile" icon={Settings} label="Settings" desc="Manage your account" color="neutral" />
               </>
             )}
           </div>
-        </div>
+        </motion.div>
 
         {/* Recent Orders */}
-        <div className="lg:col-span-2 bg-white dark:bg-dark-800 rounded-2xl p-6 border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft">
+        <motion.div
+          className="lg:col-span-2 bg-white dark:bg-dark-800 rounded-2xl p-6 border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft"
+          variants={itemVariants}
+        >
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-dark-900 dark:text-white">Recent Orders</h2>
             <Link
               to={user?.role === 'ADMIN' ? '/admin/orders' : '/orders'}
-              className="text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 flex items-center gap-1 transition-colors"
+              className="text-sm font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 flex items-center gap-1 transition-colors group"
             >
-              View all <ArrowRight size={16} />
+              View all <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
 
           {ordersLoading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="animate-pulse flex items-center gap-4 p-4 rounded-xl bg-dark-50 dark:bg-dark-700/50">
-                  <div className="w-10 h-10 rounded-lg bg-dark-200 dark:bg-dark-600" />
+                <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-dark-50 dark:bg-dark-700/50">
+                  <div className="w-10 h-10 rounded-lg bg-dark-200 dark:bg-dark-600 animate-pulse" />
                   <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-dark-200 dark:bg-dark-600 rounded w-1/3" />
-                    <div className="h-3 bg-dark-200 dark:bg-dark-600 rounded w-1/2" />
+                    <div className="h-4 bg-dark-200 dark:bg-dark-600 rounded w-1/3 animate-pulse" />
+                    <div className="h-3 bg-dark-200 dark:bg-dark-600 rounded w-1/2 animate-pulse" />
                   </div>
                 </div>
               ))}
             </div>
           ) : recentOrders.length > 0 ? (
-            <div className="space-y-3">
+            <motion.div
+              className="space-y-3"
+              variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
+              initial="hidden"
+              animate="visible"
+            >
               {recentOrders.map((order) => (
-                <div
+                <motion.div
                   key={order.id}
                   className="flex items-center gap-4 p-4 rounded-xl bg-dark-50 dark:bg-dark-700/50 hover:bg-dark-100 dark:hover:bg-dark-700 transition-colors"
+                  variants={itemVariants}
                 >
                   <div className="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
                     <Package size={20} className="text-primary-600 dark:text-primary-400" />
@@ -405,9 +356,9 @@ export const Dashboard: React.FC = () => {
                       {formatDate(order.createdAt)}
                     </p>
                   </div>
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           ) : (
             <div className="text-center py-12">
               <div className="w-16 h-16 rounded-full bg-dark-100 dark:bg-dark-700 flex items-center justify-center mx-auto mb-4">
@@ -426,8 +377,50 @@ export const Dashboard: React.FC = () => {
               )}
             </div>
           )}
-        </div>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 };
+
+// Quick Action component
+function QuickAction({ to, icon: Icon, label, desc, color }: {
+  to: string;
+  icon: React.ElementType;
+  label: string;
+  desc: string;
+  color: 'primary' | 'accent' | 'neutral';
+}) {
+  const colors = {
+    primary: 'bg-primary-50 dark:bg-primary-900/20 border-primary-100 dark:border-primary-900/30 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900/30',
+    accent: 'bg-accent-50 dark:bg-accent-900/20 border-accent-100 dark:border-accent-900/30 text-accent-700 dark:text-accent-300 hover:bg-accent-100 dark:hover:bg-accent-900/30',
+    neutral: 'bg-dark-50 dark:bg-dark-700/50 border-dark-100 dark:border-dark-600 text-dark-700 dark:text-dark-300 hover:bg-dark-100 dark:hover:bg-dark-700',
+  };
+
+  const iconColors = {
+    primary: 'bg-primary-100 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400',
+    accent: 'bg-accent-100 dark:bg-accent-900/50 text-accent-600 dark:text-accent-400',
+    neutral: 'bg-dark-100 dark:bg-dark-600 text-dark-600 dark:text-dark-400',
+  };
+
+  const descColors = {
+    primary: 'text-primary-600/70 dark:text-primary-400/70',
+    accent: 'text-accent-600/70 dark:text-accent-400/70',
+    neutral: 'text-dark-500 dark:text-dark-400',
+  };
+
+  return (
+    <Link
+      to={to}
+      className={`flex items-center gap-3 p-4 rounded-xl border transition-colors group ${colors[color]}`}
+    >
+      <div className={`w-10 h-10 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform ${iconColors[color]}`}>
+        <Icon size={20} />
+      </div>
+      <div>
+        <p className="font-medium">{label}</p>
+        <p className={`text-sm ${descColors[color]}`}>{desc}</p>
+      </div>
+    </Link>
+  );
+}

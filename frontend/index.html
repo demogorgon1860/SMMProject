@@ -18,6 +18,16 @@
     <meta name="application-name" content="SMM World" />
 
     <title>SMM World</title>
+
+    <!-- Prevent dark mode flash (FOUC) — runs before any paint -->
+    <script>
+      (function(){
+        var t = localStorage.getItem('theme');
+        if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -12,11 +12,8 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
-    // Check localStorage first
     const saved = localStorage.getItem('theme') as Theme;
     if (saved) return saved;
-
-    // Check system preference
     if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
       return 'dark';
     }
@@ -26,6 +23,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const root = window.document.documentElement;
 
+    // Add transition class for smooth theme switching
+    root.classList.add('theme-transition');
+
     if (theme === 'dark') {
       root.classList.add('dark');
     } else {
@@ -33,6 +33,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
 
     localStorage.setItem('theme', theme);
+
+    // Remove transition class after animation completes
+    const timeout = setTimeout(() => {
+      root.classList.remove('theme-transition');
+    }, 350);
+
+    return () => clearTimeout(timeout);
   }, [theme]);
 
   // Listen for system theme changes
@@ -41,7 +48,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     const handleChange = (e: MediaQueryListEvent) => {
       const savedTheme = localStorage.getItem('theme');
-      // Only auto-switch if user hasn't manually set a preference
       if (!savedTheme) {
         setThemeState(e.matches ? 'dark' : 'light');
       }

@@ -21,4 +21,50 @@
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
   }
+
+  /* Smooth theme transition — only applied during toggle, not on load */
+  html.theme-transition,
+  html.theme-transition *,
+  html.theme-transition *::before,
+  html.theme-transition *::after {
+    transition: background-color 300ms ease, border-color 300ms ease, color 200ms ease, box-shadow 300ms ease !important;
+    transition-delay: 0s !important;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: theme('colors.dark.300');
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: theme('colors.dark.400');
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background: theme('colors.dark.600');
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: theme('colors.dark.500');
+  }
+
+  /* Firefox scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: theme('colors.dark.300') transparent;
+  }
+
+  .dark * {
+    scrollbar-color: theme('colors.dark.600') transparent;
+  }
 }

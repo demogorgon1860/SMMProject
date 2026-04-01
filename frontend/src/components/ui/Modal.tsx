@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from './Button';
 
 interface ModalProps {
@@ -23,6 +24,18 @@ const sizeStyles = {
   full: 'max-w-[90vw] max-h-[90vh]',
 };
 
+const overlayVariants = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1, transition: { duration: 0.2 } },
+  exit: { opacity: 0, transition: { duration: 0.15 } },
+};
+
+const modalVariants = {
+  initial: { opacity: 0, scale: 0.95, y: 10 },
+  animate: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] } },
+  exit: { opacity: 0, scale: 0.97, y: 5, transition: { duration: 0.15, ease: 'easeIn' } },
+};
+
 export function Modal({
   isOpen,
   onClose,
@@ -37,104 +50,100 @@ export function Modal({
 }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Handle escape key
   useEffect(() => {
     if (!closeOnEscape) return;
-
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
+      if (e.key === 'Escape' && isOpen) onClose();
     };
-
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen, onClose, closeOnEscape]);
 
-  // Lock body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
     }
-
-    return () => {
-      document.body.style.overflow = '';
-    };
+    return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
-  // Focus trap
   useEffect(() => {
-    if (isOpen && modalRef.current) {
-      modalRef.current.focus();
-    }
+    if (isOpen && modalRef.current) modalRef.current.focus();
   }, [isOpen]);
-
-  if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Overlay */}
-      <div
-        className="fixed inset-0 bg-dark-900/60 dark:bg-dark-950/80 backdrop-blur-sm animate-fade-in"
-        onClick={closeOnOverlayClick ? onClose : undefined}
-      />
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          {/* Overlay */}
+          <motion.div
+            className="fixed inset-0 bg-dark-900/60 dark:bg-dark-950/80 backdrop-blur-sm"
+            variants={overlayVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            onClick={closeOnOverlayClick ? onClose : undefined}
+          />
 
-      {/* Modal container */}
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div
-          ref={modalRef}
-          tabIndex={-1}
-          className={`
-            relative w-full ${sizeStyles[size]}
-            bg-white dark:bg-dark-800
-            border border-dark-100 dark:border-dark-700
-            rounded-2xl
-            shadow-soft-lg dark:shadow-dark-lg
-            animate-scale-in
-            focus:outline-none
-          `}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          {(title || showCloseButton) && (
-            <div className="flex items-start justify-between p-5 border-b border-dark-100 dark:border-dark-700">
-              <div>
-                {title && (
-                  <h2 className="text-xl font-semibold text-dark-900 dark:text-white">
-                    {title}
-                  </h2>
-                )}
-                {description && (
-                  <p className="mt-1 text-sm text-dark-500 dark:text-dark-400">
-                    {description}
-                  </p>
-                )}
-              </div>
-              {showCloseButton && (
-                <button
-                  onClick={onClose}
-                  className="p-1 rounded-lg text-dark-400 hover:text-dark-600 hover:bg-dark-100 dark:text-dark-500 dark:hover:text-dark-300 dark:hover:bg-dark-700 transition-colors"
-                >
-                  <X size={20} />
-                </button>
+          {/* Modal container */}
+          <div className="flex min-h-full items-center justify-center p-4">
+            <motion.div
+              ref={modalRef}
+              tabIndex={-1}
+              className={`
+                relative w-full ${sizeStyles[size]}
+                bg-white/95 dark:bg-dark-800/95
+                backdrop-blur-xl
+                border border-dark-100/50 dark:border-dark-700/50
+                rounded-2xl
+                shadow-soft-lg dark:shadow-dark-lg
+                focus:outline-none
+              `}
+              variants={modalVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              {(title || showCloseButton) && (
+                <div className="flex items-start justify-between p-5 border-b border-dark-100 dark:border-dark-700">
+                  <div>
+                    {title && (
+                      <h2 className="text-xl font-semibold text-dark-900 dark:text-white">{title}</h2>
+                    )}
+                    {description && (
+                      <p className="mt-1 text-sm text-dark-500 dark:text-dark-400">{description}</p>
+                    )}
+                  </div>
+                  {showCloseButton && (
+                    <motion.button
+                      onClick={onClose}
+                      className="p-1 rounded-lg text-dark-400 hover:text-dark-600 hover:bg-dark-100 dark:text-dark-500 dark:hover:text-dark-300 dark:hover:bg-dark-700 transition-colors"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      <X size={20} />
+                    </motion.button>
+                  )}
+                </div>
               )}
-            </div>
-          )}
 
-          {/* Content */}
-          <div className="p-5">{children}</div>
+              {/* Content */}
+              <div className="p-5">{children}</div>
 
-          {/* Footer */}
-          {footer && (
-            <div className="flex items-center justify-end gap-3 p-5 border-t border-dark-100 dark:border-dark-700">
-              {footer}
-            </div>
-          )}
+              {/* Footer */}
+              {footer && (
+                <div className="flex items-center justify-end gap-3 p-5 border-t border-dark-100 dark:border-dark-700">
+                  {footer}
+                </div>
+              )}
+            </motion.div>
+          </div>
         </div>
-      </div>
-    </div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -162,7 +171,7 @@ export function ConfirmModal({
   variant = 'danger',
   loading = false,
 }: ConfirmModalProps) {
-  const buttonVariant = variant === 'danger' ? 'danger' : variant === 'warning' ? 'primary' : 'primary';
+  const buttonVariant = variant === 'danger' ? 'danger' : 'primary';
 
   return (
     <Modal

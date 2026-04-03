@@ -226,18 +226,6 @@ export const Orders: React.FC = () => {
 
   const formatDate = (dateString: string) => formatDateShort(dateString);
 
-  const truncateLink = (link: string, max = 40) => {
-    if (!link) return 'N/A';
-    try {
-      const url = new URL(link);
-      const path = url.pathname + url.search;
-      const display = url.host + (path.length > 1 ? path : '');
-      return display.length > max ? display.slice(0, max) + '...' : display;
-    } catch {
-      return link.length > max ? link.slice(0, max) + '...' : link;
-    }
-  };
-
   const hasActiveFilters = statusFilter || startDate || endDate;
 
   return (
@@ -517,19 +505,18 @@ export const Orders: React.FC = () => {
                         )}
                       </td>
                       <td className="px-4 py-3.5">
-                        <div className="text-sm text-dark-900 dark:text-white max-w-[180px] truncate">
+                        <div className="text-sm text-dark-900 dark:text-white break-words">
                           {order.serviceName || 'N/A'}
                         </div>
                       </td>
-                      <td className="px-4 py-3.5 max-w-[200px]">
+                      <td className="px-4 py-3.5">
                         <a
                           href={order.link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors group/link"
-                          title={order.link}
+                          className="inline-flex items-center gap-1 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors group/link break-all"
                         >
-                          <span className="truncate max-w-[160px]">{truncateLink(order.link)}</span>
+                          <span>{order.link}</span>
                           <ExternalLink size={12} className="flex-shrink-0 opacity-0 group-hover/link:opacity-100 transition-opacity" />
                         </a>
                       </td>

@@ -187,7 +187,9 @@ public class ClientApiController {
                 customComments = getParam(request, requestBody, "customComments", null);
             }
 
-            log.info("Client API POST request: action={}", action);
+            log.info("Client API POST request: action={}, service={}, link={}, quantity={}, comments={}, customComments(raw)={}, contentType={}",
+                    action, service, link, quantity, customComments,
+                    request.getParameter("comments"), request.getContentType());
 
             // Validate required parameters
             if (apiKey == null || apiKey.isEmpty()) {

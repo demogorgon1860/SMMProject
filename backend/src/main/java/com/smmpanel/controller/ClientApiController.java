@@ -181,7 +181,11 @@ public class ClientApiController {
             Integer quantity = getIntParam(request, requestBody, "quantity", null);
             Long orderId = getLongParam(request, requestBody, "order", null);
             String orders = getParam(request, requestBody, "orders", null);
-            String customComments = getParam(request, requestBody, "customComments", null);
+            // Perfect Panel sends "comments", our frontend sends "customComments" — support both
+            String customComments = getParam(request, requestBody, "comments", null);
+            if (customComments == null || customComments.isEmpty()) {
+                customComments = getParam(request, requestBody, "customComments", null);
+            }
 
             log.info("Client API POST request: action={}", action);
 

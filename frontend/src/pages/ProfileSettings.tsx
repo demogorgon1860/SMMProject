@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { apiKeyAPI } from '../services/api';
 import {
   Key,
@@ -99,7 +100,12 @@ export const ProfileSettings: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 animate-fade-in">
+    <motion.div
+      className="flex flex-col lg:flex-row gap-6"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+    >
       {/* Sidebar Navigation */}
       <div className="lg:w-64 flex-shrink-0">
         <div className="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft overflow-hidden">
@@ -121,9 +127,9 @@ export const ProfileSettings: React.FC = () => {
                 <button
                   key={item.id}
                   onClick={() => setActiveSection(item.id as 'api-keys' | 'api-docs')}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                     activeSection === item.id
-                      ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-300'
+                      ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-300 shadow-sm'
                       : 'text-dark-600 hover:text-dark-900 hover:bg-dark-100 dark:text-dark-400 dark:hover:text-white dark:hover:bg-dark-700'
                   }`}
                 >
@@ -139,21 +145,49 @@ export const ProfileSettings: React.FC = () => {
       {/* Main Content Area */}
       <div className="flex-1 min-w-0">
         {/* Error/Success Messages */}
-        {error && (
-          <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-xl p-4 flex items-start gap-3">
-            <XCircle size={18} className="text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-          </div>
-        )}
-        {successMessage && (
-          <div className="mb-6 bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800/50 rounded-xl p-4 flex items-start gap-3">
-            <CheckCircle size={18} className="text-accent-600 dark:text-accent-400 mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-accent-700 dark:text-accent-300">{successMessage}</p>
-          </div>
-        )}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="mb-6 overflow-hidden"
+            >
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-xl p-4 flex items-start gap-3">
+                <XCircle size={18} className="text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {successMessage && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.25 }}
+              className="mb-6"
+            >
+              <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 rounded-xl p-4 flex items-start gap-3">
+                <CheckCircle size={18} className="text-emerald-600 dark:text-emerald-400 mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-emerald-700 dark:text-emerald-300">{successMessage}</p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* API Keys Section */}
+        <AnimatePresence mode="wait">
         {activeSection === 'api-keys' && (
+          <motion.div
+            key="api-keys"
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 8 }}
+            transition={{ duration: 0.25 }}
+          >
           <div className="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft overflow-hidden">
             <div className="p-6 border-b border-dark-100 dark:border-dark-700">
               <div className="flex items-center gap-3">
@@ -253,7 +287,7 @@ export const ProfileSettings: React.FC = () => {
                       <button
                         onClick={handleGenerateApiKey}
                         disabled={actionLoading}
-                        className="w-full bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white px-6 py-3.5 rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white px-6 py-3.5 rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 hover:shadow-lg hover:-translate-y-0.5 disabled:hover:translate-y-0 disabled:hover:shadow-none"
                       >
                         {actionLoading ? (
                           <>
@@ -271,7 +305,7 @@ export const ProfileSettings: React.FC = () => {
                       <button
                         onClick={handleRotateApiKey}
                         disabled={actionLoading}
-                        className="w-full bg-gradient-to-r from-accent-600 to-accent-700 hover:from-accent-700 hover:to-accent-800 text-white px-6 py-3.5 rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full bg-gradient-to-r from-accent-600 to-accent-700 hover:from-accent-700 hover:to-accent-800 text-white px-6 py-3.5 rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 hover:shadow-lg hover:-translate-y-0.5 disabled:hover:translate-y-0 disabled:hover:shadow-none"
                       >
                         {actionLoading ? (
                           <>
@@ -319,10 +353,18 @@ export const ProfileSettings: React.FC = () => {
               )}
             </div>
           </div>
+          </motion.div>
         )}
 
         {/* API Documentation Section */}
         {activeSection === 'api-docs' && (
+          <motion.div
+            key="api-docs"
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 8 }}
+            transition={{ duration: 0.25 }}
+          >
           <div className="space-y-6">
             {/* Header Card */}
             <div className="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft overflow-hidden">
@@ -574,9 +616,11 @@ Incredible!"`}
               </div>
             </div>
           </div>
+          </motion.div>
         )}
+        </AnimatePresence>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

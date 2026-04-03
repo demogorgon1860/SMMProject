@@ -192,6 +192,12 @@ public interface OrderRepository
     BigDecimal sumChargeByUser_Username(@Param("username") String username);
 
     @Query(
+            "SELECT COALESCE(SUM(o.quantity - COALESCE(o.remains, 0)), 0) FROM Order o WHERE"
+                    + " o.user.username = :username AND o.status IN :statuses")
+    Long sumDeliveredByUserAndStatuses(
+            @Param("username") String username, @Param("statuses") List<OrderStatus> statuses);
+
+    @Query(
             "SELECT COALESCE(SUM(o.charge), 0) FROM Order o WHERE o.user.username = :username AND"
                     + " o.createdAt >= :date")
     BigDecimal sumChargeByUser_UsernameAndCreatedAtAfter(

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   CheckCircle,
   ArrowRight,
@@ -34,6 +35,7 @@ interface ServiceCardProps {
   description: string;
   features: string[];
   comingSoon?: boolean;
+  delay?: number;
 }
 
 const ServiceCard: React.FC<ServiceCardProps> = ({
@@ -45,12 +47,18 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
   description,
   features,
   comingSoon = false,
+  delay = 0,
 }) => (
-  <div className="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft overflow-hidden hover:shadow-soft-lg dark:hover:shadow-dark-lg transition-shadow duration-300">
+  <motion.div
+    initial={{ opacity: 0, y: 12 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay, duration: 0.35, ease: 'easeOut' }}
+    className="group bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft overflow-hidden hover:shadow-soft-lg dark:hover:shadow-dark-lg hover:-translate-y-1 transition-all duration-300"
+  >
     <div className="p-6">
       {/* Header */}
       <div className="flex items-start gap-4 mb-4">
-        <div className={`w-14 h-14 rounded-xl ${iconColor} flex items-center justify-center flex-shrink-0`}>
+        <div className={`w-14 h-14 rounded-xl ${iconColor} flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform duration-300`}>
           {icon}
         </div>
         <div className="flex-1 min-w-0">
@@ -88,20 +96,25 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
         ) : (
           <Link
             to="/orders/new"
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-white bg-primary-600 hover:bg-primary-700 font-medium transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-white bg-primary-600 hover:bg-primary-700 font-medium transition-all duration-200 hover:shadow-sm group-hover:shadow-md"
           >
             Order Now
-            <ArrowRight size={16} />
+            <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform duration-200" />
           </Link>
         )}
       </div>
     </div>
-  </div>
+  </motion.div>
 );
 
 export const Services: React.FC = () => {
   return (
-    <div className="space-y-8 animate-fade-in">
+    <motion.div
+      className="space-y-8"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+    >
       {/* Header */}
       <div className="text-center max-w-2xl mx-auto">
         <h1 className="text-3xl font-bold text-dark-900 dark:text-white mb-3">
@@ -136,6 +149,7 @@ export const Services: React.FC = () => {
               '24/7 processing',
               'Real-time tracking',
             ]}
+            delay={0.1}
           />
         </div>
       </div>
@@ -166,6 +180,7 @@ export const Services: React.FC = () => {
               'Works with reels',
               'Safe for account',
             ]}
+            delay={0.15}
           />
 
           <ServiceCard
@@ -181,6 +196,7 @@ export const Services: React.FC = () => {
               'No password required',
               'Retention guarantee',
             ]}
+            delay={0.2}
           />
 
           <ServiceCard
@@ -201,12 +217,18 @@ export const Services: React.FC = () => {
               'Natural timing',
               'Custom themes',
             ]}
+            delay={0.25}
           />
         </div>
       </div>
 
       {/* How It Works */}
-      <div className="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 p-6 shadow-soft dark:shadow-dark-soft">
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3, duration: 0.3 }}
+        className="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 p-6 shadow-soft dark:shadow-dark-soft"
+      >
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
             <Zap size={20} className="text-primary-600 dark:text-primary-400" />
@@ -222,22 +244,33 @@ export const Services: React.FC = () => {
             { step: '4', title: 'Confirm Order', desc: 'Review and place your order' },
             { step: '5', title: 'Auto Processing', desc: 'We start processing immediately' },
             { step: '6', title: 'Track Progress', desc: 'Monitor order status in real-time' },
-          ].map((item) => (
-            <div key={item.step} className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0">
+          ].map((item, i) => (
+            <motion.div
+              key={item.step}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35 + i * 0.05, duration: 0.25 }}
+              className="flex items-start gap-3 group"
+            >
+              <div className="w-8 h-8 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
                 <span className="text-sm font-bold text-primary-600 dark:text-primary-400">{item.step}</span>
               </div>
               <div>
                 <p className="font-medium text-dark-900 dark:text-white">{item.title}</p>
                 <p className="text-sm text-dark-500 dark:text-dark-400">{item.desc}</p>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
-      </div>
+      </motion.div>
 
       {/* Support */}
-      <div className="bg-dark-50 dark:bg-dark-800/50 rounded-2xl border border-dark-100 dark:border-dark-700 p-6">
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5, duration: 0.3 }}
+        className="bg-dark-50 dark:bg-dark-800/50 rounded-2xl border border-dark-100 dark:border-dark-700 p-6"
+      >
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-accent-100 dark:bg-accent-900/30 flex items-center justify-center flex-shrink-0">
             <HelpCircle size={24} className="text-accent-600 dark:text-accent-400" />
@@ -250,14 +283,14 @@ export const Services: React.FC = () => {
           </div>
           <a
             href="mailto:smmdata.top@gmail.com"
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-dark-700 border border-dark-200 dark:border-dark-600 text-dark-700 dark:text-dark-300 hover:bg-dark-50 dark:hover:bg-dark-600 transition-colors text-sm font-medium"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white dark:bg-dark-700 border border-dark-200 dark:border-dark-600 text-dark-700 dark:text-dark-300 hover:bg-dark-50 dark:hover:bg-dark-600 transition-all duration-200 text-sm font-medium hover:shadow-soft"
           >
             <Mail size={16} />
             Contact Support
             <ExternalLink size={14} />
           </a>
         </div>
-      </div>
+      </motion.div>
 
       {/* Footer Links */}
       <div className="flex items-center justify-between flex-wrap gap-4 pt-4 border-t border-dark-100 dark:border-dark-800">
@@ -283,6 +316,6 @@ export const Services: React.FC = () => {
           Back to Dashboard
         </Link>
       </div>
-    </div>
+    </motion.div>
   );
 };

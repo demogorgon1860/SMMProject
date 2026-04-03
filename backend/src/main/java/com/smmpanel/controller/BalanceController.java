@@ -3,6 +3,7 @@ package com.smmpanel.controller;
 import com.smmpanel.dto.request.DepositRequest;
 import com.smmpanel.dto.response.BalanceResponse;
 import com.smmpanel.dto.response.TransactionHistoryResponse;
+import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.entity.User;
 import com.smmpanel.exception.ResourceNotFoundException;
 import com.smmpanel.repository.jpa.OrderRepository;
@@ -49,6 +50,9 @@ public class BalanceController {
         response.setLastUpdated(user.getUpdatedAt());
         response.setTotalSpent(orderRepository.sumChargeByUser_Username(user.getUsername()));
         response.setTotalOrders(orderRepository.countByUser_Username(user.getUsername()));
+        response.setTotalDelivered(
+                orderRepository.sumDeliveredByUserAndStatuses(
+                        user.getUsername(), List.of(OrderStatus.COMPLETED, OrderStatus.PARTIAL)));
 
         return ResponseEntity.ok(response);
     }

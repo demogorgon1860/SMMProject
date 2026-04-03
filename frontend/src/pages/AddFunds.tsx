@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { depositsAPI } from '../services/api';
 import { toast } from 'react-hot-toast';
 import {
@@ -13,6 +14,8 @@ import {
   AlertCircle,
   Loader2,
   Bitcoin,
+  Shield,
+  Zap,
 } from 'lucide-react';
 import { formatDateOnly, formatDate } from '../utils/timezone';
 
@@ -28,6 +31,15 @@ interface Deposit {
 }
 
 const QUICK_AMOUNTS = [10, 25, 50, 100, 250, 500];
+
+const rowVariants = {
+  hidden: { opacity: 0, y: 6 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.04, duration: 0.25, ease: 'easeOut' },
+  }),
+};
 
 export const AddFunds: React.FC = () => {
   const [amount, setAmount] = useState('');
@@ -84,36 +96,38 @@ export const AddFunds: React.FC = () => {
       case 'COMPLETED':
         return {
           icon: <CheckCircle size={14} />,
-          bg: 'bg-accent-100 dark:bg-accent-900/30',
-          text: 'text-accent-700 dark:text-accent-400',
+          colors: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
           label: 'Completed',
         };
       case 'PENDING':
         return {
           icon: <Clock size={14} />,
-          bg: 'bg-yellow-100 dark:bg-yellow-900/30',
-          text: 'text-yellow-700 dark:text-yellow-400',
+          colors: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
           label: 'Pending',
+          pulse: true,
         };
       case 'FAILED':
         return {
           icon: <XCircle size={14} />,
-          bg: 'bg-red-100 dark:bg-red-900/30',
-          text: 'text-red-700 dark:text-red-400',
+          colors: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
           label: 'Failed',
         };
       default:
         return {
           icon: <AlertCircle size={14} />,
-          bg: 'bg-dark-100 dark:bg-dark-700',
-          text: 'text-dark-600 dark:text-dark-400',
+          colors: 'bg-dark-100 text-dark-600 dark:bg-dark-700 dark:text-dark-400',
           label: status,
         };
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
+    <motion.div
+      className="max-w-4xl mx-auto space-y-6"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: 'easeOut' }}
+    >
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-accent-100 dark:bg-accent-900/30 flex items-center justify-center">
@@ -127,7 +141,12 @@ export const AddFunds: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Payment Form */}
-        <div className="lg:col-span-2 bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1, duration: 0.3 }}
+          className="lg:col-span-2 bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft overflow-hidden"
+        >
           <div className="p-6 border-b border-dark-100 dark:border-dark-700">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
@@ -150,13 +169,13 @@ export const AddFunds: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('cryptomus')}
-                  className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${
+                  className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all duration-200 ${
                     paymentMethod === 'cryptomus'
-                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                      : 'border-dark-200 dark:border-dark-600 hover:border-dark-300 dark:hover:border-dark-500'
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 shadow-sm shadow-primary-500/10'
+                      : 'border-dark-200 dark:border-dark-600 hover:border-dark-300 dark:hover:border-dark-500 hover:shadow-soft'
                   }`}
                 >
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors duration-200 ${
                     paymentMethod === 'cryptomus'
                       ? 'bg-primary-100 dark:bg-primary-900/30'
                       : 'bg-dark-100 dark:bg-dark-700'
@@ -197,10 +216,10 @@ export const AddFunds: React.FC = () => {
                     key={quickAmount}
                     type="button"
                     onClick={() => setAmount(quickAmount.toString())}
-                    className={`py-2.5 px-3 rounded-xl text-sm font-medium transition-all ${
+                    className={`py-2.5 px-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                       amount === quickAmount.toString()
-                        ? 'bg-primary-600 text-white shadow-glow'
-                        : 'bg-dark-100 dark:bg-dark-700 text-dark-700 dark:text-dark-300 hover:bg-dark-200 dark:hover:bg-dark-600'
+                        ? 'bg-primary-600 text-white shadow-sm shadow-primary-600/30 scale-[1.02]'
+                        : 'bg-dark-100 dark:bg-dark-700 text-dark-700 dark:text-dark-300 hover:bg-dark-200 dark:hover:bg-dark-600 hover:scale-[1.02]'
                     }`}
                   >
                     ${quickAmount}
@@ -224,7 +243,7 @@ export const AddFunds: React.FC = () => {
                   min="5"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-dark-50 dark:bg-dark-700 border border-dark-200 dark:border-dark-600 rounded-xl text-dark-900 dark:text-white placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                  className="w-full pl-10 pr-4 py-3 bg-dark-50 dark:bg-dark-700 border border-dark-200 dark:border-dark-600 rounded-xl text-dark-900 dark:text-white placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 transition-all duration-200"
                   placeholder="Enter amount (min $5.00)"
                   required
                 />
@@ -239,7 +258,7 @@ export const AddFunds: React.FC = () => {
             <button
               type="submit"
               disabled={loading || !amount || parseFloat(amount) < 5}
-              className="w-full bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white py-3.5 rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-soft flex items-center justify-center gap-2"
+              className="w-full bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white py-3.5 rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-soft hover:shadow-lg hover:-translate-y-0.5 disabled:hover:translate-y-0 disabled:hover:shadow-soft flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
@@ -254,48 +273,53 @@ export const AddFunds: React.FC = () => {
               )}
             </button>
           </form>
-        </div>
+        </motion.div>
 
-        {/* Info Card */}
-        <div className="space-y-4">
+        {/* Info Cards */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.3 }}
+          className="space-y-4"
+        >
           <div className="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 p-6 shadow-soft dark:shadow-dark-soft">
             <h3 className="text-sm font-semibold text-dark-900 dark:text-white mb-4">Payment Info</h3>
             <ul className="space-y-3 text-sm text-dark-600 dark:text-dark-400">
-              <li className="flex items-start gap-2">
-                <CheckCircle size={16} className="text-accent-500 mt-0.5 flex-shrink-0" />
-                <span>Instant balance top-up after payment confirmation</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle size={16} className="text-accent-500 mt-0.5 flex-shrink-0" />
-                <span>Multiple cryptocurrencies supported</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle size={16} className="text-accent-500 mt-0.5 flex-shrink-0" />
-                <span>Secure payment processing via Cryptomus</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle size={16} className="text-accent-500 mt-0.5 flex-shrink-0" />
-                <span>No hidden fees or charges</span>
-              </li>
+              {[
+                { icon: <Zap size={16} />, text: 'Instant balance top-up after confirmation' },
+                { icon: <Bitcoin size={16} />, text: 'Multiple cryptocurrencies supported' },
+                { icon: <Shield size={16} />, text: 'Secure processing via Cryptomus' },
+                { icon: <CheckCircle size={16} />, text: 'No hidden fees or charges' },
+              ].map((item, i) => (
+                <li key={i} className="flex items-start gap-2.5">
+                  <span className="text-accent-500 mt-0.5 flex-shrink-0">{item.icon}</span>
+                  <span>{item.text}</span>
+                </li>
+              ))}
             </ul>
           </div>
 
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-2xl border border-yellow-200 dark:border-yellow-800/50 p-4">
+          <div className="bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-200 dark:border-amber-800/30 p-4">
             <div className="flex items-start gap-3">
-              <AlertCircle size={18} className="text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+              <AlertCircle size={18} className="text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
               <div>
-                <h4 className="text-sm font-medium text-yellow-800 dark:text-yellow-300">Important</h4>
-                <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-1">
+                <h4 className="text-sm font-medium text-amber-800 dark:text-amber-300">Important</h4>
+                <p className="text-xs text-amber-700 dark:text-amber-400 mt-1 leading-relaxed">
                   Crypto payments may take up to 30 minutes to confirm depending on network congestion.
                 </p>
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Deposits History */}
-      <div className="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft overflow-hidden">
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25, duration: 0.3 }}
+        className="bg-white dark:bg-dark-800 rounded-2xl border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft overflow-hidden"
+      >
         <div className="p-6 border-b border-dark-100 dark:border-dark-700">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
@@ -327,46 +351,40 @@ export const AddFunds: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-dark-50 dark:bg-dark-900/50">
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-dark-500 dark:text-dark-400 uppercase tracking-wider">
-                    ID
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-dark-500 dark:text-dark-400 uppercase tracking-wider">
-                    Date
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-dark-500 dark:text-dark-400 uppercase tracking-wider">
-                    Method
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-dark-500 dark:text-dark-400 uppercase tracking-wider">
-                    Amount
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-dark-500 dark:text-dark-400 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-dark-500 dark:text-dark-400 uppercase tracking-wider">
-                    Action
-                  </th>
+                <tr className="bg-dark-50/70 dark:bg-dark-700/50">
+                  {['ID', 'Date', 'Method', 'Amount', 'Status', 'Action'].map((header) => (
+                    <th key={header} className="px-6 py-3 text-left text-xs font-semibold text-dark-500 dark:text-dark-400 uppercase tracking-wider">
+                      {header}
+                    </th>
+                  ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-dark-100 dark:divide-dark-700">
-                {deposits.map((deposit) => {
+              <tbody className="divide-y divide-dark-100 dark:divide-dark-700/50">
+                {deposits.map((deposit, index) => {
                   const statusConfig = getStatusConfig(deposit.status);
                   return (
-                    <tr key={deposit.id} className="hover:bg-dark-50 dark:hover:bg-dark-700/50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm font-medium text-dark-900 dark:text-white">
+                    <motion.tr
+                      key={deposit.id}
+                      custom={index}
+                      variants={rowVariants}
+                      initial="hidden"
+                      animate="visible"
+                      className="group hover:bg-dark-50/50 dark:hover:bg-dark-700/30 transition-colors duration-150"
+                    >
+                      <td className="px-6 py-3.5 whitespace-nowrap">
+                        <span className="text-sm font-semibold text-dark-900 dark:text-white">
                           #{deposit.id}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-dark-600 dark:text-dark-400">
+                      <td className="px-6 py-3.5 whitespace-nowrap">
+                        <span className="text-sm text-dark-600 dark:text-dark-300">
                           {formatDateOnly(deposit.createdAt)}
                         </span>
-                        <span className="block text-xs text-dark-400 dark:text-dark-500">
+                        <span className="block text-xs text-dark-400 dark:text-dark-500 mt-0.5">
                           {formatDate(deposit.createdAt, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-3.5 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <Bitcoin size={16} className="text-dark-400" />
                           <span className="text-sm text-dark-600 dark:text-dark-400">
@@ -374,18 +392,24 @@ export const AddFunds: React.FC = () => {
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-3.5 whitespace-nowrap">
                         <span className="text-sm font-semibold text-dark-900 dark:text-white">
                           ${deposit.amount.toFixed(2)}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg ${statusConfig.bg} ${statusConfig.text}`}>
+                      <td className="px-6 py-3.5 whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg ${statusConfig.colors}`}>
+                          {'pulse' in statusConfig && statusConfig.pulse && (
+                            <span className="relative flex h-2 w-2">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-40" />
+                              <span className="relative inline-flex h-2 w-2 rounded-full bg-current" />
+                            </span>
+                          )}
                           {statusConfig.icon}
                           {statusConfig.label}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-3.5 whitespace-nowrap">
                         {deposit.status === 'PENDING' && deposit.paymentUrl && (
                           <a
                             href={deposit.paymentUrl}
@@ -398,14 +422,14 @@ export const AddFunds: React.FC = () => {
                           </a>
                         )}
                       </td>
-                    </tr>
+                    </motion.tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };

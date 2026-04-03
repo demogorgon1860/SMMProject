@@ -15,4 +15,5 @@ public class BalanceResponse {
     private LocalDateTime lastUpdated;
     private BigDecimal totalSpent;
     private Long totalOrders;
+    private Long totalDelivered;
 }

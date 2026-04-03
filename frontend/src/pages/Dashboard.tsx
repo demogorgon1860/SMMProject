@@ -57,6 +57,7 @@ export const Dashboard: React.FC = () => {
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [totalOrders, setTotalOrders] = useState<number>(0);
   const [totalSpent, setTotalSpent] = useState<number>(0);
+  const [totalDelivered, setTotalDelivered] = useState<number>(0);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -75,6 +76,9 @@ export const Dashboard: React.FC = () => {
       }
       if (response.totalOrders !== undefined && response.totalOrders !== null) {
         setTotalOrders(Number(response.totalOrders));
+      }
+      if (response.totalDelivered !== undefined && response.totalDelivered !== null) {
+        setTotalDelivered(Number(response.totalDelivered));
       }
     } catch (error) {
       console.error('Failed to fetch balance:', error);
@@ -250,16 +254,16 @@ export const Dashboard: React.FC = () => {
           </div>
         </motion.div>
 
-        {/* Role Card */}
+        {/* Total Delivered Card */}
         <motion.div variants={itemVariants} whileHover={cardHover}>
           <div className="bg-white dark:bg-dark-800 rounded-2xl p-6 border border-dark-100 dark:border-dark-700 shadow-soft dark:shadow-dark-soft h-full">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-dark-500 dark:text-dark-400 text-sm font-medium">Account Type</p>
-                <p className="text-2xl font-bold text-dark-900 dark:text-white mt-1">{user?.role || 'USER'}</p>
+                <p className="text-dark-500 dark:text-dark-400 text-sm font-medium">Total Delivered</p>
+                <p className="text-2xl font-bold text-dark-900 dark:text-white mt-1">{totalDelivered.toLocaleString()}</p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                <Settings size={24} className="text-purple-600 dark:text-purple-400" />
+              <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <CheckCircle size={24} className="text-green-600 dark:text-green-400" />
               </div>
             </div>
           </div>

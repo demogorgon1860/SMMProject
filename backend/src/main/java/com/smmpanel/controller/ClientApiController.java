@@ -187,9 +187,11 @@ public class ClientApiController {
                 customComments = getParam(request, requestBody, "customComments", null);
             }
 
-            log.info("Client API POST request: action={}, service={}, link={}, quantity={}, comments={}, customComments(raw)={}, contentType={}",
-                    action, service, link, quantity, customComments,
-                    request.getParameter("comments"), request.getContentType());
+            log.info(
+                    "Client API POST request: action={}, service={}, hasComments={}",
+                    action,
+                    service,
+                    customComments != null && !customComments.isEmpty());
 
             // Validate required parameters
             if (apiKey == null || apiKey.isEmpty()) {
@@ -257,7 +259,8 @@ public class ClientApiController {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Missing required parameters: service, link"));
         }
-        // Perfect Panel does not send quantity for Custom Comments — it's derived from comment count
+        // Perfect Panel does not send quantity for Custom Comments — it's derived from comment
+        // count
         if (quantity == null && (customComments == null || customComments.trim().isEmpty())) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Missing required parameters: quantity or comments"));
@@ -272,9 +275,8 @@ public class ClientApiController {
             if (quantity != null) {
                 effectiveQuantity = quantity;
             } else if (customComments != null && !customComments.trim().isEmpty()) {
-                effectiveQuantity = (int) customComments.lines()
-                        .filter(line -> !line.trim().isEmpty())
-                        .count();
+                effectiveQuantity =
+                        (int) customComments.lines().filter(line -> !line.trim().isEmpty()).count();
             } else {
                 effectiveQuantity = 0;
             }

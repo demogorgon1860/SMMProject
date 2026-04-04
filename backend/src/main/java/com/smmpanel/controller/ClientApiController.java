@@ -253,19 +253,36 @@ public class ClientApiController {
      */
     private ResponseEntity<Object> handleAddOrder(
             User user, Integer service, String link, Integer quantity, String customComments) {
-        if (service == null || link == null || quantity == null) {
+        if (service == null || link == null) {
             return ResponseEntity.badRequest()
-                    .body(Map.of("error", "Missing required parameters: service, link, quantity"));
+                    .body(Map.of("error", "Missing required parameters: service, link"));
+        }
+        // Perfect Panel does not send quantity for Custom Comments — it's derived from comment count
+        if (quantity == null && (customComments == null || customComments.trim().isEmpty())) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Missing required parameters: quantity or comments"));
         }
 
         try {
             // Validate user has access to this service
             serviceService.validateUserAccessToService(user, Long.valueOf(service));
 
+            // For Custom Comments: if quantity is null, derive from comment line count
+            int effectiveQuantity;
+            if (quantity != null) {
+                effectiveQuantity = quantity;
+            } else if (customComments != null && !customComments.trim().isEmpty()) {
+                effectiveQuantity = (int) customComments.lines()
+                        .filter(line -> !line.trim().isEmpty())
+                        .count();
+            } else {
+                effectiveQuantity = 0;
+            }
+
             CreateOrderRequest request = new CreateOrderRequest();
             request.setService(Long.valueOf(service));
             request.setLink(link);
-            request.setQuantity(quantity);
+            request.setQuantity(effectiveQuantity);
             request.setCustomComments(customComments);
 
             OrderResponse order = orderService.createOrder(request, user.getUsername());

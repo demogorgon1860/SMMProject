@@ -1165,15 +1165,18 @@ public class OrderService {
     }
 
     /**
-     * Normalize Instagram URL - convert /reel/ and /reels/ to /p/ format. Both formats point to the
-     * same content, but /p/ is the standard format that the Instagram bot expects.
+     * Normalize Instagram URL:
+     *
+     * <ul>
+     *   <li>Convert /reel/ and /reels/ to /p/ (bot expects /p/ format)
+     *   <li>Strip query parameters (?igsh=, ?utm_source=, etc.) — mobile/sharing tracking noise
+     * </ul>
      *
      * <p>Examples:
-     * <li>https://www.instagram.com/reels/DUVukATkjkc/ → https://www.instagram.com/p/DUVukATkjkc/
-     * <li>https://www.instagram.com/reel/DUVukATkjkc/ → https://www.instagram.com/p/DUVukATkjkc/
-     *
-     * @param url The original URL
-     * @return Normalized URL with /p/ instead of /reel/ or /reels/
+     * <li>https://www.instagram.com/reels/ABC123/ → https://www.instagram.com/p/ABC123/
+     * <li>https://www.instagram.com/p/ABC123/?igsh=MWowN3F1... →
+     *     https://www.instagram.com/p/ABC123/
+     * <li>https://www.instagram.com/username/?igsh=... → https://www.instagram.com/username/
      */
     private String normalizeInstagramUrl(String url) {
         if (url == null || url.isEmpty()) {
@@ -1181,6 +1184,18 @@ public class OrderService {
         }
 
         String original = url;
+
+        // Strip query parameters — Instagram never needs them for content access
+        int queryIndex = url.indexOf('?');
+        if (queryIndex != -1) {
+            url = url.substring(0, queryIndex);
+        }
+
+        // Strip fragment
+        int fragmentIndex = url.indexOf('#');
+        if (fragmentIndex != -1) {
+            url = url.substring(0, fragmentIndex);
+        }
 
         // Convert /reels/ to /p/ (check /reels/ before /reel/ to avoid partial replacement)
         url = url.replace("/reels/", "/p/");

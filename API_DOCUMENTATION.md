@@ -946,19 +946,56 @@ POST /api/v2?key={api_key}&action={action}&service={service_id}&link={url}&quant
 **Actions:**
 - `add`: Create new order
 - `status`: Check order status
+- `statuses`: Check multiple order statuses (comma-separated IDs)
 - `services`: List all services
 - `balance`: Check user balance
+- `cancel`: Cancel an order
+- `mass`: Create multiple orders (JSON body, max 100)
 
-#### 2. Add Order
+#### 2. Add Order (Default)
 ```http
-POST /api/v2?key=your_api_key&action=add&service=1&link=https://youtube.com/watch?v=xxx&quantity=1000
+POST /api/v2?key=your_api_key&action=add&service=1&link=https://instagram.com/p/ABC123/&quantity=100
 ```
 
 **Response:**
 ```json
 {
+  "status": "Success",
   "order": 12345,
-  "status": "Success"
+  "charge": "0.40",
+  "start_count": 150,
+  "created_at": "2026-03-26T10:30:45",
+  "remaining_balance": "95.50",
+  "currency": "USD"
+}
+```
+
+#### 2b. Add Order (Custom Comments)
+
+For services with `"type": "Custom Comments"`, send comments instead of quantity.
+Quantity is automatically calculated from the number of comment lines.
+
+```http
+POST /api/v2
+Content-Type: application/x-www-form-urlencoded
+
+key=your_api_key&action=add&service=26&link=https://instagram.com/p/ABC123/&comments=Great+post!%0ALove+it!%0AAmazing+work!
+```
+
+**Parameters:**
+- `comments` — Comments list separated by `\r\n` or `\n` (one comment per line)
+- `quantity` — **Not required** for Custom Comments (derived from comment count)
+
+**Response:**
+```json
+{
+  "status": "Success",
+  "order": 12346,
+  "charge": "0.18",
+  "start_count": 0,
+  "created_at": "2026-03-26T10:31:00",
+  "remaining_balance": "95.32",
+  "currency": "USD"
 }
 ```
 
@@ -987,16 +1024,35 @@ POST /api/v2?key=your_api_key&action=services
 ```json
 [
   {
-    "service": 1,
-    "name": "YouTube Views",
-    "category": "YouTube",
-    "rate": "10.00",
-    "min": 100,
-    "max": 10000,
-    "type": "Default"
+    "service": 26,
+    "name": "Instagram Custom Comments [Mix Gender] [USA/Europe]",
+    "category": "INSTAGRAM_COMMENTS",
+    "type": "Custom Comments",
+    "rate": 60.0,
+    "min": 3,
+    "max": 130,
+    "dripfeed": false,
+    "refill": false,
+    "cancel": true
+  },
+  {
+    "service": 20,
+    "name": "Instagram Likes [Mix Gender] [Germany]",
+    "category": "INSTAGRAM_LIKES",
+    "type": "Default",
+    "rate": 4.0,
+    "min": 10,
+    "max": 107,
+    "dripfeed": false,
+    "refill": false,
+    "cancel": true
   }
 ]
 ```
+
+**Service types:**
+- `"Default"` — standard service, requires `quantity` parameter
+- `"Custom Comments"` — requires `comments` parameter (one per line), quantity is auto-calculated
 
 #### 5. Check Balance
 ```http
@@ -1008,6 +1064,75 @@ POST /api/v2?key=your_api_key&action=balance
 {
   "balance": "100.00",
   "currency": "USDT"
+}
+```
+
+#### 6. Cancel Order
+```http
+POST /api/v2?key=your_api_key&action=cancel&order=12345
+```
+
+**Response:**
+```json
+{
+  "cancel": 12345,
+  "status": "Success"
+}
+```
+
+#### 7. Multiple Order Status
+```http
+POST /api/v2?key=your_api_key&action=statuses&orders=123,456,789
+```
+
+**Response:**
+```json
+{
+  "123": {
+    "charge": "4.00",
+    "start_count": 100,
+    "status": "Completed",
+    "remains": 0,
+    "currency": "USDT"
+  },
+  "456": {
+    "charge": "2.00",
+    "start_count": 50,
+    "status": "In progress",
+    "remains": 30,
+    "currency": "USDT"
+  }
+}
+```
+
+#### 8. Mass Order (Bulk Creation)
+
+Create up to 100 orders in a single request. Requires JSON body.
+
+```http
+POST /api/v2?key=your_api_key&action=mass
+Content-Type: application/json
+
+{
+  "orders": [
+    {"service": 20, "link": "https://instagram.com/p/POST1/", "quantity": 50},
+    {"service": 26, "link": "https://instagram.com/p/POST2/", "quantity": 10, "customComments": "Great!\nLove it!\nAmazing!"}
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "status": "Success",
+  "orders": [
+    {"order": 12345, "charge": "0.20", "status": "Success"},
+    {"order": 12346, "charge": "0.60", "status": "Success"}
+  ],
+  "total_orders": 2,
+  "total_charge": "0.80",
+  "remaining_balance": "94.70",
+  "currency": "USD"
 }
 ```
 
@@ -1291,11 +1416,32 @@ curl -X POST http://localhost:8080/api/v1/orders \
 
 #### Perfect Panel API
 ```bash
-# Add order using API key
-curl -X POST "http://localhost:8080/api/v2?key=your_api_key&action=add&service=1&link=https://youtube.com/watch?v=xxx&quantity=1000"
+# Add order (Default service)
+curl -X POST "https://smmworld.vip/api/v2" \
+  -d "key=your_api_key&action=add&service=20&link=https://instagram.com/p/ABC123/&quantity=50"
+
+# Add order (Custom Comments service)
+curl -X POST "https://smmworld.vip/api/v2" \
+  -d "key=your_api_key&action=add&service=26&link=https://instagram.com/p/ABC123/" \
+  --data-urlencode "comments=Great post!
+Love it!
+Amazing work!"
 
 # Check order status
-curl -X POST "http://localhost:8080/api/v2?key=your_api_key&action=status&order=12345"
+curl -X POST "https://smmworld.vip/api/v2" \
+  -d "key=your_api_key&action=status&order=12345"
+
+# Get services
+curl -X POST "https://smmworld.vip/api/v2" \
+  -d "key=your_api_key&action=services"
+
+# Check balance
+curl -X POST "https://smmworld.vip/api/v2" \
+  -d "key=your_api_key&action=balance"
+
+# Cancel order
+curl -X POST "https://smmworld.vip/api/v2" \
+  -d "key=your_api_key&action=cancel&order=12345"
 ```
 
 ---

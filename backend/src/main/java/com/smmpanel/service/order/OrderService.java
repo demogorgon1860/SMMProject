@@ -1169,21 +1169,60 @@ public class OrderService {
      *
      * <ul>
      *   <li>Convert /reel/ and /reels/ to /p/ (bot expects /p/ format)
-     *   <li>Strip query parameters (?igsh=, ?utm_source=, etc.) — mobile/sharing tracking noise
+     *   <li>Strip query parameters (?igsh=, ?utm_source=, etc.)
+     *   <li>Strip mobile sharing tokens appended to post shortcodes
      * </ul>
      *
      * <p>Examples:
      * <li>https://www.instagram.com/reels/ABC123/ → https://www.instagram.com/p/ABC123/
-     * <li>https://www.instagram.com/p/ABC123/?igsh=MWowN3F1... →
-     *     https://www.instagram.com/p/ABC123/
+     * <li>https://www.instagram.com/p/ABC123/?igsh=... → https://www.instagram.com/p/ABC123/
+     * <li>https://www.instagram.com/p/ABC123xyzSHARINGTOKEN → https://www.instagram.com/p/ABC123/
      * <li>https://www.instagram.com/username/?igsh=... → https://www.instagram.com/username/
+     */
+    private static final java.util.regex.Pattern INSTAGRAM_HOST_PATTERN =
+            java.util.regex.Pattern.compile("(?i)(https?://)?([a-z0-9.]*instagram\\.com)");
+
+    private static final java.util.regex.Pattern SHORTCODE_TOKEN_PATTERN =
+            java.util.regex.Pattern.compile("(?i)(/p/)([A-Za-z0-9_-]{11})[A-Za-z0-9_-]+/?$");
+
+    /**
+     * Normalize Instagram URL. Non-Instagram URLs are returned unchanged.
+     *
+     * <ul>
+     *   <li>Normalize protocol and domain: Www.INstagram.com → https://www.instagram.com
+     *   <li>Convert /reel/ and /reels/ to /p/ (case-insensitive)
+     *   <li>Strip query parameters (?igsh=, ?utm_source=, etc.)
+     *   <li>Strip mobile sharing tokens appended to 11-char shortcodes
+     *   <li>Ensure trailing slash
+     * </ul>
      */
     private String normalizeInstagramUrl(String url) {
         if (url == null || url.isEmpty()) {
             return url;
         }
 
+        url = url.trim();
         String original = url;
+
+        // Only normalize Instagram URLs — leave YouTube etc. untouched
+        if (!url.toLowerCase().contains("instagram.com")) {
+            return url;
+        }
+
+        // Ensure https:// protocol
+        if (!url.toLowerCase().startsWith("http://") && !url.toLowerCase().startsWith("https://")) {
+            url = "https://" + url;
+        }
+        if (url.toLowerCase().startsWith("http://")) {
+            url = "https://" + url.substring(7);
+        }
+
+        // Lowercase the domain portion only (preserve shortcode case)
+        java.util.regex.Matcher domainMatcher =
+                java.util.regex.Pattern.compile("^(https://[^/]+)(/.*)$").matcher(url);
+        if (domainMatcher.matches()) {
+            url = domainMatcher.group(1).toLowerCase() + domainMatcher.group(2);
+        }
 
         // Strip query parameters — Instagram never needs them for content access
         int queryIndex = url.indexOf('?');
@@ -1197,10 +1236,23 @@ public class OrderService {
             url = url.substring(0, fragmentIndex);
         }
 
-        // Convert /reels/ to /p/ (check /reels/ before /reel/ to avoid partial replacement)
-        url = url.replace("/reels/", "/p/");
-        // Convert /reel/ to /p/
-        url = url.replace("/reel/", "/p/");
+        // Convert /reels/ and /reel/ to /p/ (case-insensitive)
+        url = url.replaceAll("(?i)/reels/", "/p/");
+        url = url.replaceAll("(?i)/reel/", "/p/");
+
+        // Strip mobile sharing tokens from post shortcodes.
+        // Instagram shortcodes are exactly 11 characters. Mobile share links append
+        // a sharing token directly to the path without separator:
+        //   /p/DW0O1I1jbSJONCifAAQ8kaVxavBX--zQUgtyoc0 → /p/DW0O1I1jbSJ/
+        java.util.regex.Matcher postMatcher = SHORTCODE_TOKEN_PATTERN.matcher(url);
+        if (postMatcher.find()) {
+            url = url.substring(0, postMatcher.start()) + "/p/" + postMatcher.group(2) + "/";
+        }
+
+        // Ensure trailing slash
+        if (!url.endsWith("/")) {
+            url = url + "/";
+        }
 
         if (!original.equals(url)) {
             log.debug("Normalized Instagram URL: {} -> {}", original, url);

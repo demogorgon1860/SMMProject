@@ -98,8 +98,42 @@ public class AdminService {
             orderStatus = OrderStatus.valueOf(status.toUpperCase());
         }
 
-        // Use partition-safe JPQL queries instead of Specifications
-        Page<Order> orders = resolveAdminOrderQuery(search, orderStatus, pageable);
+        // Parse date filters
+        LocalDateTime fromDateTime = null;
+        LocalDateTime toDateTime = null;
+        if (dateFrom != null && !dateFrom.isEmpty()) {
+            fromDateTime = LocalDate.parse(dateFrom).atStartOfDay();
+        }
+        if (dateTo != null && !dateTo.isEmpty()) {
+            toDateTime = LocalDate.parse(dateTo).atTime(23, 59, 59);
+        }
+
+        // Resolve search parameters
+        Long searchId = null;
+        String searchUsername = null;
+        String searchLink = null;
+        if (search != null && !search.isEmpty()) {
+            String term = search.trim().toLowerCase();
+            try {
+                searchId = Long.parseLong(term);
+            } catch (NumberFormatException ignored) {
+                if (term.contains("/") || term.contains("instagram")) {
+                    searchLink = "%" + term + "%";
+                } else {
+                    searchUsername = "%" + term + "%";
+                }
+            }
+        }
+
+        Page<Order> orders =
+                orderRepository.adminSearch(
+                        orderStatus,
+                        fromDateTime,
+                        toDateTime,
+                        searchId,
+                        searchUsername,
+                        searchLink,
+                        pageable);
 
         List<AdminOrderDto> orderDtos =
                 orders.getContent().stream()
@@ -114,47 +148,6 @@ public class AdminService {
         response.put("pageSize", orders.getSize());
 
         return response;
-    }
-
-    private Page<Order> resolveAdminOrderQuery(
-            String search, OrderStatus status, Pageable pageable) {
-
-        // No search: return all (optionally filtered by status)
-        if (search == null || search.isEmpty()) {
-            if (status != null) {
-                return orderRepository.adminFindByStatus(status, pageable);
-            }
-            return orderRepository.adminFindAll(pageable);
-        }
-
-        String term = search.trim().toLowerCase();
-
-        // Try numeric ID first
-        try {
-            Long orderId = Long.parseLong(term);
-            if (status != null) {
-                return orderRepository.adminSearchByIdAndStatus(orderId, status, pageable);
-            }
-            return orderRepository.adminSearchById(orderId, pageable);
-        } catch (NumberFormatException ignored) {
-            // Not a number — search by username or link
-        }
-
-        // Determine if search looks like a URL (contains / or .)
-        if (term.contains("/") || term.contains("instagram")) {
-            if (status != null) {
-                return orderRepository.adminSearchByLinkAndStatus(
-                        "%" + term + "%", status, pageable);
-            }
-            return orderRepository.adminSearchByLink("%" + term + "%", pageable);
-        }
-
-        // Default: search by username
-        if (status != null) {
-            return orderRepository.adminSearchByUsernameAndStatus(
-                    "%" + term + "%", status, pageable);
-        }
-        return orderRepository.adminSearchByUsername("%" + term + "%", pageable);
     }
 
     @Transactional

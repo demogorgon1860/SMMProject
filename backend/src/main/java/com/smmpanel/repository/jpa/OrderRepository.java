@@ -435,74 +435,30 @@ public interface OrderRepository
             @Param("status") OrderStatus status,
             Pageable pageable);
 
-    // --- Admin search by ID ---
+    // --- Admin: single flexible query with all optional filters ---
     @Query(
             value =
-                    "SELECT o FROM Order o JOIN FETCH o.user u JOIN FETCH o.service s "
-                            + "WHERE o.id = :orderId",
-            countQuery = "SELECT COUNT(o) FROM Order o WHERE o.id = :orderId")
-    Page<Order> adminSearchById(@Param("orderId") Long orderId, Pageable pageable);
-
-    @Query(
-            value =
-                    "SELECT o FROM Order o JOIN FETCH o.user u JOIN FETCH o.service s "
-                            + "WHERE o.id = :orderId AND o.status = :status",
+                    "SELECT o FROM Order o JOIN FETCH o.user u JOIN FETCH o.service s WHERE"
+                        + " (:status IS NULL OR o.status = :status) AND (:fromDate IS NULL OR"
+                        + " o.createdAt >= :fromDate) AND (:toDate IS NULL OR o.createdAt <="
+                        + " :toDate) AND (:searchId IS NULL OR o.id = :searchId) AND"
+                        + " (:searchUsername IS NULL OR LOWER(u.username) LIKE :searchUsername) AND"
+                        + " (:searchLink IS NULL OR LOWER(o.link) LIKE :searchLink)",
             countQuery =
-                    "SELECT COUNT(o) FROM Order o WHERE o.id = :orderId AND o.status = :status")
-    Page<Order> adminSearchByIdAndStatus(
-            @Param("orderId") Long orderId, @Param("status") OrderStatus status, Pageable pageable);
-
-    // --- Admin search by username ---
-    @Query(
-            value =
-                    "SELECT o FROM Order o JOIN FETCH o.user u JOIN FETCH o.service s "
-                            + "WHERE LOWER(u.username) LIKE :username",
-            countQuery =
-                    "SELECT COUNT(o) FROM Order o " + "WHERE LOWER(o.user.username) LIKE :username")
-    Page<Order> adminSearchByUsername(@Param("username") String username, Pageable pageable);
-
-    @Query(
-            value =
-                    "SELECT o FROM Order o JOIN FETCH o.user u JOIN FETCH o.service s "
-                            + "WHERE LOWER(u.username) LIKE :username AND o.status = :status",
-            countQuery =
-                    "SELECT COUNT(o) FROM Order o "
-                            + "WHERE LOWER(o.user.username) LIKE :username AND o.status = :status")
-    Page<Order> adminSearchByUsernameAndStatus(
-            @Param("username") String username,
+                    "SELECT COUNT(o) FROM Order o JOIN o.user u WHERE (:status IS NULL OR o.status"
+                        + " = :status) AND (:fromDate IS NULL OR o.createdAt >= :fromDate) AND"
+                        + " (:toDate IS NULL OR o.createdAt <= :toDate) AND (:searchId IS NULL OR"
+                        + " o.id = :searchId) AND (:searchUsername IS NULL OR"
+                        + " LOWER(o.user.username) LIKE :searchUsername) AND (:searchLink IS NULL"
+                        + " OR LOWER(o.link) LIKE :searchLink)")
+    Page<Order> adminSearch(
             @Param("status") OrderStatus status,
+            @Param("fromDate") LocalDateTime fromDate,
+            @Param("toDate") LocalDateTime toDate,
+            @Param("searchId") Long searchId,
+            @Param("searchUsername") String searchUsername,
+            @Param("searchLink") String searchLink,
             Pageable pageable);
-
-    // --- Admin search by link ---
-    @Query(
-            value =
-                    "SELECT o FROM Order o JOIN FETCH o.user u JOIN FETCH o.service s "
-                            + "WHERE LOWER(o.link) LIKE :link",
-            countQuery = "SELECT COUNT(o) FROM Order o WHERE LOWER(o.link) LIKE :link")
-    Page<Order> adminSearchByLink(@Param("link") String link, Pageable pageable);
-
-    @Query(
-            value =
-                    "SELECT o FROM Order o JOIN FETCH o.user u JOIN FETCH o.service s "
-                            + "WHERE LOWER(o.link) LIKE :link AND o.status = :status",
-            countQuery =
-                    "SELECT COUNT(o) FROM Order o "
-                            + "WHERE LOWER(o.link) LIKE :link AND o.status = :status")
-    Page<Order> adminSearchByLinkAndStatus(
-            @Param("link") String link, @Param("status") OrderStatus status, Pageable pageable);
-
-    // --- Admin: all orders (no search) ---
-    @Query(
-            value = "SELECT o FROM Order o JOIN FETCH o.user u JOIN FETCH o.service s",
-            countQuery = "SELECT COUNT(o) FROM Order o")
-    Page<Order> adminFindAll(Pageable pageable);
-
-    @Query(
-            value =
-                    "SELECT o FROM Order o JOIN FETCH o.user u JOIN FETCH o.service s "
-                            + "WHERE o.status = :status",
-            countQuery = "SELECT COUNT(o) FROM Order o WHERE o.status = :status")
-    Page<Order> adminFindByStatus(@Param("status") OrderStatus status, Pageable pageable);
 
     // ==================== REFILL OPERATIONS ====================
 

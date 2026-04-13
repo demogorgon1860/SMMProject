@@ -8,8 +8,8 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -23,7 +23,6 @@ import org.springframework.web.client.RestTemplate;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class TelegramBotService {
 
     private static final String API_BASE = "https://api.telegram.org/bot";
@@ -32,6 +31,17 @@ public class TelegramBotService {
     private final CancelDecisionService cancelDecisionService;
     private final DailyProfitService dailyProfitService;
     private final RestTemplate restTemplate;
+
+    public TelegramBotService(
+            TelegramBotProperties props,
+            CancelDecisionService cancelDecisionService,
+            DailyProfitService dailyProfitService,
+            @Qualifier("telegramRestTemplate") RestTemplate restTemplate) {
+        this.props = props;
+        this.cancelDecisionService = cancelDecisionService;
+        this.dailyProfitService = dailyProfitService;
+        this.restTemplate = restTemplate;
+    }
 
     // ===================== Notification methods =====================
 

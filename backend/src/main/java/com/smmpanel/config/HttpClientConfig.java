@@ -85,6 +85,73 @@ public class HttpClientConfig {
         return restTemplate;
     }
 
+    @Bean("telegramRestTemplate")
+    public RestTemplate telegramRestTemplate(TelegramBotProperties telegramProps) {
+        ConnectionConfig connectionConfig =
+                ConnectionConfig.custom()
+                        .setConnectTimeout(Timeout.ofMilliseconds(10_000))
+                        .setSocketTimeout(Timeout.ofMilliseconds(30_000))
+                        .build();
+
+        PoolingHttpClientConnectionManager connectionManager =
+                PoolingHttpClientConnectionManagerBuilder.create()
+                        .setMaxConnTotal(10)
+                        .setMaxConnPerRoute(10)
+                        .setDefaultConnectionConfig(connectionConfig)
+                        .build();
+
+        RequestConfig.Builder requestConfigBuilder =
+                RequestConfig.custom()
+                        .setConnectionRequestTimeout(Timeout.ofMilliseconds(10_000))
+                        .setResponseTimeout(Timeout.ofMilliseconds(30_000));
+
+        // Configure proxy if enabled
+        if (telegramProps.getProxy().isEnabled() && telegramProps.getProxy().getHost() != null) {
+            org.apache.hc.core5.http.HttpHost proxyHost =
+                    new org.apache.hc.core5.http.HttpHost(
+                            telegramProps.getProxy().getHost(), telegramProps.getProxy().getPort());
+            requestConfigBuilder.setProxy(proxyHost);
+            log.info(
+                    "Telegram RestTemplate configured with proxy: {}:{}",
+                    telegramProps.getProxy().getHost(),
+                    telegramProps.getProxy().getPort());
+        }
+
+        RequestConfig requestConfig = requestConfigBuilder.build();
+
+        var httpClientBuilder =
+                HttpClients.custom()
+                        .setConnectionManager(connectionManager)
+                        .setDefaultRequestConfig(requestConfig);
+
+        // Add proxy credentials if provided
+        if (telegramProps.getProxy().isEnabled()
+                && telegramProps.getProxy().getUsername() != null) {
+            org.apache.hc.client5.http.auth.CredentialsProvider credentialsProvider =
+                    new org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider() {
+                        {
+                            setCredentials(
+                                    new org.apache.hc.client5.http.auth.AuthScope(
+                                            telegramProps.getProxy().getHost(),
+                                            telegramProps.getProxy().getPort()),
+                                    new org.apache.hc.client5.http.auth.UsernamePasswordCredentials(
+                                            telegramProps.getProxy().getUsername(),
+                                            telegramProps.getProxy().getPassword().toCharArray()));
+                        }
+                    };
+            httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
+        }
+
+        CloseableHttpClient httpClient = httpClientBuilder.build();
+
+        HttpComponentsClientHttpRequestFactory factory =
+                new HttpComponentsClientHttpRequestFactory(httpClient);
+
+        RestTemplate rt = new RestTemplate(factory);
+        rt.setInterceptors(Collections.singletonList(traceIdInterceptor));
+        return rt;
+    }
+
     @Bean
     @Primary
     public WebClient webClient() {

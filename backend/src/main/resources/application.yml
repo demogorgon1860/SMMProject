@@ -713,6 +713,12 @@ app:
       token: ${TELEGRAM_BOT_TOKEN:8577578909:AAGhCFEUm_y6dmItgMPGvV4ne-4oOsYeI24}
       chat-id: ${TELEGRAM_CHAT_ID:-5122828923}
       webhook-secret: ${TELEGRAM_WEBHOOK_SECRET:}
+    proxy:
+      enabled: ${TELEGRAM_PROXY_ENABLED:true}
+      host: ${TELEGRAM_PROXY_HOST:isp.decodo.com}
+      port: ${TELEGRAM_PROXY_PORT:10186}
+      username: ${TELEGRAM_PROXY_USERNAME:sp6fe1b086}
+      password: ${TELEGRAM_PROXY_PASSWORD:Nj1c8pCjehEq~C7tb6}
     cancel:
       timeout-hours: ${TELEGRAM_CANCEL_TIMEOUT_HOURS:4}
       default-action: ${TELEGRAM_CANCEL_DEFAULT_ACTION:proceed}

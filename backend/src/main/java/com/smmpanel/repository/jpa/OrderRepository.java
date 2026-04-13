@@ -435,22 +435,25 @@ public interface OrderRepository
             @Param("status") OrderStatus status,
             Pageable pageable);
 
-    // --- Admin: single flexible query with all optional filters ---
+    // --- Admin: flexible query with optional filters ---
+    // Uses CAST to avoid PostgreSQL "could not determine data type of parameter" error
     @Query(
             value =
                     "SELECT o FROM Order o JOIN FETCH o.user u JOIN FETCH o.service s WHERE"
-                        + " (:status IS NULL OR o.status = :status) AND (:fromDate IS NULL OR"
-                        + " o.createdAt >= :fromDate) AND (:toDate IS NULL OR o.createdAt <="
-                        + " :toDate) AND (:searchId IS NULL OR o.id = :searchId) AND"
-                        + " (:searchUsername IS NULL OR LOWER(u.username) LIKE :searchUsername) AND"
-                        + " (:searchLink IS NULL OR LOWER(o.link) LIKE :searchLink)",
+                        + " (CAST(:status AS string) IS NULL OR o.status = :status) AND"
+                        + " (CAST(:fromDate AS string) IS NULL OR o.createdAt >= :fromDate) AND"
+                        + " (CAST(:toDate AS string) IS NULL OR o.createdAt <= :toDate) AND"
+                        + " (:searchId IS NULL OR o.id = :searchId) AND (:searchUsername IS NULL OR"
+                        + " LOWER(u.username) LIKE :searchUsername) AND (:searchLink IS NULL OR"
+                        + " LOWER(o.link) LIKE :searchLink)",
             countQuery =
-                    "SELECT COUNT(o) FROM Order o JOIN o.user u WHERE (:status IS NULL OR o.status"
-                        + " = :status) AND (:fromDate IS NULL OR o.createdAt >= :fromDate) AND"
-                        + " (:toDate IS NULL OR o.createdAt <= :toDate) AND (:searchId IS NULL OR"
-                        + " o.id = :searchId) AND (:searchUsername IS NULL OR"
-                        + " LOWER(o.user.username) LIKE :searchUsername) AND (:searchLink IS NULL"
-                        + " OR LOWER(o.link) LIKE :searchLink)")
+                    "SELECT COUNT(o) FROM Order o JOIN o.user u WHERE (CAST(:status AS string) IS"
+                        + " NULL OR o.status = :status) AND (CAST(:fromDate AS string) IS NULL OR"
+                        + " o.createdAt >= :fromDate) AND (CAST(:toDate AS string) IS NULL OR"
+                        + " o.createdAt <= :toDate) AND (:searchId IS NULL OR o.id = :searchId) AND"
+                        + " (:searchUsername IS NULL OR LOWER(o.user.username) LIKE"
+                        + " :searchUsername) AND (:searchLink IS NULL OR LOWER(o.link) LIKE"
+                        + " :searchLink)")
     Page<Order> adminSearch(
             @Param("status") OrderStatus status,
             @Param("fromDate") LocalDateTime fromDate,

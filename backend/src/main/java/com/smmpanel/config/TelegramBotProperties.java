@@ -12,6 +12,7 @@ public class TelegramBotProperties {
     private boolean enabled = true;
 
     private Bot bot = new Bot();
+    private Proxy proxy = new Proxy();
     private Cancel cancel = new Cancel();
     private Profit profit = new Profit();
 
@@ -20,6 +21,15 @@ public class TelegramBotProperties {
         private String token;
         private String chatId;
         private String webhookSecret = "";
+    }
+
+    @Data
+    public static class Proxy {
+        private boolean enabled = false;
+        private String host;
+        private int port;
+        private String username;
+        private String password;
     }
 
     @Data

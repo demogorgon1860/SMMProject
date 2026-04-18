@@ -24,8 +24,8 @@ public class TelegramWebhookController {
         if (!StringUtils.hasText(telegramBotProperties.getBot().getWebhookSecret())) {
             log.warn(
                     "⚠️  TELEGRAM_WEBHOOK_SECRET is empty — /api/telegram/webhook accepts"
-                        + " unauthenticated callbacks. Set TELEGRAM_WEBHOOK_SECRET in .env and"
-                        + " re-register the webhook with setWebhook?secret_token=<value>.");
+                            + " unauthenticated callbacks. Set TELEGRAM_WEBHOOK_SECRET in .env and"
+                            + " re-register the webhook with setWebhook?secret_token=<value>.");
         }
     }
 

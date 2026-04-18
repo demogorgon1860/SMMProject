@@ -170,8 +170,8 @@ public class TelegramBotService {
     }
 
     /**
-     * Replace both the text and inline keyboard of a previously sent message in one API call.
-     * Used to show progressive status ("обрабатывается..." → "возобновлён") to the admin and
+     * Replace both the text and inline keyboard of a previously sent message in one API call. Used
+     * to show progressive status ("обрабатывается..." → "возобновлён") to the admin and
      * simultaneously strip the buttons so the decision can't be clicked twice.
      */
     public void editMessageText(Integer messageId, String text) {

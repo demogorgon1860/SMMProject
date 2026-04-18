@@ -301,7 +301,12 @@ public class InstagramService {
             // Partial completion — refund for undelivered portion
             order.setStatus(OrderStatus.PARTIAL);
             order.setTrafficStatus("PARTIAL");
-            processPartialRefund(order, actualDelivered);
+            processPartialRefund(
+                    order,
+                    actualDelivered,
+                    String.format(
+                            "Partial refund for Instagram order #%d: %d/%d delivered",
+                            order.getId(), actualDelivered, order.getQuantity()));
             log.info(
                     "Order {} partially completed: {}/{} delivered",
                     order.getId(),
@@ -356,14 +361,23 @@ public class InstagramService {
             order.setTrafficStatus("PARTIAL_FAILED");
             order.setViewsDelivered(completed);
             order.setRemains(order.getQuantity() - completed);
-            processPartialRefund(order, completed);
+            processPartialRefund(
+                    order,
+                    completed,
+                    String.format(
+                            "Partial refund for Instagram order #%d: %d/%d delivered",
+                            order.getId(), completed, order.getQuantity()));
         } else {
             // Complete failure - full refund
             order.setStatus(OrderStatus.CANCELLED);
             order.setTrafficStatus("FAILED");
             order.setViewsDelivered(0);
             order.setRemains(order.getQuantity());
-            processFullRefund(order);
+            processFullRefund(
+                    order,
+                    String.format(
+                            "Full refund for Instagram order #%d: no items delivered",
+                            order.getId()));
         }
 
         order.setErrorMessage("Instagram order failed");
@@ -486,53 +500,62 @@ public class InstagramService {
         return botClient.controlWorkers(action);
     }
 
-    /** Process partial refund for undelivered items. */
-    private void processPartialRefund(Order order, int completed) {
-        if (order.getCharge() == null || order.getQuantity() == null || order.getQuantity() == 0) {
-            return;
+    /**
+     * Partial refund for undelivered items (pro-rata). Reduces order.charge by the refunded amount
+     * and returns how much was actually credited back. Must be called inside an active transaction
+     * — caller is responsible for status/trafficStatus/viewsDelivered/remains and for saving the
+     * order.
+     */
+    public BigDecimal processPartialRefund(Order order, int completed, String reason) {
+        if (order.getCharge() == null
+                || order.getQuantity() == null
+                || order.getQuantity() == 0
+                || order.getUser() == null) {
+            return BigDecimal.ZERO;
         }
         int remains = order.getQuantity() - completed;
-        if (remains <= 0) return;
+        if (remains <= 0) return BigDecimal.ZERO;
 
         BigDecimal refundAmount =
                 order.getCharge()
                         .multiply(BigDecimal.valueOf(remains))
                         .divide(BigDecimal.valueOf(order.getQuantity()), 4, RoundingMode.HALF_UP);
 
-        if (refundAmount.compareTo(BigDecimal.ZERO) > 0 && order.getUser() != null) {
-            String reason =
-                    String.format(
-                            "Partial refund for Instagram order #%d: %d/%d delivered",
-                            order.getId(), completed, order.getQuantity());
-            balanceService.refund(order.getUser(), refundAmount, order, reason);
+        if (refundAmount.compareTo(BigDecimal.ZERO) <= 0) return BigDecimal.ZERO;
 
-            BigDecimal newCharge = order.getCharge().subtract(refundAmount);
-            if (newCharge.compareTo(BigDecimal.ZERO) < 0) {
-                newCharge = BigDecimal.ZERO;
-            }
-            order.setCharge(newCharge);
-            log.info(
-                    "Partial refund {} for order {}, new charge: {}",
-                    refundAmount,
-                    order.getId(),
-                    newCharge);
+        balanceService.refund(order.getUser(), refundAmount, order, reason);
+
+        BigDecimal newCharge = order.getCharge().subtract(refundAmount);
+        if (newCharge.compareTo(BigDecimal.ZERO) < 0) {
+            newCharge = BigDecimal.ZERO;
         }
+        order.setCharge(newCharge);
+        log.info(
+                "Partial refund {} for order {} ({}/{} delivered), new charge: {}",
+                refundAmount,
+                order.getId(),
+                completed,
+                order.getQuantity(),
+                newCharge);
+        return refundAmount;
     }
 
-    /** Process full refund for cancelled/failed orders. */
-    private void processFullRefund(Order order) {
-        if (order.getCharge() == null || order.getCharge().compareTo(BigDecimal.ZERO) <= 0) {
-            return;
+    /**
+     * Full refund for cancelled/failed orders. Zeroes out order.charge and returns the refunded
+     * amount (or BigDecimal.ZERO if nothing was refundable). Must be called inside an active
+     * transaction; caller is responsible for status/trafficStatus and for saving the order.
+     */
+    public BigDecimal processFullRefund(Order order, String reason) {
+        if (order.getCharge() == null
+                || order.getCharge().compareTo(BigDecimal.ZERO) <= 0
+                || order.getUser() == null) {
+            return BigDecimal.ZERO;
         }
-        if (order.getUser() != null) {
-            String reason =
-                    String.format(
-                            "Full refund for Instagram order #%d: no items delivered",
-                            order.getId());
-            balanceService.refund(order.getUser(), order.getCharge(), order, reason);
-            log.info("Full refund {} for order {}", order.getCharge(), order.getId());
-            order.setCharge(BigDecimal.ZERO);
-        }
+        BigDecimal amount = order.getCharge();
+        balanceService.refund(order.getUser(), amount, order, reason);
+        order.setCharge(BigDecimal.ZERO);
+        log.info("Full refund {} for order {}", amount, order.getId());
+        return amount;
     }
 
     /**

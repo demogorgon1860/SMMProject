@@ -313,7 +313,9 @@ public class InstagramBotClient {
         return callBotFast(orderId, "/api/orders/cancel", "cancelOrderFast");
     }
 
-    /** Short-timeout resume for interactive paths (Telegram callback). See {@link #cancelOrderFast}. */
+    /**
+     * Short-timeout resume for interactive paths (Telegram callback). See {@link #cancelOrderFast}.
+     */
     public boolean resumeOrderFast(String botOrderId) {
         return callBotFast(botOrderId, "/api/orders/resume", "resumeOrderFast");
     }
@@ -324,8 +326,7 @@ public class InstagramBotClient {
                 String url = instance + path;
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
-                String jsonPayload =
-                        objectMapper.writeValueAsString(Map.of("order_id", orderId));
+                String jsonPayload = objectMapper.writeValueAsString(Map.of("order_id", orderId));
                 HttpEntity<String> entity = new HttpEntity<>(jsonPayload, headers);
 
                 ResponseEntity<Map> resp =

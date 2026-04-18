@@ -6,7 +6,7 @@ import com.smmpanel.dto.telegram.CancelPendingDecision;
 import com.smmpanel.entity.Order;
 import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.repository.jpa.OrderRepository;
-import com.smmpanel.service.balance.BalanceService;
+import com.smmpanel.service.integration.InstagramService;
 import com.smmpanel.service.notification.CancelDecisionService;
 import com.smmpanel.service.notification.DailyProfitService;
 import com.smmpanel.service.notification.TelegramBotService;
@@ -28,7 +28,7 @@ public class TelegramScheduler {
     private final TelegramBotService telegramBotService;
     private final CancelDecisionService cancelDecisionService;
     private final OrderRepository orderRepository;
-    private final BalanceService balanceService;
+    private final InstagramService instagramService;
     private final TelegramBotProperties telegramBotProperties;
     private final InstagramBotClient instagramBotClient;
 
@@ -86,7 +86,11 @@ public class TelegramScheduler {
             cancelDecisionService.removePendingDecision(orderId);
 
             if ("cancel".equalsIgnoreCase(defaultAction)) {
-                applyDefaultCancel(orderId, decision.getBotOrderId());
+                applyDefaultCancel(
+                        orderId,
+                        decision.getBotOrderId(),
+                        decision.getCompletedCount(),
+                        decision.getOriginalCount());
             } else {
                 // Default: proceed — resume the paused order in the bot
                 if (decision.getBotOrderId() != null && !decision.getBotOrderId().isBlank()) {
@@ -102,34 +106,94 @@ public class TelegramScheduler {
         }
     }
 
-    private void applyDefaultCancel(Long orderId, String botOrderId) {
+    private void applyDefaultCancel(
+            Long orderId, String botOrderId, Integer completedCount, Integer originalCount) {
         Optional<Order> orderOpt = orderRepository.findById(orderId);
         if (orderOpt.isEmpty()) return;
         Order order = orderOpt.get();
-        // Race guard: if an admin just cancelled via the Telegram button, don't double-refund.
-        if (order.getStatus() == OrderStatus.CANCELLED) {
-            log.info("Order {} already cancelled — skipping auto-cancel", orderId);
+        // Race guard: if an admin/webhook already terminated the order, don't double-refund.
+        if (order.getStatus() == OrderStatus.CANCELLED
+                || order.getStatus() == OrderStatus.PARTIAL
+                || order.getStatus() == OrderStatus.COMPLETED) {
+            log.info(
+                    "Order {} already in terminal status {} — skipping auto-cancel",
+                    orderId,
+                    order.getStatus());
             return;
         }
-        // Tell the bot to cancel the paused order
+
         if (botOrderId != null && !botOrderId.isBlank()) {
             instagramBotClient.cancelOrder(botOrderId);
         }
-        if (order.getCharge() != null
-                && order.getCharge().compareTo(BigDecimal.ZERO) > 0
-                && order.getUser() != null) {
-            balanceService.refund(
-                    order.getUser(),
-                    order.getCharge(),
-                    order,
-                    String.format("Auto-refund for order #%d: cancel decision expired", orderId));
-            order.setCharge(BigDecimal.ZERO);
+
+        int completed = completedCount != null && completedCount > 0 ? completedCount : 0;
+        int quantity = order.getQuantity() != null ? order.getQuantity() : 0;
+
+        BigDecimal refunded;
+        boolean isPartial;
+
+        if (completed > 0 && completed < quantity) {
+            refunded =
+                    instagramService.processPartialRefund(
+                            order,
+                            completed,
+                            String.format(
+                                    "Partial auto-refund for Instagram order #%d: %d/%d delivered"
+                                            + " (timeout)",
+                                    orderId, completed, quantity));
+            order.setStatus(OrderStatus.PARTIAL);
+            order.setTrafficStatus("PARTIAL_CANCELLED_TIMEOUT");
+            order.setViewsDelivered(completed);
+            order.setRemains(quantity - completed);
+            isPartial = true;
+        } else {
+            refunded =
+                    instagramService.processFullRefund(
+                            order,
+                            String.format(
+                                    "Full auto-refund for Instagram order #%d: no items delivered"
+                                            + " (timeout)",
+                                    orderId));
+            order.setStatus(OrderStatus.CANCELLED);
+            order.setTrafficStatus("CANCELLED_TIMEOUT");
+            order.setViewsDelivered(0);
+            order.setRemains(quantity);
+            isPartial = false;
         }
-        order.setStatus(OrderStatus.CANCELLED);
-        order.setTrafficStatus("CANCELLED_TIMEOUT");
+
+        BigDecimal profit = order.getCharge() != null ? order.getCharge() : BigDecimal.ZERO;
         orderRepository.save(order);
-        telegramBotService.sendPlainMessage(
-                String.format(
-                        "⏰ Решение по заказу #%d истекло — заказ автоматически отменён", orderId));
+
+        // Profit from delivered portion (safe here — scheduler @Transactional commits on return).
+        if (isPartial && profit.compareTo(BigDecimal.ZERO) > 0) {
+            try {
+                dailyProfitService.recordProfit(profit, OrderStatus.PARTIAL);
+            } catch (Exception e) {
+                log.warn(
+                        "Profit recording failed for auto-cancel order {}: {}",
+                        orderId,
+                        e.getMessage());
+            }
+        }
+
+        String msg;
+        if (isPartial) {
+            msg =
+                    String.format(
+                            "⏰ Решение по заказу #%d истекло — частично отменён (выполнено %d из"
+                                    + " %d, рефанд за невыполненное: $%s)",
+                            orderId,
+                            completed,
+                            originalCount != null ? originalCount : quantity,
+                            refunded.toPlainString());
+        } else {
+            msg =
+                    String.format(
+                            "⏰ Решение по заказу #%d истекло — заказ автоматически отменён"
+                                    + " (полный рефанд: $%s)",
+                            orderId, refunded.toPlainString());
+        }
+        telegramBotService.sendPlainMessage(msg);
+        log.info("Auto-cancel timeout order={} partial={} refund={}", orderId, isPartial, refunded);
     }
 }

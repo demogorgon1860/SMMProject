@@ -26,6 +26,7 @@ import org.springframework.web.client.RestTemplate;
 public class InstagramBotClient {
 
     private final RestTemplate restTemplate;
+    private final RestTemplate fastRestTemplate;
     private final ObjectMapper objectMapper;
     private final CircuitBreakerRegistry circuitBreakerRegistry;
     private final RetryRegistry retryRegistry;
@@ -52,10 +53,12 @@ public class InstagramBotClient {
 
     public InstagramBotClient(
             @Qualifier("instagramBotRestTemplate") RestTemplate restTemplate,
+            @Qualifier("instagramBotFastRestTemplate") RestTemplate fastRestTemplate,
             ObjectMapper objectMapper,
             CircuitBreakerRegistry circuitBreakerRegistry,
             RetryRegistry retryRegistry) {
         this.restTemplate = restTemplate;
+        this.fastRestTemplate = fastRestTemplate;
         this.objectMapper = objectMapper;
         this.circuitBreakerRegistry = circuitBreakerRegistry;
         this.retryRegistry = retryRegistry;
@@ -298,6 +301,47 @@ public class InstagramBotClient {
             }
         }
         log.warn("Failed to resume Instagram order {} on any instance", botOrderId);
+        return false;
+    }
+
+    /**
+     * Short-timeout cancel for interactive paths (Telegram callback). Bypasses Resilience4j retry
+     * and circuit breaker — max latency = N_instances × 3s, so Telegram's ~15s callback_query
+     * window is never exceeded even with 3 bot instances down.
+     */
+    public boolean cancelOrderFast(String orderId) {
+        return callBotFast(orderId, "/api/orders/cancel", "cancelOrderFast");
+    }
+
+    /** Short-timeout resume for interactive paths (Telegram callback). See {@link #cancelOrderFast}. */
+    public boolean resumeOrderFast(String botOrderId) {
+        return callBotFast(botOrderId, "/api/orders/resume", "resumeOrderFast");
+    }
+
+    private boolean callBotFast(String orderId, String path, String opName) {
+        for (String instance : botInstances) {
+            try {
+                String url = instance + path;
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                String jsonPayload =
+                        objectMapper.writeValueAsString(Map.of("order_id", orderId));
+                HttpEntity<String> entity = new HttpEntity<>(jsonPayload, headers);
+
+                ResponseEntity<Map> resp =
+                        fastRestTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
+
+                if (resp.getStatusCode() == HttpStatus.OK
+                        && resp.getBody() != null
+                        && Boolean.TRUE.equals(resp.getBody().get("success"))) {
+                    log.info("{} succeeded on {} for order {}", opName, instance, orderId);
+                    return true;
+                }
+            } catch (Exception e) {
+                log.debug("{} failed on {}: {}", opName, instance, e.getMessage());
+            }
+        }
+        log.warn("{} failed on all instances for order {}", opName, orderId);
         return false;
     }
 

@@ -3,6 +3,7 @@ package com.smmpanel.controller;
 import com.smmpanel.config.TelegramBotProperties;
 import com.smmpanel.dto.telegram.TelegramUpdate;
 import com.smmpanel.service.notification.TelegramUpdateHandler;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,16 @@ public class TelegramWebhookController {
 
     private final TelegramUpdateHandler telegramUpdateHandler;
     private final TelegramBotProperties telegramBotProperties;
+
+    @PostConstruct
+    public void warnIfNoSecret() {
+        if (!StringUtils.hasText(telegramBotProperties.getBot().getWebhookSecret())) {
+            log.warn(
+                    "⚠️  TELEGRAM_WEBHOOK_SECRET is empty — /api/telegram/webhook accepts"
+                        + " unauthenticated callbacks. Set TELEGRAM_WEBHOOK_SECRET in .env and"
+                        + " re-register the webhook with setWebhook?secret_token=<value>.");
+        }
+    }
 
     @PostMapping("/webhook")
     public ResponseEntity<Void> handleUpdate(

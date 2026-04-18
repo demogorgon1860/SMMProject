@@ -169,6 +169,26 @@ public class TelegramBotService {
         }
     }
 
+    /**
+     * Replace both the text and inline keyboard of a previously sent message in one API call.
+     * Used to show progressive status ("обрабатывается..." → "возобновлён") to the admin and
+     * simultaneously strip the buttons so the decision can't be clicked twice.
+     */
+    public void editMessageText(Integer messageId, String text) {
+        if (messageId == null) return;
+        try {
+            Map<String, Object> body = new HashMap<>();
+            body.put("chat_id", props.getBot().getChatId());
+            body.put("message_id", messageId);
+            body.put("text", text);
+            body.put("reply_markup", Map.of("inline_keyboard", List.of()));
+            post("editMessageText", body);
+        } catch (Exception e) {
+            // Telegram returns 400 "message is not modified" on identical re-edits — not an error.
+            log.debug("Failed to edit message {}: {}", messageId, e.getMessage());
+        }
+    }
+
     public void answerCallbackQuery(String callbackQueryId, String text) {
         try {
             Map<String, Object> body = new HashMap<>();

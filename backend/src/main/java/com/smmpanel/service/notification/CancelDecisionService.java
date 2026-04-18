@@ -20,10 +20,27 @@ import org.springframework.stereotype.Service;
 public class CancelDecisionService {
 
     private static final String KEY_PREFIX = "telegram:cancel_pending:";
+    private static final String CALLBACK_LOCK_PREFIX = "telegram:callback_lock:";
+    private static final long CALLBACK_LOCK_TTL_SECONDS = 300;
 
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
     private final TelegramBotProperties telegramBotProperties;
+
+    /**
+     * Idempotency lock per Telegram update_id (not orderId — Telegram retries the same update_id
+     * when our webhook response is slow). Returns true if the caller acquired the lock and should
+     * process; false if the update was already processed or is being processed concurrently.
+     */
+    public boolean acquireCallbackLock(Long updateId) {
+        if (updateId == null) return true;
+        String key = CALLBACK_LOCK_PREFIX + updateId;
+        Boolean ok =
+                stringRedisTemplate
+                        .opsForValue()
+                        .setIfAbsent(key, "1", CALLBACK_LOCK_TTL_SECONDS, TimeUnit.SECONDS);
+        return Boolean.TRUE.equals(ok);
+    }
 
     /**
      * Store a pending cancel decision in Redis using SETNX (only if not already present). Returns

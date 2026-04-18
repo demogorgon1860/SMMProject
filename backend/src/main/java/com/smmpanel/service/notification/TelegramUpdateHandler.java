@@ -1,21 +1,28 @@
 package com.smmpanel.service.notification;
 
 import com.smmpanel.client.InstagramBotClient;
-import com.smmpanel.dto.telegram.CancelPendingDecision;
 import com.smmpanel.dto.telegram.TelegramCallbackQuery;
 import com.smmpanel.dto.telegram.TelegramUpdate;
-import com.smmpanel.entity.Order;
-import com.smmpanel.entity.OrderStatus;
-import com.smmpanel.repository.jpa.OrderRepository;
-import com.smmpanel.service.balance.BalanceService;
-import java.math.BigDecimal;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Processes Telegram webhook updates (callback_query from inline keyboard buttons).
+ *
+ * <p>Ordering guarantees to keep the Telegram loading spinner under ~15s:
+ *
+ * <ol>
+ *   <li>answerCallbackQuery is always the FIRST call — closes the spinner immediately.
+ *   <li>Idempotency lock on update_id (guards against Telegram retries when our response is slow).
+ *   <li>Transactional DB work (refund + status) is delegated to {@link TelegramCallbackTxService}
+ *       — a separate bean so @Transactional is applied through the AOP proxy.
+ *   <li>Bot HTTP calls use the short-timeout fast-path to avoid 30s+ blocks.
+ *   <li>Final status is pushed back to admin via editMessageText (same message, no new chat spam).
+ * </ol>
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -26,138 +33,146 @@ public class TelegramUpdateHandler {
 
     private final CancelDecisionService cancelDecisionService;
     private final TelegramBotService telegramBotService;
-    private final OrderRepository orderRepository;
-    private final BalanceService balanceService;
     private final InstagramBotClient instagramBotClient;
+    private final TelegramCallbackTxService callbackTxService;
 
     @Async("asyncExecutor")
     public void process(TelegramUpdate update) {
-        if (update.getCallbackQuery() != null) {
-            handleCallbackQuery(update.getCallbackQuery());
+        try {
+            if (update.getCallbackQuery() != null) {
+                handleCallbackQuery(update.getUpdateId(), update.getCallbackQuery());
+            }
+        } catch (Exception e) {
+            log.error("Unhandled exception in Telegram update processing: {}", e.getMessage(), e);
+            if (update.getCallbackQuery() != null) {
+                try {
+                    telegramBotService.answerCallbackQuery(
+                            update.getCallbackQuery().getId(), "⚠️ Внутренняя ошибка");
+                } catch (Exception ignored) {
+                    // best-effort
+                }
+            }
         }
     }
 
-    @Transactional
-    protected void handleCallbackQuery(TelegramCallbackQuery callbackQuery) {
-        String data = callbackQuery.getData();
+    private void handleCallbackQuery(Long updateId, TelegramCallbackQuery cq) {
+        String data = cq.getData();
         if (data == null) return;
+
+        String callbackId = cq.getId();
+        Integer messageId = cq.getMessage() != null ? cq.getMessage().getMessageId() : null;
+
+        // STEP 1 — close the Telegram loading spinner immediately (<200ms).
+        // Nothing that can block should run before this.
+        telegramBotService.answerCallbackQuery(callbackId, "⏳ Обрабатывается...");
+
+        // STEP 2 — idempotency lock against Telegram retries of the same update_id.
+        if (!cancelDecisionService.acquireCallbackLock(updateId)) {
+            log.info("Duplicate callback update_id={} — skipping", updateId);
+            return;
+        }
 
         try {
             if (data.startsWith(PROCEED)) {
-                Long orderId = Long.parseLong(data.substring(PROCEED.length()));
-                handleProceed(
-                        callbackQuery.getId(),
-                        orderId,
-                        callbackQuery.getMessage() != null
-                                ? callbackQuery.getMessage().getMessageId()
-                                : null);
+                handleProceed(Long.parseLong(data.substring(PROCEED.length())), messageId);
             } else if (data.startsWith(CANCEL)) {
-                Long orderId = Long.parseLong(data.substring(CANCEL.length()));
-                handleCancel(
-                        callbackQuery.getId(),
-                        orderId,
-                        callbackQuery.getMessage() != null
-                                ? callbackQuery.getMessage().getMessageId()
-                                : null);
+                handleCancel(Long.parseLong(data.substring(CANCEL.length())), messageId);
+            } else {
+                log.warn("Unknown callback data: {}", data);
             }
         } catch (NumberFormatException e) {
             log.warn("Invalid callback data: {}", data);
-            telegramBotService.answerCallbackQuery(
-                    callbackQuery.getId(), "Ошибка: неверный формат данных");
+            telegramBotService.editMessageText(
+                    messageId, "⚠️ Ошибка: неверный формат callback_data");
+        } catch (Exception e) {
+            log.error(
+                    "Callback handler failed for update_id={}: {}", updateId, e.getMessage(), e);
+            telegramBotService.editMessageText(
+                    messageId, "⚠️ Ошибка обработки. Проверьте логи SMM-панели.");
         }
     }
 
-    private void handleProceed(String callbackQueryId, Long orderId, Integer messageId) {
-        Optional<CancelPendingDecision> decisionOpt =
-                cancelDecisionService.getPendingDecision(orderId);
-        if (decisionOpt.isEmpty()) {
-            telegramBotService.answerCallbackQuery(
-                    callbackQueryId, "Решение уже принято или истекло");
+    private void handleProceed(Long orderId, Integer messageId) {
+        Optional<String> botOrderIdOpt = callbackTxService.readBotOrderIdIfPending(orderId);
+        if (botOrderIdOpt.isEmpty()) {
+            telegramBotService.editMessageText(
+                    messageId,
+                    String.format("ℹ️ Заказ #%d: решение уже принято или истекло", orderId));
             return;
         }
 
-        CancelPendingDecision decision = decisionOpt.get();
-        String botOrderId = decision.getBotOrderId();
+        // Remove decision first so a stray second click or scheduler tick sees "already decided".
+        callbackTxService.removePendingDecision(orderId);
+        telegramBotService.editMessageText(
+                messageId, String.format("⏳ Заказ #%d: возобновляем в боте...", orderId));
 
-        // Resume the paused order in the bot so it continues from where it stopped
         boolean resumed = false;
+        String botOrderId = botOrderIdOpt.get();
         if (botOrderId != null && !botOrderId.isBlank()) {
-            resumed = instagramBotClient.resumeOrder(botOrderId);
-            if (!resumed) {
-                log.warn("Could not resume bot order {} for panel order {}", botOrderId, orderId);
+            try {
+                resumed = instagramBotClient.resumeOrderFast(botOrderId);
+            } catch (Exception e) {
+                log.warn("resumeOrderFast failed for bot order {}: {}", botOrderId, e.getMessage());
             }
         }
 
-        cancelDecisionService.removePendingDecision(orderId);
-        telegramBotService.removeInlineKeyboard(messageId);
-        telegramBotService.answerCallbackQuery(callbackQueryId, "✅ Заказ возобновлён");
-
-        String msg =
+        telegramBotService.editMessageText(
+                messageId,
                 resumed
-                        ? String.format(
-                                "✅ Заказ #%d возобновлён — бот продолжает с места остановки",
-                                orderId)
+                        ? String.format("✅ Заказ #%d возобновлён — бот продолжает", orderId)
                         : String.format(
                                 "⚠️ Заказ #%d: сигнал боту не прошёл (возможно уже завершён)",
-                                orderId);
-        telegramBotService.sendPlainMessage(msg);
-        log.info("Admin chose PROCEED for order {} (bot resume: {})", orderId, resumed);
+                                orderId));
+        log.info("Admin PROCEED order={} resumed={}", orderId, resumed);
     }
 
-    @Transactional
-    protected void handleCancel(String callbackQueryId, Long orderId, Integer messageId) {
-        Optional<CancelPendingDecision> decisionOpt =
-                cancelDecisionService.getPendingDecision(orderId);
-        if (decisionOpt.isEmpty()) {
-            telegramBotService.answerCallbackQuery(
-                    callbackQueryId, "Решение уже принято или истекло");
+    private void handleCancel(Long orderId, Integer messageId) {
+        Optional<String> botOrderIdOpt = callbackTxService.readBotOrderIdIfPending(orderId);
+        if (botOrderIdOpt.isEmpty()) {
+            telegramBotService.editMessageText(
+                    messageId,
+                    String.format("ℹ️ Заказ #%d: решение уже принято или истекло", orderId));
             return;
         }
 
-        Optional<Order> orderOpt = orderRepository.findById(orderId);
-        if (orderOpt.isEmpty()) {
-            log.warn("Order {} not found when processing cancel decision", orderId);
-            telegramBotService.answerCallbackQuery(callbackQueryId, "Заказ не найден");
-            cancelDecisionService.removePendingDecision(orderId);
-            return;
-        }
+        telegramBotService.editMessageText(
+                messageId,
+                String.format("⏳ Заказ #%d: отменяем и оформляем рефанд...", orderId));
 
-        Order order = orderOpt.get();
-
-        // Tell the bot to cancel (it may be in paused state waiting for our decision)
-        String botOrderId = decisionOpt.get().getBotOrderId();
-        if (botOrderId != null && !botOrderId.isBlank()) {
-            instagramBotClient.cancelOrder(botOrderId);
-        }
-
-        processFullRefund(order);
-        order.setStatus(OrderStatus.CANCELLED);
-        order.setTrafficStatus("CANCELLED_BY_ADMIN");
-        orderRepository.save(order);
-
-        cancelDecisionService.removePendingDecision(orderId);
-        telegramBotService.removeInlineKeyboard(messageId);
-        telegramBotService.answerCallbackQuery(callbackQueryId, "❌ Заказ отменён");
-        telegramBotService.sendPlainMessage(
-                String.format(
-                        "❌ Заказ #%d отменён администратором. Рефанд: $%s",
-                        orderId, order.getCharge().toPlainString()));
-        log.info("Admin chose CANCEL for order {}", orderId);
-    }
-
-    private void processFullRefund(Order order) {
-        if (order.getCharge() == null || order.getCharge().compareTo(BigDecimal.ZERO) <= 0) {
-            return;
-        }
-        if (order.getUser() != null) {
-            String reason =
+        TelegramCallbackTxService.CancelResult res;
+        try {
+            res = callbackTxService.performCancelTx(orderId);
+        } catch (Exception e) {
+            log.error(
+                    "Transactional cancel failed for order {}: {}", orderId, e.getMessage(), e);
+            telegramBotService.editMessageText(
+                    messageId,
                     String.format(
-                            "Full refund for Instagram order #%d: cancelled by admin",
-                            order.getId());
-            balanceService.refund(order.getUser(), order.getCharge(), order, reason);
-            log.info(
-                    "Full refund {} for order {} (admin cancel)", order.getCharge(), order.getId());
-            order.setCharge(BigDecimal.ZERO);
+                            "❌ Заказ #%d: ошибка при рефанде. Проверьте админку.", orderId));
+            return;
         }
+
+        if (!res.processed()) {
+            telegramBotService.editMessageText(
+                    messageId, String.format("ℹ️ Заказ #%d: %s", orderId, res.reason()));
+            return;
+        }
+
+        // Best-effort bot signal — the DB state is already correct regardless of this outcome.
+        String botOrderId = botOrderIdOpt.get();
+        if (botOrderId != null && !botOrderId.isBlank()) {
+            try {
+                instagramBotClient.cancelOrderFast(botOrderId);
+            } catch (Exception e) {
+                log.warn("cancelOrderFast failed for bot order {}: {}", botOrderId, e.getMessage());
+            }
+        }
+
+        telegramBotService.editMessageText(
+                messageId,
+                String.format(
+                        "❌ Заказ #%d отменён. Рефанд: $%s",
+                        orderId, res.refundedAmount().toPlainString()));
+        log.info("Admin CANCEL order={} refund={}", orderId, res.refundedAmount());
     }
 }

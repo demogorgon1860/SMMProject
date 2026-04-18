@@ -103,13 +103,18 @@ public class TelegramScheduler {
     }
 
     private void applyDefaultCancel(Long orderId, String botOrderId) {
+        Optional<Order> orderOpt = orderRepository.findById(orderId);
+        if (orderOpt.isEmpty()) return;
+        Order order = orderOpt.get();
+        // Race guard: if an admin just cancelled via the Telegram button, don't double-refund.
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            log.info("Order {} already cancelled — skipping auto-cancel", orderId);
+            return;
+        }
         // Tell the bot to cancel the paused order
         if (botOrderId != null && !botOrderId.isBlank()) {
             instagramBotClient.cancelOrder(botOrderId);
         }
-        Optional<Order> orderOpt = orderRepository.findById(orderId);
-        if (orderOpt.isEmpty()) return;
-        Order order = orderOpt.get();
         if (order.getCharge() != null
                 && order.getCharge().compareTo(BigDecimal.ZERO) > 0
                 && order.getUser() != null) {

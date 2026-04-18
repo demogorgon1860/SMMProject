@@ -220,6 +220,49 @@ public class HttpClientConfig {
         return createCustomRestTemplateWithLimits("InstagramBot", 50, 20);
     }
 
+    /**
+     * Short-timeout RestTemplate for user-facing paths (e.g. Telegram callback handlers) where the
+     * caller is waiting interactively. Telegram closes callback_query after ~15s, so we keep the
+     * socket timeout tight and skip pooling/retry machinery used elsewhere.
+     */
+    @Bean("instagramBotFastRestTemplate")
+    public RestTemplate instagramBotFastRestTemplate() {
+        ConnectionConfig connectionConfig =
+                ConnectionConfig.custom()
+                        .setConnectTimeout(Timeout.ofMilliseconds(1_500))
+                        .setSocketTimeout(Timeout.ofMilliseconds(3_000))
+                        .build();
+
+        PoolingHttpClientConnectionManager connectionManager =
+                PoolingHttpClientConnectionManagerBuilder.create()
+                        .setMaxConnTotal(20)
+                        .setMaxConnPerRoute(10)
+                        .setDefaultConnectionConfig(connectionConfig)
+                        .build();
+
+        RequestConfig requestConfig =
+                RequestConfig.custom()
+                        .setConnectionRequestTimeout(Timeout.ofMilliseconds(1_500))
+                        .setResponseTimeout(Timeout.ofMilliseconds(3_000))
+                        .build();
+
+        CloseableHttpClient httpClient =
+                HttpClients.custom()
+                        .setConnectionManager(connectionManager)
+                        .setDefaultRequestConfig(requestConfig)
+                        .setUserAgent("SMM-Panel/InstagramBotFast/1.0")
+                        .build();
+
+        HttpComponentsClientHttpRequestFactory factory =
+                new HttpComponentsClientHttpRequestFactory(httpClient);
+
+        RestTemplate restTemplate = new RestTemplate(factory);
+        restTemplate.setInterceptors(Collections.singletonList(traceIdInterceptor));
+
+        log.info("InstagramBotFast RestTemplate configured: connect=1500ms, read=3000ms");
+        return restTemplate;
+    }
+
     private RestTemplate createCustomRestTemplateWithLimits(
             String clientName, int maxTotal, int maxPerRoute) {
         ConnectionConfig connectionConfig =

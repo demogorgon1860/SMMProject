@@ -225,6 +225,20 @@ public class InstagramService {
 
             Order order = orderOpt.get();
 
+            // Sync real bot order ID on first contact. Orders dispatched via RabbitMQ start with
+            // a "rabbitmq:{panel_id}" placeholder — once the bot reports a webhook with its real
+            // ID, we persist it so subsequent cancel/resume calls hit the right order directly.
+            if (callback.getId() != null
+                    && !callback.getId().isBlank()
+                    && !callback.getId().equals(order.getInstagramBotOrderId())) {
+                log.info(
+                        "Synced bot order ID for panel order {}: {} → {}",
+                        order.getId(),
+                        order.getInstagramBotOrderId(),
+                        callback.getId());
+                order.setInstagramBotOrderId(callback.getId());
+            }
+
             // Update order based on callback status
             if ("completed".equalsIgnoreCase(callback.getStatus())) {
                 handleOrderCompleted(order, callback);

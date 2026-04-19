@@ -53,6 +53,20 @@ public class InstagramResultConsumer {
                                             new IllegalArgumentException(
                                                     "Order not found: " + orderId));
 
+            // Sync real bot order ID on first contact. Orders dispatched via RabbitMQ start with
+            // a "rabbitmq:{panel_id}" placeholder — once the bot reports a result with its real
+            // ID, we persist it so subsequent cancel/resume calls hit the right order directly.
+            if (result.getOrderId() != null
+                    && !result.getOrderId().isBlank()
+                    && !result.getOrderId().equals(order.getInstagramBotOrderId())) {
+                log.info(
+                        "Synced bot order ID for panel order {}: {} → {}",
+                        order.getId(),
+                        order.getInstagramBotOrderId(),
+                        result.getOrderId());
+                order.setInstagramBotOrderId(result.getOrderId());
+            }
+
             // Update order with result data
             updateOrderFromResult(order, result);
 

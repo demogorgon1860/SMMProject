@@ -321,12 +321,22 @@ public class InstagramBotClient {
     }
 
     private boolean callBotFast(String orderId, String path, String opName) {
+        // The panel stores a "rabbitmq:{panel_id}" placeholder in orders.instagram_bot_order_id
+        // when the order is dispatched via RabbitMQ (bot assigns the real ID asynchronously and
+        // the panel row may never be updated). To keep Telegram admin actions working for those
+        // orders, always include external_id alongside order_id so the bot can fall back to it.
+        Map<String, String> body = new HashMap<>();
+        body.put("order_id", orderId);
+        if (orderId != null && orderId.startsWith("rabbitmq:")) {
+            body.put("external_id", orderId.substring("rabbitmq:".length()));
+        }
+
         for (String instance : botInstances) {
             try {
                 String url = instance + path;
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
-                String jsonPayload = objectMapper.writeValueAsString(Map.of("order_id", orderId));
+                String jsonPayload = objectMapper.writeValueAsString(body);
                 HttpEntity<String> entity = new HttpEntity<>(jsonPayload, headers);
 
                 ResponseEntity<Map> resp =

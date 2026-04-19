@@ -331,13 +331,21 @@ public class InstagramBotClient {
             body.put("external_id", orderId.substring("rabbitmq:".length()));
         }
 
+        String jsonPayload;
+        try {
+            jsonPayload = objectMapper.writeValueAsString(body);
+        } catch (Exception e) {
+            log.error("{}: failed to serialize request body for order {}: {}", opName, orderId, e.getMessage());
+            return false;
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<String> entity = new HttpEntity<>(jsonPayload, headers);
+
         for (String instance : botInstances) {
             try {
                 String url = instance + path;
-                HttpHeaders headers = new HttpHeaders();
-                headers.setContentType(MediaType.APPLICATION_JSON);
-                String jsonPayload = objectMapper.writeValueAsString(body);
-                HttpEntity<String> entity = new HttpEntity<>(jsonPayload, headers);
 
                 ResponseEntity<Map> resp =
                         fastRestTemplate.exchange(url, HttpMethod.POST, entity, Map.class);

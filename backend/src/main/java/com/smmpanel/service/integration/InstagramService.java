@@ -247,7 +247,9 @@ public class InstagramService {
             } else if ("pending_cancel".equalsIgnoreCase(callback.getStatus())) {
                 handleOrderPendingCancelFromBot(order, callback);
             } else if ("cancelled".equalsIgnoreCase(callback.getStatus())) {
-                // Panel-initiated cancel echo — bot acknowledged our cancel request
+                // Panel-initiated cancel echo — bot acknowledged our cancel request.
+                // No status change here, but persist the bot-ID sync above (if any).
+                orderRepository.save(order);
                 log.info("Bot acknowledged cancel for order {} (panel-initiated)", order.getId());
             } else {
                 log.warn("Unknown callback status: {}", callback.getStatus());

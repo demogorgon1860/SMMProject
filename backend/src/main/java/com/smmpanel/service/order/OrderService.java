@@ -1204,6 +1204,19 @@ public class OrderService {
         url = url.trim();
         String original = url;
 
+        // Bare username / @username → wrap into full profile URL.
+        // Matches only when the input has no slashes, no whitespace, and no instagram.com.
+        if (!url.toLowerCase().contains("instagram.com")
+                && !url.contains("/")
+                && !url.contains(" ")) {
+            String handle = url.startsWith("@") ? url.substring(1) : url;
+            if (handle.matches("^[A-Za-z0-9._]{1,30}$")) {
+                url = "https://www.instagram.com/" + handle.toLowerCase() + "/";
+                log.debug("Normalized Instagram handle: {} -> {}", original, url);
+                return url;
+            }
+        }
+
         // Only normalize Instagram URLs — leave YouTube etc. untouched
         if (!url.toLowerCase().contains("instagram.com")) {
             return url;
@@ -1239,6 +1252,9 @@ public class OrderService {
         // Convert /reels/ and /reel/ to /p/ (case-insensitive)
         url = url.replaceAll("(?i)/reels/", "/p/");
         url = url.replaceAll("(?i)/reel/", "/p/");
+
+        // Strip leading '@' from profile path: instagram.com/@username/ → instagram.com/username/
+        url = url.replaceAll("(?i)(instagram\\.com)/@([A-Za-z0-9._]+)", "$1/$2");
 
         // Strip mobile sharing tokens from post shortcodes.
         // Instagram shortcodes are exactly 11 characters. Mobile share links append

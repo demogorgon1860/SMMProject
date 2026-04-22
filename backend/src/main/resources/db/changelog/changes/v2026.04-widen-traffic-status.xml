@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="v2026.04-widen-traffic-status" author="dev">
+        <comment>
+            Widen orders.traffic_status from VARCHAR(20) to VARCHAR(50) to fit values
+            introduced by the partial-refund feature:
+              - PARTIAL_CANCELLED_BY_ADMIN  (25 chars)
+              - PARTIAL_CANCELLED_TIMEOUT   (24 chars)
+            Without this, admin-partial cancels failed with "value too long for type
+            character varying(20)" and the whole refund transaction rolled back.
+        </comment>
+        <modifyDataType tableName="orders" columnName="traffic_status" newDataType="VARCHAR(50)"/>
+    </changeSet>
+
+</databaseChangeLog>

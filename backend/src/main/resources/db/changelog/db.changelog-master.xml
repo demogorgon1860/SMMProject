@@ -763,4 +763,7 @@
     <!-- Daily profit summary table for Telegram reports -->
     <include file="db/changelog/changes/v2026.03-add-telegram-profit-table.xml"/>
 
+    <!-- Widen traffic_status to fit new PARTIAL_CANCELLED_* values from admin-partial feature -->
+    <include file="db/changelog/changes/v2026.04-widen-traffic-status.xml"/>
+
 </databaseChangeLog>

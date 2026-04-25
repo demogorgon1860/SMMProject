@@ -54,10 +54,6 @@ public class RepositoryQueryPerformanceTest extends QueryPerformanceTestBase {
                             String serviceName = o.getService().getName();
 
                             // These should be loaded by JOIN FETCH
-                            if (o.getBinomCampaigns() != null) {
-                                o.getBinomCampaigns().size();
-                            }
-
                             if (o.getVideoProcessing() != null) {
                                 o.getVideoProcessing().getStatus();
                             }

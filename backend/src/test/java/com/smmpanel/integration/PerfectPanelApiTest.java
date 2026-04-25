@@ -9,7 +9,7 @@ import com.smmpanel.entity.Service;
 import com.smmpanel.entity.User;
 import com.smmpanel.repository.jpa.ServiceRepository;
 import com.smmpanel.repository.jpa.UserRepository;
-import com.smmpanel.service.ApiKeyService;
+import com.smmpanel.service.auth.ApiKeyService;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;

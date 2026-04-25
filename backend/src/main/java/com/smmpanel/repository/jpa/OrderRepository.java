@@ -175,6 +175,38 @@ public interface OrderRepository
             @Param("link") String link,
             @Param("createdAt") LocalDateTime createdAt);
 
+    /**
+     * Sum of "consumed" quantity per (service, link) within a time window. Used for the per-URL
+     * quota check on order creation. For COMPLETED/PARTIAL orders we count what was actually
+     * delivered ({@code quantity - remains}); for active orders the slot is reserved, so we count
+     * the full {@code quantity}. Caller passes the list of statuses to consider — terminal
+     * statuses (CANCELLED/FAILED/ERROR/REFILL/SUSPENDED) must be excluded so freed slots are not
+     * counted.
+     */
+    @Query(
+            "SELECT COALESCE(SUM(CASE WHEN o.status IN (com.smmpanel.entity.OrderStatus.COMPLETED,"
+                    + " com.smmpanel.entity.OrderStatus.PARTIAL) THEN o.quantity -"
+                    + " COALESCE(o.remains, 0) ELSE o.quantity END), 0) FROM Order o WHERE"
+                    + " o.service.id = :serviceId AND o.link = :link AND o.status IN :statuses AND"
+                    + " o.createdAt >= :cutoff")
+    Long sumConsumedQuantityByServiceAndLink(
+            @Param("serviceId") Long serviceId,
+            @Param("link") String link,
+            @Param("statuses") List<OrderStatus> statuses,
+            @Param("cutoff") LocalDateTime cutoff);
+
+    /**
+     * Acquire a transaction-scoped PostgreSQL advisory lock on (serviceId, link). Released
+     * automatically on commit or rollback. Serializes concurrent createOrder calls on the same
+     * URL+service so the quota aggregate cannot be read-skewed across simultaneous requests.
+     */
+    @Query(
+            value =
+                    "SELECT pg_advisory_xact_lock(hashtext(:link), CAST(:serviceId AS int))",
+            nativeQuery = true)
+    Integer acquireQuotaLock(
+            @Param("serviceId") Long serviceId, @Param("link") String link);
+
     @Query("SELECT o FROM Order o WHERE o.user.id = :userId AND o.createdAt > :createdAt")
     List<Order> findByUserIdAndCreatedAtAfter(
             @Param("userId") Long userId, @Param("createdAt") LocalDateTime createdAt);

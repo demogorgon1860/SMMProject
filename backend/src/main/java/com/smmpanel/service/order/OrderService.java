@@ -9,8 +9,10 @@ import com.smmpanel.dto.response.OrderResponse;
 import com.smmpanel.dto.result.StateTransitionResult;
 import com.smmpanel.entity.*;
 import com.smmpanel.event.OrderCreatedEvent;
+import com.smmpanel.config.OrderQuotaCheckProperties;
 import com.smmpanel.exception.InsufficientBalanceException;
 import com.smmpanel.exception.OrderNotFoundException;
+import com.smmpanel.exception.OrderQuotaExceededException;
 import com.smmpanel.exception.OrderValidationException;
 import com.smmpanel.producer.OrderEventProducer;
 import com.smmpanel.repository.jpa.*;
@@ -86,6 +88,24 @@ public class OrderService {
     private final FraudDetectionService fraudDetectionService;
     private final ConversionCoefficientRepository conversionCoefficientRepository;
     private final OrderEventProducer orderEventProducer;
+    private final OrderQuotaCheckProperties quotaCheckProperties;
+
+    /**
+     * Statuses that occupy a slot on a URL — either reserved (pending/active work) or already
+     * delivered (completed/partial). Terminal statuses (CANCELLED/FAILED/ERROR/REFILL/SUSPENDED)
+     * release their slot and must NOT be counted. Must stay aligned with the WHERE clause of the
+     * partial index {@code idx_orders_quota_check}.
+     */
+    private static final List<OrderStatus> QUOTA_COUNTING_STATUSES =
+            List.of(
+                    OrderStatus.PENDING,
+                    OrderStatus.IN_PROGRESS,
+                    OrderStatus.PROCESSING,
+                    OrderStatus.ACTIVE,
+                    OrderStatus.PARTIAL,
+                    OrderStatus.COMPLETED,
+                    OrderStatus.PAUSED,
+                    OrderStatus.HOLDING);
 
     // Redis namespace constants
     private static final String REDIS_YOUTUBE_START_COUNT = "youtube:startCount:";
@@ -202,6 +222,13 @@ public class OrderService {
             Integer maxUserOrderNumber =
                     orderRepository.findMaxUserOrderNumberByUserId(user.getId());
             order.setUserOrderNumber(maxUserOrderNumber + 1);
+
+            // Per-URL quota check — prevents bypass via multiple orders on the same link
+            enforceUrlQuota(
+                    service.getId(),
+                    order.getLink(),
+                    effectiveQuantity,
+                    service.getMaxOrder());
 
             order = orderRepository.save(order);
 
@@ -987,6 +1014,42 @@ public class OrderService {
                 .divide(BigDecimal.valueOf(1000), 4, java.math.RoundingMode.HALF_UP);
     }
 
+    /**
+     * Reject the order if the cumulative consumed quantity on this {@code (serviceId, link)}
+     * within the configured time window plus the new {@code quantity} would exceed the service's
+     * {@code maxOrder}. Acquires a transaction-scoped advisory lock first to serialize concurrent
+     * createOrder calls on the same URL+service, preventing read-skew between two parallel
+     * requests. Throws before {@code orderRepository.save(...)} so a rejected order is never
+     * persisted and no balance is debited.
+     */
+    private void enforceUrlQuota(
+            Long serviceId, String normalizedLink, int quantity, int maxOrder) {
+        if (!quotaCheckProperties.isEnabled()) {
+            return;
+        }
+
+        orderRepository.acquireQuotaLock(serviceId, normalizedLink);
+
+        LocalDateTime cutoff =
+                LocalDateTime.now().minusDays(quotaCheckProperties.getWindowDays());
+        long consumed =
+                orderRepository.sumConsumedQuantityByServiceAndLink(
+                        serviceId, normalizedLink, QUOTA_COUNTING_STATUSES, cutoff);
+
+        if (consumed + (long) quantity > maxOrder) {
+            throw new OrderQuotaExceededException(
+                    String.format(
+                            "URL quota exceeded for service %d on %s: %d already consumed in"
+                                    + " last %d days, requested %d, service max %d",
+                            serviceId,
+                            normalizedLink,
+                            consumed,
+                            quotaCheckProperties.getWindowDays(),
+                            quantity,
+                            maxOrder));
+        }
+    }
+
     private BigDecimal calculateRefund(Order order) {
         if (order.getRemains() <= 0) {
             return BigDecimal.ZERO;
@@ -1426,6 +1489,10 @@ public class OrderService {
 
         order.setCreatedAt(LocalDateTime.now());
         order.setUpdatedAt(LocalDateTime.now());
+
+        // Per-URL quota check — prevents bypass via multiple orders on the same link
+        enforceUrlQuota(
+                service.getId(), order.getLink(), effectiveQuantity, service.getMaxOrder());
 
         order = orderRepository.save(order);
 

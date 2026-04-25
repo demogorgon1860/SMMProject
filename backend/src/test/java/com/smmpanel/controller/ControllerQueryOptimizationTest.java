@@ -6,7 +6,7 @@ import com.smmpanel.entity.Order;
 import com.smmpanel.entity.User;
 import com.smmpanel.repository.jpa.OrderRepository;
 import com.smmpanel.repository.jpa.UserRepository;
-import com.smmpanel.service.OrderService;
+import com.smmpanel.service.order.OrderService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
@@ -125,10 +125,6 @@ public class ControllerQueryOptimizationTest {
         String serviceName = fetchedOrder.getService().getName();
 
         // Access collections if they exist
-        if (fetchedOrder.getBinomCampaigns() != null) {
-            fetchedOrder.getBinomCampaigns().size();
-        }
-
         if (fetchedOrder.getVideoProcessing() != null) {
             fetchedOrder.getVideoProcessing().getStatus();
         }

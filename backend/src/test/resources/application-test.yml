@@ -54,7 +54,20 @@ spring:
         enable_lazy_load_no_trans: false
         connection:
           provider_disables_autocommit: true
+        # Disable Hibernate 2nd-level cache for tests — main app uses Ehcache via JCache,
+        # but loading ehcache-config.xml in the test classpath is brittle. Tests don't need
+        # the cache, so use NoCachingRegionFactory and override the cache.use_* flags so the
+        # @Cache annotations on entities become no-ops.
+        cache:
+          use_second_level_cache: false
+          use_query_cache: false
+          region:
+            factory_class: org.hibernate.cache.internal.NoCachingRegionFactory
     open-in-view: false
+
+  # Spring caching: also disable so @Cacheable annotations are no-op in tests.
+  cache:
+    type: none
 
   # H2 console
   h2:
@@ -195,6 +208,12 @@ app:
       retry-delay-ms: 1000
       batch-size: 10
       thread-pool-size: 2
+
+    # URL-quota check uses pg_advisory_xact_lock which H2 does not support.
+    # Tests targeting the quota logic directly call the repository aggregate method.
+    quota-check:
+      enabled: false
+      window-days: 30
 
     sla:
       monitoring:

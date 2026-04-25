@@ -97,9 +97,6 @@ public class EntityRelationshipPerformanceTest {
             if (order.getService() != null) {
                 order.getService().getName(); // Force service loading
             }
-            if (order.getBinomCampaigns() != null) {
-                order.getBinomCampaigns().size(); // Force campaign loading
-            }
         }
 
         long finalQueryCount = statistics.getQueryExecutionCount();

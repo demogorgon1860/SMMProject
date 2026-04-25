@@ -145,6 +145,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(errorResponse);
     }
 
+    @ExceptionHandler(OrderQuotaExceededException.class)
+    public ResponseEntity<ErrorResponse> handleOrderQuotaExceeded(
+            OrderQuotaExceededException ex, HttpServletRequest request) {
+        ErrorResponse errorResponse =
+                createErrorResponse(
+                        HttpStatus.BAD_REQUEST, "ORDER_QUOTA_EXCEEDED", ex.getMessage(), request);
+
+        log.warn("Order quota exceeded: {}", ex.getMessage());
+        return ResponseEntity.badRequest().body(errorResponse);
+    }
+
     @ExceptionHandler(InsufficientBalanceException.class)
     public ResponseEntity<ErrorResponse> handleInsufficientBalance(
             InsufficientBalanceException ex, HttpServletRequest request) {

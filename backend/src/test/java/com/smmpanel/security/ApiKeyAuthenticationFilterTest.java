@@ -7,7 +7,7 @@ import static org.mockito.Mockito.*;
 import com.smmpanel.entity.User;
 import com.smmpanel.entity.UserRole;
 import com.smmpanel.repository.jpa.UserRepository;
-import com.smmpanel.service.ApiKeyService;
+import com.smmpanel.service.auth.ApiKeyService;
 import com.smmpanel.service.security.AuthenticationRateLimitService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

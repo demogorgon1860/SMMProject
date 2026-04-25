@@ -2,7 +2,7 @@ package com.smmpanel;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import com.smmpanel.service.ServiceService;
+import com.smmpanel.service.core.ServiceService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

@@ -7,6 +7,7 @@ import com.smmpanel.exception.InsufficientBalanceException;
 import com.smmpanel.repository.jpa.BalanceTransactionRepository;
 import com.smmpanel.repository.jpa.ServiceRepository;
 import com.smmpanel.repository.jpa.UserRepository;
+import com.smmpanel.service.balance.BalanceService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;

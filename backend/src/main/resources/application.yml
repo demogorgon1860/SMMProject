@@ -624,6 +624,9 @@ app:
       max-retries: 3
       retry-delay: 5000
       timeout: 300000
+    quota-check:
+      enabled: true
+      window-days: 30
   video:
     processing:
       max-concurrent: 5

@@ -4,9 +4,9 @@ import com.smmpanel.dto.ServiceResponse;
 import com.smmpanel.entity.Order;
 import com.smmpanel.entity.Service;
 import com.smmpanel.entity.User;
-import com.smmpanel.service.BalanceService;
-import com.smmpanel.service.OrderService;
-import com.smmpanel.service.ServiceService;
+import com.smmpanel.service.balance.BalanceService;
+import com.smmpanel.service.order.OrderService;
+import com.smmpanel.service.core.ServiceService;
 import java.math.BigDecimal;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -179,10 +179,6 @@ public class CommonUserOperationsPerformanceTest extends QueryPerformanceTestBas
                             // Access all relationships to test JOIN FETCH
                             String username = order.getUser().getUsername();
                             String serviceName = order.getService().getName();
-
-                            if (order.getBinomCampaigns() != null) {
-                                order.getBinomCampaigns().size();
-                            }
 
                             if (order.getVideoProcessing() != null) {
                                 order.getVideoProcessing().getStatus();

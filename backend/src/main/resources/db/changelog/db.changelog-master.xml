@@ -766,4 +766,7 @@
     <!-- Widen traffic_status to fit new PARTIAL_CANCELLED_* values from admin-partial feature -->
     <include file="db/changelog/changes/v2026.04-widen-traffic-status.xml"/>
 
+    <!-- Partial covering index for per-URL quota check on order creation -->
+    <include file="db/changelog/changes/v2026.04-add-quota-check-index.xml"/>
+
 </databaseChangeLog>

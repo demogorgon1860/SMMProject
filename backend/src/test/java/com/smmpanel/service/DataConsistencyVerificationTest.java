@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.smmpanel.entity.*;
 import com.smmpanel.repository.jpa.*;
+import com.smmpanel.service.balance.BalanceService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;

@@ -199,12 +199,17 @@ public interface OrderRepository
      * Acquire a transaction-scoped PostgreSQL advisory lock on (serviceId, link). Released
      * automatically on commit or rollback. Serializes concurrent createOrder calls on the same
      * URL+service so the quota aggregate cannot be read-skewed across simultaneous requests.
+     *
+     * <p>Returns {@code Object} (not a typed value) because {@code pg_advisory_xact_lock} returns
+     * SQL {@code void}, which Hibernate hands back as a {@link org.postgresql.util.PGobject} —
+     * trying to cast that to {@code Integer} throws {@link ClassCastException}. We discard the
+     * result; the lock is acquired by side effect.
      */
     @Query(
             value =
                     "SELECT pg_advisory_xact_lock(hashtext(:link), CAST(:serviceId AS int))",
             nativeQuery = true)
-    Integer acquireQuotaLock(
+    Object acquireQuotaLock(
             @Param("serviceId") Long serviceId, @Param("link") String link);
 
     @Query("SELECT o FROM Order o WHERE o.user.id = :userId AND o.createdAt > :createdAt")

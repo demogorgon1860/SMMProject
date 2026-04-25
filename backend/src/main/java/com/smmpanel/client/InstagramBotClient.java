@@ -85,16 +85,18 @@ public class InstagramBotClient {
             writeRetries.put(instance, retryRegistry.retry("instagramBotWrite-" + suffix));
         }
 
-        // Add API key interceptor if configured
+        // Add API key interceptor if configured — to BOTH the standard and the fast template,
+        // otherwise the Telegram-callback fast path (cancelOrderFast/resumeOrderFast) gets 403
+        // from any bot instance that requires the key.
         if (botApiKey != null && !botApiKey.isBlank()) {
-            restTemplate
-                    .getInterceptors()
-                    .add(
-                            (request, body, execution) -> {
-                                request.getHeaders().set("X-API-Key", botApiKey);
-                                return execution.execute(request, body);
-                            });
-            log.info("Instagram bot API key configured");
+            org.springframework.http.client.ClientHttpRequestInterceptor apiKeyInterceptor =
+                    (request, body, execution) -> {
+                        request.getHeaders().set("X-API-Key", botApiKey);
+                        return execution.execute(request, body);
+                    };
+            restTemplate.getInterceptors().add(apiKeyInterceptor);
+            fastRestTemplate.getInterceptors().add(apiKeyInterceptor);
+            log.info("Instagram bot API key configured (applied to both rest templates)");
         }
 
         log.info(
@@ -106,6 +108,41 @@ public class InstagramBotClient {
     /** Returns the list of configured bot instance URLs. */
     public List<String> getBotInstances() {
         return botInstances;
+    }
+
+    /**
+     * Extract the panel order ID from a stored bot_order_id placeholder so it can be sent as
+     * {@code external_id} alongside {@code order_id}. The bot uses external_id as a fallback
+     * lookup when it can't find the order by its internal bot_id (e.g. after a bot restart, or
+     * when the bot generates its own placeholder ID like {@code panel_<panelId>_<ts>}).
+     *
+     * <p>Recognized formats:
+     *
+     * <ul>
+     *   <li>{@code rabbitmq:<panelId>} — panel-side placeholder for orders dispatched async via
+     *       RabbitMQ (the real bot ID may never be written back to the panel row).
+     *   <li>{@code panel_<panelId>_<timestamp>} — bot-generated internal ID derived from the
+     *       external_id we sent at create time.
+     * </ul>
+     *
+     * Returns {@code null} for any other format (no fallback added).
+     */
+    static String extractExternalIdFallback(String botOrderId) {
+        if (botOrderId == null || botOrderId.isEmpty()) {
+            return null;
+        }
+        if (botOrderId.startsWith("rabbitmq:")) {
+            String tail = botOrderId.substring("rabbitmq:".length());
+            return tail.isEmpty() ? null : tail;
+        }
+        if (botOrderId.startsWith("panel_")) {
+            // panel_<panelId>_<timestamp> — split into at most 3 parts
+            String[] parts = botOrderId.split("_", 3);
+            if (parts.length >= 2 && !parts[1].isEmpty()) {
+                return parts[1];
+            }
+        }
+        return null;
     }
 
     /**
@@ -207,6 +244,7 @@ public class InstagramBotClient {
 
     /** Cancel an order. Tries each bot instance — succeeds if any one cancels it. */
     public boolean cancelOrder(String orderId) {
+        String externalIdFallback = extractExternalIdFallback(orderId);
         for (String instance : botInstances) {
             try {
                 boolean result =
@@ -221,6 +259,9 @@ public class InstagramBotClient {
 
                                     Map<String, String> body = new HashMap<>();
                                     body.put("order_id", orderId);
+                                    if (externalIdFallback != null) {
+                                        body.put("external_id", externalIdFallback);
+                                    }
 
                                     String jsonPayload = objectMapper.writeValueAsString(body);
                                     HttpEntity<String> entity =
@@ -258,6 +299,7 @@ public class InstagramBotClient {
      * Tries each bot instance; succeeds if any one resumes it.
      */
     public boolean resumeOrder(String botOrderId) {
+        String externalIdFallback = extractExternalIdFallback(botOrderId);
         for (String instance : botInstances) {
             try {
                 boolean result =
@@ -272,6 +314,9 @@ public class InstagramBotClient {
 
                                     Map<String, String> body = new HashMap<>();
                                     body.put("order_id", botOrderId);
+                                    if (externalIdFallback != null) {
+                                        body.put("external_id", externalIdFallback);
+                                    }
 
                                     String jsonPayload = objectMapper.writeValueAsString(body);
                                     HttpEntity<String> entity =
@@ -321,14 +366,11 @@ public class InstagramBotClient {
     }
 
     private boolean callBotFast(String orderId, String path, String opName) {
-        // The panel stores a "rabbitmq:{panel_id}" placeholder in orders.instagram_bot_order_id
-        // when the order is dispatched via RabbitMQ (bot assigns the real ID asynchronously and
-        // the panel row may never be updated). To keep Telegram admin actions working for those
-        // orders, always include external_id alongside order_id so the bot can fall back to it.
         Map<String, String> body = new HashMap<>();
         body.put("order_id", orderId);
-        if (orderId != null && orderId.startsWith("rabbitmq:")) {
-            body.put("external_id", orderId.substring("rabbitmq:".length()));
+        String externalIdFallback = extractExternalIdFallback(orderId);
+        if (externalIdFallback != null) {
+            body.put("external_id", externalIdFallback);
         }
 
         String jsonPayload;

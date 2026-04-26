@@ -34,7 +34,11 @@ export function AdminServicesPage() {
       .list()
       .then((data: unknown) => {
         if (cancelled) return;
-        const arr: Service[] = Array.isArray(data) ? (data as Service[]) : (data as { content?: Service[] })?.content ?? [];
+        // /api/v1/service/services returns { success: true, data: [...] } (PerfectPanelResponse).
+        // Accept Spring Page (`content`), admin-controller (`orders`-style with key `services`),
+        // and the wrapped `data` shape so the page survives future envelope changes.
+        const d = data as { data?: Service[]; content?: Service[]; services?: Service[] } | null;
+        const arr: Service[] = Array.isArray(data) ? (data as Service[]) : d?.data ?? d?.content ?? d?.services ?? [];
         setServices(arr);
       })
       .finally(() => !cancelled && setLoading(false));

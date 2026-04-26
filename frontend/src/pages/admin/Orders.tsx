@@ -54,7 +54,12 @@ export function AdminOrdersPage() {
       .getAllOrders({ size: 200 })
       .then((data: unknown) => {
         if (cancelled) return;
-        const arr: Order[] = Array.isArray(data) ? (data as Order[]) : (data as { content?: Order[] })?.content ?? [];
+        // Backend returns { orders: [...], totalPages, totalElements, ... } via AdminController.
+        // Spring Page convention is `content`; Perfect-Panel-style wrappers use `data`. Accept
+        // any of the three shapes so a future refactor of the response envelope doesn't break
+        // the page silently.
+        const d = data as { orders?: Order[]; content?: Order[]; data?: Order[] } | null;
+        const arr: Order[] = Array.isArray(data) ? (data as Order[]) : d?.orders ?? d?.content ?? d?.data ?? [];
         setOrders(arr);
       })
       .finally(() => !cancelled && setLoading(false));

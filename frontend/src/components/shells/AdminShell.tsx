@@ -1,10 +1,12 @@
-import { useState, type ReactNode } from 'react';
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Icon, type IconName } from '../ui/Icon';
 import { ThemeToggle, AccentPicker } from '../ui/ThemeToggle';
 import { ToastProvider } from '../ui/Toast';
 import { Dot } from '../ui/Badge';
 import { CommandPalette, useCommandPalette } from '../CommandPalette';
+import { authAPI } from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
 import { cn } from '../../lib/utils';
 
 // =====================================================================
@@ -206,20 +208,101 @@ function AdminTopBar({ onOpenPalette }: { onOpenPalette: () => void }) {
         <Icon name="bell" size={14} />
         <span className="absolute right-[5px] top-[5px] h-[7px] w-[7px] rounded-full border-[1.5px] border-bg-elev bg-danger" />
       </button>
+      <UserMenu />
+    </header>
+  );
+}
+
+/**
+ * Avatar dropdown with real user info from the auth store and a working sign-out action.
+ * Sign-out hits {@code POST /api/v1/auth/logout} (revokes the refresh token + clears the
+ * HttpOnly cookie server-side), then wipes localStorage and redirects to /login.
+ */
+function UserMenu() {
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onClickOutside);
+    document.addEventListener('keydown', onEscape);
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside);
+      document.removeEventListener('keydown', onEscape);
+    };
+  }, [open]);
+
+  const handleLogout = async () => {
+    setOpen(false);
+    try {
+      await authAPI.logout();
+    } catch {
+      // Network failure on logout shouldn't strand the user — local state still gets cleared.
+    }
+    logout();
+    navigate('/login', { replace: true });
+  };
+
+  const username = user?.username ?? 'admin';
+  const role = (user?.role ?? 'ADMIN').toLowerCase();
+  const initials = username
+    .split(/[._-]/)
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+  return (
+    <div className="relative" ref={ref}>
       <button
         type="button"
+        onClick={() => setOpen((v) => !v)}
         className="inline-flex items-center gap-2 rounded-full border border-border bg-bg-elev py-1 pl-1 pr-3 text-left transition-colors hover:bg-bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:[--tw-ring-color:var(--ring)]"
       >
         <span className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-gradient-to-br from-[#4f46e5] to-[#7c3aed] text-[11px] font-semibold text-white">
-          EP
+          {initials || 'A'}
         </span>
         <span className="leading-tight">
-          <span className="block text-[12px] font-medium text-fg">elena.p</span>
-          <span className="block text-[10px] text-fg-subtle">operator</span>
+          <span className="block text-[12px] font-medium text-fg">{username}</span>
+          <span className="block text-[10px] text-fg-subtle">{role}</span>
         </span>
         <Icon name="chevron-down" size={11} className="text-fg-dim" />
       </button>
-    </header>
+      {open && (
+        <div className="fade-in absolute right-0 top-[calc(100%+6px)] z-30 w-[200px] overflow-hidden rounded-md border border-border bg-bg-elev shadow-pop">
+          <div className="border-b border-border px-3 py-2">
+            <div className="text-[12px] font-medium text-fg">{username}</div>
+            <div className="text-[11px] text-fg-subtle">{user?.email ?? ''}</div>
+          </div>
+          <Link
+            to="/profile"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 px-3 py-2 text-[13px] text-fg-muted hover:bg-bg-sunken hover:text-fg"
+          >
+            <Icon name="user" size={13} />
+            Profile
+          </Link>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex w-full items-center gap-2 border-t border-border px-3 py-2 text-left text-[13px] text-danger hover:bg-danger-soft"
+          >
+            <Icon name="logout" size={13} />
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 

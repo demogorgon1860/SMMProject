@@ -1,8 +1,10 @@
-import { type ReactNode } from 'react';
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Icon, type IconName } from '../ui/Icon';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { ToastProvider } from '../ui/Toast';
+import { authAPI } from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
 import { cn } from '../../lib/utils';
 
 // =====================================================================
@@ -116,6 +118,95 @@ function AppTopBar() {
       >
         <Icon name="bell" size={14} />
       </button>
+      <UserMenu />
     </header>
+  );
+}
+
+/**
+ * Avatar dropdown with sign-out for the user-side shell. Mirrors the AdminShell version —
+ * kept inline rather than extracted because the two shells are otherwise self-contained and
+ * a shared helper would create cross-shell coupling.
+ */
+function UserMenu() {
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onClickOutside);
+    document.addEventListener('keydown', onEscape);
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside);
+      document.removeEventListener('keydown', onEscape);
+    };
+  }, [open]);
+
+  const handleLogout = async () => {
+    setOpen(false);
+    try {
+      await authAPI.logout();
+    } catch {
+      /* still clear local state on network failure */
+    }
+    logout();
+    navigate('/login', { replace: true });
+  };
+
+  const username = user?.username ?? '';
+  const initials = username
+    .split(/[._-]/)
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-2 rounded-full border border-border bg-bg-elev py-1 pl-1 pr-3 text-left transition-colors hover:bg-bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:[--tw-ring-color:var(--ring)]"
+      >
+        <span className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-gradient-to-br from-[#4f46e5] to-[#7c3aed] text-[11px] font-semibold text-white">
+          {initials || 'U'}
+        </span>
+        <Icon name="chevron-down" size={11} className="text-fg-dim" />
+      </button>
+      {open && (
+        <div className="fade-in absolute right-0 top-[calc(100%+6px)] z-30 w-[200px] overflow-hidden rounded-md border border-border bg-bg-elev shadow-pop">
+          <div className="border-b border-border px-3 py-2">
+            <div className="text-[12px] font-medium text-fg">{username || '—'}</div>
+            <div className="text-[11px] text-fg-subtle">{user?.email ?? ''}</div>
+          </div>
+          <Link
+            to="/profile"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 px-3 py-2 text-[13px] text-fg-muted hover:bg-bg-sunken hover:text-fg"
+          >
+            <Icon name="user" size={13} />
+            Profile
+          </Link>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex w-full items-center gap-2 border-t border-border px-3 py-2 text-left text-[13px] text-danger hover:bg-danger-soft"
+          >
+            <Icon name="logout" size={13} />
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

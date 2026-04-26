@@ -1,5 +1,6 @@
 package com.smmpanel.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.hypersistence.utils.hibernate.type.basic.PostgreSQLEnumType;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
@@ -172,12 +173,22 @@ public class User implements UserDetails {
      * PERFORMANCE IMPROVEMENT: Lazy loading relationships to prevent N+1 queries Orders will only
      * be loaded when explicitly accessed BatchSize optimization for efficient collection loading
      */
+    /**
+     * NEVER serialize lazy collections. Without {@code @JsonIgnore}, an admin endpoint that returns
+     * a {@code List<User>} (e.g. {@code GET /api/v2/admin/users}) would crash at JSON write time
+     * with {@code LazyInitializationException} because the Hibernate session has already closed by
+     * the time Jackson walks the entity graph. These collections are kept on the entity solely for
+     * cascade / mappedBy plumbing — they're never useful as part of an API response, and exposing
+     * them would also dump unbounded data per user.
+     */
+    @JsonIgnore
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @BatchSize(size = 25)
     @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
     @Singular
     private List<Order> orders;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @BatchSize(size = 20)
     @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)

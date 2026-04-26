@@ -279,11 +279,26 @@ function UserMenu() {
         <Icon name="chevron-down" size={11} className="text-fg-dim" />
       </button>
       {open && (
-        <div className="fade-in absolute right-0 top-[calc(100%+6px)] z-30 w-[200px] overflow-hidden rounded-md border border-border bg-bg-elev shadow-pop">
+        <div className="fade-in absolute right-0 top-[calc(100%+6px)] z-30 w-[210px] overflow-hidden rounded-md border border-border bg-bg-elev shadow-pop">
           <div className="border-b border-border px-3 py-2">
-            <div className="text-[12px] font-medium text-fg">{username}</div>
+            <div className="flex items-center gap-2">
+              <span className="text-[12px] font-medium text-fg">{username}</span>
+              <span className="rounded border border-accent/30 bg-accent-soft px-[5px] py-[1px] font-mono text-[9.5px] font-semibold uppercase tracking-wider text-accent-fg">
+                {role}
+              </span>
+            </div>
             <div className="text-[11px] text-fg-subtle">{user?.email ?? ''}</div>
           </div>
+          {/* Switch to the customer-facing dashboard. Useful for admins who want to see what a
+              regular user sees, place a test order, or check their own welcome credit. */}
+          <Link
+            to="/dashboard"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 border-b border-border px-3 py-2 text-[13px] text-fg-muted hover:bg-bg-sunken hover:text-fg"
+          >
+            <Icon name="dashboard" size={13} />
+            User dashboard
+          </Link>
           <Link
             to="/profile"
             onClick={() => setOpen(false)}

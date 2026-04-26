@@ -28,8 +28,12 @@ export function LoginPage() {
     }
     try {
       await login(identifier.trim(), password);
-      const from = (location.state as FromState | null)?.from?.pathname ?? '/dashboard';
-      navigate(from, { replace: true });
+      // Honor the "you tried to visit X, sign in first" return URL when present.
+      // Otherwise: admins land in the admin panel by default, regular users on the dashboard.
+      const fromState = (location.state as FromState | null)?.from?.pathname;
+      const role = useAuthStore.getState().user?.role;
+      const fallback = role === 'ADMIN' ? '/admin' : '/dashboard';
+      navigate(fromState ?? fallback, { replace: true });
     } catch (err) {
       setError(useAuthStore.getState().error ?? 'Sign-in failed.');
       toast('Sign-in failed', 'error');

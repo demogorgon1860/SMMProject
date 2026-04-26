@@ -48,7 +48,13 @@ export function AdminUsersPage() {
       .getUsers(0, 200)
       .then((data: unknown) => {
         if (cancelled) return;
-        const arr: AdminUser[] = Array.isArray(data) ? (data as AdminUser[]) : (data as { content?: AdminUser[] })?.content ?? [];
+        // AdminController.getUsers returns { users: [...], totalPages, totalElements, ... }.
+        // Accept Spring Page (`content`) and the wrapped (`data`) shape too so the page
+        // survives future envelope changes.
+        const d = data as { users?: AdminUser[]; content?: AdminUser[]; data?: AdminUser[] } | null;
+        const arr: AdminUser[] = Array.isArray(data)
+          ? (data as AdminUser[])
+          : d?.users ?? d?.content ?? d?.data ?? [];
         setUsers(arr);
       })
       .finally(() => !cancelled && setLoading(false));

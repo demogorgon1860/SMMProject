@@ -39,7 +39,9 @@ export function DashboardPage() {
       if (b.status === 'fulfilled') {
         const bs = b.value as BalanceSummary;
         setBalance(bs);
-        if (typeof bs.balance === 'number') updateBalance(bs.balance);
+        // Backend serializes BigDecimal as string; coerce so the auth store always holds a Number.
+        const n = toNum(bs.balance);
+        if (n > 0 || bs.balance != null) updateBalance(n);
       }
       if (o.status === 'fulfilled') {
         const v = o.value as { content?: Order[] } | Order[] | { data?: Order[] };
@@ -62,20 +64,26 @@ export function DashboardPage() {
 
   const stats = useMemo(() => computeStats(orders, balance), [orders, balance]);
 
+  // The backend serializes BigDecimal balances as JSON strings (e.g. "252.18") to preserve
+  // precision. Coerce to a real number once, here, so all downstream <Hero> / <WalletCard>
+  // calls to .toFixed() / arithmetic see a Number and not a String. toNum returns 0 for any
+  // non-finite input — never NaN propagating through the dashboard.
+  const balanceNum = toNum(balance?.balance ?? user?.balance);
+
   return (
     <div className="container-app py-8">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_340px]">
         <div className="min-w-0 space-y-6">
           <Hero
             username={user?.username ?? 'there'}
-            balance={balance?.balance ?? user?.balance ?? 0}
+            balance={balanceNum}
             stats={stats}
           />
           <KPIRow stats={stats} />
           <RecentOrders orders={orders} loading={loading} />
         </div>
         <aside className="space-y-6">
-          <WalletCard balance={balance?.balance ?? user?.balance ?? 0} stats={stats} />
+          <WalletCard balance={balanceNum} stats={stats} />
           <Announcements />
           <RoadmapCard />
           <HelpCard />
@@ -95,6 +103,21 @@ interface DashStats {
   spendTrend: number[];
 }
 
+/**
+ * Coerce a maybe-string-maybe-number-maybe-undefined money value into a real Number.
+ * The backend serializes BigDecimal as a JSON string ("252.18") to preserve precision; the
+ * frontend math (toFixed, comparisons, arithmetic) needs a real Number. Returns 0 for null /
+ * undefined / NaN / non-finite input — never propagates NaN downstream.
+ */
+function toNum(v: unknown): number {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+  if (typeof v === 'string') {
+    const n = Number.parseFloat(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
+
 function computeStats(orders: Order[], balance: BalanceSummary | null): DashStats {
   const active = orders.filter((o) =>
     ['IN_PROGRESS', 'PROCESSING', 'PENDING', 'ACTIVE', 'PAUSED'].includes((o.status ?? '').toUpperCase()),
@@ -102,7 +125,7 @@ function computeStats(orders: Order[], balance: BalanceSummary | null): DashStat
   const completed = orders.filter((o) => (o.status ?? '').toUpperCase() === 'COMPLETED').length;
   const spent = orders
     .filter((o) => ['COMPLETED', 'PARTIAL', 'IN_PROGRESS'].includes((o.status ?? '').toUpperCase()))
-    .reduce((s, o) => s + (o.charge ?? 0), 0);
+    .reduce((s, o) => s + toNum(o.charge), 0);
   const total = orders.length;
   const succ = total > 0 ? (completed / total) * 100 : 98.2;
   // Pseudo-trend so the sparklines render even before backend ships time-series.
@@ -112,7 +135,7 @@ function computeStats(orders: Order[], balance: BalanceSummary | null): DashStat
   return {
     active,
     completed30d: completed,
-    spent30d: balance?.totalSpent ?? spent,
+    spent30d: toNum(balance?.totalSpent) || spent,
     avgStartSec: 47,
     successPct: succ,
     trend,

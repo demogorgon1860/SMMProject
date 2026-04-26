@@ -38,7 +38,20 @@ const PRESETS = [100, 250, 500, 1000, 2500, 5000];
 export function NewOrderPage() {
   const navigate = useNavigate();
   const toast = useToast();
-  const balance = useAuthStore((s) => s.user?.balance ?? 0);
+  // Backend serializes BigDecimal as string; coerce so balance arithmetic
+  // and `Sufficient balance` check don't silently fail when the API returns
+  // "1000.00" instead of 1000.
+  const rawBalance = useAuthStore((s) => s.user?.balance);
+  const balance =
+    typeof rawBalance === 'number'
+      ? Number.isFinite(rawBalance)
+        ? rawBalance
+        : 0
+      : typeof rawBalance === 'string'
+        ? Number.isFinite(Number.parseFloat(rawBalance))
+          ? Number.parseFloat(rawBalance)
+          : 0
+        : 0;
 
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,9 +68,16 @@ export function NewOrderPage() {
     serviceAPI
       .list()
       .then((data: unknown) => {
-        const arr: Service[] = Array.isArray(data) ? (data as Service[]) : (data as { content?: Service[] })?.content ?? [];
-        setServices(arr.filter((s) => s.active !== false && s.isActive !== false));
-        if (arr.length > 0 && selectedId == null) setSelectedId(arr[0].id);
+        // /v1/service/services wraps the list in PerfectPanelResponse `{ success, data: [...] }`.
+        // Accept Spring Page (`content`) and a top-level `services` field too so future envelope
+        // changes don't blank the catalog out.
+        const d = data as { data?: Service[]; content?: Service[]; services?: Service[] } | null;
+        const arr: Service[] = Array.isArray(data)
+          ? (data as Service[])
+          : d?.data ?? d?.content ?? d?.services ?? [];
+        const live = arr.filter((s) => s.active !== false && s.isActive !== false);
+        setServices(live);
+        if (live.length > 0 && selectedId == null) setSelectedId(live[0].id);
       })
       .catch(() => toast('Could not load services.', 'error'))
       .finally(() => setLoading(false));

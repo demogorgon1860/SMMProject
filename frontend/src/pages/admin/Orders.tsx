@@ -69,7 +69,14 @@ export function AdminOrdersPage() {
   }, []);
 
   const filtered = useMemo(() => {
-    return orders.filter((o) => {
+    // Sort newest-first (descending createdAt) so the day-grouped rows below
+    // render in chronological order — Today first, then Yesterday, then prior dates.
+    const sorted = [...orders].sort((a, b) => {
+      const ta = a.createdAt ? Date.parse(a.createdAt) : 0;
+      const tb = b.createdAt ? Date.parse(b.createdAt) : 0;
+      return tb - ta;
+    });
+    return sorted.filter((o) => {
       if (statusFilters.size > 0 && !statusFilters.has((o.status ?? '').toLowerCase())) return false;
       if (q.trim()) {
         const needle = q.trim().toLowerCase();
@@ -89,6 +96,55 @@ export function AdminOrdersPage() {
   const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const allOnPageSelected = pageRows.length > 0 && pageRows.every((o) => selected.has(o.id));
   const someOnPageSelected = pageRows.some((o) => selected.has(o.id));
+
+  // Aggregates for the bulk strip — totals across the current selection.
+  // `charge` arrives from the backend as a JSON string (BigDecimal precision),
+  // so coerce defensively before summing or .toFixed would blow up at runtime.
+  const selectedAggregates = useMemo(() => {
+    if (selected.size === 0) return null;
+    const sel = orders.filter((o) => selected.has(o.id));
+    let qty = 0;
+    let done = 0;
+    let remains = 0;
+    let charge = 0;
+    for (const o of sel) {
+      const q = Number(o.quantity) || 0;
+      const d = Number(o.completed) || 0;
+      qty += q;
+      done += d;
+      remains += Math.max(0, q - d);
+      const c = typeof o.charge === 'number' ? o.charge : Number.parseFloat(String(o.charge ?? 0));
+      if (Number.isFinite(c)) charge += c;
+    }
+    return { qty, done, remains, charge };
+  }, [orders, selected]);
+
+  // Group filtered rows on the current page by calendar day for the
+  // day-banner rendering inside <tbody>. Stable iteration order preserved
+  // because `pageRows` is already sorted newest-first.
+  const groupedPageRows = useMemo(() => {
+    const groups: Array<{ key: string; label: string; rows: Order[] }> = [];
+    const today = startOfDay(new Date());
+    const yesterday = new Date(today.getTime() - 86_400_000);
+    for (const o of pageRows) {
+      const d = o.createdAt ? new Date(o.createdAt) : null;
+      const key = d ? d.toISOString().slice(0, 10) : 'unknown';
+      let label: string;
+      if (!d) {
+        label = 'Unknown date';
+      } else if (sameDay(d, today)) {
+        label = 'Today';
+      } else if (sameDay(d, yesterday)) {
+        label = 'Yesterday';
+      } else {
+        label = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+      }
+      const last = groups[groups.length - 1];
+      if (last && last.key === key) last.rows.push(o);
+      else groups.push({ key, label, rows: [o] });
+    }
+    return groups;
+  }, [pageRows]);
 
   const togglePageSelect = () => {
     setSelected((s) => {
@@ -182,13 +238,18 @@ export function AdminOrdersPage() {
           </div>
         </Card>
 
-        {/* Bulk strip — currently selection-only; bulk write actions land in a follow-up. */}
-        {selected.size > 0 && (
-          <div className="fade-in flex items-center gap-3 rounded-md border border-accent bg-accent-soft px-4 py-2">
-            <span className="font-mono text-[12.5px] font-semibold text-accent-fg">{selected.size} selected</span>
-            <span className="text-[12px] text-fg-muted">
-              Open each row to apply per-order actions (cancel / partial / force complete).
+        {/* Bulk strip — shows aggregates over the current selection so an operator
+            can sanity-check "what am I about to act on" before opening individual rows.
+            Bulk write actions are still per-order (drawer); this is a read summary. */}
+        {selected.size > 0 && selectedAggregates && (
+          <div className="fade-in flex flex-wrap items-center gap-x-5 gap-y-2 rounded-md border border-accent bg-accent-soft px-4 py-2.5">
+            <span className="font-mono text-[12.5px] font-semibold text-accent-fg">
+              {selected.size} selected
             </span>
+            <BulkAggregate label="Qty" value={fmtInt(selectedAggregates.qty)} />
+            <BulkAggregate label="Done" value={fmtInt(selectedAggregates.done)} />
+            <BulkAggregate label="Remains" value={fmtInt(selectedAggregates.remains)} />
+            <BulkAggregate label="Charge" value={'$' + selectedAggregates.charge.toFixed(2)} />
             <div className="ml-auto">
               <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
                 Clear
@@ -228,59 +289,16 @@ export function AdminOrdersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {pageRows.map((o) => {
-                    const pct = o.quantity > 0 ? Math.round(((o.completed ?? 0) / o.quantity) * 100) : 0;
-                    return (
-                      <tr key={o.id} className="cursor-pointer" onClick={() => setOpenId(o.id)}>
-                        <td onClick={(e) => e.stopPropagation()}>
-                          <Checkbox
-                            checked={selected.has(o.id)}
-                            onChange={(e) => {
-                              setSelected((s) => {
-                                const next = new Set(s);
-                                if (e.target.checked) next.add(o.id);
-                                else next.delete(o.id);
-                                return next;
-                              });
-                            }}
-                          />
-                        </td>
-                        <td>
-                          <IDCell id={o.id} />
-                        </td>
-                        <td className="font-mono text-[12px] text-fg-muted">#{o.userId}</td>
-                        <td className="text-[13px]">{o.service?.name ?? o.serviceName ?? '—'}</td>
-                        <td>
-                          <a
-                            href={o.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="font-mono text-[12px] text-accent hover:underline"
-                          >
-                            {short(o.link)}
-                          </a>
-                        </td>
-                        <td className="text-right font-mono">{fmtInt(o.quantity)}</td>
-                        <td className="text-right">
-                          <span className="font-mono">{fmtInt(o.completed ?? 0)}</span>
-                          <span className="ml-1 font-mono text-[10.5px] text-fg-subtle">{pct}%</span>
-                        </td>
-                        <td className="text-right">
-                          <Money value={o.charge} />
-                        </td>
-                        <td>
-                          <StatusBadge status={o.status} />
-                        </td>
-                        <td>
-                          <TimeCell iso={o.createdAt} />
-                        </td>
-                        <td>
-                          <Icon name="chevron-right" size={14} className="text-fg-dim" />
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {groupedPageRows.map((g) => (
+                    <DayGroup
+                      key={g.key}
+                      label={g.label}
+                      rows={g.rows}
+                      selected={selected}
+                      setSelected={setSelected}
+                      onOpen={setOpenId}
+                    />
+                  ))}
                 </tbody>
               </table>
               <Pagination page={page} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} />
@@ -301,6 +319,107 @@ function short(url: string): string {
   } catch {
     return url;
   }
+}
+
+function startOfDay(d: Date): Date {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function sameDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function BulkAggregate({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="inline-flex items-baseline gap-1.5 text-[12px]">
+      <span className="text-fg-muted">{label}</span>
+      <span className="font-mono font-semibold tabular-nums text-fg">{value}</span>
+    </span>
+  );
+}
+
+function DayGroup({
+  label,
+  rows,
+  selected,
+  setSelected,
+  onOpen,
+}: {
+  label: string;
+  rows: Order[];
+  selected: Set<number>;
+  setSelected: React.Dispatch<React.SetStateAction<Set<number>>>;
+  onOpen: (id: number | null) => void;
+}) {
+  // 11 columns total: select / id / user / service / url / qty / done / charge / status / created / chevron.
+  // The day banner row spans the full width and sits in the same <tbody> so it scrolls with rows.
+  return (
+    <>
+      <tr className="bg-bg-sunken">
+        <td colSpan={11} className="px-4 py-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-fg-subtle">
+          <span className="inline-flex items-center gap-2">
+            {label}
+            <span className="font-mono text-[10px] text-fg-dim">({rows.length})</span>
+          </span>
+        </td>
+      </tr>
+      {rows.map((o) => {
+        const pct = o.quantity > 0 ? Math.round(((o.completed ?? 0) / o.quantity) * 100) : 0;
+        return (
+          <tr key={o.id} className="cursor-pointer" onClick={() => onOpen(o.id)}>
+            <td onClick={(e) => e.stopPropagation()}>
+              <Checkbox
+                checked={selected.has(o.id)}
+                onChange={(e) => {
+                  setSelected((s) => {
+                    const next = new Set(s);
+                    if (e.target.checked) next.add(o.id);
+                    else next.delete(o.id);
+                    return next;
+                  });
+                }}
+              />
+            </td>
+            <td>
+              <IDCell id={o.id} />
+            </td>
+            <td className="font-mono text-[12px] text-fg-muted">#{o.userId}</td>
+            <td className="text-[13px]">{o.service?.name ?? o.serviceName ?? '—'}</td>
+            <td>
+              <a
+                href={o.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="font-mono text-[12px] text-accent hover:underline"
+              >
+                {short(o.link)}
+              </a>
+            </td>
+            <td className="text-right font-mono">{fmtInt(o.quantity)}</td>
+            <td className="text-right">
+              <span className="font-mono">{fmtInt(o.completed ?? 0)}</span>
+              <span className="ml-1 font-mono text-[10.5px] text-fg-subtle">{pct}%</span>
+            </td>
+            <td className="text-right">
+              <Money value={o.charge} />
+            </td>
+            <td>
+              <StatusBadge status={o.status} />
+            </td>
+            <td>
+              <TimeCell iso={o.createdAt} />
+            </td>
+            <td>
+              <Icon name="chevron-right" size={14} className="text-fg-dim" />
+            </td>
+          </tr>
+        );
+      })}
+    </>
+  );
 }
 
 // ---------------------------------------------------------------------

@@ -92,6 +92,20 @@ function AppNavLink({ item }: { item: NavItem }) {
 }
 
 function AppTopBar() {
+  // Backend serializes BigDecimal as a string for precision, so user.balance
+  // can arrive as either a number (legacy) or a string. Coerce here so the
+  // topbar chip shows the same value as the Dashboard wallet card.
+  const rawBalance = useAuthStore((s) => s.user?.balance);
+  const balance =
+    typeof rawBalance === 'number'
+      ? Number.isFinite(rawBalance)
+        ? rawBalance
+        : 0
+      : typeof rawBalance === 'string'
+        ? Number.isFinite(Number.parseFloat(rawBalance))
+          ? Number.parseFloat(rawBalance)
+          : 0
+        : 0;
   return (
     <header className="sticky top-0 z-20 flex h-[52px] flex-none items-center gap-3 border-b border-border bg-bg-elev px-5">
       <button
@@ -107,7 +121,7 @@ function AppTopBar() {
         className="inline-flex items-center gap-[6px] rounded-md border border-border bg-bg-elev px-[10px] py-[6px] text-[12.5px] font-medium hover:bg-bg-sunken"
       >
         <Icon name="wallet" size={13} className="text-fg-subtle" />
-        <span className="font-mono tabular-nums">$0.00</span>
+        <span className="font-mono tabular-nums">${balance.toFixed(2)}</span>
         <Icon name="plus" size={12} className="text-accent" />
       </Link>
       <ThemeToggle />

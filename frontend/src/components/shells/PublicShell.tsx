@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom';
 import { Icon } from '../ui/Icon';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { ToastProvider } from '../ui/Toast';
+import { useAuthStore } from '../../store/authStore';
 import { cn } from '../../lib/utils';
 
 // =====================================================================
@@ -30,6 +31,13 @@ export function PublicShell({ variant = 'light', children }: PublicShellProps) {
 
 function PublicNav({ variant }: { variant: 'light' | 'dark' }) {
   const isDark = variant === 'dark';
+  // Read auth state so the nav reflects whether the visitor is signed in.
+  // Without this, an authenticated user clicking "API" or "Help" from the
+  // AppShell sidebar would land here and see "Sign in / Get started" CTAs,
+  // which reads as "I just got logged out" even though the session is intact.
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const role = useAuthStore((s) => s.user?.role);
+  const homeTo = role === 'ADMIN' ? '/admin' : '/dashboard';
   return (
     <header
       className={cn(
@@ -56,22 +64,34 @@ function PublicNav({ variant }: { variant: 'light' | 'dark' }) {
         </nav>
         <div className="flex-1" />
         <ThemeToggle />
-        <Link
-          to="/login"
-          className={cn(
-            'inline-flex h-[34px] items-center rounded-md px-3 text-[13px] font-medium',
-            isDark ? 'text-white hover:bg-white/10' : 'text-fg-muted hover:text-fg hover:bg-bg-sunken',
-          )}
-        >
-          Sign in
-        </Link>
-        <Link
-          to="/register"
-          className="inline-flex h-[34px] items-center gap-1 rounded-md bg-accent px-3 text-[13px] font-semibold text-white hover:brightness-110"
-        >
-          Get started
-          <Icon name="arrow-right" size={13} />
-        </Link>
+        {isAuthenticated ? (
+          <Link
+            to={homeTo}
+            className="inline-flex h-[34px] items-center gap-1 rounded-md bg-accent px-3 text-[13px] font-semibold text-white hover:brightness-110"
+          >
+            {role === 'ADMIN' ? 'Admin panel' : 'Dashboard'}
+            <Icon name="arrow-right" size={13} />
+          </Link>
+        ) : (
+          <>
+            <Link
+              to="/login"
+              className={cn(
+                'inline-flex h-[34px] items-center rounded-md px-3 text-[13px] font-medium',
+                isDark ? 'text-white hover:bg-white/10' : 'text-fg-muted hover:text-fg hover:bg-bg-sunken',
+              )}
+            >
+              Sign in
+            </Link>
+            <Link
+              to="/register"
+              className="inline-flex h-[34px] items-center gap-1 rounded-md bg-accent px-3 text-[13px] font-semibold text-white hover:brightness-110"
+            >
+              Get started
+              <Icon name="arrow-right" size={13} />
+            </Link>
+          </>
+        )}
       </div>
     </header>
   );

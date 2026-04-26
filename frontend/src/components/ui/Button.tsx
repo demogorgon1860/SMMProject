@@ -1,112 +1,90 @@
-import React from 'react';
-import { Loader2 } from 'lucide-react';
+import { type ButtonHTMLAttributes, forwardRef, type ReactNode } from 'react';
+import { Icon, type IconName } from './Icon';
+import { cn } from '../../lib/utils';
 
-type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'success';
-type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+// =====================================================================
+// Button — covers both admin (dense) and user (marketing) prototypes.
+// Variants: primary | secondary | ghost | danger | warn | success | soft
+//           ghost-dark | on-dark | outline-dark   (for hero/auth dark sections)
+//           link
+// Sizes:    sm | md | lg | xl
+// Optional: icon | iconRight | loading (spins refresh icon) | block
+// =====================================================================
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+export type ButtonVariant =
+  | 'primary'
+  | 'secondary'
+  | 'ghost'
+  | 'danger'
+  | 'warn'
+  | 'success'
+  | 'soft'
+  | 'ghost-dark'
+  | 'on-dark'
+  | 'outline-dark'
+  | 'link';
+
+export type ButtonSize = 'sm' | 'md' | 'lg' | 'xl';
+
+interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> {
   variant?: ButtonVariant;
   size?: ButtonSize;
+  icon?: IconName;
+  iconRight?: IconName;
   loading?: boolean;
-  icon?: React.ReactNode;
-  iconPosition?: 'left' | 'right';
-  fullWidth?: boolean;
-  children?: React.ReactNode;
+  block?: boolean;
+  children?: ReactNode;
 }
-
-const variantStyles: Record<ButtonVariant, string> = {
-  primary: `
-    bg-primary-600 text-white
-    hover:bg-primary-700
-    focus:ring-primary-500/50
-    dark:bg-primary-500 dark:hover:bg-primary-600
-    shadow-sm hover:shadow-md
-  `,
-  secondary: `
-    bg-dark-100 text-dark-700
-    hover:bg-dark-200
-    focus:ring-dark-500/30
-    dark:bg-dark-700 dark:text-dark-100 dark:hover:bg-dark-600
-  `,
-  outline: `
-    border-2 border-dark-200 text-dark-700 bg-transparent
-    hover:bg-dark-50 hover:border-dark-300
-    focus:ring-dark-500/30
-    dark:border-dark-600 dark:text-dark-200 dark:hover:bg-dark-800 dark:hover:border-dark-500
-  `,
-  ghost: `
-    text-dark-600 bg-transparent
-    hover:bg-dark-100 hover:text-dark-900
-    focus:ring-dark-500/30
-    dark:text-dark-300 dark:hover:bg-dark-800 dark:hover:text-dark-100
-  `,
-  danger: `
-    bg-red-600 text-white
-    hover:bg-red-700
-    focus:ring-red-500/50
-    dark:bg-red-500 dark:hover:bg-red-600
-    shadow-sm hover:shadow-md
-  `,
-  success: `
-    bg-accent-600 text-white
-    hover:bg-accent-700
-    focus:ring-accent-500/50
-    dark:bg-accent-500 dark:hover:bg-accent-600
-    shadow-sm hover:shadow-md
-  `,
-};
 
 const sizeStyles: Record<ButtonSize, string> = {
-  xs: 'px-2.5 py-1 text-xs rounded-md gap-1',
-  sm: 'px-3 py-1.5 text-sm rounded-lg gap-1.5',
-  md: 'px-4 py-2 text-sm rounded-lg gap-2',
-  lg: 'px-5 py-2.5 text-base rounded-xl gap-2',
-  xl: 'px-6 py-3 text-lg rounded-xl gap-2.5',
+  sm: 'h-[30px] px-[10px] text-[12.5px] gap-[6px] rounded-[6px]',
+  md: 'h-[36px] px-[14px] text-[13.5px] gap-[8px] rounded-[8px]',
+  lg: 'h-[44px] px-[20px] text-[15px] gap-[10px] rounded-[10px]',
+  xl: 'h-[52px] px-[26px] text-[16px] gap-[12px] rounded-[12px]',
 };
 
-export function Button({
-  variant = 'primary',
-  size = 'md',
-  loading = false,
-  icon,
-  iconPosition = 'left',
-  fullWidth = false,
-  disabled,
-  className = '',
-  children,
-  ...props
-}: ButtonProps) {
-  const isDisabled = disabled || loading;
+const variantStyles: Record<ButtonVariant, string> = {
+  primary: 'bg-accent text-white border border-accent hover:brightness-110',
+  secondary: 'bg-bg-elev text-fg border border-border-strong hover:bg-bg-sunken',
+  ghost: 'bg-transparent text-fg-muted border border-transparent hover:bg-bg-sunken hover:text-fg',
+  danger: 'bg-bg-elev text-danger border border-border-strong hover:bg-danger-soft',
+  warn: 'bg-warn text-white border border-warn hover:brightness-110',
+  success: 'bg-success text-white border border-success hover:brightness-110',
+  soft: 'bg-accent-soft text-accent-fg border border-accent-soft hover:brightness-95',
+  'ghost-dark': 'bg-transparent text-white border border-white/15 hover:bg-white/5',
+  'on-dark': 'bg-white text-[#0a0a0a] border border-white hover:brightness-95',
+  'outline-dark': 'bg-transparent text-white border border-white/25 hover:bg-white/5',
+  link: 'bg-transparent text-accent border-none px-0 py-0 h-auto hover:underline',
+};
 
+const iconSize: Record<ButtonSize, number> = { sm: 13, md: 14, lg: 16, xl: 17 };
+
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  { variant = 'secondary', size = 'md', icon, iconRight, loading, block, disabled, className, children, type = 'button', ...rest },
+  ref,
+) {
+  const isDisabled = disabled || loading;
   return (
     <button
-      className={`
-        inline-flex items-center justify-center font-medium
-        transition-all duration-200 ease-out
-        focus:outline-none focus:ring-2 focus:ring-offset-2
-        dark:focus:ring-offset-dark-900
-        disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
-        active:scale-[0.98]
-        ${variantStyles[variant]}
-        ${sizeStyles[size]}
-        ${fullWidth ? 'w-full' : ''}
-        ${className}
-      `}
+      ref={ref}
+      type={type}
       disabled={isDisabled}
-      {...props}
-    >
-      {loading ? (
-        <>
-          <Loader2 className="animate-spin" size={size === 'xs' ? 12 : size === 'sm' ? 14 : 16} />
-          {children && <span>{children}</span>}
-        </>
-      ) : (
-        <>
-          {icon && iconPosition === 'left' && icon}
-          {children}
-          {icon && iconPosition === 'right' && icon}
-        </>
+      className={cn(
+        'inline-flex items-center justify-center font-medium whitespace-nowrap select-none',
+        'transition-[filter,background-color,border-color,transform] duration-120',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:[--tw-ring-color:var(--ring)]',
+        sizeStyles[size],
+        variantStyles[variant],
+        block && 'w-full',
+        isDisabled && 'opacity-50 cursor-not-allowed pointer-events-none',
+        className,
       )}
+      {...rest}
+    >
+      {loading && <Icon name="refresh" size={iconSize[size]} className="spin" />}
+      {!loading && icon && <Icon name={icon} size={iconSize[size]} />}
+      {children}
+      {iconRight && <Icon name={iconRight} size={iconSize[size]} />}
     </button>
   );
-}
+});

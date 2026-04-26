@@ -96,6 +96,11 @@ public class SecurityConfig {
                                                 "/api/webhook/**",
                                                 "/api/v*/payments/cryptomus/callback",
 
+                                                // Public landing pages (no auth)
+                                                "/api/v*/stats/public",
+                                                "/api/v*/faq",
+                                                "/api/v*/faq/**",
+
                                                 // Telegram Bot webhook (no JWT — Telegram sends its
                                                 // own secret)
                                                 "/api/telegram/webhook",

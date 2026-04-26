@@ -746,9 +746,31 @@ app:
   # ===============================
   # All prices and amounts are in USDT
   
+  # ===============================
+  # EMAIL (Resend transactional)
+  # ===============================
   email:
     enabled: ${EMAIL_ENABLED:false}
-    from: ${EMAIL_FROM:noreply@smmpanel.com}
+    from: ${EMAIL_FROM:hello@smmworld.vip}
+    from-name: ${EMAIL_FROM_NAME:SMMWorld}
+    public-base-url: ${PUBLIC_BASE_URL:https://smmworld.vip}
+    resend:
+      api-key: ${RESEND_API_KEY:}
+      base-url: ${RESEND_BASE_URL:https://api.resend.com}
+      timeout-ms: ${RESEND_TIMEOUT_MS:8000}
+
+  # ===============================
+  # AUTH TOKEN POLICY (Phase 3)
+  # ===============================
+  auth:
+    verification:
+      ttl-hours: ${EMAIL_VERIFY_TTL_HOURS:24}
+      resend-cooldown-seconds: ${EMAIL_VERIFY_RESEND_COOLDOWN:60}
+    password-reset:
+      ttl-hours: ${PASSWORD_RESET_TTL_HOURS:1}
+    forgot-password:
+      # rate-limit per email per hour
+      rate-limit-per-hour: ${FORGOT_PASSWORD_RATE_LIMIT:5}
     
   error-recovery:
     max-retries: ${ERROR_RECOVERY_MAX_RETRIES:3}

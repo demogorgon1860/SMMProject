@@ -1,92 +1,65 @@
-import React from 'react';
-import { Sun, Moon, Monitor } from 'lucide-react';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme, type Accent } from '../../contexts/ThemeContext';
+import { Icon } from './Icon';
+import { cn } from '../../lib/utils';
+
+// =====================================================================
+// ThemeToggle — single icon button (sun/moon swap).
+// AccentPicker — 4 colored squares for accent palette (used in
+// /profile preferences and the public Tweaks panel).
+// =====================================================================
 
 interface ThemeToggleProps {
-  size?: 'sm' | 'md' | 'lg';
-  showLabel?: boolean;
+  size?: 'sm' | 'md';
+  className?: string;
 }
 
-const sizeStyles = {
-  sm: 'p-1.5',
-  md: 'p-2',
-  lg: 'p-2.5',
-};
-
-const iconSizes = {
-  sm: 16,
-  md: 18,
-  lg: 20,
-};
-
-export function ThemeToggle({ size = 'md', showLabel = false }: ThemeToggleProps) {
+export function ThemeToggle({ size = 'sm', className }: ThemeToggleProps) {
   const { theme, toggleTheme } = useTheme();
-
+  const px = size === 'md' ? 16 : 14;
   return (
     <button
+      type="button"
       onClick={toggleTheme}
-      className={`
-        ${sizeStyles[size]}
-        inline-flex items-center gap-2
-        rounded-xl
-        text-dark-500 hover:text-dark-700
-        dark:text-dark-400 dark:hover:text-dark-200
-        bg-dark-100 hover:bg-dark-200
-        dark:bg-dark-700 dark:hover:bg-dark-600
-        transition-all duration-200
-        focus:outline-none focus:ring-2 focus:ring-primary-500/30
-      `}
-      title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+      title={theme === 'dark' ? 'Switch to light' : 'Switch to dark'}
+      aria-label="Toggle theme"
+      className={cn(
+        'inline-flex h-[30px] w-[30px] items-center justify-center rounded-md border border-border bg-bg-elev text-fg-muted',
+        'transition-colors hover:bg-bg-sunken hover:text-fg',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:[--tw-ring-color:var(--ring)]',
+        className,
+      )}
     >
-      {theme === 'light' ? (
-        <Moon size={iconSizes[size]} />
-      ) : (
-        <Sun size={iconSizes[size]} />
-      )}
-      {showLabel && (
-        <span className="text-sm font-medium">
-          {theme === 'light' ? 'Dark' : 'Light'}
-        </span>
-      )}
+      <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={px} />
     </button>
   );
 }
 
-// Advanced theme selector with system option
-interface ThemeSelectorProps {
-  className?: string;
-}
+const accentSwatches: Record<Accent, string> = {
+  indigo: '#4f46e5',
+  violet: '#7c3aed',
+  emerald: '#059669',
+  amber: '#d97706',
+};
 
-export function ThemeSelector({ className = '' }: ThemeSelectorProps) {
-  const { theme, setTheme } = useTheme();
-
-  const options = [
-    { value: 'light', icon: Sun, label: 'Light' },
-    { value: 'dark', icon: Moon, label: 'Dark' },
-  ];
-
+export function AccentPicker({ className }: { className?: string }) {
+  const { accent, setAccent } = useTheme();
   return (
-    <div className={`inline-flex rounded-xl bg-dark-100 dark:bg-dark-800 p-1 ${className}`}>
-      {options.map((option) => {
-        const Icon = option.icon;
-        const isActive = theme === option.value;
-
+    <div className={cn('inline-flex items-center gap-[6px] rounded-md border border-border bg-bg-elev p-[3px]', className)}>
+      {(Object.keys(accentSwatches) as Accent[]).map((key) => {
+        const active = accent === key;
         return (
           <button
-            key={option.value}
-            onClick={() => setTheme(option.value as 'light' | 'dark')}
-            className={`
-              inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium
-              transition-all duration-200
-              ${isActive
-                ? 'bg-white dark:bg-dark-700 text-dark-900 dark:text-white shadow-sm'
-                : 'text-dark-500 dark:text-dark-400 hover:text-dark-700 dark:hover:text-dark-200'
-              }
-            `}
-          >
-            <Icon size={14} />
-            {option.label}
-          </button>
+            key={key}
+            type="button"
+            onClick={() => setAccent(key)}
+            aria-pressed={active}
+            title={`Accent: ${key}`}
+            className={cn(
+              'h-[20px] w-[20px] rounded-[4px] transition-transform',
+              active ? 'ring-2 ring-offset-2 ring-offset-bg-elev [--tw-ring-color:var(--accent)] scale-105' : 'hover:scale-105',
+            )}
+            style={{ background: accentSwatches[key] }}
+          />
         );
       })}
     </div>

@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- ========================================================== -->
+    <!-- Phase 3: profile + support + auth-token tables              -->
+    <!-- ========================================================== -->
+
+    <!-- email verification + password reset single-use tokens -->
+    <changeSet id="v2026.04-phase3-email-verification-tokens" author="dev">
+        <comment>Single-use tokens for email verification (registered code), 24-hour TTL.</comment>
+        <createTable tableName="email_verification_tokens">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_evt_user" references="users(id)"/>
+            </column>
+            <column name="code_hash" type="VARCHAR(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expires_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="used_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="email_verification_tokens" indexName="idx_evt_user_active">
+            <column name="user_id"/>
+            <column name="used_at"/>
+        </createIndex>
+        <createIndex tableName="email_verification_tokens" indexName="idx_evt_code_hash" unique="true">
+            <column name="code_hash"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="v2026.04-phase3-password-reset-tokens" author="dev">
+        <comment>Single-use tokens for password reset, 1-hour TTL. Token hash only — raw token never stored.</comment>
+        <createTable tableName="password_reset_tokens">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_prt_user" references="users(id)"/>
+            </column>
+            <column name="token_hash" type="VARCHAR(128)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="expires_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="used_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="ip" type="VARCHAR(45)"/>
+            <column name="user_agent" type="VARCHAR(500)"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="password_reset_tokens" indexName="idx_prt_user">
+            <column name="user_id"/>
+            <column name="used_at"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- email verification timestamp on users (boolean already exists from v2025.01) -->
+    <changeSet id="v2026.04-phase3-users-email-verified-at" author="dev">
+        <comment>Persist exact verification time so we can audit / show in profile.</comment>
+        <addColumn tableName="users">
+            <column name="email_verified_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </addColumn>
+    </changeSet>
+
+    <!-- per-user notification preferences -->
+    <changeSet id="v2026.04-phase3-user-notification-prefs" author="dev">
+        <comment>Per-user toggles for transactional + marketing emails. JSONB for flexible expansion.</comment>
+        <createTable tableName="user_notification_prefs">
+            <column name="user_id" type="BIGINT">
+                <constraints primaryKey="true" foreignKeyName="fk_unp_user" references="users(id)"/>
+            </column>
+            <column name="prefs" type="JSONB" defaultValueComputed="'{}'::jsonb">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <!-- support tickets -->
+    <changeSet id="v2026.04-phase3-support-tickets" author="dev">
+        <comment>Support ticket header. Conversation messages live in support_ticket_messages.</comment>
+        <createTable tableName="support_tickets">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_st_user" references="users(id)"/>
+            </column>
+            <column name="topic" type="VARCHAR(40)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="subject" type="VARCHAR(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(20)" defaultValue="OPEN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="order_id" type="BIGINT"/>
+            <column name="last_admin_message_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="last_user_message_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="support_tickets" indexName="idx_st_user_status">
+            <column name="user_id"/>
+            <column name="status"/>
+            <column name="updated_at" descending="true"/>
+        </createIndex>
+        <createIndex tableName="support_tickets" indexName="idx_st_status_updated">
+            <column name="status"/>
+            <column name="updated_at" descending="true"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="v2026.04-phase3-support-ticket-messages" author="dev">
+        <comment>Threaded message log per ticket. author_kind: USER | ADMIN | SYSTEM.</comment>
+        <createTable tableName="support_ticket_messages">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="ticket_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_stm_ticket" references="support_tickets(id)"/>
+            </column>
+            <column name="author_kind" type="VARCHAR(10)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="author_user_id" type="BIGINT"/>
+            <column name="body" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="support_ticket_messages" indexName="idx_stm_ticket_time">
+            <column name="ticket_id"/>
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
+
+    <!--
+      The status_incidents table from an earlier draft of this migration was
+      removed. If you ran an interim build that created it, drop it manually
+      with: DROP TABLE IF EXISTS status_incidents CASCADE;
+    -->
+
+</databaseChangeLog>

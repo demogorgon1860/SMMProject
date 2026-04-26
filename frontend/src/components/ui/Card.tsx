@@ -1,99 +1,74 @@
-import React from 'react';
+import { type HTMLAttributes, type ReactNode, forwardRef } from 'react';
+import { cn } from '../../lib/utils';
 
-interface CardProps {
-  children: React.ReactNode;
-  className?: string;
-  padding?: 'none' | 'sm' | 'md' | 'lg' | 'xl';
+// =====================================================================
+// Card — bordered surface. `pad={false}` for tables that need to butt
+// against the borders. `hover` enables the lift on hover (`.lift` class).
+// Section — Card with a titled header that has its own border-bottom.
+// KV — definition row used inside cards/drawers.
+// =====================================================================
+
+interface CardProps extends HTMLAttributes<HTMLDivElement> {
+  pad?: boolean | number;
   hover?: boolean;
-  onClick?: () => void;
+  children?: ReactNode;
 }
 
-const paddingStyles = {
-  none: '',
-  sm: 'p-3',
-  md: 'p-4 sm:p-5',
-  lg: 'p-5 sm:p-6',
-  xl: 'p-6 sm:p-8',
-};
-
-export function Card({
-  children,
-  className = '',
-  padding = 'md',
-  hover = false,
-  onClick,
-}: CardProps) {
+export const Card = forwardRef<HTMLDivElement, CardProps>(function Card(
+  { pad = true, hover, children, className, style, ...rest },
+  ref,
+) {
+  const padPx = pad === false ? 0 : pad === true ? 16 : pad;
   return (
     <div
-      className={`
-        bg-white dark:bg-dark-800
-        border border-dark-100 dark:border-dark-700
-        rounded-xl
-        shadow-soft dark:shadow-dark-soft
-        ${paddingStyles[padding]}
-        ${hover ? 'hover:shadow-soft-lg hover:border-dark-200 dark:hover:border-dark-600 transition-all duration-200 cursor-pointer' : ''}
-        ${onClick ? 'cursor-pointer' : ''}
-        ${className}
-      `}
-      onClick={onClick}
+      ref={ref}
+      className={cn('rounded-lg border border-border bg-bg-elev', hover && 'lift', className)}
+      style={{ padding: padPx, ...style }}
+      {...rest}
     >
       {children}
     </div>
   );
+});
+
+interface SectionProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
+  title?: ReactNode;
+  subtitle?: ReactNode;
+  action?: ReactNode;
+  pad?: boolean | number;
+  children?: ReactNode;
 }
 
-interface CardHeaderProps {
-  children: React.ReactNode;
-  className?: string;
-  action?: React.ReactNode;
-}
-
-export function CardHeader({ children, className = '', action }: CardHeaderProps) {
+export function Section({ title, subtitle, action, pad = true, children, className, ...rest }: SectionProps) {
+  const padPx = pad === false ? 0 : pad === true ? 16 : pad;
   return (
-    <div className={`flex items-center justify-between mb-4 ${className}`}>
-      <div>{children}</div>
-      {action && <div>{action}</div>}
-    </div>
-  );
-}
-
-interface CardTitleProps {
-  children: React.ReactNode;
-  className?: string;
-  subtitle?: string;
-}
-
-export function CardTitle({ children, className = '', subtitle }: CardTitleProps) {
-  return (
-    <div>
-      <h3 className={`text-lg font-semibold text-dark-900 dark:text-white ${className}`}>
-        {children}
-      </h3>
-      {subtitle && (
-        <p className="text-sm text-dark-500 dark:text-dark-400 mt-0.5">{subtitle}</p>
+    <div className={cn('overflow-hidden rounded-lg border border-border bg-bg-elev', className)} {...rest}>
+      {(title || action) && (
+        <div className="flex items-center justify-between gap-3 border-b border-border bg-bg-elev px-4 py-[12px]">
+          <div className="min-w-0">
+            {title && <div className="text-[13px] font-semibold text-fg">{title}</div>}
+            {subtitle && <div className="mt-[2px] text-[11px] text-fg-subtle">{subtitle}</div>}
+          </div>
+          {action}
+        </div>
       )}
+      <div style={{ padding: padPx }}>{children}</div>
     </div>
   );
 }
 
-interface CardContentProps {
-  children: React.ReactNode;
+interface KVProps {
+  k: ReactNode;
+  v: ReactNode;
+  mono?: boolean;
   className?: string;
 }
 
-export function CardContent({ children, className = '' }: CardContentProps) {
-  return <div className={className}>{children}</div>;
-}
-
-interface CardFooterProps {
-  children: React.ReactNode;
-  className?: string;
-}
-
-export function CardFooter({ children, className = '' }: CardFooterProps) {
+export function KV({ k, v, mono, className }: KVProps) {
   return (
-    <div className={`mt-4 pt-4 border-t border-dark-100 dark:border-dark-700 ${className}`}>
-      {children}
+    <div className={cn('flex items-center justify-between gap-3 border-b border-border py-[9px] last:border-b-0', className)}>
+      <div className="text-[12.5px] text-fg-subtle">{k}</div>
+      <div className={cn('text-right text-[13px] text-fg', mono && 'font-mono tabular-nums')}>{v}</div>
     </div>
   );
 }

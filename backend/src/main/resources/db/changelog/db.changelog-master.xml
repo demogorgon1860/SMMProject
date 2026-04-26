@@ -769,4 +769,7 @@
     <!-- Partial covering index for per-URL quota check on order creation -->
     <include file="db/changelog/changes/v2026.04-add-quota-check-index.xml"/>
 
+    <!-- Phase 3: profile + support + auth-token tables (verify/forgot/reset, tickets, status incidents) -->
+    <include file="db/changelog/changes/v2026.04-phase3-profile-and-support.xml"/>
+
 </databaseChangeLog>

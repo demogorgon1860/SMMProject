@@ -3,6 +3,8 @@ package com.smmpanel.controller;
 import com.smmpanel.dto.admin.*;
 import com.smmpanel.dto.refill.RefillResponse;
 import com.smmpanel.dto.response.PerfectPanelResponse;
+import com.smmpanel.entity.User;
+import com.smmpanel.repository.jpa.UserRepository;
 import com.smmpanel.service.admin.AdminService;
 import com.smmpanel.service.order.OrderService;
 import com.smmpanel.service.refill.OrderRefillService;
@@ -13,6 +15,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -26,6 +30,14 @@ public class AdminController {
     private final OrderRefillService orderRefillService;
     private final com.smmpanel.producer.OrderEventProducer orderEventProducer;
     private final com.smmpanel.repository.jpa.OrderRepository orderRepository;
+    private final UserRepository userRepository;
+
+    /** Resolve the operator behind the current request, or {@code null} if anonymous. */
+    private User getCurrentOperatorOrNull() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || auth.getName() == null) return null;
+        return userRepository.findByUsername(auth.getName()).orElse(null);
+    }
 
     @GetMapping("/dashboard")
     public ResponseEntity<DashboardStats> getDashboardStats() {
@@ -85,6 +97,10 @@ public class AdminController {
                 break;
             case "complete":
                 adminService.completeOrder(orderId);
+                break;
+            case "force_complete":
+                adminService.forceCompleteOrder(
+                        orderId, request.getReason(), getCurrentOperatorOrNull());
                 break;
             case "partial":
                 if (request.getRemains() != null) {

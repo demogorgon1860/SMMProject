@@ -1,109 +1,81 @@
-import React, { Suspense, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Suspense, useEffect } from 'react';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { useAuthStore } from './store/authStore';
 import { ThemeProvider } from './contexts/ThemeContext';
-
-// Components (always loaded)
-import { Layout } from './components/Layout';
-import { LoginForm } from './components/auth/LoginForm';
-import { RegisterForm } from './components/auth/RegisterForm';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { AdminShell, AppShell, AuthShell, LandingShell, PublicShell } from './components/shells';
+import { PageStub } from './pages/_PageStub';
+import { ForgotPage, LoginPage, RegisterPage, ResetPage, VerifyEmailPage } from './pages/auth';
+import { LandingPage } from './pages/public/Landing';
+import { ApiDocsPage } from './pages/public/ApiDocs';
+import { HelpPage } from './pages/public/Help';
+import { MobilePage } from './pages/public/Mobile';
+import { NotFoundPage, ServerErrorPage } from './pages/public/NotFound';
+import { PricingPage } from './pages/public/Pricing';
+import { ServicesListPage } from './pages/public/ServicesList';
+import { AmlPage } from './pages/public/legal/Aml';
+import { PrivacyPage } from './pages/public/legal/Privacy';
+import { RefundPage } from './pages/public/legal/Refund';
+import { TermsPage } from './pages/public/legal/Terms';
+import { AddFundsPage } from './pages/app/AddFunds';
+import { DashboardPage } from './pages/app/Dashboard';
+import { NewOrderPage } from './pages/app/NewOrder';
+import { OrdersPage } from './pages/app/Orders';
+import { ProfilePage } from './pages/app/Profile';
+import { TransactionsPage } from './pages/app/Transactions';
+import { AdminBalancePage } from './pages/admin/Balance';
+import { AdminBotPage } from './pages/admin/Bot';
+import { AdminDashboardPage } from './pages/admin/Dashboard';
+import { AdminOrdersPage } from './pages/admin/Orders';
+import { AdminPaymentsPage } from './pages/admin/Payments';
+import { AdminServicesPage } from './pages/admin/Services';
+import { AdminSettingsPage } from './pages/admin/Settings';
+import { AdminSystemPage } from './pages/admin/System';
+import { AdminTelegramPage } from './pages/admin/Telegram';
+import { AdminUsersPage } from './pages/admin/Users';
 
-// Lazy-loaded pages
-const Dashboard = React.lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
-const Services = React.lazy(() => import('./pages/Services').then(m => ({ default: m.Services })));
-const Orders = React.lazy(() => import('./pages/Orders').then(m => ({ default: m.Orders })));
-const NewOrder = React.lazy(() => import('./pages/NewOrder').then(m => ({ default: m.NewOrder })));
-const ProfileSettings = React.lazy(() => import('./pages/ProfileSettings').then(m => ({ default: m.ProfileSettings })));
-const AddFunds = React.lazy(() => import('./pages/AddFunds').then(m => ({ default: m.AddFunds })));
-const TermsOfService = React.lazy(() => import('./pages/TermsOfService').then(m => ({ default: m.TermsOfService })));
-
-// Admin pages (separate chunk)
-const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
-const AdminOrders = React.lazy(() => import('./pages/AdminOrders').then(m => ({ default: m.AdminOrders })));
-const AdminPayments = React.lazy(() => import('./pages/AdminPayments').then(m => ({ default: m.AdminPayments })));
-const AdminRefills = React.lazy(() => import('./pages/AdminRefills').then(m => ({ default: m.AdminRefills })));
-const ServicesTest = React.lazy(() => import('./pages/ServicesTest').then(m => ({ default: m.ServicesTest })));
+// =====================================================================
+// SMMWorld routing — Phase 0 wiring.
+// All real pages render PageStub for now; Phase 1 (user) and Phase 2
+// (admin) replace each stub with the actual page component. Public/auth
+// shells are already final-form so we can demo theme/accent today.
+// =====================================================================
 
 function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetErrorBoundary: () => void }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-dark-50 dark:bg-dark-900">
-      <motion.div
-        className="max-w-md w-full p-8 bg-white dark:bg-dark-800 rounded-2xl shadow-soft-lg dark:shadow-dark-lg border border-dark-100 dark:border-dark-700 text-center"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mx-auto mb-4">
-          <svg className="w-8 h-8 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-          </svg>
+    <div className="flex min-h-screen items-center justify-center bg-bg p-6">
+      <div className="w-full max-w-[420px] rounded-xl border border-border bg-bg-elev p-6 text-center shadow-pop">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-danger-soft">
+          <span className="text-[24px] text-danger">!</span>
         </div>
-        <h2 className="text-xl font-semibold text-dark-900 dark:text-white mb-2">Something went wrong</h2>
-        <p className="text-dark-500 dark:text-dark-400 mb-6 text-sm">{error.message}</p>
+        <h2 className="text-[18px] font-semibold">Something went wrong</h2>
+        <p className="mt-2 text-[13px] text-fg-muted">{error.message}</p>
         <button
           onClick={resetErrorBoundary}
-          className="px-6 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors font-medium"
+          className="mt-5 inline-flex h-[36px] items-center rounded-md bg-accent px-4 text-[13px] font-semibold text-white hover:brightness-110"
         >
           Try again
         </button>
-      </motion.div>
+      </div>
     </div>
   );
 }
 
 function PageLoader() {
   return (
-    <div className="flex flex-col items-center justify-center py-20 gap-3">
+    <div className="flex min-h-screen items-center justify-center bg-bg">
       <div className="relative">
-        <div className="w-10 h-10 rounded-full border-2 border-dark-200 dark:border-dark-700" />
-        <div className="absolute inset-0 w-10 h-10 rounded-full border-2 border-primary-600 border-t-transparent animate-spin" />
+        <div className="h-10 w-10 rounded-full border-2 border-border" />
+        <div className="spin absolute inset-0 h-10 w-10 rounded-full border-2 border-accent border-t-transparent" />
       </div>
-      <p className="text-sm text-dark-400 dark:text-dark-500 animate-pulse">Loading...</p>
     </div>
-  );
-}
-
-// Animated page wrapper
-function AnimatedOutlet() {
-  const location = useLocation();
-  return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={location.pathname}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -8 }}
-        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <Suspense fallback={<PageLoader />}>
-          <Routes location={location}>
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="services" element={<Services />} />
-            <Route path="orders" element={<Orders />} />
-            <Route path="orders/new" element={<NewOrder />} />
-            <Route path="add-funds" element={<AddFunds />} />
-            <Route path="profile" element={<ProfileSettings />} />
-
-            {/* Admin routes */}
-            <Route path="admin" element={<ProtectedRoute requiredRole="ADMIN"><AdminDashboard /></ProtectedRoute>} />
-            <Route path="admin/orders" element={<ProtectedRoute requiredRole="ADMIN"><AdminOrders /></ProtectedRoute>} />
-            <Route path="admin/payments" element={<ProtectedRoute requiredRole="ADMIN"><AdminPayments /></ProtectedRoute>} />
-            <Route path="admin/refills" element={<ProtectedRoute requiredRole="ADMIN"><AdminRefills /></ProtectedRoute>} />
-            <Route path="services-test" element={<ProtectedRoute requiredRole="ADMIN"><ServicesTest /></ProtectedRoute>} />
-          </Routes>
-        </Suspense>
-      </motion.div>
-    </AnimatePresence>
   );
 }
 
 function App() {
   const checkAuth = useAuthStore((s) => s.checkAuth);
-
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
@@ -111,29 +83,79 @@ function App() {
   return (
     <ThemeProvider>
       <ErrorBoundary FallbackComponent={ErrorFallback}>
-        <Router>
+        <BrowserRouter>
           <Suspense fallback={<PageLoader />}>
             <Routes>
-              {/* Public routes */}
-              <Route path="/login" element={<LoginForm />} />
-              <Route path="/register" element={<RegisterForm />} />
-              <Route path="/terms" element={<TermsOfService />} />
-              <Route path="/services-public" element={<Services />} />
+              {/* ---------------- Landing (own shell — follows hero variant) ---------------- */}
+              <Route element={<LandingShell />}>
+                <Route index element={<LandingPage />} />
+              </Route>
 
-              {/* Protected routes with animated transitions */}
+              {/* ---------------- Public (no auth) ---------------- */}
+              <Route element={<PublicShell />}>
+                <Route path="services-list" element={<ServicesListPage />} />
+                <Route path="pricing" element={<PricingPage />} />
+                <Route path="help" element={<HelpPage />} />
+                <Route path="api-docs" element={<ApiDocsPage />} />
+                <Route path="legal/terms" element={<TermsPage />} />
+                <Route path="legal/privacy" element={<PrivacyPage />} />
+                <Route path="legal/refund" element={<RefundPage />} />
+                <Route path="legal/aml" element={<AmlPage />} />
+                <Route path="mobile" element={<MobilePage />} />
+                <Route path="404" element={<NotFoundPage />} />
+                <Route path="500" element={<ServerErrorPage />} />
+              </Route>
+
+              {/* ---------------- Auth (split-screen, visual rotates per route) ---------------- */}
+              <Route path="login" element={<AuthShell visual="router"><LoginPage /></AuthShell>} />
+              <Route path="register" element={<AuthShell visual="stats"><RegisterPage /></AuthShell>} />
+              <Route path="verify-email" element={<AuthShell visual="check"><VerifyEmailPage /></AuthShell>} />
+              <Route path="forgot" element={<AuthShell visual="router"><ForgotPage /></AuthShell>} />
+              <Route path="reset" element={<AuthShell visual="check"><ResetPage /></AuthShell>} />
+
+              {/* ---------------- App (auth required) ---------------- */}
               <Route
-                path="/*"
                 element={
                   <ProtectedRoute>
-                    <Layout />
+                    <AppShell />
                   </ProtectedRoute>
                 }
               >
-                <Route path="*" element={<AnimatedOutlet />} />
+                <Route path="dashboard" element={<DashboardPage />} />
+                <Route path="new-order" element={<NewOrderPage />} />
+                <Route path="orders" element={<OrdersPage />} />
+                <Route path="orders/:id" element={<OrdersPage />} />
+                <Route path="add-funds" element={<AddFundsPage />} />
+                <Route path="transactions" element={<TransactionsPage />} />
+                <Route path="profile" element={<ProfilePage />} />
               </Route>
+
+              {/* ---------------- Admin (admin role required) ---------------- */}
+              <Route
+                path="admin"
+                element={
+                  <ProtectedRoute requiredRole="ADMIN">
+                    <AdminShell />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<AdminDashboardPage />} />
+                <Route path="orders" element={<AdminOrdersPage />} />
+                <Route path="users" element={<AdminUsersPage />} />
+                <Route path="services" element={<AdminServicesPage />} />
+                <Route path="payments" element={<AdminPaymentsPage />} />
+                <Route path="balance" element={<AdminBalancePage />} />
+                <Route path="bot" element={<AdminBotPage />} />
+                <Route path="telegram" element={<AdminTelegramPage />} />
+                <Route path="system" element={<AdminSystemPage />} />
+                <Route path="settings" element={<AdminSettingsPage />} />
+              </Route>
+
+              {/* ---------------- Catch-all → 404 ---------------- */}
+              <Route path="*" element={<Navigate to="/404" replace />} />
             </Routes>
           </Suspense>
-        </Router>
+        </BrowserRouter>
       </ErrorBoundary>
     </ThemeProvider>
   );

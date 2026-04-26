@@ -93,6 +93,9 @@ public class User implements UserDetails {
     @Builder.Default
     private boolean emailVerified = false;
 
+    @Column(name = "email_verified_at")
+    private LocalDateTime emailVerifiedAt;
+
     @Column(name = "two_factor_enabled", nullable = false)
     @Builder.Default
     private boolean twoFactorEnabled = false;

@@ -8,6 +8,8 @@ import com.smmpanel.exception.UserNotFoundException;
 import com.smmpanel.repository.jpa.UserRepository;
 import com.smmpanel.security.JwtService;
 import com.smmpanel.service.auth.AuthService;
+import com.smmpanel.service.auth.EmailVerificationService;
+import com.smmpanel.service.auth.PasswordResetService;
 import com.smmpanel.service.auth.RefreshTokenService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -38,6 +40,8 @@ public class AuthController {
     private final RefreshTokenService refreshTokenService;
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final EmailVerificationService emailVerificationService;
+    private final PasswordResetService passwordResetService;
 
     @Value("${app.jwt.refresh-cookie-name:refresh_token}")
     private String refreshCookieName;
@@ -65,6 +69,10 @@ public class AuthController {
                 userRepository
                         .findById(authResponse.getUser().getId())
                         .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+        // Fire off the email verification code (async — non-blocking).
+        emailVerificationService.issueCodeFor(user);
+
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user, httpRequest);
 
         // Set refresh token as HttpOnly cookie
@@ -202,6 +210,65 @@ public class AuthController {
         }
 
         return ResponseEntity.ok().build();
+    }
+
+    // =====================================================================
+    // Email verification + password reset (Phase 3)
+    // =====================================================================
+
+    /**
+     * Submit a 6-digit code to mark the user's email as verified. Returns 204 on success and 400
+     * with a generic message otherwise (so we don't leak which part — email or code — was wrong).
+     */
+    @PostMapping("/verify-email")
+    public ResponseEntity<Void> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        boolean ok = emailVerificationService.verify(request.getEmail(), request.getCode());
+        if (!ok) {
+            log.info("Email verification rejected for {}", request.getEmail());
+            return ResponseEntity.status(400).build();
+        }
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Resend a fresh verification code with a per-user cooldown. Returns 204 on success and 429
+     * with {@code Retry-After} header when the cooldown is still active. Returns 204 even when the
+     * email is unknown / already verified to avoid account enumeration.
+     */
+    @PostMapping("/resend-verification")
+    public ResponseEntity<Void> resendVerification(
+            @Valid @RequestBody ResendVerificationRequest request) {
+        EmailVerificationService.ResendResult result =
+                emailVerificationService.resend(request.getEmail());
+        if (!result.isOk()) {
+            return ResponseEntity.status(429)
+                    .header("Retry-After", String.valueOf(result.getRetryAfterSeconds()))
+                    .build();
+        }
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Trigger a password-reset email. Always returns 204 — the response is intentionally identical
+     * regardless of whether the email matches a real account.
+     */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Void> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request, HttpServletRequest httpRequest) {
+        passwordResetService.requestReset(request.getEmail(), httpRequest);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Redeem a password-reset token and set a new password. */
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        try {
+            passwordResetService.redeem(request.getToken(), request.getPassword());
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            log.info("Password reset rejected: {}", e.getMessage());
+            return ResponseEntity.status(400).build();
+        }
     }
 
     @PostMapping("/logout-all")

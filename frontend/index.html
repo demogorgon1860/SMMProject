@@ -10,21 +10,48 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 
-    <!-- Android Chrome Theme Color -->
-    <meta name="theme-color" content="#6366f1" />
-    <meta name="theme-color" content="#1e1b4b" media="(prefers-color-scheme: dark)" />
+    <!-- Theme color: stays in sync with current theme -->
+    <meta name="theme-color" content="#fafaf9" />
+    <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
 
-    <!-- Android Chrome -->
-    <meta name="application-name" content="SMM World" />
+    <meta name="application-name" content="SMMWorld" />
+    <meta name="description" content="Infrastructure for Instagram growth — real delivery, non-drop, crypto-only, Perfect Panel-compatible API." />
 
-    <title>SMM World</title>
+    <!-- Brand mark + favicon -->
+    <link rel="icon" type="image/png" href="/logo-v2.png" />
+    <link rel="apple-touch-icon" href="/logo-v2.png" />
 
-    <!-- Prevent dark mode flash (FOUC) — runs before any paint -->
+    <title>SMMWorld &mdash; Infrastructure for Instagram growth</title>
+
+    <!-- Fonts: Inter + JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Prevent FOUC: apply theme + accent + density before first paint -->
     <script>
-      (function(){
-        var t = localStorage.getItem('theme');
-        if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-          document.documentElement.classList.add('dark');
+      (function () {
+        try {
+          var root = document.documentElement;
+          var theme = localStorage.getItem('smm:theme');
+          var accent = localStorage.getItem('smm:accent');
+          var density = localStorage.getItem('smm:density');
+          var hero = localStorage.getItem('smm:hero');
+
+          if (
+            theme === 'dark' ||
+            (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)
+          ) {
+            root.classList.add('dark');
+          }
+          if (accent && accent !== 'indigo') root.setAttribute('data-accent', accent);
+          if (density && density !== 'comfortable') root.setAttribute('data-density', density);
+          if (hero === 'B') root.setAttribute('data-hero', 'B');
+        } catch (e) {
+          /* noop */
         }
       })();
     </script>

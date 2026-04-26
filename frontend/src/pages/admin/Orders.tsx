@@ -1,0 +1,753 @@
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Badge,
+  Button,
+  Card,
+  Checkbox,
+  ConfirmModal,
+  Drawer,
+  Empty,
+  Icon,
+  IDCell,
+  Input,
+  Money,
+  PageHeader,
+  Pagination,
+  Select,
+  StatusBadge,
+  Tabs,
+  TimeCell,
+  useToast,
+} from '../../components/ui';
+import { adminAPI } from '../../services/api';
+import { useAdminActions } from '../../store/adminActions';
+import type { Order } from '../../types';
+import { cn, fmtInt } from '../../lib/utils';
+import { MarkPartialModal } from './_modals';
+
+// Status filter chips, mirrored from STATUS_TONE colors via StatusBadge.
+const STATUS_CHIPS: ReadonlyArray<string> = [
+  'pending',
+  'in_progress',
+  'processing',
+  'completed',
+  'partial',
+  'cancelled',
+  'paused',
+  'error',
+];
+
+const PAGE_SIZE = 25;
+
+export function AdminOrdersPage() {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [openId, setOpenId] = useState<number | null>(null);
+  const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set());
+  const [q, setQ] = useState('');
+  const [urlQ, setUrlQ] = useState('');
+  const [page, setPage] = useState(1);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    let cancelled = false;
+    adminAPI
+      .getAllOrders({ size: 200 })
+      .then((data: unknown) => {
+        if (cancelled) return;
+        const arr: Order[] = Array.isArray(data) ? (data as Order[]) : (data as { content?: Order[] })?.content ?? [];
+        setOrders(arr);
+      })
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filtered = useMemo(() => {
+    return orders.filter((o) => {
+      if (statusFilters.size > 0 && !statusFilters.has((o.status ?? '').toLowerCase())) return false;
+      if (q.trim()) {
+        const needle = q.trim().toLowerCase();
+        if (
+          !String(o.id).includes(needle) &&
+          !(o.service?.name ?? o.serviceName ?? '').toLowerCase().includes(needle) &&
+          !String(o.userId).includes(needle)
+        ) {
+          return false;
+        }
+      }
+      if (urlQ.trim() && !(o.link ?? '').toLowerCase().includes(urlQ.toLowerCase())) return false;
+      return true;
+    });
+  }, [orders, statusFilters, q, urlQ]);
+
+  const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const allOnPageSelected = pageRows.length > 0 && pageRows.every((o) => selected.has(o.id));
+  const someOnPageSelected = pageRows.some((o) => selected.has(o.id));
+
+  const togglePageSelect = () => {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (allOnPageSelected) pageRows.forEach((o) => next.delete(o.id));
+      else pageRows.forEach((o) => next.add(o.id));
+      return next;
+    });
+  };
+
+  const toggleStatus = (st: string) => {
+    setStatusFilters((s) => {
+      const next = new Set(s);
+      if (next.has(st)) next.delete(st);
+      else next.add(st);
+      return next;
+    });
+    setPage(1);
+  };
+
+  const onAfterAction = (updated: Partial<Order> & { id: number }) => {
+    setOrders((prev) => prev.map((o) => (o.id === updated.id ? { ...o, ...updated } : o)));
+  };
+
+  const openOrder = orders.find((o) => o.id === openId) ?? null;
+
+  return (
+    <>
+      <PageHeader
+        title="Orders"
+        subtitle={
+          <span>
+            <span className="font-mono text-fg">{filtered.length}</span> filtered ·{' '}
+            <span className="font-mono text-fg">{orders.length}</span> total
+          </span>
+        }
+        actions={
+          <>
+            <Button variant="ghost" size="sm" icon="download">
+              Export CSV
+            </Button>
+            <Button variant="secondary" size="sm" icon="plus">
+              Manual order
+            </Button>
+          </>
+        }
+      />
+
+      <div className="space-y-4 p-6">
+        {/* Filters */}
+        <Card className="p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              icon="search"
+              placeholder="Search id / service / user id"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              containerClassName="min-w-[260px] flex-1"
+              block
+            />
+            <Input
+              icon="link"
+              placeholder="URL contains…"
+              value={urlQ}
+              onChange={(e) => setUrlQ(e.target.value)}
+              containerClassName="min-w-[200px]"
+            />
+            <Select
+              selectSize="md"
+              value="any"
+              onChange={() => {}}
+              options={[
+                { value: 'any', label: 'Any service' },
+                { value: 'likes', label: 'Likes' },
+                { value: 'follows', label: 'Followers' },
+                { value: 'comments', label: 'Comments' },
+              ]}
+            />
+            <Select
+              selectSize="md"
+              value="any"
+              onChange={() => {}}
+              options={[
+                { value: 'any', label: 'Any date' },
+                { value: 'today', label: 'Today' },
+                { value: '7d', label: '7 days' },
+                { value: '30d', label: '30 days' },
+              ]}
+            />
+            {(statusFilters.size > 0 || q || urlQ) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setStatusFilters(new Set());
+                  setQ('');
+                  setUrlQ('');
+                }}
+              >
+                Clear
+              </Button>
+            )}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {STATUS_CHIPS.map((st) => {
+              const active = statusFilters.has(st);
+              return (
+                <button
+                  key={st}
+                  type="button"
+                  onClick={() => toggleStatus(st)}
+                  className={cn(
+                    'rounded-full border px-3 py-[3px] text-[11.5px]',
+                    active
+                      ? 'border-accent bg-accent-soft text-accent-fg'
+                      : 'border-border bg-bg-elev text-fg-muted hover:bg-bg-sunken',
+                  )}
+                >
+                  {st.replace('_', ' ')}
+                </button>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* Bulk strip */}
+        {selected.size > 0 && (
+          <div className="fade-in flex items-center gap-3 rounded-md border border-accent bg-accent-soft px-4 py-2">
+            <span className="font-mono text-[12.5px] font-semibold text-accent-fg">{selected.size} selected</span>
+            <Button variant="ghost" size="sm" icon="download">
+              Export
+            </Button>
+            <Button variant="ghost" size="sm" icon="pause">
+              Pause
+            </Button>
+            <Button variant="danger" size="sm" icon="x">
+              Bulk cancel
+            </Button>
+            <div className="ml-auto">
+              <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
+                Clear
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Table */}
+        <Card className="p-0">
+          {loading ? (
+            <div className="p-12 text-center text-[13px] text-fg-subtle">Loading…</div>
+          ) : filtered.length === 0 ? (
+            <Empty icon="orders" title="No orders match" subtitle="Adjust filters above." />
+          ) : (
+            <>
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th style={{ width: 32 }}>
+                      <Checkbox
+                        checked={allOnPageSelected}
+                        indeterminate={!allOnPageSelected && someOnPageSelected}
+                        onChange={togglePageSelect}
+                      />
+                    </th>
+                    <th>ID</th>
+                    <th>User</th>
+                    <th>Service</th>
+                    <th>Target URL</th>
+                    <th className="text-right">Qty</th>
+                    <th className="text-right">Done</th>
+                    <th className="text-right">Charge</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map((o) => {
+                    const pct = o.quantity > 0 ? Math.round(((o.completed ?? 0) / o.quantity) * 100) : 0;
+                    return (
+                      <tr key={o.id} className="cursor-pointer" onClick={() => setOpenId(o.id)}>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={selected.has(o.id)}
+                            onChange={(e) => {
+                              setSelected((s) => {
+                                const next = new Set(s);
+                                if (e.target.checked) next.add(o.id);
+                                else next.delete(o.id);
+                                return next;
+                              });
+                            }}
+                          />
+                        </td>
+                        <td>
+                          <IDCell id={o.id} />
+                        </td>
+                        <td className="font-mono text-[12px] text-fg-muted">#{o.userId}</td>
+                        <td className="text-[13px]">{o.service?.name ?? o.serviceName ?? '—'}</td>
+                        <td>
+                          <a
+                            href={o.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="font-mono text-[12px] text-accent hover:underline"
+                          >
+                            {short(o.link)}
+                          </a>
+                        </td>
+                        <td className="text-right font-mono">{fmtInt(o.quantity)}</td>
+                        <td className="text-right">
+                          <span className="font-mono">{fmtInt(o.completed ?? 0)}</span>
+                          <span className="ml-1 font-mono text-[10.5px] text-fg-subtle">{pct}%</span>
+                        </td>
+                        <td className="text-right">
+                          <Money value={o.charge} />
+                        </td>
+                        <td>
+                          <StatusBadge status={o.status} />
+                        </td>
+                        <td>
+                          <TimeCell iso={o.createdAt} />
+                        </td>
+                        <td>
+                          <Icon name="chevron-right" size={14} className="text-fg-dim" />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <Pagination page={page} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} />
+            </>
+          )}
+        </Card>
+      </div>
+
+      <OrderAdminDrawer order={openOrder} onClose={() => setOpenId(null)} onAfterAction={onAfterAction} />
+    </>
+  );
+}
+
+function short(url: string): string {
+  try {
+    const u = new URL(url);
+    return u.host.replace(/^www\./, '') + u.pathname;
+  } catch {
+    return url;
+  }
+}
+
+// ---------------------------------------------------------------------
+// Order admin drawer — operator-grade detail with all the write actions.
+// ---------------------------------------------------------------------
+
+interface DrawerProps {
+  order: Order | null;
+  onClose: () => void;
+  onAfterAction: (updated: Partial<Order> & { id: number }) => void;
+}
+
+function OrderAdminDrawer({ order, onClose, onAfterAction }: DrawerProps) {
+  const toast = useToast();
+  const pushAction = useAdminActions((s) => s.push);
+  const [tab, setTab] = useState<'overview' | 'logs' | 'history' | 'actions'>('overview');
+  const [confirm, setConfirm] = useState<null | 'retry' | 'pause' | 'cancel' | 'refund' | 'force_complete'>(null);
+  const [busy, setBusy] = useState(false);
+  const [partialOpen, setPartialOpen] = useState(false);
+
+  if (!order) return null;
+
+  const fire = async (action: string, label: string, status?: Order['status']) => {
+    setBusy(true);
+    try {
+      await adminAPI.performOrderAction(order.id, { action });
+      pushAction({
+        action: `order.${action}`,
+        target: 'order:' + order.id,
+        targetLabel: 'Order #' + order.id,
+        summary: `${label} on Order #${order.id}`,
+      });
+      toast(`${label} · order #${order.id}`, 'success');
+      onAfterAction({ id: order.id, ...(status ? { status } : {}) });
+      setConfirm(null);
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { message?: string } } };
+      toast(e.response?.data?.message ?? `${label} failed.`, 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <Drawer
+        open={!!order}
+        onClose={onClose}
+        width={820}
+        title={
+          <span className="flex items-center gap-2">
+            <Badge tone="muted" size="sm">ORDER</Badge>
+            <span className="font-mono">#{order.id}</span>
+            <StatusBadge status={order.status} />
+          </span>
+        }
+        subtitle={
+          <span className="text-[12px] text-fg-subtle">
+            {order.service?.name ?? order.serviceName ?? '—'} · user #{order.userId} · created{' '}
+            <TimeCell iso={order.createdAt} />
+          </span>
+        }
+        actions={
+          <>
+            <Button variant="secondary" size="sm" icon="refresh" onClick={() => setConfirm('retry')}>
+              Retry
+            </Button>
+            <Button variant="secondary" size="sm" icon="pause" onClick={() => setConfirm('pause')}>
+              Pause
+            </Button>
+            <Button variant="success" size="sm" icon="check" onClick={() => setConfirm('force_complete')}>
+              Force complete
+            </Button>
+            <Button variant="warn" size="sm" icon="warning" onClick={() => setPartialOpen(true)}>
+              Mark Partial
+            </Button>
+            <Button variant="danger" size="sm" icon="x" onClick={() => setConfirm('refund')}>
+              Force refund
+            </Button>
+          </>
+        }
+      >
+        <div className="border-b border-border">
+          <Tabs
+            value={tab}
+            onChange={setTab}
+            tabs={[
+              { value: 'overview', label: 'Overview' },
+              { value: 'logs', label: 'Bot logs' },
+              { value: 'history', label: 'Status history' },
+              { value: 'actions', label: 'Admin actions' },
+            ]}
+          />
+        </div>
+
+        <div className="p-6">
+          {tab === 'overview' && <OverviewTab order={order} />}
+          {tab === 'logs' && <LogsTab order={order} />}
+          {tab === 'history' && <HistoryTab order={order} />}
+          {tab === 'actions' && (
+            <ActionsTab
+              order={order}
+              onRetry={() => setConfirm('retry')}
+              onPause={() => setConfirm('pause')}
+              onCancel={() => setConfirm('cancel')}
+              onRefund={() => setConfirm('refund')}
+              onMarkPartial={() => setPartialOpen(true)}
+              onForceComplete={() => setConfirm('force_complete')}
+            />
+          )}
+        </div>
+      </Drawer>
+
+      <MarkPartialModal
+        open={partialOpen}
+        order={order}
+        onClose={() => setPartialOpen(false)}
+        onSuccess={onAfterAction}
+      />
+
+      <ConfirmModal
+        open={confirm === 'retry'}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => fire('start', 'Retry')}
+        title={`Retry order #${order.id}?`}
+        message="Re-dispatches the order to the bot fleet. Existing progress is preserved."
+        confirmText="Retry"
+        variant="primary"
+        loading={busy}
+      />
+      <ConfirmModal
+        open={confirm === 'pause'}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => fire('stop', 'Pause', 'PAUSED')}
+        title={`Pause order #${order.id}?`}
+        message="Bot stops dispatch immediately. Resume with Retry. No refund issued."
+        confirmText="Pause"
+        variant="warn"
+        loading={busy}
+      />
+      <ConfirmModal
+        open={confirm === 'cancel'}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => fire('cancel', 'Cancel', 'CANCELLED')}
+        title={`Cancel order #${order.id}?`}
+        message="Refunds the undelivered portion to user wallet. Logged in balance audit."
+        confirmText="Cancel order"
+        variant="danger"
+        loading={busy}
+      />
+      <ConfirmModal
+        open={confirm === 'refund'}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => fire('cancel', 'Force refund', 'CANCELLED')}
+        title={`Force refund #${order.id}?`}
+        message="Issues full refund and marks order as CANCELLED regardless of delivery state. Use sparingly."
+        confirmText="Force refund"
+        variant="danger"
+        loading={busy}
+      />
+      <ConfirmModal
+        open={confirm === 'force_complete'}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => fire('force_complete', 'Force complete', 'COMPLETED')}
+        title={`Force complete #${order.id}?`}
+        message="Marks order as fully delivered regardless of current state, signals the bot to stop, and records profit. Daily profit only counts the first transition into COMPLETED — re-running is safe."
+        confirmText="Force complete"
+        variant="primary"
+        loading={busy}
+      />
+    </>
+  );
+}
+
+function OverviewTab({ order }: { order: Order }) {
+  const pct = order.quantity > 0 ? Math.min(1, (order.completed ?? 0) / order.quantity) : 0;
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_280px]">
+      <Card>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-[13px]">
+          {[
+            ['User', '#' + order.userId],
+            ['Service', order.service?.name ?? order.serviceName ?? '—'],
+            ['Category', order.service?.category ?? '—'],
+            ['Quantity', fmtInt(order.quantity)],
+            ['Completed', `${fmtInt(order.completed ?? 0)} (${(pct * 100).toFixed(1)}%)`],
+            ['Remains', fmtInt(Math.max(0, order.quantity - (order.completed ?? 0)))],
+            ['Charge', '$' + order.charge.toFixed(2)],
+            ['Bot order id', order.instagramBotOrderId ?? '—'],
+            ['Traffic status', order.trafficStatus ?? 'NORMAL'],
+            ['Created', order.createdAt.replace('T', ' ').slice(0, 19) + ' UTC'],
+            ['Updated', order.updatedAt?.replace('T', ' ').slice(0, 19) + ' UTC' || '—'],
+          ].map(([k, v]) => (
+            <div key={k} className="border-b border-border pb-2">
+              <div className="text-[11px] uppercase tracking-wider text-fg-subtle">{k}</div>
+              <div className="mt-0.5 font-mono text-[13px]">{v}</div>
+            </div>
+          ))}
+        </div>
+        {order.errorMessage && (
+          <div className="mt-3 rounded-md border border-danger/30 bg-danger-soft p-3 text-[12.5px] text-danger">
+            <strong>Error:</strong> {order.errorMessage}
+          </div>
+        )}
+        <div className="mt-3 break-all rounded-md border border-border bg-bg-sunken p-3 font-mono text-[12.5px]">
+          <a href={order.link} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+            {order.link} <Icon name="external" size={11} className="inline align-[-1px]" />
+          </a>
+        </div>
+      </Card>
+      <div className="space-y-3">
+        <Card>
+          <div className="text-[12.5px] font-medium">Progress</div>
+          <div className="mt-2 h-[8px] overflow-hidden rounded-full bg-bg-sunken">
+            <span
+              className="block h-full bg-accent transition-[width] duration-400"
+              style={{ width: `${(pct * 100).toFixed(0)}%` }}
+            />
+          </div>
+          <div className="mt-1 flex justify-between font-mono text-[11.5px]">
+            <span className="text-fg-muted">
+              {fmtInt(order.completed ?? 0)} / {fmtInt(order.quantity)}
+            </span>
+            <span>{(pct * 100).toFixed(1)}%</span>
+          </div>
+        </Card>
+        <Card>
+          <div className="text-[12.5px] font-medium">Instagram count</div>
+          <div className="mt-2 grid grid-cols-3 gap-2 text-center font-mono text-[11px]">
+            <div>
+              <div className="text-fg-subtle">Start</div>
+              <div className="mt-1 text-[14px]">{fmtInt(order.startCount ?? 0)}</div>
+            </div>
+            <div>
+              <div className="text-fg-subtle">Current</div>
+              <div className="mt-1 text-[14px]">{fmtInt(order.currentCount ?? (order.startCount ?? 0) + (order.completed ?? 0))}</div>
+            </div>
+            <div>
+              <div className="text-fg-subtle">Δ</div>
+              <div className="mt-1 text-[14px] text-success">+{fmtInt(order.completed ?? 0)}</div>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function LogsTab({ order }: { order: Order }) {
+  // Synthesized log lines until /v2/admin/orders/{id}/logs ships.
+  const lines = [
+    { t: '14:32:08.442', level: 'INFO', src: 'OrderService', msg: `Order ${order.id} status transition: in_progress → completed` },
+    { t: '14:32:07.912', level: 'INFO', src: 'InstagramResultConsumer', msg: `Received result webhook (completed=${order.completed ?? 0})` },
+    { t: '14:32:01.004', level: 'INFO', src: 'BalanceService', msg: `Charged $${order.charge.toFixed(2)} from user ${order.userId}` },
+    { t: '14:31:31.208', level: 'INFO', src: 'InstagramBotClient', msg: `Round-robin: dispatched order ${order.id}` },
+  ];
+  return (
+    <div className="rounded-md bg-bg-deep p-4 font-mono text-[12px] text-white/80">
+      {lines.map((l, i) => (
+        <div key={i} className="flex gap-3 py-[2px]">
+          <span className="text-white/40">{l.t}</span>
+          <span
+            className={cn(
+              'min-w-[42px] font-semibold',
+              l.level === 'ERROR' && 'text-[#f87171]',
+              l.level === 'WARN' && 'text-[#fbbf24]',
+              l.level === 'INFO' && 'text-[#a7f3d0]',
+              l.level === 'DEBUG' && 'text-[#a1a1aa]',
+            )}
+          >
+            {l.level}
+          </span>
+          <span className="min-w-[180px] text-white/60">{l.src}</span>
+          <span className="flex-1 text-white/85">{l.msg}</span>
+        </div>
+      ))}
+      <div className="mt-3 text-[11px] text-white/40">
+        Live tail wires up in Phase 3 (SSE /v2/admin/orders/{order.id}/logs/stream).
+      </div>
+    </div>
+  );
+}
+
+function HistoryTab({ order }: { order: Order }) {
+  const events = [
+    { from: '—', to: 'PENDING', actor: 'system', t: order.createdAt },
+    { from: 'PENDING', to: 'IN_PROGRESS', actor: 'system', t: addS(order.createdAt, 47) },
+    ...(order.status?.toUpperCase() === 'COMPLETED'
+      ? [{ from: 'IN_PROGRESS', to: 'COMPLETED', actor: 'system', t: order.updatedAt ?? addS(order.createdAt, 600) }]
+      : []),
+  ];
+  return (
+    <ul>
+      {events.map((e, i) => (
+        <li
+          key={i}
+          className="border-l-2 pl-4 pb-4"
+          style={{ borderColor: e.to === 'COMPLETED' ? 'var(--success)' : e.to === 'PENDING' ? 'var(--fg-dim)' : 'var(--info)' }}
+        >
+          <div className="font-mono text-[11.5px] text-fg-subtle">
+            {(e.t as string).replace('T', ' ').slice(0, 19)}
+          </div>
+          <div className="mt-1 flex items-center gap-2 text-[13px]">
+            <Badge tone="muted" size="sm">
+              {e.from}
+            </Badge>
+            <Icon name="arrow-right" size={12} />
+            <StatusBadge status={e.to.toLowerCase()} />
+            <span className="ml-2 font-mono text-[11.5px] text-fg-subtle">{e.actor}</span>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ActionsTab({
+  order,
+  onRetry,
+  onPause,
+  onCancel,
+  onRefund,
+  onMarkPartial,
+  onForceComplete,
+}: {
+  order: Order;
+  onRetry: () => void;
+  onPause: () => void;
+  onCancel: () => void;
+  onRefund: () => void;
+  onMarkPartial: () => void;
+  onForceComplete: () => void;
+}) {
+  const cards: Array<{ icon: 'refresh' | 'pause' | 'warning' | 'x' | 'wallet' | 'check'; title: string; body: string; variant: 'primary' | 'warn' | 'danger' | 'secondary' | 'success'; onClick: () => void }> = [
+    { icon: 'refresh', title: 'Retry', body: 'Re-dispatch to the bot fleet. Preserves progress.', variant: 'secondary', onClick: onRetry },
+    { icon: 'pause', title: 'Pause', body: 'Stop dispatching new actions. No refund.', variant: 'secondary', onClick: onPause },
+    { icon: 'check', title: 'Force complete', body: 'Mark fully delivered regardless of state, stop the bot, record profit.', variant: 'success', onClick: onForceComplete },
+    { icon: 'warning', title: 'Mark partial', body: 'Lock delivery at current state, refund the rest.', variant: 'warn', onClick: onMarkPartial },
+    { icon: 'x', title: 'Cancel', body: 'Refund undelivered portion. Logs admin action.', variant: 'danger', onClick: onCancel },
+    { icon: 'wallet', title: 'Force refund', body: 'Full refund, regardless of delivery. Use sparingly.', variant: 'danger', onClick: onRefund },
+  ];
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      {cards.map((c) => (
+        <Card key={c.title} className="flex items-start gap-3 p-5">
+          <span
+            className="flex h-9 w-9 flex-none items-center justify-center rounded-md"
+            style={{
+              background:
+                c.variant === 'warn'
+                  ? 'var(--warn-soft)'
+                  : c.variant === 'danger'
+                    ? 'var(--danger-soft)'
+                    : c.variant === 'success'
+                      ? 'var(--success-soft)'
+                      : 'var(--bg-sunken)',
+              color:
+                c.variant === 'warn'
+                  ? 'var(--warn)'
+                  : c.variant === 'danger'
+                    ? 'var(--danger)'
+                    : c.variant === 'success'
+                      ? 'var(--success)'
+                      : 'var(--fg-muted)',
+            }}
+          >
+            <Icon name={c.icon} size={16} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="text-[13.5px] font-semibold">{c.title}</div>
+            <p className="mt-1 text-[12.5px] text-fg-muted">{c.body}</p>
+            <div className="mt-3">
+              <Button
+                variant={
+                  c.variant === 'warn'
+                    ? 'warn'
+                    : c.variant === 'danger'
+                      ? 'danger'
+                      : c.variant === 'success'
+                        ? 'success'
+                        : 'secondary'
+                }
+                size="sm"
+                onClick={c.onClick}
+              >
+                {c.title}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      ))}
+      <Card className="sm:col-span-2 p-5">
+        <div className="text-[13.5px] font-semibold">Admin note (visible internally)</div>
+        <textarea
+          rows={3}
+          placeholder="Note about this order — visible to other operators only…"
+          className="mt-3 block w-full rounded-md border border-border-strong bg-bg-elev p-3 text-[13.5px] outline-none focus-visible:ring-2 focus-visible:[--tw-ring-color:var(--ring)]"
+        />
+        <div className="mt-3 flex justify-end">
+          <Button variant="primary" size="sm" onClick={() => {/* Phase 3 endpoint */}}>
+            Save note
+          </Button>
+        </div>
+        <div className="mt-2 text-[11px] text-fg-subtle">
+          Order id: <span className="font-mono">{order.id}</span>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function addS(iso: string, sec: number): string {
+  const d = new Date(iso);
+  d.setSeconds(d.getSeconds() + sec);
+  return d.toISOString();
+}

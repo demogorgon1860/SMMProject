@@ -1,5 +1,6 @@
 package com.smmpanel.service.admin;
 
+import com.smmpanel.client.InstagramBotClient;
 import com.smmpanel.dto.admin.*;
 import com.smmpanel.entity.*;
 import com.smmpanel.entity.YouTubeAccountStatus;
@@ -9,6 +10,8 @@ import com.smmpanel.service.core.AuditService;
 import com.smmpanel.service.integration.BinomService;
 import com.smmpanel.service.integration.SeleniumService;
 import com.smmpanel.service.integration.YouTubeService;
+import com.smmpanel.service.notification.DailyProfitService;
+import com.smmpanel.service.notification.TelegramNotificationService;
 import com.smmpanel.service.order.state.OrderStateManager;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -50,6 +53,9 @@ public class AdminService {
     private final com.smmpanel.repository.jpa.VideoProcessingRepository videoProcessingRepository;
     private final BalanceDepositRepository balanceDepositRepository;
     private final org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
+    private final InstagramBotClient instagramBotClient;
+    private final DailyProfitService dailyProfitService;
+    private final TelegramNotificationService telegramNotificationService;
 
     @Transactional(readOnly = true)
     public DashboardStats getDashboardStats() {
@@ -251,20 +257,23 @@ public class AdminService {
                         .orElseThrow(
                                 () -> new IllegalArgumentException("Order not found: " + orderId));
 
-        // Campaign stopping removed - no longer needed
+        // 1. Tell the bot to release the slot BEFORE we mutate panel state — otherwise it would
+        //    keep dispatching while the user already has a refund in their wallet. Best-effort:
+        //    DB state below is the source of truth either way.
+        stopBotForOrder(order, "cancel");
 
-        // CRITICAL: Set remains to full quantity (nothing delivered, full refund expected)
-        // This ensures API returns correct remains value for cancelled orders
+        // 2. Set remains to full quantity (nothing delivered, full refund expected). This ensures
+        //    the v2 API returns correct remains for cancelled orders.
         order.setRemains(order.getQuantity());
 
-        // Calculate refund amount (should be full refund for cancellation)
+        // 3. Calculate full refund (cancellation = full refund).
         BigDecimal refundAmount = calculateRefundAmount(order);
 
         if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
             balanceService.refund(order.getUser(), refundAmount, order, reason);
         }
 
-        // CRITICAL: Set charge to 0 after full refund (cancelled = nothing paid)
+        // 4. Zero the charge after full refund (cancelled = nothing paid).
         order.setCharge(BigDecimal.ZERO);
 
         order.setStatus(OrderStatus.CANCELLED);
@@ -277,6 +286,40 @@ public class AdminService {
                 refundAmount,
                 reason,
                 order.getQuantity());
+    }
+
+    /**
+     * Best-effort signal to the Instagram bot: stop dispatching this order.
+     *
+     * <p>The bot exposes only {@code /api/orders/cancel} — it does not differentiate "partial" from
+     * "cancel" semantically; both mean "release the slot, free profile pool". So we use the same
+     * {@link InstagramBotClient#cancelOrderFast} for cancel, mark-partial, and force-complete.
+     *
+     * <p>Failure is non-fatal: we log and continue. Panel-side state already represents the truth,
+     * and the bot will eventually time out / be reaped via heartbeat regardless.
+     */
+    private void stopBotForOrder(Order order, String panelAction) {
+        if (order == null) return;
+        String botOrderId = order.getInstagramBotOrderId();
+        if (botOrderId == null || botOrderId.isBlank()) return;
+        try {
+            boolean ok = instagramBotClient.cancelOrderFast(botOrderId);
+            if (!ok) {
+                log.info(
+                        "{}: bot rejected cancel for order {} (bot_order_id={}) — likely already"
+                                + " finished",
+                        panelAction,
+                        order.getId(),
+                        botOrderId);
+            }
+        } catch (Exception e) {
+            log.warn(
+                    "{}: bot cancel call failed for order {} (bot_order_id={}): {}",
+                    panelAction,
+                    order.getId(),
+                    botOrderId,
+                    e.getMessage());
+        }
     }
 
     @Transactional
@@ -370,19 +413,101 @@ public class AdminService {
 
     @Transactional
     public void completeOrder(Long orderId) {
+        // Legacy thin form kept for callers (e.g. bulk action) that just want the DB flip.
         Order order =
                 orderRepository
                         .findById(orderId)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("Order not found: " + orderId));
 
-        // Campaign stopping removed - no longer needed
-
         order.setStatus(OrderStatus.COMPLETED);
         order.setRemains(0);
         orderRepository.save(order);
 
         log.info("Manually completed order {}", orderId);
+    }
+
+    /**
+     * Admin force-complete: marks an order as fully delivered <strong>regardless of current
+     * state</strong>, signals the bot to stop work, records daily profit, and sends a Telegram
+     * notification.
+     *
+     * <p>Use cases:
+     *
+     * <ul>
+     *   <li>Bot got stuck mid-run but the action actually succeeded on Instagram side
+     *   <li>External delivery confirmation arrived through ops channels
+     *   <li>Operator wants to close out an order that's been sitting in PENDING / IN_PROGRESS
+     * </ul>
+     *
+     * <p>Idempotent: calling on an already-COMPLETED order is a no-op (still triggers bot stop in
+     * case the previous transition was incomplete).
+     */
+    @Transactional
+    public void forceCompleteOrder(Long orderId, String reason, User operator) {
+        Order order =
+                orderRepository
+                        .findById(orderId)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("Order not found: " + orderId));
+
+        OrderStatus previousStatus = order.getStatus();
+        boolean alreadyCompleted = previousStatus == OrderStatus.COMPLETED;
+
+        // 1. Tell the bot to release the slot. Best-effort — DB state below is the source of truth.
+        stopBotForOrder(order, "force_complete");
+
+        // 2. Flip panel-side state. Mark fully delivered (remains=0 so qty-remains=qty), clear
+        // any error. Order does not carry a separate "completed" column; delivered count is
+        // derived as quantity - remains by API mappers.
+        Integer qty = order.getQuantity();
+        int completedCount = qty == null ? 0 : qty;
+        order.setStatus(OrderStatus.COMPLETED);
+        order.setRemains(0);
+        order.setErrorMessage(null);
+        // Distinguish admin-driven completion from organic completion in audits.
+        if (order.getTrafficStatus() == null
+                || !order.getTrafficStatus().startsWith("FORCE_COMPLETED")) {
+            order.setTrafficStatus("FORCE_COMPLETED_BY_ADMIN");
+        }
+        orderRepository.save(order);
+
+        // 3. Record profit + Telegram only on the first transition into COMPLETED. Multiple
+        // force-completes shouldn't double-count daily profit.
+        if (!alreadyCompleted) {
+            try {
+                dailyProfitService.recordProfit(order.getCharge(), OrderStatus.COMPLETED);
+            } catch (Exception e) {
+                log.warn(
+                        "force_complete: profit recording failed for order {}: {}",
+                        orderId,
+                        e.getMessage());
+            }
+            try {
+                telegramNotificationService.notifyOrderCompleted(order, completedCount);
+            } catch (Exception e) {
+                log.warn(
+                        "force_complete: telegram notification failed for order {}: {}",
+                        orderId,
+                        e.getMessage());
+            }
+        }
+
+        // 4. Operator audit log — high-impact action, always recorded.
+        if (operator != null) {
+            Map<String, Object> meta = new java.util.HashMap<>();
+            meta.put("previousStatus", previousStatus == null ? "null" : previousStatus.name());
+            meta.put("reason", reason == null ? "" : reason);
+            meta.put("alreadyCompleted", alreadyCompleted);
+            logOperatorAction(operator, "force_complete", "ORDER", orderId, meta);
+        }
+
+        log.info(
+                "Admin force_complete order={} previousStatus={} alreadyCompleted={} reason={}",
+                orderId,
+                previousStatus,
+                alreadyCompleted,
+                reason);
     }
 
     @Transactional
@@ -438,6 +563,10 @@ public class AdminService {
                         .findById(orderId)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("Order not found: " + orderId));
+
+        // For the bot, partial == cancel — both mean "stop dispatching, release the slot".
+        // Send the cancel signal first so we don't keep delivering while the user has a refund.
+        stopBotForOrder(order, "mark_partial");
 
         // Get current status for logging
         OrderStatus oldStatus = order.getStatus();
@@ -516,6 +645,10 @@ public class AdminService {
                         .findById(orderId)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("Order not found: " + orderId));
+
+        // For the bot, partial == cancel — stop dispatching now so we don't deliver more after
+        // the operator-set remains value is locked in.
+        stopBotForOrder(order, "mark_partial_with_remains");
 
         // Validate remains value
         if (customRemains == null) {

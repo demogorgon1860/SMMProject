@@ -52,8 +52,9 @@ public class EmailService {
         String html = EmailTemplates.verificationCode(username, code);
         String text =
                 String.format(
-                        "Hi %s,%n%nYour SMMWorld verification code is: %s%n%nIt expires in 24 hours."
-                                + " If you didn't ask to verify your email, ignore this message.",
+                        "Hi %s,%n%nYour SMMWorld verification code is: %s%n%nIt expires in 24"
+                                + " hours. If you didn't ask to verify your email, ignore this"
+                                + " message.",
                         username, code);
         sendQuietly(toEmail, subject, html, text);
     }
@@ -115,14 +116,17 @@ public class EmailService {
                         ? ""
                         : "<pre style='font-family:inherit;white-space:pre-wrap;font-size:14px;"
                                 + "color:#333;line-height:1.55'>"
-                                + body.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                                + body.replace("&", "&amp;")
+                                        .replace("<", "&lt;")
+                                        .replace(">", "&gt;")
                                 + "</pre>";
         sendQuietly(to, subject, escapedBody, body);
     }
 
     /** Operational alert — always sent (never to end-users). */
     public void sendAlert(String to, String alertTitle, String alertMessage, String level) {
-        String subject = String.format("[%s] %s", level == null ? "INFO" : level.toUpperCase(), alertTitle);
+        String subject =
+                String.format("[%s] %s", level == null ? "INFO" : level.toUpperCase(), alertTitle);
         String body =
                 String.format(
                         "Alert Level: %s%n%nTitle: %s%n%nMessage:%n%s%n%nGenerated at: %s",

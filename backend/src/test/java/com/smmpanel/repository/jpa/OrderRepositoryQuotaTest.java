@@ -7,7 +7,6 @@ import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.entity.Service;
 import com.smmpanel.entity.User;
 import com.smmpanel.entity.UserRole;
-import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,11 +31,11 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * Instagram URL. Covers the SUM(CASE WHEN ...) branching, status filter, time-window cutoff, and
  * per-(service, link) isolation.
  *
- * <p>Uses {@link DataJpaTest} (JPA slice) against a real PostgreSQL container — H2 cannot
- * reproduce the schema because entities use PG-specific features ({@code JSONB}, custom enum
- * types via {@code PostgreSQLEnumType}). When Docker is unavailable the entire class is
- * skipped via JUnit assumptions instead of failing — this keeps the suite green on dev
- * machines without Docker while still running in CI / on the production server.
+ * <p>Uses {@link DataJpaTest} (JPA slice) against a real PostgreSQL container — H2 cannot reproduce
+ * the schema because entities use PG-specific features ({@code JSONB}, custom enum types via {@code
+ * PostgreSQLEnumType}). When Docker is unavailable the entire class is skipped via JUnit
+ * assumptions instead of failing — this keeps the suite green on dev machines without Docker while
+ * still running in CI / on the production server.
  *
  * <p>The advisory-lock method ({@link OrderRepository#acquireQuotaLock}) is also PG-native and
  * exercised implicitly here via the same container.
@@ -247,7 +246,14 @@ class OrderRepositoryQuotaTest {
         save(order(serviceLikes, LINK_A, 50, 50, OrderStatus.PENDING, LocalDateTime.now())); // 50
         save(order(serviceLikes, LINK_A, 80, 0, OrderStatus.COMPLETED, LocalDateTime.now())); // 80
         save(order(serviceLikes, LINK_A, 100, 40, OrderStatus.PARTIAL, LocalDateTime.now())); // 60
-        save(order(serviceLikes, LINK_A, 200, 200, OrderStatus.CANCELLED, LocalDateTime.now())); // 0
+        save(
+                order(
+                        serviceLikes,
+                        LINK_A,
+                        200,
+                        200,
+                        OrderStatus.CANCELLED,
+                        LocalDateTime.now())); // 0
 
         assertEquals(190L, sumNow(serviceLikes, LINK_A));
     }

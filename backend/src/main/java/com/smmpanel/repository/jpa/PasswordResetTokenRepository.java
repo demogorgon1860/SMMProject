@@ -16,7 +16,8 @@ public interface PasswordResetTokenRepository extends JpaRepository<PasswordRese
 
     /** Rate-limit helper: count active tokens for a user in the last hour. */
     @Query(
-            "SELECT COUNT(t) FROM PasswordResetToken t WHERE t.userId = :userId AND t.createdAt > :since")
+            "SELECT COUNT(t) FROM PasswordResetToken t WHERE t.userId = :userId AND t.createdAt >"
+                    + " :since")
     long countRecentForUser(@Param("userId") Long userId, @Param("since") LocalDateTime since);
 
     /** Invalidate any unused reset tokens for a user — called after a successful reset. */

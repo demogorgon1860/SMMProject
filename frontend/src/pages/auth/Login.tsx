@@ -101,17 +101,6 @@ export function LoginPage() {
           Sign in
         </Button>
       </form>
-
-      <div className="my-6 flex items-center gap-3 text-[12px] text-fg-dim">
-        <span className="flex-1 border-t border-border" />
-        <span>or</span>
-        <span className="flex-1 border-t border-border" />
-      </div>
-
-      <Button variant="secondary" size="lg" block icon="telegram" disabled>
-        Continue with Telegram
-      </Button>
-      <p className="mt-2 text-center text-[11px] text-fg-dim">Coming soon.</p>
     </>
   );
 }

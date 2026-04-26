@@ -22,6 +22,16 @@ import { orderAPI } from '../../services/api';
 import type { Order } from '../../types';
 import { cn, fmtDate, fmtInt, fmtMoney, fmtRel } from '../../lib/utils';
 
+interface RefillRequest {
+  id: number;
+  orderId: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  rejectionReason?: string;
+  refillOrderId?: number;
+  decidedAt?: string;
+  createdAt: string;
+}
+
 // =====================================================================
 // Orders + Order detail drawer.
 // /orders          → list (filter by status, search)
@@ -240,12 +250,47 @@ function OrderDetailDrawer({ order, onClose, onAfterAction }: DetailProps) {
   const [tab, setTab] = useState<'progress' | 'timeline' | 'billing' | 'support'>('progress');
   const [confirm, setConfirm] = useState<null | 'cancel' | 'refill'>(null);
   const [busy, setBusy] = useState(false);
+  const [refillReq, setRefillReq] = useState<RefillRequest | null>(null);
+  const [refillReqLoading, setRefillReqLoading] = useState(false);
+
+  // Whenever the drawer opens for a refillable order, fetch any existing refill request so
+  // the UI can show pending / approved / rejected state instead of a naive "Refill" button.
+  useEffect(() => {
+    if (!order) return;
+    const isRefillable = ['COMPLETED', 'PARTIAL'].includes(order.status?.toUpperCase() ?? '');
+    if (!isRefillable) {
+      setRefillReq(null);
+      return;
+    }
+    let cancelled = false;
+    setRefillReqLoading(true);
+    orderAPI
+      .getRefillRequest(order.id)
+      .then((r: RefillRequest) => {
+        if (!cancelled) setRefillReq(r);
+      })
+      .catch(() => {
+        // 404 = no request yet; everything else swallowed (UI just shows "Request" button).
+        if (!cancelled) setRefillReq(null);
+      })
+      .finally(() => {
+        if (!cancelled) setRefillReqLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [order?.id, order?.status]);
 
   if (!order) return null;
 
   const pct = order.quantity > 0 ? Math.min(1, (order.completed ?? 0) / order.quantity) : 0;
   const cancelable = ['PENDING', 'IN_PROGRESS', 'PROCESSING', 'ACTIVE'].includes(order.status?.toUpperCase() ?? '');
   const refillable = ['COMPLETED', 'PARTIAL'].includes(order.status?.toUpperCase() ?? '');
+  const refillPending = refillReq?.status === 'PENDING';
+  const refillApproved = refillReq?.status === 'APPROVED';
+  const refillRejected = refillReq?.status === 'REJECTED';
+  // Approved is terminal; pending blocks new request. Rejected is allowed to retry.
+  const canRequestRefill = refillable && !refillPending && !refillApproved && !refillReqLoading;
 
   const doCancel = async () => {
     setBusy(true);
@@ -266,13 +311,21 @@ function OrderDetailDrawer({ order, onClose, onAfterAction }: DetailProps) {
   const doRefill = async () => {
     setBusy(true);
     try {
-      await orderAPI.refill(order.id);
-      toast('Refill requested.', 'success');
-      onAfterAction({ id: order.id, status: 'REFILL' as const });
+      const created: RefillRequest = await orderAPI.requestRefill(order.id);
+      setRefillReq(created);
+      // Don't promise notifications — we don't send any. Status updates on next refresh
+      // of the orders list / drawer.
+      toast('Refill request submitted — check back shortly for the decision.', 'success');
       setConfirm(null);
     } catch (err: unknown) {
-      const e = err as { response?: { data?: { message?: string } } };
-      toast(e.response?.data?.message ?? 'Refill failed — endpoint may not be live yet.', 'error');
+      const e = err as { response?: { data?: { message?: string }; status?: number } };
+      toast(
+        e.response?.data?.message ??
+          (e.response?.status === 409
+            ? 'This order isn’t eligible for refill.'
+            : 'Could not submit refill request.'),
+        'error',
+      );
     } finally {
       setBusy(false);
     }
@@ -307,8 +360,29 @@ function OrderDetailDrawer({ order, onClose, onAfterAction }: DetailProps) {
       actions={
         <>
           {refillable && (
-            <Button variant="secondary" size="sm" icon="refresh" onClick={() => setConfirm('refill')}>
-              Refill
+            <Button
+              variant={refillPending ? 'ghost' : 'secondary'}
+              size="sm"
+              icon={refillPending ? 'info' : refillApproved ? 'check' : 'refresh'}
+              onClick={() => setConfirm('refill')}
+              disabled={!canRequestRefill}
+              title={
+                refillPending
+                  ? 'Refill request pending admin review'
+                  : refillApproved
+                    ? 'Refill already approved'
+                    : refillRejected
+                      ? 'Previous request rejected — submit again'
+                      : 'Request a refill'
+              }
+            >
+              {refillPending
+                ? 'Refill pending'
+                : refillApproved
+                  ? 'Refill approved'
+                  : refillRejected
+                    ? 'Request again'
+                    : 'Request refill'}
             </Button>
           )}
           {cancelable && (
@@ -319,6 +393,50 @@ function OrderDetailDrawer({ order, onClose, onAfterAction }: DetailProps) {
         </>
       }
     >
+      {/* Refill request status banner */}
+      {refillReq && (
+        <div
+          className={cn(
+            'flex items-start gap-3 border-b border-border px-6 py-3 text-[12.5px]',
+            refillPending && 'bg-info-soft text-info',
+            refillApproved && 'bg-success-soft text-success',
+            refillRejected && 'bg-warn-soft text-warn',
+          )}
+        >
+          <Icon
+            name={refillPending ? 'info' : refillApproved ? 'check' : 'warning'}
+            size={14}
+            className="mt-[1px] flex-none"
+          />
+          <div className="min-w-0 flex-1">
+            {refillPending && (
+              <span>
+                <strong>Refill request pending review.</strong> An operator will approve or
+                reject it. Refresh this page to see the decision.
+              </span>
+            )}
+            {refillApproved && (
+              <span>
+                <strong>Refill approved</strong> — new refill order{' '}
+                {refillReq.refillOrderId ? (
+                  <span className="font-mono">#{refillReq.refillOrderId}</span>
+                ) : (
+                  'created'
+                )}
+                . Drop counts are tracked automatically.
+              </span>
+            )}
+            {refillRejected && (
+              <span>
+                <strong>Previous refill request rejected.</strong>
+                {refillReq.rejectionReason ? ` Reason: ${refillReq.rejectionReason}` : ''} You
+                can submit a new request.
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Hero */}
       <div className="border-b border-border px-6 py-6">
         <div className="flex items-start gap-4">
@@ -395,8 +513,8 @@ function OrderDetailDrawer({ order, onClose, onAfterAction }: DetailProps) {
       <Confirm
         open={confirm === 'refill'}
         title={`Request refill on #${order.id}?`}
-        body="Free during the 30-day refill window. Drops are detected and replaced automatically too."
-        confirmText="Request refill"
+        body="An operator will review your request and approve or reject it within the day. Refills are free during the 30-day window."
+        confirmText="Submit request"
         confirmVariant="primary"
         onConfirm={doRefill}
         onClose={() => setConfirm(null)}

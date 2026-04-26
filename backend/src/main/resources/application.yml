@@ -771,7 +771,21 @@ app:
     forgot-password:
       # rate-limit per email per hour
       rate-limit-per-hour: ${FORGOT_PASSWORD_RATE_LIMIT:5}
-    
+
+  # ===============================
+  # REFILL POLICY
+  # ===============================
+  refill:
+    # Days after order completion during which the user may request a free refill
+    window-days: ${REFILL_WINDOW_DAYS:30}
+
+  # ===============================
+  # WELCOME CREDIT
+  # ===============================
+  welcome-credit:
+    # USD credited to a user's wallet on first email verification. 0 disables the feature.
+    amount: ${WELCOME_CREDIT_AMOUNT:0}
+
   error-recovery:
     max-retries: ${ERROR_RECOVERY_MAX_RETRIES:3}
     initial-delay-minutes: ${ERROR_RECOVERY_INITIAL_DELAY_MINUTES:5}

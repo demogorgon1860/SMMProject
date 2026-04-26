@@ -772,4 +772,13 @@
     <!-- Phase 3: profile + support + auth-token tables (verify/forgot/reset, tickets, status incidents) -->
     <include file="db/changelog/changes/v2026.04-phase3-profile-and-support.xml"/>
 
+    <!-- OrderRefill tracking table (was missing — backed an entity but had no migration) -->
+    <include file="db/changelog/changes/v2026.04-add-order-refills.xml"/>
+
+    <!-- User-initiated refill requests with admin approval workflow -->
+    <include file="db/changelog/changes/v2026.04-add-refill-requests.xml"/>
+
+    <!-- One-time welcome credit tracking column on users -->
+    <include file="db/changelog/changes/v2026.04-add-welcome-credit-column.xml"/>
+
 </databaseChangeLog>

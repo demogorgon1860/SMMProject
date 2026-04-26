@@ -27,8 +27,8 @@ public class ServiceController {
      * the public /services-list catalog page).
      *
      * <p>The previous implementation NPE'd on anonymous calls because it dereferenced {@code
-     * principal.getName()} unconditionally. Public landing pages need to render the catalog
-     * without a JWT, so we now treat a missing/anonymous principal as "show me everything active".
+     * principal.getName()} unconditionally. Public landing pages need to render the catalog without
+     * a JWT, so we now treat a missing/anonymous principal as "show me everything active".
      */
     @GetMapping("/services")
     public ResponseEntity<PerfectPanelResponse> getServices(Principal principal) {

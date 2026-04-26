@@ -27,7 +27,6 @@ const SECTIONS: ReadonlyArray<Sect> = [
   { id: 'balance', title: 'GET balance', method: 'GET', path: '/api/v2?action=balance' },
   { id: 'refill', title: 'POST refill', method: 'POST', path: '/api/v2/refill' },
   { id: 'webhooks', title: 'Webhooks' },
-  { id: 'sdks', title: 'SDKs' },
   { id: 'changelog', title: 'Changelog' },
 ];
 
@@ -201,17 +200,6 @@ export function ApiDocsPage() {
 }`}</CodeBlock>
           </Sec>
 
-          <Sec id="sdks" title="SDKs">
-            <div className="grid grid-cols-2 gap-3 not-prose sm:grid-cols-3">
-              {(['Python', 'Node.js', 'Go', 'PHP', 'Postman', 'OpenAPI'] as const).map((s) => (
-                <Card key={s} className="p-4" hover>
-                  <div className="font-mono text-[12px] text-fg-subtle">github.com/smmworld/{s.toLowerCase().replace('.', '-')}-sdk</div>
-                  <div className="mt-1 text-[14px] font-semibold">{s}</div>
-                </Card>
-              ))}
-            </div>
-          </Sec>
-
           <Sec id="changelog" title="Changelog">
             <ul>
               <li>
@@ -227,56 +215,35 @@ export function ApiDocsPage() {
           </Sec>
         </article>
 
-        {/* Sandbox */}
+        {/* Quick reference aside — real, links to the user's own API key page. */}
         <aside className="hidden lg:block">
           <div className="sticky top-[80px] space-y-4">
             <Card className="p-5">
-              <div className="eyebrow">Sandbox key</div>
-              <div className="mt-2 break-all rounded-md border border-border bg-bg-sunken p-2 font-mono text-[12px]">
-                sk_test_demo_4o9f2a8c
-              </div>
-              <div className="mt-3 flex gap-2">
-                <CopyBtn value="sk_test_demo_4o9f2a8c" size="sm" variant="secondary" />
+              <div className="eyebrow">Your API key</div>
+              <p className="mt-3 text-[13px] leading-relaxed text-fg-muted">
+                Generated automatically when you sign up. Rotate or copy it from your account
+                settings — we never display it twice for security, so save the rotated value
+                immediately.
+              </p>
+              <div className="mt-4">
                 <a
                   href="/profile?tab=security"
-                  className="inline-flex h-[30px] items-center rounded-md border border-border-strong px-[10px] text-[12px] font-medium text-fg-muted hover:bg-bg-sunken"
-                >
-                  Get live key
-                </a>
-              </div>
-              <div className="mt-4">
-                <button
-                  type="button"
-                  onClick={() => alert('Console is wired to the API in Phase 1.4 Console expansion.')}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-accent px-3 py-2 text-[13px] font-semibold text-white hover:brightness-110"
                 >
-                  <Icon name="play" size={13} /> Try in console
-                </button>
+                  <Icon name="shield" size={13} /> Manage API key
+                </a>
               </div>
             </Card>
 
             <Card className="p-5">
-              <div className="eyebrow">Latency</div>
-              <div className="mt-3 space-y-2 text-[12.5px]">
-                {[
-                  ['p50', 14, 50],
-                  ['p95', 38, 50],
-                  ['p99', 84, 100],
-                ].map(([l, v, max]) => (
-                  <div key={l as string}>
-                    <div className="flex items-baseline justify-between">
-                      <span className="font-mono text-fg-subtle">{l}</span>
-                      <span className="font-mono">{v}ms</span>
-                    </div>
-                    <div className="mt-1 h-[4px] overflow-hidden rounded-full bg-bg-sunken">
-                      <span
-                        className="block h-full bg-accent"
-                        style={{ width: `${Math.min(100, ((v as number) / (max as number)) * 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
+              <div className="eyebrow">Auth header</div>
+              <div className="mt-2 break-all rounded-md border border-border bg-bg-sunken p-2 font-mono text-[11.5px]">
+                X-API-Key: &lt;your-key&gt;
               </div>
+              <p className="mt-2 text-[11.5px] text-fg-subtle">
+                Or send <code className="font-mono">Authorization: Bearer &lt;your-key&gt;</code> —
+                both are accepted.
+              </p>
             </Card>
           </div>
         </aside>

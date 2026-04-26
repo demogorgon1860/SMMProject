@@ -98,6 +98,7 @@ public class SecurityConfig {
 
                                                 // Public landing pages (no auth)
                                                 "/api/v*/stats/public",
+                                                "/api/v*/stats/recent-orders",
                                                 "/api/v*/faq",
                                                 "/api/v*/faq/**",
 

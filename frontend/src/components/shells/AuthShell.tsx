@@ -2,6 +2,13 @@ import { type ReactNode } from 'react';
 import { Link, Outlet } from 'react-router-dom';
 import { Icon } from '../ui/Icon';
 import { ToastProvider } from '../ui/Toast';
+import {
+  fmtCompact,
+  fmtQty,
+  fmtTickerSecondary,
+  useRecentOrders,
+  usePublicStats,
+} from '../../hooks/usePublicData';
 
 // =====================================================================
 // AuthShell — split-screen layout for /login, /register, /verify-email,
@@ -54,15 +61,11 @@ function AuthVisual({ variant }: { variant: Visual }) {
   );
 }
 
-// Live order feed — synthetic-but-realistic recent order lines.
-// (No fake regional nodes — we operate as a single delivery network today.)
+// Live order feed — REAL recent orders sourced from /api/v1/stats/recent-orders.
+// Sanitized server-side (no usernames, no URLs). The widget hides itself if
+// the backend has no qualifying orders yet — no fake fallback.
 function AuthVisualRouter() {
-  const rows = [
-    { id: '#1029488', service: '5,000 likes', status: 'in progress', t: '2s ago' },
-    { id: '#1029487', service: '1,200 followers', status: 'started', t: '8s ago' },
-    { id: '#1029486', service: '500 custom comments', status: 'queued', t: '14s ago' },
-    { id: '#1029485', service: '10,000 likes', status: 'completed', t: '21s ago' },
-  ];
+  const orders = useRecentOrders();
   return (
     <div>
       <div className="eyebrow text-white/60">Live network</div>
@@ -71,41 +74,52 @@ function AuthVisualRouter() {
         SMMWorld is the network. We don't resell — every action is delivered by us directly with
         real quality.
       </p>
-      <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur">
-        <div className="mb-3 flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-white/60">
-          <span className="pulse-dot inline-block h-[6px] w-[6px] rounded-full bg-emerald-400" />
-          Last orders dispatched
+      {orders === null ? (
+        // Initial fetch — keep layout stable with a same-size placeholder.
+        <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4" style={{ minHeight: 184 }} />
+      ) : orders.length === 0 ? null : (
+        <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+          <div className="mb-3 flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-white/60">
+            <span className="pulse-dot inline-block h-[6px] w-[6px] rounded-full bg-emerald-400" />
+            Last orders dispatched
+          </div>
+          <ul className="space-y-2 text-[13px]">
+            {orders.slice(0, 4).map((o) => (
+              <li key={o.id} className="flex items-center gap-3 font-mono">
+                <span className="text-white">#{o.id}</span>
+                <span className="flex-1 truncate text-white/70">
+                  {fmtQty(o.quantity)} {o.service.toLowerCase()}
+                </span>
+                <span className="rounded border border-white/10 bg-white/5 px-[6px] py-[1px] text-[10.5px] text-white/80">
+                  {o.status === 'in_progress' ? 'in progress' : o.status}
+                </span>
+                <span className="text-[11px] text-white/40">{fmtTickerSecondary(o.status, o.ageSeconds)}</span>
+              </li>
+            ))}
+          </ul>
         </div>
-        <ul className="space-y-2 text-[13px]">
-          {rows.map((r) => (
-            <li key={r.id} className="flex items-center gap-3 font-mono">
-              <span className="text-white">{r.id}</span>
-              <span className="flex-1 truncate text-white/70">{r.service}</span>
-              <span className="rounded border border-white/10 bg-white/5 px-[6px] py-[1px] text-[10.5px] text-white/80">
-                {r.status}
-              </span>
-              <span className="text-[11px] text-white/40">{r.t}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
+      )}
     </div>
   );
 }
 
+// Real metrics from /api/v1/stats/public + a single hardcoded "47s avg start"
+// kept by user request (the only metric that survives the audit). Other cards
+// render once the API responds; show "—" while loading rather than fake data.
 function AuthVisualStats() {
-  const stats: ReadonlyArray<readonly [string, string]> = [
-    ['$0.05', 'min /1k Reels'],
+  const stats = usePublicStats();
+  const cards: ReadonlyArray<readonly [string, string]> = [
     ['47s', 'avg start'],
-    ['99.98%', 'uptime'],
-    ['48.2M', 'orders shipped'],
+    [fmtCompact(stats?.ordersFulfilled), 'orders delivered'],
+    [fmtCompact(stats?.usersTotal), 'resellers'],
+    [fmtCompact(stats?.serviceCount), 'services live'],
   ];
   return (
     <div>
       <div className="eyebrow text-white/60">Numbers</div>
       <h2 className="mt-2 text-[32px] font-bold tracking-[-0.025em]">Built for resellers running real money.</h2>
       <div className="mt-8 grid grid-cols-2 gap-3">
-        {stats.map(([v, l]) => (
+        {cards.map(([v, l]) => (
           <div key={l} className="rounded-xl border border-white/10 bg-white/5 p-4">
             <div className="font-mono text-[26px] font-bold tracking-[-0.02em]">{v}</div>
             <div className="mt-1 text-[12px] text-white/60">{l}</div>
@@ -116,13 +130,17 @@ function AuthVisualStats() {
   );
 }
 
+// Only items that are actually implemented in the codebase today.
+// 2FA, IP allow-list, per-session signing, active-session view — all explicitly
+// notImplemented in services/api.ts; advertising them on the verify-email page
+// would be dishonest.
 function AuthVisualCheck() {
   const items = [
-    'Email verification',
-    '2FA via TOTP',
-    'API key with IP allow-list',
-    'Per-session signing',
-    'Active session view + revoke',
+    'Email verification before activation',
+    'Refresh token in HttpOnly cookie',
+    'Per-account API key, hash-only storage',
+    'Password reset revokes all sessions',
+    'Crypto-only payments — no card data stored',
   ];
   return (
     <div>

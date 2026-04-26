@@ -47,8 +47,19 @@ export function RegisterPage() {
     }
     try {
       await register(username.trim(), email.trim(), password);
+      const trimmed = email.trim();
+      // Stash so /verify-email survives a page refresh — router state alone is
+      // wiped by F5, leaving the verify form with no way to resend the code.
+      try {
+        localStorage.setItem('pending_verify_email', trimmed);
+      } catch {
+        /* private mode */
+      }
       toast('Account created. Verify your email to continue.', 'success');
-      navigate('/verify-email', { replace: true, state: { email: email.trim() } });
+      navigate(`/verify-email?email=${encodeURIComponent(trimmed)}`, {
+        replace: true,
+        state: { email: trimmed },
+      });
     } catch {
       setError(useAuthStore.getState().error ?? 'Registration failed.');
       toast('Registration failed', 'error');

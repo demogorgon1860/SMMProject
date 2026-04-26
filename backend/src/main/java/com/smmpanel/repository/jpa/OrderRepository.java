@@ -160,6 +160,18 @@ public interface OrderRepository
 
     long countByStatus(OrderStatus status);
 
+    /**
+     * Recent orders in "watchable" statuses for the public landing-page ticker. JOIN FETCH on
+     * service avoids N+1 when the caller serializes service.name. Caller must pass a Pageable with
+     * a size limit (typically 12–20).
+     */
+    @Query(
+            "SELECT o FROM Order o JOIN FETCH o.service"
+                    + " WHERE o.status IN :statuses"
+                    + " ORDER BY o.createdAt DESC")
+    List<Order> findRecentInStatusesWithService(
+            @Param("statuses") List<OrderStatus> statuses, Pageable pageable);
+
     @Query("SELECT AVG(o.charge) FROM Order o")
     Double calculateAverageOrderValue();
 
@@ -179,9 +191,8 @@ public interface OrderRepository
      * Sum of "consumed" quantity per (service, link) within a time window. Used for the per-URL
      * quota check on order creation. For COMPLETED/PARTIAL orders we count what was actually
      * delivered ({@code quantity - remains}); for active orders the slot is reserved, so we count
-     * the full {@code quantity}. Caller passes the list of statuses to consider — terminal
-     * statuses (CANCELLED/FAILED/ERROR/REFILL/SUSPENDED) must be excluded so freed slots are not
-     * counted.
+     * the full {@code quantity}. Caller passes the list of statuses to consider — terminal statuses
+     * (CANCELLED/FAILED/ERROR/REFILL/SUSPENDED) must be excluded so freed slots are not counted.
      */
     @Query(
             "SELECT COALESCE(SUM(CASE WHEN o.status IN (com.smmpanel.entity.OrderStatus.COMPLETED,"
@@ -206,11 +217,9 @@ public interface OrderRepository
      * result; the lock is acquired by side effect.
      */
     @Query(
-            value =
-                    "SELECT pg_advisory_xact_lock(hashtext(:link), CAST(:serviceId AS int))",
+            value = "SELECT pg_advisory_xact_lock(hashtext(:link), CAST(:serviceId AS int))",
             nativeQuery = true)
-    Object acquireQuotaLock(
-            @Param("serviceId") Long serviceId, @Param("link") String link);
+    Object acquireQuotaLock(@Param("serviceId") Long serviceId, @Param("link") String link);
 
     @Query("SELECT o FROM Order o WHERE o.user.id = :userId AND o.createdAt > :createdAt")
     List<Order> findByUserIdAndCreatedAtAfter(

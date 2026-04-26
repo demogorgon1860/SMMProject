@@ -5,7 +5,6 @@ import { User, AuthResponse } from '../types';
 interface AuthState {
   user: User | null;
   token: string | null;
-  refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
@@ -68,31 +67,38 @@ function writeJSON(key: string, value: unknown): void {
   }
 }
 
+// One-time migration: older builds wrote the refresh token to localStorage.
+// We've moved to HttpOnly cookies — purge the stale slot so an attacker can't
+// lift it later via XSS.
+try {
+  localStorage.removeItem('refreshToken');
+} catch {
+  /* noop */
+}
+
 const initialUser = readJSON<User>('user');
 const initialToken = readString('token');
-const initialRefresh = readString('refreshToken');
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: initialUser,
   token: initialToken,
-  refreshToken: initialRefresh,
   isAuthenticated: !!initialToken,
   isLoading: false,
   error: null,
-  
+
   login: async (username: string, password: string) => {
     set({ isLoading: true, error: null });
     try {
       const response: AuthResponse = await authAPI.login(username, password);
 
+      // Refresh token lives ONLY in the HttpOnly cookie set by the server.
+      // We never persist it client-side.
       writeString('token', response.token);
-      writeString('refreshToken', response.refreshToken);
       writeJSON('user', response.user);
 
       set({
         user: response.user ?? null,
         token: response.token ?? null,
-        refreshToken: response.refreshToken ?? null,
         isAuthenticated: !!response.token,
         isLoading: false,
       });
@@ -111,13 +117,11 @@ export const useAuthStore = create<AuthState>((set) => ({
       const response: AuthResponse = await authAPI.register(username, email, password);
 
       writeString('token', response.token);
-      writeString('refreshToken', response.refreshToken);
       writeJSON('user', response.user);
 
       set({
         user: response.user ?? null,
         token: response.token ?? null,
-        refreshToken: response.refreshToken ?? null,
         isAuthenticated: !!response.token,
         isLoading: false,
       });
@@ -132,13 +136,11 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: () => {
     writeString('token', null);
-    writeString('refreshToken', null);
     writeJSON('user', null);
 
     set({
       user: null,
       token: null,
-      refreshToken: null,
       isAuthenticated: false,
     });
   },
@@ -156,7 +158,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ user: user ?? null, isAuthenticated: !!user });
     } catch (error) {
       writeString('token', null);
-      writeString('refreshToken', null);
       writeJSON('user', null);
       set({ isAuthenticated: false, user: null });
     }

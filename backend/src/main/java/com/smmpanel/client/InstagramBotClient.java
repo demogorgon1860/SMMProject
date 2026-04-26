@@ -111,10 +111,10 @@ public class InstagramBotClient {
     }
 
     /**
-     * Extract the panel order ID from a stored bot_order_id placeholder so it can be sent as
-     * {@code external_id} alongside {@code order_id}. The bot uses external_id as a fallback
-     * lookup when it can't find the order by its internal bot_id (e.g. after a bot restart, or
-     * when the bot generates its own placeholder ID like {@code panel_<panelId>_<ts>}).
+     * Extract the panel order ID from a stored bot_order_id placeholder so it can be sent as {@code
+     * external_id} alongside {@code order_id}. The bot uses external_id as a fallback lookup when
+     * it can't find the order by its internal bot_id (e.g. after a bot restart, or when the bot
+     * generates its own placeholder ID like {@code panel_<panelId>_<ts>}).
      *
      * <p>Recognized formats:
      *
@@ -377,7 +377,11 @@ public class InstagramBotClient {
         try {
             jsonPayload = objectMapper.writeValueAsString(body);
         } catch (Exception e) {
-            log.error("{}: failed to serialize request body for order {}: {}", opName, orderId, e.getMessage());
+            log.error(
+                    "{}: failed to serialize request body for order {}: {}",
+                    opName,
+                    orderId,
+                    e.getMessage());
             return false;
         }
 

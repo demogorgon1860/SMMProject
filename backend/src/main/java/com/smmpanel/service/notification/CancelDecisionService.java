@@ -91,6 +91,26 @@ public class CancelDecisionService {
     }
 
     /**
+     * Atomic claim: returns the decision and deletes it from Redis in a single round-trip. Used by
+     * the admin "proceed/cancel" endpoints so that two concurrent operator clicks can't both
+     * succeed (only one wins the DEL race; the other gets {@link Optional#empty()}).
+     */
+    public Optional<CancelPendingDecision> claimPendingDecision(Long orderId) {
+        if (orderId == null) return Optional.empty();
+        String json = stringRedisTemplate.opsForValue().getAndDelete(key(orderId));
+        if (json == null) return Optional.empty();
+        try {
+            return Optional.of(objectMapper.readValue(json, CancelPendingDecision.class));
+        } catch (JsonProcessingException e) {
+            log.error(
+                    "Failed to deserialize CancelPendingDecision on claim for order {}: {}",
+                    orderId,
+                    e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    /**
      * Returns list of orderIds whose decisions have NOT yet expired (still in Redis). Used by
      * scheduler to find decisions that need processing on TTL expiry via scan. Note: Redis
      * TTL-expired keys are already gone — this returns currently active ones.

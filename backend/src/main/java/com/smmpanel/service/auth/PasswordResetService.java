@@ -4,7 +4,6 @@ import com.smmpanel.entity.PasswordResetToken;
 import com.smmpanel.entity.User;
 import com.smmpanel.repository.jpa.PasswordResetTokenRepository;
 import com.smmpanel.repository.jpa.UserRepository;
-import com.smmpanel.service.auth.RefreshTokenService;
 import com.smmpanel.service.email.EmailService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.security.SecureRandom;
@@ -70,7 +69,8 @@ public class PasswordResetService {
         }
         User user = userOpt.get();
 
-        long recent = tokenRepository.countRecentForUser(user.getId(), LocalDateTime.now().minusHours(1));
+        long recent =
+                tokenRepository.countRecentForUser(user.getId(), LocalDateTime.now().minusHours(1));
         if (recent >= rateLimitPerHour) {
             log.warn(
                     "Password reset rate limit hit for user {} ({} requests in last hour)",
@@ -78,6 +78,11 @@ public class PasswordResetService {
                     recent);
             return;
         }
+
+        // Invalidate any previous unused reset tokens — only the latest link should work.
+        // Otherwise clicking "Forgot" multiple times leaves a string of valid links in the user's
+        // inbox; if one gets misdelivered or phished, it stays redeemable until natural TTL.
+        tokenRepository.markAllUsedForUser(user.getId(), LocalDateTime.now());
 
         String rawToken = generateToken();
         PasswordResetToken token =
@@ -111,7 +116,9 @@ public class PasswordResetService {
                 tokenRepository
                         .findByTokenHash(EmailVerificationService.sha256(rawToken))
                         .orElseThrow(
-                                () -> new IllegalArgumentException("Invalid or expired reset link"));
+                                () ->
+                                        new IllegalArgumentException(
+                                                "Invalid or expired reset link"));
 
         if (token.isUsed() || token.isExpired()) {
             throw new IllegalArgumentException("Invalid or expired reset link");
@@ -134,7 +141,10 @@ public class PasswordResetService {
         try {
             refreshTokenService.revokeAllUserTokens(user, "Password reset");
         } catch (Exception e) {
-            log.warn("Could not revoke refresh tokens after reset for user {}: {}", user.getId(), e.toString());
+            log.warn(
+                    "Could not revoke refresh tokens after reset for user {}: {}",
+                    user.getId(),
+                    e.toString());
         }
 
         log.info("Password reset completed for user {}", user.getId());

@@ -17,7 +17,8 @@ public interface SupportTicketRepository extends JpaRepository<SupportTicket, Lo
 
     Optional<SupportTicket> findByIdAndUserId(Long id, Long userId);
 
-    @Query("SELECT t FROM SupportTicket t WHERE (:status IS NULL OR t.status = :status) ORDER BY t.updatedAt DESC")
-    Page<SupportTicket> searchAll(
-            @Param("status") SupportTicket.Status status, Pageable pageable);
+    @Query(
+            "SELECT t FROM SupportTicket t WHERE (:status IS NULL OR t.status = :status) ORDER BY"
+                    + " t.updatedAt DESC")
+    Page<SupportTicket> searchAll(@Param("status") SupportTicket.Status status, Pageable pageable);
 }

@@ -23,7 +23,12 @@ export function ToastProvider({ children, timeoutMs = 3500 }: { children: ReactN
 
   const push = useCallback<PushFn>(
     (msg, kind = 'info') => {
-      const id = Math.random().toString(36).slice(2);
+      // crypto.randomUUID is universally available in evergreen browsers + Node 19+;
+      // fall back to a Math.random pair only on legacy targets.
+      const id =
+        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+          ? crypto.randomUUID()
+          : Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
       setToasts((t) => [...t, { id, msg, kind }]);
       window.setTimeout(() => {
         setToasts((t) => t.filter((x) => x.id !== id));

@@ -33,7 +33,8 @@ public class ProfileController {
     }
 
     @PatchMapping
-    public ResponseEntity<ProfileMeResponse> patchMe(@Valid @RequestBody UpdateProfileRequest request) {
+    public ResponseEntity<ProfileMeResponse> patchMe(
+            @Valid @RequestBody UpdateProfileRequest request) {
         return ResponseEntity.ok(profileService.updateMe(request));
     }
 
@@ -43,8 +44,11 @@ public class ProfileController {
             profileService.changePassword(request);
             return ResponseEntity.noContent().build();
         } catch (BadCredentialsException e) {
+            // 422 (not 401) — the user is authenticated, the *current password input* is wrong.
+            // Returning 401 here would trip the global axios interceptor and force-logout the
+            // session, kicking the user out of the app for a typo.
             log.info("Change-password rejected: bad current password");
-            return ResponseEntity.status(401).build();
+            return ResponseEntity.status(422).build();
         } catch (IllegalArgumentException e) {
             log.info("Change-password rejected: {}", e.getMessage());
             return ResponseEntity.status(400).build();

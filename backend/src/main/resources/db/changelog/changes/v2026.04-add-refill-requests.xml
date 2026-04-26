@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      User-initiated refill request, awaiting admin approval. Mirrors the
+      Telegram pending-decision UX but persists in SQL because requests
+      need to survive Redis flushes and live in the user's account history.
+
+      Status flow:
+        PENDING  → APPROVED  (admin: triggers OrderRefillService.createRefill)
+        PENDING  → REJECTED  (admin: must provide a rejection_reason)
+
+      Idempotency / safety:
+        - Partial unique index on (order_id) WHERE status = 'PENDING' blocks
+          duplicate requests when a user double-clicks. The service layer
+          catches the unique-violation and returns the existing pending row.
+        - Service layer rejects new requests on orders that already have an
+          APPROVED request (refill already created — re-refill goes through
+          OrderRefillService.createRefill's own per-order validations).
+        - REJECTED is not terminal: a user may try again (admin's choice
+          to allow it via UI or not).
+    -->
+    <changeSet id="v2026.04-add-refill-requests" author="dev">
+        <!-- Idempotent: skip if table already exists (prod operator may pre-apply DDL). -->
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <not><tableExists tableName="refill_requests"/></not>
+        </preConditions>
+        <createTable tableName="refill_requests">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="order_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_rr_user" references="users(id)"/>
+            </column>
+            <column name="status" type="VARCHAR(20)" defaultValue="PENDING">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_note" type="VARCHAR(500)"/>
+            <column name="rejection_reason" type="VARCHAR(500)"/>
+            <column name="admin_id" type="BIGINT">
+                <constraints foreignKeyName="fk_rr_admin" references="users(id)"/>
+            </column>
+            <column name="decided_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="refill_id" type="BIGINT"/>
+            <column name="refill_order_id" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <!-- Per-user listing on the profile page: "my refill requests, newest first" -->
+        <createIndex tableName="refill_requests" indexName="idx_rr_user_created">
+            <column name="user_id"/>
+            <column name="created_at" descending="true"/>
+        </createIndex>
+
+        <!-- Lookup all requests for a given order (history view in admin Orders drawer) -->
+        <createIndex tableName="refill_requests" indexName="idx_rr_order">
+            <column name="order_id"/>
+        </createIndex>
+
+        <!-- Partial unique: prevents two concurrent PENDING requests on the same order.
+             createIndex doesn't support WHERE clauses, so we drop down to raw SQL. -->
+        <sql>
+            CREATE UNIQUE INDEX idx_rr_one_pending_per_order
+                ON refill_requests(order_id)
+                WHERE status = 'PENDING';
+        </sql>
+
+        <!-- Admin queue: all PENDING, oldest first (FIFO). Partial index keeps it tiny. -->
+        <sql>
+            CREATE INDEX idx_rr_pending_queue
+                ON refill_requests(created_at ASC)
+                WHERE status = 'PENDING';
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

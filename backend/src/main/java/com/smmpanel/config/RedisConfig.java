@@ -309,6 +309,17 @@ public class RedisConfig implements CachingConfigurer {
         cacheConfigurations.put("services", defaultConfig.entryTtl(Duration.ofHours(1)));
         cacheConfigurations.put("active-services", defaultConfig.entryTtl(Duration.ofHours(1)));
 
+        // Public landing-page stats — counts move slowly relative to landing traffic, but a
+        // fresh user creating an order shouldn't wait 5 minutes to see the count update either.
+        // 60s strikes the balance: cheap during traffic spikes, low staleness for first impression.
+        cacheConfigurations.put("public-stats", defaultConfig.entryTtl(Duration.ofSeconds(60)));
+
+        // Public landing-page recent-orders ticker — should look "live" so 10s TTL keeps it fresh
+        // without smashing the orders table on every page load. The ticker animates client-side,
+        // so visitors don't notice the 10-second pool refresh cadence.
+        cacheConfigurations.put(
+                "public-recent-orders", defaultConfig.entryTtl(Duration.ofSeconds(10)));
+
         // User-related caches
         cacheConfigurations.put("users", defaultConfig.entryTtl(Duration.ofMinutes(15)));
         cacheConfigurations.put("balance", defaultConfig.entryTtl(Duration.ofMinutes(5)));

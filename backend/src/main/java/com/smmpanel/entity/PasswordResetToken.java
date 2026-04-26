@@ -6,8 +6,8 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 /**
- * Single-use password reset token. The raw token is sent in the email URL; only its SHA-256 hash
- * is persisted. {@code expiresAt} is set to a short window (1 hour by default) and {@code usedAt}
+ * Single-use password reset token. The raw token is sent in the email URL; only its SHA-256 hash is
+ * persisted. {@code expiresAt} is set to a short window (1 hour by default) and {@code usedAt}
  * locks it after first successful use.
  */
 @Entity

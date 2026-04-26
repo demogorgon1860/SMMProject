@@ -20,8 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Email verification flow.
  *
- * <p>Issues a single-use 6-digit code, stores its SHA-256 hash with TTL, and emails it to the
- * user. On verify the hash is matched, marked used, and the user record is flipped to verified.
+ * <p>Issues a single-use 6-digit code, stores its SHA-256 hash with TTL, and emails it to the user.
+ * On verify the hash is matched, marked used, and the user record is flipped to verified.
  *
  * <p>Security properties:
  *
@@ -44,6 +44,7 @@ public class EmailVerificationService {
     private final EmailVerificationTokenRepository tokenRepository;
     private final UserRepository userRepository;
     private final EmailService emailService;
+    private final WelcomeCreditService welcomeCreditService;
 
     @Value("${app.auth.verification.ttl-hours:24}")
     private int ttlHours;
@@ -111,6 +112,9 @@ public class EmailVerificationService {
      * Verify a code. Returns {@code true} on success and flips {@link User#setEmailVerified}.
      *
      * <p>Always rejects: missing user, mismatched email/code, used codes, expired codes.
+     *
+     * <p>The redeem step uses a conditional UPDATE on {@code usedAt IS NULL} so two concurrent
+     * verify calls with the same code can't both succeed.
      */
     @Transactional
     public boolean verify(String email, String code) {
@@ -126,19 +130,33 @@ public class EmailVerificationService {
             return true; // idempotent — already done.
         }
 
-        Optional<EmailVerificationToken> tokenOpt = tokenRepository.findByCodeHash(sha256(code));
+        Optional<EmailVerificationToken> tokenOpt =
+                tokenRepository.findActiveForUser(user.getId(), sha256(code));
         if (tokenOpt.isEmpty()) return false;
 
         EmailVerificationToken token = tokenOpt.get();
-        if (!token.getUserId().equals(user.getId())) return false;
-        if (token.isUsed() || token.isExpired()) return false;
+        if (token.isExpired()) return false;
 
-        token.setUsedAt(LocalDateTime.now());
-        tokenRepository.save(token);
+        // Atomic claim — exactly one of N concurrent verifies flips usedAt.
+        int claimed = tokenRepository.markUsedIfUnused(token.getId(), LocalDateTime.now());
+        if (claimed == 0) return false;
 
         user.setEmailVerified(true);
         user.setEmailVerifiedAt(LocalDateTime.now());
         userRepository.save(user);
+
+        // Grant welcome credit on first verification. Runs in its own transaction
+        // (REQUIRES_NEW) — a credit-grant failure (e.g. balance service hiccup) must not roll
+        // back the email verification itself. Verification is the high-value business state;
+        // the credit is best-effort and self-healing on the next admin run.
+        try {
+            welcomeCreditService.grantIfEligible(user);
+        } catch (Exception e) {
+            log.warn(
+                    "Email verified but welcome credit grant failed for user {}: {}",
+                    user.getId(),
+                    e.toString());
+        }
 
         emailService.sendWelcome(user.getEmail(), user.getUsername());
         log.info("Email verified for user {}", user.getId());

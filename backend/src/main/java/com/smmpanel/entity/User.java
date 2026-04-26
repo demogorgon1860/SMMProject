@@ -145,6 +145,14 @@ public class User implements UserDetails {
     private LocalDateTime passwordChangedAt;
 
     /**
+     * Timestamp at which the one-time welcome credit was granted to this user. Null while never
+     * granted; flipped to NOW() atomically (CAS UPDATE) by {@code WelcomeCreditService} in the same
+     * transaction that credits the wallet, so concurrent verify requests cannot double-pay.
+     */
+    @Column(name = "welcome_credit_granted_at")
+    private LocalDateTime welcomeCreditGrantedAt;
+
+    /**
      * PERFORMANCE IMPROVEMENT: Optimistic locking for balance updates Prevents concurrent
      * modification issues during balance transactions
      */

@@ -60,24 +60,24 @@ public class AdminTelegramController {
             opt.ifPresent(d -> out.add(toResponse(d)));
         }
         // Newest first so the UI doesn't have to sort.
-        out.sort((a, b) -> {
-            if (a.getCreatedAt() == null || b.getCreatedAt() == null) return 0;
-            return b.getCreatedAt().compareTo(a.getCreatedAt());
-        });
+        out.sort(
+                (a, b) -> {
+                    if (a.getCreatedAt() == null || b.getCreatedAt() == null) return 0;
+                    return b.getCreatedAt().compareTo(a.getCreatedAt());
+                });
         return ResponseEntity.ok(out);
     }
 
     @PostMapping("/decisions/{orderId}/proceed")
     public ResponseEntity<Map<String, Object>> proceed(@PathVariable Long orderId) {
-        Optional<CancelPendingDecision> decisionOpt = callbackTxService.readPendingDecision(orderId);
+        // Atomic claim: GETDEL in Redis. Two concurrent clicks can't both pass — only one gets the
+        // decision back, the other gets empty and exits early.
+        Optional<CancelPendingDecision> decisionOpt =
+                cancelDecisionService.claimPendingDecision(orderId);
         if (decisionOpt.isEmpty()) {
             return ResponseEntity.status(409)
                     .body(Map.of("ok", false, "reason", "decision_not_found_or_expired"));
         }
-
-        // Same removal-first ordering as the Telegram callback path so a stray duplicate
-        // request can't double-process.
-        callbackTxService.removePendingDecision(orderId);
 
         boolean resumed = false;
         String botOrderId = decisionOpt.get().getBotOrderId();
@@ -85,8 +85,7 @@ public class AdminTelegramController {
             try {
                 resumed = instagramBotClient.resumeOrderFast(botOrderId);
             } catch (Exception e) {
-                log.warn(
-                        "resumeOrderFast failed for bot order {}: {}", botOrderId, e.getMessage());
+                log.warn("resumeOrderFast failed for bot order {}: {}", botOrderId, e.getMessage());
             }
         }
         log.info("Admin PROCEED via panel order={} resumed={}", orderId, resumed);
@@ -95,7 +94,8 @@ public class AdminTelegramController {
 
     @PostMapping("/decisions/{orderId}/cancel")
     public ResponseEntity<Map<String, Object>> cancel(@PathVariable Long orderId) {
-        Optional<CancelPendingDecision> decisionOpt = callbackTxService.readPendingDecision(orderId);
+        Optional<CancelPendingDecision> decisionOpt =
+                cancelDecisionService.claimPendingDecision(orderId);
         if (decisionOpt.isEmpty()) {
             return ResponseEntity.status(409)
                     .body(Map.of("ok", false, "reason", "decision_not_found_or_expired"));
@@ -109,12 +109,10 @@ public class AdminTelegramController {
             res = callbackTxService.performCancelTx(orderId, completedCount);
         } catch (Exception e) {
             log.error("Admin cancel failed for order {}: {}", orderId, e.getMessage(), e);
-            return ResponseEntity.status(500)
-                    .body(Map.of("ok", false, "reason", "tx_failure"));
+            return ResponseEntity.status(500).body(Map.of("ok", false, "reason", "tx_failure"));
         }
         if (!res.processed()) {
-            return ResponseEntity.status(409)
-                    .body(Map.of("ok", false, "reason", res.reason()));
+            return ResponseEntity.status(409).body(Map.of("ok", false, "reason", res.reason()));
         }
 
         // Best-effort bot signal — DB state is already correct regardless of this outcome.
@@ -144,7 +142,10 @@ public class AdminTelegramController {
             @RequestParam(value = "month", required = false) String monthParam) {
         YearMonth ym;
         try {
-            ym = monthParam == null || monthParam.isBlank() ? YearMonth.now() : YearMonth.parse(monthParam);
+            ym =
+                    monthParam == null || monthParam.isBlank()
+                            ? YearMonth.now()
+                            : YearMonth.parse(monthParam);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(List.of());
         }

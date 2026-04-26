@@ -257,6 +257,8 @@ public class AdminService {
                         .orElseThrow(
                                 () -> new IllegalArgumentException("Order not found: " + orderId));
 
+        rejectIfAlreadyRefunded(order, "cancel");
+
         // 1. Tell the bot to release the slot BEFORE we mutate panel state — otherwise it would
         //    keep dispatching while the user already has a refund in their wallet. Best-effort:
         //    DB state below is the source of truth either way.
@@ -319,6 +321,27 @@ public class AdminService {
                     order.getId(),
                     botOrderId,
                     e.getMessage());
+        }
+    }
+
+    /**
+     * Single source of truth for "refund already happened" guard. {@link OrderStatus#PARTIAL} and
+     * {@link OrderStatus#CANCELLED} both mean balance was already credited back; running cancel /
+     * markPartial again would issue a second refund off the already-reduced charge — i.e. real
+     * money loss to the merchant.
+     *
+     * @throws IllegalStateException if the order is in a terminal refund state.
+     */
+    private void rejectIfAlreadyRefunded(Order order, String panelAction) {
+        OrderStatus s = order.getStatus();
+        if (s == OrderStatus.PARTIAL || s == OrderStatus.CANCELLED) {
+            throw new IllegalStateException(
+                    panelAction
+                            + ": order "
+                            + order.getId()
+                            + " already in terminal refund state ("
+                            + s
+                            + "). Refunding again would double-charge the merchant.");
         }
     }
 
@@ -454,6 +477,14 @@ public class AdminService {
         OrderStatus previousStatus = order.getStatus();
         boolean alreadyCompleted = previousStatus == OrderStatus.COMPLETED;
 
+        // Refusing to "force-complete" an order that's already been refunded prevents the panel
+        // from booking phantom profit on a zero-charge order and from sending a Telegram
+        // "completed" notification for something the customer already got their money back on.
+        if (previousStatus == OrderStatus.CANCELLED || previousStatus == OrderStatus.PARTIAL) {
+            throw new IllegalStateException(
+                    "Cannot force-complete an order in terminal refund state: " + previousStatus);
+        }
+
         // 1. Tell the bot to release the slot. Best-effort — DB state below is the source of truth.
         stopBotForOrder(order, "force_complete");
 
@@ -552,9 +583,15 @@ public class AdminService {
     }
 
     /**
-     * Manually mark order as PARTIAL Works on ANY order status: COMPLETED, PENDING, IN_PROGRESS
-     * Automatically calculates and refunds proportional amount based on delivered views Stops order
-     * processing and deletes Binom offer if exists
+     * Manually mark order as PARTIAL Works on order statuses that haven't already been refunded:
+     * COMPLETED, PENDING, IN_PROGRESS, ACTIVE, PROCESSING, PAUSED. Automatically calculates and
+     * refunds proportional amount based on delivered views. Stops order processing and deletes
+     * Binom offer if exists.
+     *
+     * <p>Idempotency guard: rejects orders that are already in a terminal refund state (PARTIAL or
+     * CANCELLED). Without this guard, calling twice would refund twice — the refund repository has
+     * no per-order de-duplication, and the second call would compute a refund off the
+     * already-reduced charge.
      */
     @Transactional
     public void markOrderAsPartial(Long orderId, String reason) {
@@ -563,6 +600,8 @@ public class AdminService {
                         .findById(orderId)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("Order not found: " + orderId));
+
+        rejectIfAlreadyRefunded(order, "mark_partial");
 
         // For the bot, partial == cancel — both mean "stop dispatching, release the slot".
         // Send the cancel signal first so we don't keep delivering while the user has a refund.
@@ -645,6 +684,8 @@ public class AdminService {
                         .findById(orderId)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("Order not found: " + orderId));
+
+        rejectIfAlreadyRefunded(order, "mark_partial_with_remains");
 
         // For the bot, partial == cancel — stop dispatching now so we don't deliver more after
         // the operator-set remains value is locked in.
@@ -1075,14 +1116,21 @@ public class AdminService {
     }
 
     @Transactional
-    public void adjustUserBalance(Long userId, Double amount, String reason) {
+    public void adjustUserBalance(Long userId, BigDecimal amount, String reason) {
+        if (amount == null) {
+            throw new IllegalArgumentException("Adjustment amount is required");
+        }
+        if (amount.compareTo(BigDecimal.ZERO) == 0) {
+            throw new IllegalArgumentException("Adjustment amount cannot be zero");
+        }
+
         User user =
                 userRepository
                         .findById(userId)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("User not found: " + userId));
 
-        BigDecimal adjustmentAmount = BigDecimal.valueOf(amount);
+        BigDecimal adjustmentAmount = amount.setScale(2, java.math.RoundingMode.HALF_UP);
 
         if (adjustmentAmount.compareTo(BigDecimal.ZERO) > 0) {
             balanceService.addBalance(user, adjustmentAmount, null, reason);
@@ -1100,9 +1148,9 @@ public class AdminService {
         }
 
         log.info(
-                "Adjusted balance for user {} by ${} - reason: {}",
+                "Adjusted balance for user {} by {} - reason: {}",
                 user.getUsername(),
-                amount,
+                adjustmentAmount,
                 reason);
     }
 

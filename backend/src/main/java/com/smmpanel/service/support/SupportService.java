@@ -17,6 +17,8 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -123,6 +125,85 @@ public class SupportService {
         ticketRepository.save(ticket);
 
         return TicketMessageResponse.from(message);
+    }
+
+    // ---------------------------------------------------------------------
+    // Admin / operator side. Calling code must enforce role checks via
+    // Spring Security at the controller level — this service trusts that.
+    // ---------------------------------------------------------------------
+
+    @Transactional(readOnly = true)
+    public Page<TicketResponse> adminListTickets(SupportTicket.Status status, Pageable pageable) {
+        return ticketRepository.searchAll(status, pageable).map(TicketResponse::from);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> adminGetTicket(Long ticketId) {
+        SupportTicket ticket =
+                ticketRepository
+                        .findById(ticketId)
+                        .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
+        List<TicketMessageResponse> messages =
+                messageRepository.findByTicketIdOrderByCreatedAtAsc(ticket.getId()).stream()
+                        .map(TicketMessageResponse::from)
+                        .toList();
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("ticket", TicketResponse.from(ticket));
+        body.put("messages", messages);
+        return body;
+    }
+
+    /**
+     * Admin posts a reply on a ticket. Bumps {@code lastAdminMessageAt} so the user's panel can
+     * show an "unread" badge, and flips the ticket from {@code OPEN} to {@code WAITING} (waiting on
+     * the user). Closed tickets reject the reply — admins close-then-reopen by creating a follow-up
+     * ticket, same as users.
+     */
+    @Transactional
+    public TicketMessageResponse adminAddMessage(Long ticketId, AddMessageRequest request) {
+        User admin = currentUser();
+        SupportTicket ticket =
+                ticketRepository
+                        .findById(ticketId)
+                        .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
+
+        if (ticket.getStatus() == SupportTicket.Status.CLOSED) {
+            throw new IllegalStateException("Ticket is closed — reopen before replying.");
+        }
+
+        SupportTicketMessage message =
+                SupportTicketMessage.builder()
+                        .ticketId(ticket.getId())
+                        .authorKind(SupportTicketMessage.AuthorKind.ADMIN)
+                        .authorUserId(admin.getId())
+                        .body(request.getBody())
+                        .build();
+        message = messageRepository.save(message);
+
+        ticket.setLastAdminMessageAt(LocalDateTime.now());
+        if (ticket.getStatus() == SupportTicket.Status.OPEN) {
+            ticket.setStatus(SupportTicket.Status.WAITING);
+        }
+        ticketRepository.save(ticket);
+
+        log.info("Admin {} replied on ticket {}", admin.getId(), ticket.getId());
+        return TicketMessageResponse.from(message);
+    }
+
+    /**
+     * Update ticket status. Only OPEN/WAITING/CLOSED are valid. Used by admins to close resolved
+     * tickets or reopen a closed one for follow-up.
+     */
+    @Transactional
+    public TicketResponse adminSetStatus(Long ticketId, SupportTicket.Status status) {
+        if (status == null) throw new IllegalArgumentException("Status is required");
+        SupportTicket ticket =
+                ticketRepository
+                        .findById(ticketId)
+                        .orElseThrow(() -> new IllegalArgumentException("Ticket not found"));
+        ticket.setStatus(status);
+        ticketRepository.save(ticket);
+        return TicketResponse.from(ticket);
     }
 
     private User currentUser() {

@@ -20,8 +20,10 @@ public class PendingDecisionResponse {
     private Integer quantity;
     private String orderStatusAtTime;
     private LocalDateTime createdAt;
+
     /** Milliseconds remaining before the Redis-backed decision auto-expires. */
     private long expiresInMs;
+
     /** Free-text reason recorded when the decision was created (best-effort, may be null). */
     private String reason;
 }

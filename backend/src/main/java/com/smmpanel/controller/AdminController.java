@@ -249,9 +249,8 @@ public class AdminController {
     @PutMapping("/users/{userId}/balance")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> adjustUserBalance(
-            @PathVariable Long userId, @RequestBody Map<String, Object> request) {
-        adminService.adjustUserBalance(
-                userId, (Double) request.get("amount"), (String) request.get("reason"));
+            @PathVariable Long userId, @Valid @RequestBody BalanceAdjustmentRequest request) {
+        adminService.adjustUserBalance(userId, request.getAmount(), request.getReason());
         return ResponseEntity.noContent().build();
     }
 

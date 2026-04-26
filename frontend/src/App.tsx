@@ -30,6 +30,7 @@ import { AdminBotPage } from './pages/admin/Bot';
 import { AdminDashboardPage } from './pages/admin/Dashboard';
 import { AdminOrdersPage } from './pages/admin/Orders';
 import { AdminPaymentsPage } from './pages/admin/Payments';
+import { AdminRefillRequestsPage } from './pages/admin/RefillRequests';
 import { AdminServicesPage } from './pages/admin/Services';
 import { AdminSettingsPage } from './pages/admin/Settings';
 import { AdminSystemPage } from './pages/admin/System';
@@ -141,6 +142,7 @@ function App() {
               >
                 <Route index element={<AdminDashboardPage />} />
                 <Route path="orders" element={<AdminOrdersPage />} />
+                <Route path="refill-requests" element={<AdminRefillRequestsPage />} />
                 <Route path="users" element={<AdminUsersPage />} />
                 <Route path="services" element={<AdminServicesPage />} />
                 <Route path="payments" element={<AdminPaymentsPage />} />

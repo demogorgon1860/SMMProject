@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Badge, Button, Card, Field, Icon, Input, Tabs, Textarea, useToast } from '../../components/ui';
 import { Select } from '../../components/ui/Select';
 import { supportAPI } from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
 import type { Ticket } from '../../types';
 import { cn, fmtRel } from '../../lib/utils';
 
@@ -17,19 +18,19 @@ const FAQ: ReadonlyArray<{ q: string; a: string }> = [
   },
   {
     q: 'Why are my likes/followers dropping?',
-    a: 'Standard Instagram churn. We auto-detect and refill during the 30-day refill window. No need to open a ticket — replacements push automatically.',
+    a: 'Standard Instagram churn — the platform itself filters or unfollows over time. If you see a drop within 30 days of the order completing, request a free refill from the order detail page. An operator reviews the request and re-runs the order at the dropped quantity. We do not monitor every order automatically; the refill window starts when the order is marked completed.',
   },
   {
     q: 'Can I cancel an order in progress?',
     a: 'Pending orders cancel instantly with full refund. In-progress orders cancel partial — delivered amount is charged, the rest is refunded.',
   },
   {
-    q: 'What\'s your API rate limit?',
-    a: '60 requests/minute for read endpoints, 30 for writes. Higher limits available — open a ticket from the API tab if you need more.',
+    q: "What's your API rate limit?",
+    a: 'Read endpoints: 60 requests per minute. Order creation: 10 per minute. Auth flows: 5 per minute. Need higher limits for a production integration? Open a ticket and explain your traffic profile.',
   },
   {
     q: 'Do you offer non-Instagram services?',
-    a: 'Not yet. TikTok and YouTube are scheduled for Q3 2026; X, Telegram for Q4. Subscribe to the changelog to be notified.',
+    a: 'Not yet. TikTok, YouTube, X, Telegram and Facebook are on the roadmap and will come online as we build the bot infrastructure for each. No firm dates — subscribe to the changelog to be notified.',
   },
 ];
 
@@ -43,8 +44,8 @@ export function HelpPage() {
       <div className="eyebrow">Help center</div>
       <h1 className="display-3 mt-2">How can we help?</h1>
       <p className="mt-2 max-w-[560px] text-[14px] text-fg-muted">
-        Most answers live in the FAQ below. Need something specific? Open a ticket — average reply
-        under 12 minutes during business hours.
+        Most answers live in the FAQ below. Need something specific? Sign in and open a ticket —
+        we read every one and reply with order context attached.
       </p>
 
       <div className="mt-8">
@@ -103,10 +104,11 @@ function FaqTab() {
 }
 
 function TicketsTab() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [tickets, setTickets] = useState<Ticket[] | null>(null);
-  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     let cancelled = false;
     supportAPI
       .tickets()
@@ -115,19 +117,37 @@ function TicketsTab() {
         const arr: Ticket[] = Array.isArray(data) ? (data as Ticket[]) : (data as { content?: Ticket[] })?.content ?? [];
         setTickets(arr);
       })
-      .catch(() => setErr('Tickets endpoint not available yet.'));
+      .catch(() => {
+        if (!cancelled) setTickets([]);
+      });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isAuthenticated]);
 
-  if (err) {
+  // Help is a public page. Skip the tickets fetch entirely for anonymous visitors —
+  // hitting /v1/tickets unauthenticated would trip the global 401 interceptor and
+  // force-redirect them to /login, which is hostile when they were just browsing FAQ.
+  if (!isAuthenticated) {
     return (
       <Card className="p-12 text-center">
-        <div className="text-[14px] font-semibold">Tickets coming soon</div>
+        <div className="text-[14px] font-semibold">Sign in to see your tickets</div>
         <p className="mt-1 text-[13px] text-fg-muted">
-          Use the New ticket tab to email support@smmworld.vip directly.
+          Tickets are tied to your account. Anyone can browse the FAQ — opening or reading tickets
+          requires an account.
         </p>
+        <div className="mt-4 flex justify-center gap-2">
+          <Link to="/login">
+            <Button variant="primary" size="sm">
+              Sign in
+            </Button>
+          </Link>
+          <Link to="/register">
+            <Button variant="secondary" size="sm">
+              Create account
+            </Button>
+          </Link>
+        </div>
       </Card>
     );
   }
@@ -177,6 +197,7 @@ function TicketsTab() {
 
 function NewTicketTab() {
   const toast = useToast();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [topic, setTopic] = useState('order');
   const [orderId, setOrderId] = useState('');
   const [subject, setSubject] = useState('');
@@ -185,18 +206,47 @@ function NewTicketTab() {
 
   const valid = subject.trim().length >= 3 && body.trim().length >= 10;
 
+  if (!isAuthenticated) {
+    return (
+      <Card className="p-12 text-center">
+        <div className="text-[14px] font-semibold">Sign in to open a ticket</div>
+        <p className="mt-1 text-[13px] text-fg-muted">
+          Replies land in your account inbox. Browse the FAQ above without signing in.
+        </p>
+        <div className="mt-4 flex justify-center gap-2">
+          <Link to="/login">
+            <Button variant="primary" size="sm">
+              Sign in
+            </Button>
+          </Link>
+          <Link to="/register">
+            <Button variant="secondary" size="sm">
+              Create account
+            </Button>
+          </Link>
+        </div>
+      </Card>
+    );
+  }
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!valid) return;
     setSubmitting(true);
     try {
-      await supportAPI.createTicket({ topic, orderId: orderId.trim() || undefined, subject, description: body });
+      const parsedOrderId = orderId.trim() ? Number(orderId.trim()) : undefined;
+      await supportAPI.createTicket({
+        topic,
+        orderId: Number.isFinite(parsedOrderId) ? (parsedOrderId as number) : undefined,
+        subject,
+        description: body,
+      });
       toast('Ticket sent.', 'success');
       setSubject('');
       setBody('');
       setOrderId('');
     } catch {
-      toast('Could not submit ticket. Email support@smmworld.vip directly.', 'error');
+      toast('Could not submit ticket. Email hello@smmworld.vip directly.', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -211,11 +261,13 @@ function NewTicketTab() {
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             options={[
+              // Values must match the backend Pattern whitelist
+              // (see CreateTicketRequest.topic): billing|order|technical|account|abuse|other.
               { value: 'order', label: 'Order issue' },
               { value: 'billing', label: 'Billing / refund' },
-              { value: 'api', label: 'API / integration' },
-              { value: 'security', label: 'Security' },
-              { value: 'enterprise', label: 'Enterprise / custom' },
+              { value: 'technical', label: 'Technical / API' },
+              { value: 'account', label: 'Account access' },
+              { value: 'abuse', label: 'Abuse / ToS violation' },
               { value: 'other', label: 'Other' },
             ]}
           />
@@ -244,28 +296,54 @@ function NewTicketTab() {
 }
 
 function ContactTab() {
+  // Tickets are the primary support channel — they live in the user's account inbox and
+  // attach context (orders, topics, history). Email is a fallback for two specific cases:
+  // a general inbox for visitors who can't sign in, and a separate security inbox so
+  // vulnerability reports don't sit in a customer-support queue. No fake reply-time SLA,
+  // no fake "PGP available" claim — both were unverifiable marketing fluff.
   const cards = [
-    { icon: 'mail' as const, title: 'General', email: 'hello@smmworld.vip', sub: 'Replies in <12 min business hours' },
-    { icon: 'shield' as const, title: 'Security', email: 'security@smmworld.vip', sub: 'PGP available · ack within 1 business day' },
-    { icon: 'code' as const, title: 'API / dev', email: 'api@smmworld.vip', sub: 'Integration help & rate-limit increases' },
-    { icon: 'help' as const, title: 'Compliance / legal', email: 'compliance@smmworld.vip', sub: 'AML, takedown, ToS' },
-    { icon: 'paper-plane' as const, title: 'Press', email: 'press@smmworld.vip', sub: 'Reviews, podcast, interview' },
-    { icon: 'wallet' as const, title: 'Billing dispute', email: 'billing@smmworld.vip', sub: 'Webhook miss, refund delayed' },
+    {
+      icon: 'mail' as const,
+      title: 'General',
+      email: 'hello@smmworld.vip',
+      sub: 'Account questions, anything that doesn’t fit a ticket.',
+    },
+    {
+      icon: 'shield' as const,
+      title: 'Security',
+      email: 'security@smmworld.vip',
+      sub: 'Vulnerability disclosure. Please don’t use this for billing or order issues.',
+    },
   ];
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {cards.map((c) => (
-        <Card key={c.title} className="p-5" hover>
-          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-accent-soft text-accent-fg">
-            <Icon name={c.icon} size={16} />
-          </div>
-          <div className="mt-3 text-[14px] font-semibold">{c.title}</div>
-          <a href={`mailto:${c.email}`} className="mt-1 block font-mono text-[13px] text-accent hover:underline">
-            {c.email}
-          </a>
-          <p className="mt-1 text-[12px] text-fg-subtle">{c.sub}</p>
-        </Card>
-      ))}
-    </div>
+    <>
+      <Card className="mb-4 flex items-start gap-3 p-5">
+        <div className="flex h-9 w-9 flex-none items-center justify-center rounded-md bg-accent-soft text-accent-fg">
+          <Icon name="info" size={16} />
+        </div>
+        <div className="min-w-0">
+          <div className="text-[14px] font-semibold">Open a ticket first</div>
+          <p className="mt-1 text-[13px] text-fg-muted">
+            Tickets are tied to your account and orders, so the response is faster and we have
+            full context. Use the email below only for things you can’t (or shouldn’t) put through
+            an authenticated channel.
+          </p>
+        </div>
+      </Card>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {cards.map((c) => (
+          <Card key={c.title} className="p-5" hover>
+            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-accent-soft text-accent-fg">
+              <Icon name={c.icon} size={16} />
+            </div>
+            <div className="mt-3 text-[14px] font-semibold">{c.title}</div>
+            <a href={`mailto:${c.email}`} className="mt-1 block font-mono text-[13px] text-accent hover:underline">
+              {c.email}
+            </a>
+            <p className="mt-1 text-[12px] text-fg-subtle">{c.sub}</p>
+          </Card>
+        ))}
+      </div>
+    </>
   );
 }

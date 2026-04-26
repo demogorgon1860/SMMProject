@@ -4,6 +4,7 @@ import com.smmpanel.entity.User;
 import com.smmpanel.entity.UserRole;
 import jakarta.persistence.LockModeType;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -11,6 +12,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -83,4 +85,18 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     // Find all active users with API keys for validation
     @Query("SELECT u FROM User u WHERE u.isActive = true AND u.apiKeyHash IS NOT NULL")
     List<User> findAllByIsActiveTrue();
+
+    /**
+     * Atomic compare-and-set: flip {@code welcome_credit_granted_at} from NULL to {@code :now} for
+     * exactly one verify request. Returns 1 if this caller wins (and may now safely credit the
+     * wallet), 0 if another concurrent verify already set it (must NOT credit again).
+     *
+     * <p>This is the only mutation point for this column in the codebase, so the row-count return
+     * value is a reliable idempotency signal.
+     */
+    @Modifying
+    @Query(
+            "UPDATE User u SET u.welcomeCreditGrantedAt = :now"
+                    + " WHERE u.id = :userId AND u.welcomeCreditGrantedAt IS NULL")
+    int markWelcomeCreditGranted(@Param("userId") Long userId, @Param("now") LocalDateTime now);
 }

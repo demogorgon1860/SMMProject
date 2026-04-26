@@ -14,7 +14,7 @@ import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -78,7 +78,9 @@ public class ResendClient {
                             HttpMethod.POST,
                             new HttpEntity<>(request, headers),
                             SendEmailResponse.class);
-            HttpStatus status = (HttpStatus) response.getStatusCode();
+            // Spring 6 returns HttpStatusCode (interface). Don't downcast to HttpStatus —
+            // a non-standard upstream code from a CDN/proxy would otherwise CCE here.
+            HttpStatusCode status = response.getStatusCode();
             if (!status.is2xxSuccessful() || response.getBody() == null) {
                 throw new EmailDeliveryException(
                         "Resend returned non-2xx status: " + status.value());
@@ -89,7 +91,8 @@ public class ResendClient {
                     response.getBody().getId());
             return response.getBody().getId();
         } catch (RestClientException e) {
-            // RestTemplate wraps body in the message; trim aggressively so we never log the API key.
+            // RestTemplate wraps body in the message; trim aggressively so we never log the API
+            // key.
             String trimmed = e.getMessage() == null ? "(no detail)" : truncate(e.getMessage(), 200);
             throw new EmailDeliveryException("Resend request failed: " + trimmed, e);
         }

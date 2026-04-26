@@ -1,5 +1,6 @@
 package com.smmpanel.service.order;
 
+import com.smmpanel.config.OrderQuotaCheckProperties;
 import com.smmpanel.dto.OrderCreateRequest;
 import com.smmpanel.dto.binom.BinomIntegrationResponse;
 import com.smmpanel.dto.binom.CampaignStatsResponse;
@@ -9,7 +10,6 @@ import com.smmpanel.dto.response.OrderResponse;
 import com.smmpanel.dto.result.StateTransitionResult;
 import com.smmpanel.entity.*;
 import com.smmpanel.event.OrderCreatedEvent;
-import com.smmpanel.config.OrderQuotaCheckProperties;
 import com.smmpanel.exception.InsufficientBalanceException;
 import com.smmpanel.exception.OrderNotFoundException;
 import com.smmpanel.exception.OrderQuotaExceededException;
@@ -225,10 +225,7 @@ public class OrderService {
 
             // Per-URL quota check — prevents bypass via multiple orders on the same link
             enforceUrlQuota(
-                    service.getId(),
-                    order.getLink(),
-                    effectiveQuantity,
-                    service.getMaxOrder());
+                    service.getId(), order.getLink(), effectiveQuantity, service.getMaxOrder());
 
             order = orderRepository.save(order);
 
@@ -1015,9 +1012,9 @@ public class OrderService {
     }
 
     /**
-     * Reject the order if the cumulative consumed quantity on this {@code (serviceId, link)}
-     * within the configured time window plus the new {@code quantity} would exceed the service's
-     * {@code maxOrder}. Acquires a transaction-scoped advisory lock first to serialize concurrent
+     * Reject the order if the cumulative consumed quantity on this {@code (serviceId, link)} within
+     * the configured time window plus the new {@code quantity} would exceed the service's {@code
+     * maxOrder}. Acquires a transaction-scoped advisory lock first to serialize concurrent
      * createOrder calls on the same URL+service, preventing read-skew between two parallel
      * requests. Throws before {@code orderRepository.save(...)} so a rejected order is never
      * persisted and no balance is debited.
@@ -1030,8 +1027,7 @@ public class OrderService {
 
         orderRepository.acquireQuotaLock(serviceId, normalizedLink);
 
-        LocalDateTime cutoff =
-                LocalDateTime.now().minusDays(quotaCheckProperties.getWindowDays());
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(quotaCheckProperties.getWindowDays());
         long consumed =
                 orderRepository.sumConsumedQuantityByServiceAndLink(
                         serviceId, normalizedLink, QUOTA_COUNTING_STATUSES, cutoff);
@@ -1491,8 +1487,7 @@ public class OrderService {
         order.setUpdatedAt(LocalDateTime.now());
 
         // Per-URL quota check — prevents bypass via multiple orders on the same link
-        enforceUrlQuota(
-                service.getId(), order.getLink(), effectiveQuantity, service.getMaxOrder());
+        enforceUrlQuota(service.getId(), order.getLink(), effectiveQuantity, service.getMaxOrder());
 
         order = orderRepository.save(order);
 

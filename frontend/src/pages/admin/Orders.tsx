@@ -13,7 +13,6 @@ import {
   Money,
   PageHeader,
   Pagination,
-  Select,
   StatusBadge,
   Tabs,
   TimeCell,
@@ -23,7 +22,7 @@ import { adminAPI } from '../../services/api';
 import { useAdminActions } from '../../store/adminActions';
 import type { Order } from '../../types';
 import { cn, fmtInt } from '../../lib/utils';
-import { MarkPartialModal } from './_modals';
+import { ForceCompleteModal, MarkPartialModal } from './_modals';
 
 // Status filter chips, mirrored from STATUS_TONE colors via StatusBadge.
 const STATUS_CHIPS: ReadonlyArray<string> = [
@@ -121,16 +120,6 @@ export function AdminOrdersPage() {
             <span className="font-mono text-fg">{orders.length}</span> total
           </span>
         }
-        actions={
-          <>
-            <Button variant="ghost" size="sm" icon="download">
-              Export CSV
-            </Button>
-            <Button variant="secondary" size="sm" icon="plus">
-              Manual order
-            </Button>
-          </>
-        }
       />
 
       <div className="space-y-4 p-6">
@@ -151,28 +140,6 @@ export function AdminOrdersPage() {
               value={urlQ}
               onChange={(e) => setUrlQ(e.target.value)}
               containerClassName="min-w-[200px]"
-            />
-            <Select
-              selectSize="md"
-              value="any"
-              onChange={() => {}}
-              options={[
-                { value: 'any', label: 'Any service' },
-                { value: 'likes', label: 'Likes' },
-                { value: 'follows', label: 'Followers' },
-                { value: 'comments', label: 'Comments' },
-              ]}
-            />
-            <Select
-              selectSize="md"
-              value="any"
-              onChange={() => {}}
-              options={[
-                { value: 'any', label: 'Any date' },
-                { value: 'today', label: 'Today' },
-                { value: '7d', label: '7 days' },
-                { value: '30d', label: '30 days' },
-              ]}
             />
             {(statusFilters.size > 0 || q || urlQ) && (
               <Button
@@ -210,19 +177,13 @@ export function AdminOrdersPage() {
           </div>
         </Card>
 
-        {/* Bulk strip */}
+        {/* Bulk strip — currently selection-only; bulk write actions land in a follow-up. */}
         {selected.size > 0 && (
           <div className="fade-in flex items-center gap-3 rounded-md border border-accent bg-accent-soft px-4 py-2">
             <span className="font-mono text-[12.5px] font-semibold text-accent-fg">{selected.size} selected</span>
-            <Button variant="ghost" size="sm" icon="download">
-              Export
-            </Button>
-            <Button variant="ghost" size="sm" icon="pause">
-              Pause
-            </Button>
-            <Button variant="danger" size="sm" icon="x">
-              Bulk cancel
-            </Button>
+            <span className="text-[12px] text-fg-muted">
+              Open each row to apply per-order actions (cancel / partial / force complete).
+            </span>
             <div className="ml-auto">
               <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>
                 Clear
@@ -350,10 +311,11 @@ interface DrawerProps {
 function OrderAdminDrawer({ order, onClose, onAfterAction }: DrawerProps) {
   const toast = useToast();
   const pushAction = useAdminActions((s) => s.push);
-  const [tab, setTab] = useState<'overview' | 'logs' | 'history' | 'actions'>('overview');
-  const [confirm, setConfirm] = useState<null | 'retry' | 'pause' | 'cancel' | 'refund' | 'force_complete'>(null);
+  const [tab, setTab] = useState<'overview' | 'actions'>('overview');
+  const [confirm, setConfirm] = useState<null | 'retry' | 'pause' | 'cancel' | 'refund'>(null);
   const [busy, setBusy] = useState(false);
   const [partialOpen, setPartialOpen] = useState(false);
+  const [forceCompleteOpen, setForceCompleteOpen] = useState(false);
 
   if (!order) return null;
 
@@ -405,7 +367,7 @@ function OrderAdminDrawer({ order, onClose, onAfterAction }: DrawerProps) {
             <Button variant="secondary" size="sm" icon="pause" onClick={() => setConfirm('pause')}>
               Pause
             </Button>
-            <Button variant="success" size="sm" icon="check" onClick={() => setConfirm('force_complete')}>
+            <Button variant="success" size="sm" icon="check" onClick={() => setForceCompleteOpen(true)}>
               Force complete
             </Button>
             <Button variant="warn" size="sm" icon="warning" onClick={() => setPartialOpen(true)}>
@@ -423,8 +385,6 @@ function OrderAdminDrawer({ order, onClose, onAfterAction }: DrawerProps) {
             onChange={setTab}
             tabs={[
               { value: 'overview', label: 'Overview' },
-              { value: 'logs', label: 'Bot logs' },
-              { value: 'history', label: 'Status history' },
               { value: 'actions', label: 'Admin actions' },
             ]}
           />
@@ -432,8 +392,6 @@ function OrderAdminDrawer({ order, onClose, onAfterAction }: DrawerProps) {
 
         <div className="p-6">
           {tab === 'overview' && <OverviewTab order={order} />}
-          {tab === 'logs' && <LogsTab order={order} />}
-          {tab === 'history' && <HistoryTab order={order} />}
           {tab === 'actions' && (
             <ActionsTab
               order={order}
@@ -442,7 +400,7 @@ function OrderAdminDrawer({ order, onClose, onAfterAction }: DrawerProps) {
               onCancel={() => setConfirm('cancel')}
               onRefund={() => setConfirm('refund')}
               onMarkPartial={() => setPartialOpen(true)}
-              onForceComplete={() => setConfirm('force_complete')}
+              onForceComplete={() => setForceCompleteOpen(true)}
             />
           )}
         </div>
@@ -452,6 +410,12 @@ function OrderAdminDrawer({ order, onClose, onAfterAction }: DrawerProps) {
         open={partialOpen}
         order={order}
         onClose={() => setPartialOpen(false)}
+        onSuccess={onAfterAction}
+      />
+      <ForceCompleteModal
+        open={forceCompleteOpen}
+        order={order}
+        onClose={() => setForceCompleteOpen(false)}
         onSuccess={onAfterAction}
       />
 
@@ -493,16 +457,6 @@ function OrderAdminDrawer({ order, onClose, onAfterAction }: DrawerProps) {
         message="Issues full refund and marks order as CANCELLED regardless of delivery state. Use sparingly."
         confirmText="Force refund"
         variant="danger"
-        loading={busy}
-      />
-      <ConfirmModal
-        open={confirm === 'force_complete'}
-        onClose={() => setConfirm(null)}
-        onConfirm={() => fire('force_complete', 'Force complete', 'COMPLETED')}
-        title={`Force complete #${order.id}?`}
-        message="Marks order as fully delivered regardless of current state, signals the bot to stop, and records profit. Daily profit only counts the first transition into COMPLETED — re-running is safe."
-        confirmText="Force complete"
-        variant="primary"
         loading={busy}
       />
     </>
@@ -583,74 +537,6 @@ function OverviewTab({ order }: { order: Order }) {
   );
 }
 
-function LogsTab({ order }: { order: Order }) {
-  // Synthesized log lines until /v2/admin/orders/{id}/logs ships.
-  const lines = [
-    { t: '14:32:08.442', level: 'INFO', src: 'OrderService', msg: `Order ${order.id} status transition: in_progress → completed` },
-    { t: '14:32:07.912', level: 'INFO', src: 'InstagramResultConsumer', msg: `Received result webhook (completed=${order.completed ?? 0})` },
-    { t: '14:32:01.004', level: 'INFO', src: 'BalanceService', msg: `Charged $${order.charge.toFixed(2)} from user ${order.userId}` },
-    { t: '14:31:31.208', level: 'INFO', src: 'InstagramBotClient', msg: `Round-robin: dispatched order ${order.id}` },
-  ];
-  return (
-    <div className="rounded-md bg-bg-deep p-4 font-mono text-[12px] text-white/80">
-      {lines.map((l, i) => (
-        <div key={i} className="flex gap-3 py-[2px]">
-          <span className="text-white/40">{l.t}</span>
-          <span
-            className={cn(
-              'min-w-[42px] font-semibold',
-              l.level === 'ERROR' && 'text-[#f87171]',
-              l.level === 'WARN' && 'text-[#fbbf24]',
-              l.level === 'INFO' && 'text-[#a7f3d0]',
-              l.level === 'DEBUG' && 'text-[#a1a1aa]',
-            )}
-          >
-            {l.level}
-          </span>
-          <span className="min-w-[180px] text-white/60">{l.src}</span>
-          <span className="flex-1 text-white/85">{l.msg}</span>
-        </div>
-      ))}
-      <div className="mt-3 text-[11px] text-white/40">
-        Live tail wires up in Phase 3 (SSE /v2/admin/orders/{order.id}/logs/stream).
-      </div>
-    </div>
-  );
-}
-
-function HistoryTab({ order }: { order: Order }) {
-  const events = [
-    { from: '—', to: 'PENDING', actor: 'system', t: order.createdAt },
-    { from: 'PENDING', to: 'IN_PROGRESS', actor: 'system', t: addS(order.createdAt, 47) },
-    ...(order.status?.toUpperCase() === 'COMPLETED'
-      ? [{ from: 'IN_PROGRESS', to: 'COMPLETED', actor: 'system', t: order.updatedAt ?? addS(order.createdAt, 600) }]
-      : []),
-  ];
-  return (
-    <ul>
-      {events.map((e, i) => (
-        <li
-          key={i}
-          className="border-l-2 pl-4 pb-4"
-          style={{ borderColor: e.to === 'COMPLETED' ? 'var(--success)' : e.to === 'PENDING' ? 'var(--fg-dim)' : 'var(--info)' }}
-        >
-          <div className="font-mono text-[11.5px] text-fg-subtle">
-            {(e.t as string).replace('T', ' ').slice(0, 19)}
-          </div>
-          <div className="mt-1 flex items-center gap-2 text-[13px]">
-            <Badge tone="muted" size="sm">
-              {e.from}
-            </Badge>
-            <Icon name="arrow-right" size={12} />
-            <StatusBadge status={e.to.toLowerCase()} />
-            <span className="ml-2 font-mono text-[11.5px] text-fg-subtle">{e.actor}</span>
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 function ActionsTab({
   order,
   onRetry,
@@ -726,28 +612,6 @@ function ActionsTab({
           </div>
         </Card>
       ))}
-      <Card className="sm:col-span-2 p-5">
-        <div className="text-[13.5px] font-semibold">Admin note (visible internally)</div>
-        <textarea
-          rows={3}
-          placeholder="Note about this order — visible to other operators only…"
-          className="mt-3 block w-full rounded-md border border-border-strong bg-bg-elev p-3 text-[13.5px] outline-none focus-visible:ring-2 focus-visible:[--tw-ring-color:var(--ring)]"
-        />
-        <div className="mt-3 flex justify-end">
-          <Button variant="primary" size="sm" onClick={() => {/* Phase 3 endpoint */}}>
-            Save note
-          </Button>
-        </div>
-        <div className="mt-2 text-[11px] text-fg-subtle">
-          Order id: <span className="font-mono">{order.id}</span>
-        </div>
-      </Card>
     </div>
   );
-}
-
-function addS(iso: string, sec: number): string {
-  const d = new Date(iso);
-  d.setSeconds(d.getSeconds() + sec);
-  return d.toISOString();
 }

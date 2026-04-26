@@ -16,7 +16,7 @@ export function ServicesListPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [cat, setCat] = useState<'ig' | 'tt' | 'yt' | 'x' | 'tg' | 'sp' | 'fb' | 'dc'>('ig');
+  const [cat, setCat] = useState<'ig' | 'tt' | 'yt' | 'x' | 'tg' | 'fb'>('ig');
   const [q, setQ] = useState('');
 
   useEffect(() => {
@@ -52,7 +52,7 @@ export function ServicesListPage() {
 
       <div className="mt-8 flex flex-wrap items-center gap-2">
         <CatChip active={cat === 'ig'} onClick={() => setCat('ig')} cat="ig" label="Instagram" live />
-        {(['tt', 'yt', 'x', 'tg', 'sp', 'fb', 'dc'] as const).map((c) => (
+        {(['tt', 'yt', 'x', 'tg', 'fb'] as const).map((c) => (
           <CatChip key={c} active={cat === c} onClick={() => setCat(c)} cat={c} label={catLabel(c)} />
         ))}
         <div className="ml-auto w-full max-w-[260px]">
@@ -153,8 +153,8 @@ function dedupeInstagram(services: Service[]): Service[] {
   });
 }
 
-function catLabel(c: 'tt' | 'yt' | 'x' | 'tg' | 'sp' | 'fb' | 'dc'): string {
-  return { tt: 'TikTok', yt: 'YouTube', x: 'Twitter', tg: 'Telegram', sp: 'Spotify', fb: 'Facebook', dc: 'Discord' }[c];
+function catLabel(c: 'tt' | 'yt' | 'x' | 'tg' | 'fb'): string {
+  return { tt: 'TikTok', yt: 'YouTube', x: 'Twitter', tg: 'Telegram', fb: 'Facebook' }[c];
 }
 
 function CatChip({
@@ -166,7 +166,7 @@ function CatChip({
 }: {
   active: boolean;
   onClick: () => void;
-  cat: 'ig' | 'tt' | 'yt' | 'x' | 'tg' | 'sp' | 'fb' | 'dc';
+  cat: 'ig' | 'tt' | 'yt' | 'x' | 'tg' | 'fb';
   label: string;
   live?: boolean;
 }) {
@@ -185,22 +185,13 @@ function CatChip({
   );
 }
 
-function SoonCard({ cat }: { cat: 'tt' | 'yt' | 'x' | 'tg' | 'sp' | 'fb' | 'dc' }) {
-  const map: Record<typeof cat, string> = {
-    tt: 'Q3 2026',
-    yt: 'Q3 2026',
-    x: 'Q4 2026',
-    tg: 'Q4 2026',
-    sp: '2027',
-    fb: '2027',
-    dc: '2027',
-  };
+function SoonCard({ cat }: { cat: 'tt' | 'yt' | 'x' | 'tg' | 'fb' }) {
   return (
     <Card className="flex items-center gap-6 p-12">
       <SocialTile cat={cat} size={64} mono />
       <div className="min-w-0">
         <Badge tone="muted" size="md">
-          Coming · {map[cat]}
+          Soon
         </Badge>
         <div className="mt-2 text-[20px] font-semibold tracking-[-0.015em]">{catLabel(cat)} services aren't live yet.</div>
         <p className="mt-1 text-[14px] text-fg-muted">

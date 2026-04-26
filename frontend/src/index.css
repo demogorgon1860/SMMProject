@@ -378,9 +378,14 @@ html.dark[data-accent='amber'] {
     letter-spacing: 0.02em;
   }
 
-  /* Hover lift (cards) */
+  /* Hover lift (cards). cubic-bezier(0.2, 0.8, 0.2, 1) is a soft "ease-out-quart" that
+     reads as more polished than plain `ease` — peaks fast, settles smoothly. */
   .lift {
-    transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    transition:
+      transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      border-color 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      box-shadow 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    will-change: transform;
   }
   .lift:hover {
     transform: translateY(-2px);
@@ -568,6 +573,21 @@ html.dark[data-accent='amber'] {
     color: var(--fg);
     border: 1px solid var(--border);
   }
+
+  /* Block code (<pre><code>) must NOT pick up the inline-chip styling.
+     Without this override, multi-line code inside a dark <pre> block gets
+     a light "pill" rendered behind each wrapped line in light theme — the
+     inline-code rule above applies because <code> is inline-level by
+     default. Forcing it to inherit the parent <pre> kills the visual
+     mismatch in both themes. */
+  .legal-body pre code {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    color: inherit;
+    font-size: inherit;
+    border-radius: 0;
+  }
 }
 
 /* =====================================================================
@@ -588,19 +608,25 @@ html.dark[data-accent='amber'] {
     transition-delay: 0s !important;
   }
 
-  /* Marquee (landing ticker) */
+  /* Marquee (landing ticker). Pauses on hover so visitors can read the rows;
+     compositor-only via translate3d so the GPU handles it without layout work. */
   .ticker-track {
     animation: ticker 40s linear infinite;
     display: inline-flex;
     gap: 48px;
     white-space: nowrap;
+    will-change: transform;
+  }
+  .ticker-track:hover,
+  .ticker-track:focus-within {
+    animation-play-state: paused;
   }
   @keyframes ticker {
     from {
-      transform: translateX(0);
+      transform: translate3d(0, 0, 0);
     }
     to {
-      transform: translateX(-50%);
+      transform: translate3d(-50%, 0, 0);
     }
   }
 
@@ -620,18 +646,49 @@ html.dark[data-accent='amber'] {
     }
   }
 
-  /* Fade-in (newly inserted rows, drawers, modals, toasts) */
+  /* Fade-in (newly inserted rows, modals, toasts). cubic-bezier(0.16, 1, 0.3, 1)
+     is "easeOutExpo" — content lands quickly, then settles for a hair, which
+     reads as more refined than plain ease-out. */
   .fade-in {
-    animation: fadeIn 0.28s ease-out both;
+    animation: fadeIn 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
   @keyframes fadeIn {
     from {
       opacity: 0;
-      transform: translateY(6px);
+      transform: translate3d(0, 6px, 0);
     }
     to {
       opacity: 1;
-      transform: none;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  /* Drawer slide-in from the right edge. Uses translate3d so the entire panel
+     animates on the compositor — no repaints, no layout thrash. */
+  .slide-in-right {
+    animation: slideInRight 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    will-change: transform;
+  }
+  @keyframes slideInRight {
+    from {
+      transform: translate3d(100%, 0, 0);
+    }
+    to {
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  /* Overlay fade — separated from content so backdrop and panel can have
+     different curves (overlay is pure linear opacity, panel is spring-y). */
+  .overlay-in {
+    animation: overlayIn 220ms ease-out both;
+  }
+  @keyframes overlayIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
     }
   }
 
@@ -658,5 +715,24 @@ html.dark[data-accent='amber'] {
     100% {
       background-position: 1200px 0;
     }
+  }
+}
+
+/* =====================================================================
+   Reduced motion — respect the OS-level accessibility setting.
+   Users with vestibular disorders, migraine triggers, or who simply
+   prefer a calmer UI explicitly request this; ignoring it is a real
+   accessibility regression on iOS / macOS / Windows.
+   We don't kill *all* transitions (subtle 1ms still gives a hover read),
+   we just collapse anything noticeable to imperceptible.
+   ===================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }

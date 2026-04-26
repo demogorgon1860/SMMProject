@@ -18,16 +18,23 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Global 401 handler: bounce to /login except on auth endpoints
-// (so login form can show "wrong password" instead of redirecting).
+// Global 401 handler: bounce to /login on session-expired ONLY. Endpoints that
+// can return 401 as a legitimate input-validation result (login form, password
+// confirmation) must be skipped — otherwise a typo on the password field
+// would log the user out of the entire app.
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     const url = error.config?.url ?? '';
-    const isAuthEndpoint = /\/auth\/(login|register|forgot|reset|verify)/.test(url);
-    if (error.response?.status === 401 && !isAuthEndpoint) {
+    // /auth/* — login/register/forgot/reset/verify-email all return 401 on bad input
+    // /me/password — this is now 422 server-side, but kept here as belt-and-braces
+    //                in case a deployment lag returns 401 from an old container
+    const isInputValidationEndpoint =
+      /\/auth\/(login|register|forgot|reset|verify)/.test(url) ||
+      /\/me\/password\b/.test(url);
+
+    if (error.response?.status === 401 && !isInputValidationEndpoint) {
       localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
       window.location.href = '/login';
     }
@@ -80,8 +87,14 @@ export const orderAPI = {
 
   cancel: (id: number) => api.post(`/v1/orders/${id}/cancel`).then((r) => r.data),
 
-  // Phase 3 backend
-  refill: (id: number) => api.post(`/v1/orders/${id}/refill`).then((r) => r.data),
+  // Refill is a *request* — admin must approve before the actual refill order is created.
+  // Returns RefillRequestResponse: { id, orderId, status: 'PENDING' | 'APPROVED' | 'REJECTED', ... }
+  requestRefill: (id: number, note?: string) =>
+    api.post(`/v1/orders/${id}/refill`, note ? { note } : {}).then((r) => r.data),
+
+  // Current user's request status for one order (404 if user never requested a refill on it).
+  getRefillRequest: (id: number) =>
+    api.get(`/v1/orders/${id}/refill`).then((r) => r.data),
 
   // Mass order (kept from existing client)
   createMass: (payload: { ordersText: string; delimiter?: string; maxOrders?: number }) =>
@@ -135,9 +148,17 @@ export const apiKeyAPI = {
 };
 
 // =====================================================================
-// Profile (Phase 3 backend — sessions, 2FA, IP allow-list, security score)
-// All return 404 until backend is implemented; UI shows placeholder copy.
+// Profile.
+//
+// Implemented (real endpoints): me, updateMe, changePassword, notifications.
+//
+// Stubs (notImplemented) — surfaced as a clear rejection so callers can
+// disable the corresponding UI rather than silently failing with a 404.
+// Replace each stub with a real `api.{verb}(...)` once the backend ships.
 // =====================================================================
+const notImplemented = (label: string) => () =>
+  Promise.reject(new Error(`${label} is not implemented in this release`));
+
 export const profileAPI = {
   me: () => api.get('/v1/me').then((r) => r.data),
   updateMe: (patch: Record<string, unknown>) => api.patch('/v1/me', patch).then((r) => r.data),
@@ -149,35 +170,28 @@ export const profileAPI = {
   updateNotifications: (patch: Record<string, boolean>) =>
     api.patch('/v1/me/notifications', patch).then((r) => r.data),
 
-  twoFactorInit: () => api.post('/v1/me/2fa/init').then((r) => r.data),
-  twoFactorVerify: (code: string) => api.post('/v1/me/2fa/verify', { code }).then((r) => r.data),
-  twoFactorDisable: () => api.delete('/v1/me/2fa').then((r) => r.data),
+  myRefillRequests: () => api.get('/v1/me/refill-requests').then((r) => r.data),
 
-  sessions: () => api.get('/v1/me/sessions').then((r) => r.data),
-  revokeSession: (id: string) => api.delete(`/v1/me/sessions/${id}`).then((r) => r.data),
-  signOutOthers: () => api.post('/v1/me/sessions/sign-out-others').then((r) => r.data),
-
-  ipAllowlist: () => api.get('/v1/me/ip-allowlist').then((r) => r.data),
-  addIp: (ip: string, label?: string) =>
-    api.post('/v1/me/ip-allowlist', { ip, label }).then((r) => r.data),
-  removeIp: (id: string) => api.delete(`/v1/me/ip-allowlist/${id}`).then((r) => r.data),
-
-  securityScore: () => api.get('/v1/me/security-score').then((r) => r.data),
-  exportData: () => api.post('/v1/me/export').then((r) => r.data),
-  pauseApi: () => api.post('/v1/me/api-pause').then((r) => r.data),
-  deleteAccount: (confirmation: string) =>
-    api.delete('/v1/me', { data: { confirmation } }).then((r) => r.data),
+  // Not implemented — UI must hide or disable controls that depend on these.
+  sessions: notImplemented('sessions'),
+  signOutOthers: notImplemented('signOutOthers'),
+  exportData: notImplemented('exportData'),
+  pauseApi: notImplemented('pauseApi'),
+  deleteAccount: (_confirmation: string) =>
+    Promise.reject(new Error('deleteAccount is not implemented in this release')),
 };
 
 // =====================================================================
-// Tickets / FAQ (Phase 3 backend)
+// Tickets / FAQ
 // =====================================================================
 export const supportAPI = {
   faq: () => api.get('/v1/faq').then((r) => r.data),
   tickets: () => api.get('/v1/tickets').then((r) => r.data),
   ticket: (id: string) => api.get(`/v1/tickets/${id}`).then((r) => r.data),
-  createTicket: (payload: { topic: string; orderId?: string; subject: string; description: string }) =>
+  createTicket: (payload: { topic: string; orderId?: number; subject: string; description: string }) =>
     api.post('/v1/tickets', payload).then((r) => r.data),
+  addMessage: (id: string | number, body: string) =>
+    api.post(`/v1/tickets/${id}/messages`, { body }).then((r) => r.data),
 };
 
 // =====================================================================
@@ -185,6 +199,16 @@ export const supportAPI = {
 // =====================================================================
 export const publicAPI = {
   stats: () => api.get('/v1/stats/public').then((r) => r.data),
+  /**
+   * Recent orders for the landing ticker. Returns up to 12 sanitized rows:
+   * { id, quantity, service, status, ageSeconds }. No usernames or URLs.
+   */
+  recentOrders: () =>
+    api
+      .get<Array<{ id: number; quantity: number; service: string; status: string; ageSeconds: number }>>(
+        '/v1/stats/recent-orders',
+      )
+      .then((r) => r.data),
 };
 
 // =====================================================================
@@ -214,28 +238,45 @@ export const adminAPI = {
   bulkOrderAction: (data: { orderIds: number[]; action: string; reason?: string }) =>
     api.post('/v2/admin/orders/bulk-actions', data).then((r) => r.data),
 
-  // Phase 3 — Telegram pending decisions / profit calendar
+  // Telegram pending decisions / profit calendar
   telegramPending: () => api.get('/v2/admin/telegram/pending-decisions').then((r) => r.data),
   telegramProceed: (orderId: number) =>
     api.post(`/v2/admin/telegram/decisions/${orderId}/proceed`).then((r) => r.data),
   telegramCancel: (orderId: number) =>
     api.post(`/v2/admin/telegram/decisions/${orderId}/cancel`).then((r) => r.data),
-  telegramHistory: (limit = 50) =>
-    api.get('/v2/admin/telegram/history', { params: { limit } }).then((r) => r.data),
   telegramProfit: (month: string) =>
     api.get('/v2/admin/telegram/profit', { params: { month } }).then((r) => r.data),
 
-  // Phase 3 — bot fleet
-  bots: () => api.get('/v2/admin/bots').then((r) => r.data),
-  botProfileGroups: () => api.get('/v2/admin/bots/profile-groups').then((r) => r.data),
-  scaleBot: (id: string, delta: number) =>
-    api.post(`/v2/admin/bots/${id}/scale`, { delta }).then((r) => r.data),
-
-  // Phase 3 — system monitoring
+  // System monitoring (only health is implemented today; queue/redis/error
+  // stats are not in scope for this release).
   systemHealth: () => api.get('/v2/admin/system/health').then((r) => r.data),
-  systemQueues: () => api.get('/v2/admin/system/rabbitmq/queues').then((r) => r.data),
-  systemRedis: () => api.get('/v2/admin/system/redis/stats').then((r) => r.data),
-  systemErrors: () => api.get('/v2/admin/system/errors').then((r) => r.data),
+
+  // Bot fleet — read-only health view today; scale operations are not yet
+  // exposed. Surfaced as explicit rejections so the UI can disable controls
+  // rather than render a 404 from the backend.
+  bots: notImplemented('bots'),
+  botProfileGroups: notImplemented('botProfileGroups'),
+  scaleBot: (_id: string, _delta: number) =>
+    Promise.reject(new Error('scaleBot is not implemented in this release')),
+
+  // Tickets — admin side
+  ticketsList: (status?: string, page = 0, size = 25) =>
+    api.get('/v2/admin/tickets', { params: { status, page, size } }).then((r) => r.data),
+  ticketsGet: (id: number | string) => api.get(`/v2/admin/tickets/${id}`).then((r) => r.data),
+  ticketsReply: (id: number | string, body: string) =>
+    api.post(`/v2/admin/tickets/${id}/messages`, { body }).then((r) => r.data),
+  ticketsSetStatus: (id: number | string, status: 'OPEN' | 'WAITING' | 'CLOSED') =>
+    api.put(`/v2/admin/tickets/${id}/status`, { status }).then((r) => r.data),
+
+  // Refill requests — admin queue
+  refillRequestsList: (status?: 'PENDING' | 'APPROVED' | 'REJECTED', page = 0, size = 25) =>
+    api.get('/v2/admin/refill-requests', { params: { status, page, size } }).then((r) => r.data),
+  refillRequestsGet: (id: number | string) =>
+    api.get(`/v2/admin/refill-requests/${id}`).then((r) => r.data),
+  refillRequestsApprove: (id: number | string) =>
+    api.post(`/v2/admin/refill-requests/${id}/approve`).then((r) => r.data),
+  refillRequestsReject: (id: number | string, reason: string) =>
+    api.post(`/v2/admin/refill-requests/${id}/reject`, { reason }).then((r) => r.data),
 };
 
 export default api;

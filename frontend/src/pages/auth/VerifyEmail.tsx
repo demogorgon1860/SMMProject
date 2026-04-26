@@ -1,14 +1,34 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { authAPI } from '../../services/api';
 import { Button, useToast } from '../../components/ui';
 import { cn } from '../../lib/utils';
 
+// Resolve the user's email from (in order): URL `?email=`, router state set
+// by /register, or a stash we wrote to localStorage at registration time.
+// This lets the page survive a page refresh after the user comes back from
+// their inbox — without it, we'd have an empty email and the resend button
+// would be permanently disabled.
+function useEmailFromContext(): string {
+  const [params] = useSearchParams();
+  const location = useLocation();
+  const fromQuery = params.get('email');
+  if (fromQuery && fromQuery.includes('@')) return fromQuery;
+  const fromState = (location.state as { email?: string } | null)?.email;
+  if (fromState && fromState.includes('@')) return fromState;
+  try {
+    const stashed = localStorage.getItem('pending_verify_email');
+    if (stashed && stashed.includes('@')) return stashed;
+  } catch {
+    /* private mode */
+  }
+  return '';
+}
+
 export function VerifyEmailPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const toast = useToast();
-  const email = (location.state as { email?: string } | null)?.email ?? '';
+  const email = useEmailFromContext();
 
   const [digits, setDigits] = useState<string[]>(['', '', '', '', '', '']);
   const [error, setError] = useState<string | null>(null);
@@ -59,10 +79,19 @@ export function VerifyEmailPage() {
       setError('Enter the 6-digit code from your email.');
       return;
     }
+    if (!email) {
+      setError('Open the verification link from the email we sent, or sign in to resend.');
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
       await authAPI.verifyEmail(email, code);
+      try {
+        localStorage.removeItem('pending_verify_email');
+      } catch {
+        /* noop */
+      }
       toast('Email verified.', 'success');
       navigate('/dashboard', { replace: true });
     } catch (err: unknown) {

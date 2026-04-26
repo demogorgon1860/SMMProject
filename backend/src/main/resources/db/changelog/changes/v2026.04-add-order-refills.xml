@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      OrderRefill tracking table. Backs the {@link com.smmpanel.entity.OrderRefill} entity used
+      by OrderRefillService.createRefill — produced when a refill is fulfilled (whether
+      directly via /api/v2/admin/orders/{id}/refill, or via the user-initiated request flow).
+
+      Note: original_order_id / refill_order_id are BIGINT *without* FK because the parent
+      orders table is partitioned by created_at (composite PK), the same convention used by
+      support_tickets.order_id and refill_requests.order_id.
+    -->
+    <changeSet id="v2026.04-add-order-refills" author="dev">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <not><tableExists tableName="order_refills"/></not>
+        </preConditions>
+        <createTable tableName="order_refills">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="original_order_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="refill_order_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="refill_number" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="original_quantity" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="delivered_quantity" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="refill_quantity" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="start_count_at_refill" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <!-- Lookup all refills for an original order (admin order detail). -->
+        <createIndex tableName="order_refills" indexName="idx_or_original_number">
+            <column name="original_order_id"/>
+            <column name="refill_number"/>
+        </createIndex>
+
+        <!-- Reverse lookup: given a refill order, find its tracking record. -->
+        <createIndex tableName="order_refills" indexName="idx_or_refill_order" unique="true">
+            <column name="refill_order_id"/>
+        </createIndex>
+
+        <!-- Per-original-order refill_number must be unique (used as monotonic refill counter). -->
+        <addUniqueConstraint
+            tableName="order_refills"
+            constraintName="uq_or_original_number"
+            columnNames="original_order_id, refill_number"/>
+    </changeSet>
+
+</databaseChangeLog>

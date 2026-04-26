@@ -11,6 +11,10 @@
 
     <!-- email verification + password reset single-use tokens -->
     <changeSet id="v2026.04-phase3-email-verification-tokens" author="dev">
+        <!-- Idempotent: skip if table already exists (e.g. operator pre-applied DDL on prod). -->
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <not><tableExists tableName="email_verification_tokens"/></not>
+        </preConditions>
         <comment>Single-use tokens for email verification (registered code), 24-hour TTL.</comment>
         <createTable tableName="email_verification_tokens">
             <column name="id" type="BIGSERIAL">
@@ -34,12 +38,22 @@
             <column name="user_id"/>
             <column name="used_at"/>
         </createIndex>
-        <createIndex tableName="email_verification_tokens" indexName="idx_evt_code_hash" unique="true">
+        <!--
+          NOT unique on purpose: 6-digit codes have only 10^6 entropy, so
+          two users will eventually generate the same code (birthday paradox
+          ~50% at ~1100 active codes). Verification looks up by
+          (user_id, code_hash, used_at IS NULL) so collisions across users
+          are harmless.
+        -->
+        <createIndex tableName="email_verification_tokens" indexName="idx_evt_code_hash">
             <column name="code_hash"/>
         </createIndex>
     </changeSet>
 
     <changeSet id="v2026.04-phase3-password-reset-tokens" author="dev">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <not><tableExists tableName="password_reset_tokens"/></not>
+        </preConditions>
         <comment>Single-use tokens for password reset, 1-hour TTL. Token hash only — raw token never stored.</comment>
         <createTable tableName="password_reset_tokens">
             <column name="id" type="BIGSERIAL">
@@ -69,6 +83,9 @@
 
     <!-- email verification timestamp on users (boolean already exists from v2025.01) -->
     <changeSet id="v2026.04-phase3-users-email-verified-at" author="dev">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <not><columnExists tableName="users" columnName="email_verified_at"/></not>
+        </preConditions>
         <comment>Persist exact verification time so we can audit / show in profile.</comment>
         <addColumn tableName="users">
             <column name="email_verified_at" type="TIMESTAMP WITH TIME ZONE"/>
@@ -77,6 +94,9 @@
 
     <!-- per-user notification preferences -->
     <changeSet id="v2026.04-phase3-user-notification-prefs" author="dev">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <not><tableExists tableName="user_notification_prefs"/></not>
+        </preConditions>
         <comment>Per-user toggles for transactional + marketing emails. JSONB for flexible expansion.</comment>
         <createTable tableName="user_notification_prefs">
             <column name="user_id" type="BIGINT">
@@ -93,6 +113,9 @@
 
     <!-- support tickets -->
     <changeSet id="v2026.04-phase3-support-tickets" author="dev">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <not><tableExists tableName="support_tickets"/></not>
+        </preConditions>
         <comment>Support ticket header. Conversation messages live in support_ticket_messages.</comment>
         <createTable tableName="support_tickets">
             <column name="id" type="BIGSERIAL">
@@ -132,6 +155,9 @@
     </changeSet>
 
     <changeSet id="v2026.04-phase3-support-ticket-messages" author="dev">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <not><tableExists tableName="support_ticket_messages"/></not>
+        </preConditions>
         <comment>Threaded message log per ticket. author_kind: USER | ADMIN | SYSTEM.</comment>
         <createTable tableName="support_ticket_messages">
             <column name="id" type="BIGSERIAL">

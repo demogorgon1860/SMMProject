@@ -1,6 +1,13 @@
 import { Link } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Badge, Button, Card, Icon, SocialTile } from '../../components/ui';
+import {
+  fmtPrice,
+  fmtQty,
+  fmtTickerSecondary,
+  usePublicStats,
+  useRecentOrders,
+} from '../../hooks/usePublicData';
 import { cn } from '../../lib/utils';
 
 // =====================================================================
@@ -41,10 +48,7 @@ function Hero() {
       <div className="grid-lines absolute inset-0 opacity-50" />
       <div className="container-app relative z-10 grid grid-cols-1 items-center gap-12 py-20 lg:grid-cols-[1.1fr_1fr] lg:py-32">
         <div>
-          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 font-mono text-[12px] text-white/80">
-            <span className="pulse-dot inline-block h-[6px] w-[6px] rounded-full bg-emerald-400" />
-            12,408 IG orders dispatched in the last 24h
-          </div>
+          <OrdersLast24hBadge tone="dark" />
           <h1 className="display-1 text-white">
             Real delivery,
             <br />
@@ -81,25 +85,21 @@ function Hero() {
 // /v1/service/services so the landing stays fast, public, and no-auth.
 // Sourced from production DB on 2026-04-26 (deduped — older $80/$60 copies
 // were dropped in favor of the higher-priced row of each pair).
-type TopServiceTag = 'Popular' | 'Best quality' | 'Fastest' | 'Targeted' | 'Custom';
-
 const TOP_SERVICES: ReadonlyArray<{
   id: number;
   name: string;
   /** Short pitch shown under the name in muted text. */
   hint: string;
-  /** Optional eye-catching tag. */
-  tag?: TopServiceTag;
   /** Price per 1,000 in USD. */
   rate: number;
   min: number;
   max: number;
 }> = [
-  { id: 8,  name: 'Instagram Likes [Mix Gender] [USA/Europe]',           hint: 'No-drop · refill 30 days',                 tag: 'Popular',      rate: 4.0,  min: 10, max: 273 },
+  { id: 8,  name: 'Instagram Likes [Mix Gender] [USA/Europe]',           hint: 'No-drop · refill 30 days',                 rate: 4.0,  min: 10, max: 273 },
   { id: 11, name: 'Instagram Followers [Mix Gender] [USA/Europe]',       hint: 'Real profiles · refill 30 days',           rate: 10.0, min: 10, max: 273 },
-  { id: 13, name: 'Instagram Followers [Female] [USA/Europe]',           hint: 'Female-targeted demographic',              tag: 'Targeted',     rate: 10.0, min: 10, max: 186 },
-  { id: 2,  name: 'Instagram Custom Comments [Mix Gender] [USA/Europe]', hint: 'You provide the text · refill 30 days',    tag: 'Custom',       rate: 70.0, min: 3,  max: 273 },
-  { id: 5,  name: 'Instagram Comments [Mix Gender] [USA/Europe]',        hint: 'AI-generated context-aware · top quality', tag: 'Best quality', rate: 90.0, min: 3,  max: 273 },
+  { id: 13, name: 'Instagram Followers [Female] [USA/Europe]',           hint: 'Female-targeted demographic',              rate: 10.0, min: 10, max: 186 },
+  { id: 2,  name: 'Instagram Custom Comments [Mix Gender] [USA/Europe]', hint: 'You provide the text · refill 30 days',    rate: 70.0, min: 3,  max: 273 },
+  { id: 5,  name: 'Instagram Comments [Mix Gender] [USA/Europe]',        hint: 'AI-generated context-aware · top quality', rate: 90.0, min: 3,  max: 273 },
 ];
 
 function TopServicesCard({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
@@ -119,11 +119,6 @@ function TopServicesCard({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
           rateUnit: 'font-mono text-[10.5px] text-fg-subtle',
           ctaWrap: 'border-t border-border px-5 py-3',
           ctaLink: 'inline-flex items-center gap-1 text-[13px] font-medium text-accent hover:underline',
-          tagPopular: 'bg-accent-soft text-accent-fg border-accent-soft',
-          tagQuality: 'bg-success-soft text-success border-[color-mix(in_oklab,var(--success)_30%,transparent)]',
-          tagFast: 'bg-warn-soft text-warn border-[color-mix(in_oklab,var(--warn)_30%,transparent)]',
-          tagTargeted: 'bg-violet-soft text-violet border-[color-mix(in_oklab,var(--violet)_30%,transparent)]',
-          tagCustom: 'bg-info-soft text-info border-[color-mix(in_oklab,var(--info)_30%,transparent)]',
         }
       : {
           shell: 'rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl',
@@ -138,21 +133,7 @@ function TopServicesCard({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
           rateUnit: 'font-mono text-[10.5px] text-white/50',
           ctaWrap: 'border-t border-white/10 px-5 py-3',
           ctaLink: 'inline-flex items-center gap-1 text-[13px] font-medium text-accent-2 hover:underline',
-          tagPopular: 'bg-white/10 text-white border-white/15',
-          tagQuality: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/25',
-          tagFast: 'bg-amber-500/15 text-amber-300 border-amber-500/25',
-          tagTargeted: 'bg-violet-500/15 text-violet-300 border-violet-500/25',
-          tagCustom: 'bg-sky-500/15 text-sky-300 border-sky-500/25',
         };
-
-  const tagClass = (tag?: TopServiceTag) => {
-    if (!tag) return '';
-    if (tag === 'Best quality') return t.tagQuality;
-    if (tag === 'Fastest') return t.tagFast;
-    if (tag === 'Targeted') return t.tagTargeted;
-    if (tag === 'Custom') return t.tagCustom;
-    return t.tagPopular;
-  };
 
   return (
     <div className={t.shell}>
@@ -165,19 +146,7 @@ function TopServicesCard({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
           <li key={s.id} className={cn('flex items-center gap-3 px-5 py-[12px] transition-colors', t.rowHover)}>
             <SocialTile cat="ig" size={32} />
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className={cn('truncate', t.name)}>{s.name}</span>
-                {s.tag && (
-                  <span
-                    className={cn(
-                      'inline-flex items-center rounded border px-[6px] py-[1px] text-[10px] font-medium uppercase tracking-wider',
-                      tagClass(s.tag),
-                    )}
-                  >
-                    {s.tag}
-                  </span>
-                )}
-              </div>
+              <div className={cn('truncate', t.name)}>{s.name}</div>
               <div className={cn('mt-0.5 truncate', t.hint)}>{s.hint}</div>
             </div>
             <div className="text-right whitespace-nowrap">
@@ -197,38 +166,69 @@ function TopServicesCard({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
   );
 }
 
-// LiveOrdersTicker — scrolling marquee of (synthetic-but-realistic) recent
-// order lines. Replaces the previous fake "regional nodes" ticker. Looks
-// live because the pool rotates every 4s while the marquee animates the
-// translateX. If/when GET /v1/stats/recent-orders ships in Phase 3, drop
-// in real data here.
+// OrdersLast24hBadge — small "X orders in the last 24h" pill rendered at the
+// very top of both Hero variants. Sourced from /api/v1/stats/public so it
+// matches whatever the public stats endpoint reports. Hides itself while the
+// first request is in flight (returns a same-size placeholder so the hero
+// doesn't reflow when the number lands) and on outright failure.
+function OrdersLast24hBadge({ tone }: { tone: 'dark' | 'light' }) {
+  const stats = usePublicStats();
+  const shell =
+    tone === 'dark'
+      ? 'mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 font-mono text-[12px] text-white/80'
+      : 'mb-5 inline-flex items-center gap-2 rounded-full border border-border bg-bg-elev px-3 py-1 font-mono text-[12px] text-fg-muted';
+  const dot = tone === 'dark' ? 'bg-emerald-400' : 'bg-success';
+
+  // Defensive: hide the badge if the API didn't surface a number for any
+  // reason (loading, network error, unexpected shape, partial response).
+  // Reserve vertical space so the hero doesn't jump when the value lands.
+  if (stats == null || typeof stats.ordersLast24h !== 'number') {
+    return <div className="mb-5" style={{ minHeight: 28 }} aria-hidden="true" />;
+  }
+  return (
+    <div className={shell}>
+      <span className={cn('pulse-dot inline-block h-[6px] w-[6px] rounded-full', dot)} />
+      {stats.ordersLast24h.toLocaleString('en-US')} IG orders in the last 24h
+    </div>
+  );
+}
+
+// LiveOrdersTicker — scrolling marquee of REAL recent orders.
+// Sourced from /api/v1/stats/recent-orders. Quadrupled in-place so the
+// marquee loop reads as seamless on wide screens. Hides itself when the
+// backend returns no orders (fresh deploy / outage) — no fake fallback.
 function LiveOrdersTicker() {
-  const POOL = [
-    { id: '1029488', svc: '2,500 Likes', start: '47s', dot: 'bg-accent-2' },
-    { id: '1029487', svc: '1,000 Followers', start: '2.3s ago', dot: 'bg-emerald-400' },
-    { id: '1029486', svc: '50 Custom comments', start: 'in progress', dot: 'bg-accent-2' },
-    { id: '1029485', svc: '5,000 Likes Premium', start: 'completed', dot: 'bg-emerald-400' },
-    { id: '1029484', svc: '500 Followers Geo:USA', start: '12s', dot: 'bg-accent-2' },
-    { id: '1029483', svc: '10,000 Likes', start: 'completed', dot: 'bg-emerald-400' },
-    { id: '1029482', svc: '200 Comments Random', start: 'in progress', dot: 'bg-accent-2' },
-    { id: '1029481', svc: '2,000 Followers Real', start: '34s', dot: 'bg-emerald-400' },
-  ];
-  // Quadruple the list so the marquee loop is visually seamless on wide screens.
-  const items = [...POOL, ...POOL, ...POOL, ...POOL];
+  const orders = useRecentOrders();
+  if (orders === null) {
+    // Initial load — render an invisible placeholder of identical height to avoid layout shift.
+    return <div className="border-y border-white/5 bg-bg-deep py-4" aria-hidden="true" style={{ minHeight: 51 }} />;
+  }
+  if (orders.length === 0) return null;
+  const items = [...orders, ...orders, ...orders, ...orders];
   return (
     <div className="border-y border-white/5 bg-bg-deep py-4 text-white/70">
       <div className="overflow-hidden">
         <div className="ticker-track">
-          {items.map((o, i) => (
-            <span key={i} className="inline-flex items-center gap-3 font-mono text-[12.5px]">
-              <span className={cn('pulse-dot inline-block h-[6px] w-[6px] rounded-full', o.dot)} />
-              <span className="text-white/85">#{o.id}</span>
-              <span className="text-white/50">·</span>
-              <span>{o.svc}</span>
-              <span className="text-white/40">·</span>
-              <span className="text-white/45">{o.start}</span>
-            </span>
-          ))}
+          {items.map((o, i) => {
+            const terminal = o.status === 'completed' || o.status === 'partial';
+            return (
+              <span key={i} className="inline-flex items-center gap-3 font-mono text-[12.5px]">
+                <span
+                  className={cn(
+                    'pulse-dot inline-block h-[6px] w-[6px] rounded-full',
+                    terminal ? 'bg-emerald-400' : 'bg-accent-2',
+                  )}
+                />
+                <span className="text-white/85">#{o.id}</span>
+                <span className="text-white/50">·</span>
+                <span>
+                  {fmtQty(o.quantity)} {o.service}
+                </span>
+                <span className="text-white/40">·</span>
+                <span className="text-white/45">{fmtTickerSecondary(o.status, o.ageSeconds)}</span>
+              </span>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -244,8 +244,8 @@ function ValueProps() {
     },
     {
       icon: 'shield',
-      title: 'Non-drop · refill 30 days',
-      body: 'Profiles drop? We detect and replace within the 30-day refill window. No tickets to open.',
+      title: 'Refill window · 30 days',
+      body: '30-day refill window from order completion. If delivery drops, request a free refill from the order page — an operator approves and re-runs.',
     },
     {
       icon: 'wallet',
@@ -278,15 +278,14 @@ function ValueProps() {
 }
 
 function Categories() {
-  const live = { cat: 'ig' as const, name: 'Instagram', count: 14, sub: 'Likes · Follows · Comments' };
-  const soon: ReadonlyArray<{ cat: 'tt' | 'yt' | 'x' | 'tg' | 'sp' | 'fb' | 'dc'; name: string; eta: string }> = [
-    { cat: 'tt', name: 'TikTok', eta: 'Q3 2026' },
-    { cat: 'yt', name: 'YouTube', eta: 'Q3 2026' },
-    { cat: 'x', name: 'Twitter / X', eta: 'Q4 2026' },
-    { cat: 'tg', name: 'Telegram', eta: 'Q4 2026' },
-    { cat: 'sp', name: 'Spotify', eta: '2027' },
-    { cat: 'fb', name: 'Facebook', eta: '2027' },
-    { cat: 'dc', name: 'Discord', eta: '2027' },
+  const stats = usePublicStats();
+  const live = { cat: 'ig' as const, name: 'Instagram', sub: 'Likes · Follows · Comments' };
+  const soon: ReadonlyArray<{ cat: 'tt' | 'yt' | 'x' | 'tg' | 'fb'; name: string }> = [
+    { cat: 'tt', name: 'TikTok' },
+    { cat: 'yt', name: 'YouTube' },
+    { cat: 'x', name: 'Twitter / X' },
+    { cat: 'tg', name: 'Telegram' },
+    { cat: 'fb', name: 'Facebook' },
   ];
   return (
     <section className="section-dark">
@@ -310,9 +309,9 @@ function Categories() {
             </div>
             <p className="mt-4 text-[14px] text-white/70">{live.sub}</p>
             <div className="mt-6 flex items-center gap-2 font-mono text-[12px] text-white/50">
-              <span>{live.count} services</span>
+              <span>{stats?.serviceCount ?? '—'} services</span>
               <span>·</span>
-              <span>min $0.05/1k</span>
+              <span>min {fmtPrice(stats?.minPricePer1k)}/1k</span>
               <span>·</span>
               <span>30-day refill</span>
             </div>
@@ -324,7 +323,7 @@ function Categories() {
             <div key={s.cat} className="rounded-xl border border-white/10 bg-white/[0.02] p-5">
               <SocialTile cat={s.cat} size={36} mono />
               <div className="mt-3 text-[14px] font-medium text-white/85">{s.name}</div>
-              <div className="mt-1 font-mono text-[11px] text-white/40">Soon · {s.eta}</div>
+              <div className="mt-1 font-mono text-[11px] text-white/40">Soon</div>
             </div>
           ))}
         </div>
@@ -352,8 +351,8 @@ function HowItWorks() {
     },
     {
       n: 4,
-      title: 'Non-drop · refill 30 days',
-      detail: 'Drops detected by start-count scouts. Replacements pushed automatically. No tickets.',
+      title: 'Refill window · 30 days',
+      detail: 'Free refill window for 30 days from completion. If delivery drops, request a refill from the order page — an operator approves and the bot re-runs.',
     },
   ];
   return (
@@ -465,10 +464,7 @@ function LandingLight() {
         <div className="container-app relative z-10 py-20 lg:py-28">
           <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[1.1fr_1fr]">
             <div>
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-border bg-bg-elev px-3 py-1 font-mono text-[12px] text-fg-muted">
-                <span className="pulse-dot inline-block h-[6px] w-[6px] rounded-full bg-success" />
-                12,408 IG orders dispatched in the last 24h
-              </div>
+              <OrdersLast24hBadge tone="light" />
               <h1 className="display-1">
                 Real delivery,
                 <br />
@@ -517,31 +513,36 @@ function LandingLight() {
 // against light theme tokens (border/bg-elev/fg) instead of white-on-dark.
 
 function LiveOrdersStripLight() {
-  const POOL = [
-    { id: '1029488', svc: '2,500 Likes', t: '47s', tone: 'accent' as const },
-    { id: '1029487', svc: '1,000 Followers', t: '2.3s ago', tone: 'success' as const },
-    { id: '1029486', svc: '50 Custom comments', t: 'in progress', tone: 'accent' as const },
-    { id: '1029485', svc: '5,000 Likes Premium', t: 'completed', tone: 'success' as const },
-    { id: '1029484', svc: '500 Followers Geo:USA', t: '12s', tone: 'accent' as const },
-    { id: '1029483', svc: '10,000 Likes', t: 'completed', tone: 'success' as const },
-    { id: '1029482', svc: '200 Comments Random', t: 'in progress', tone: 'accent' as const },
-    { id: '1029481', svc: '2,000 Followers Real', t: '34s', tone: 'success' as const },
-  ];
-  const items = [...POOL, ...POOL, ...POOL, ...POOL];
+  const orders = useRecentOrders();
+  if (orders === null) {
+    return <div className="border-y border-border bg-bg-sunken py-4" aria-hidden="true" style={{ minHeight: 51 }} />;
+  }
+  if (orders.length === 0) return null;
+  const items = [...orders, ...orders, ...orders, ...orders];
   return (
     <div className="border-y border-border bg-bg-sunken py-4 text-fg-muted">
       <div className="overflow-hidden">
         <div className="ticker-track">
-          {items.map((o, i) => (
-            <span key={i} className="inline-flex items-center gap-3 font-mono text-[12.5px]">
-              <span className={cn('pulse-dot inline-block h-[6px] w-[6px] rounded-full', o.tone === 'success' ? 'bg-success' : 'bg-accent')} />
-              <span className="text-fg">#{o.id}</span>
-              <span className="text-fg-dim">·</span>
-              <span>{o.svc}</span>
-              <span className="text-fg-dim">·</span>
-              <span className="text-fg-subtle">{o.t}</span>
-            </span>
-          ))}
+          {items.map((o, i) => {
+            const terminal = o.status === 'completed' || o.status === 'partial';
+            return (
+              <span key={i} className="inline-flex items-center gap-3 font-mono text-[12.5px]">
+                <span
+                  className={cn(
+                    'pulse-dot inline-block h-[6px] w-[6px] rounded-full',
+                    terminal ? 'bg-success' : 'bg-accent',
+                  )}
+                />
+                <span className="text-fg">#{o.id}</span>
+                <span className="text-fg-dim">·</span>
+                <span>
+                  {fmtQty(o.quantity)} {o.service}
+                </span>
+                <span className="text-fg-dim">·</span>
+                <span className="text-fg-subtle">{fmtTickerSecondary(o.status, o.ageSeconds)}</span>
+              </span>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -551,7 +552,7 @@ function LiveOrdersStripLight() {
 function ValuePropsLight() {
   const items: ReadonlyArray<{ icon: 'zap' | 'shield' | 'code' | 'wallet'; title: string; body: string }> = [
     { icon: 'zap', title: 'Real quality', body: 'Every action is delivered through our own infrastructure. No reposting from third-party panels.' },
-    { icon: 'shield', title: 'Non-drop · refill 30 days', body: 'Profiles drop? We detect and replace within the 30-day refill window. No tickets to open.' },
+    { icon: 'shield', title: 'Refill window · 30 days', body: '30-day refill window from order completion. If delivery drops, request a free refill from the order page — an operator approves and re-runs.' },
     { icon: 'wallet', title: 'Crypto only', body: 'Pay with USDT, BTC, ETH, TON, LTC. Privacy-first. No KYC. No card fees.' },
     { icon: 'code', title: 'Perfect-Panel API', body: 'Drop-in compatible /api/v2 endpoint. Plug existing reseller pipelines in 5 minutes.' },
   ];
@@ -573,14 +574,13 @@ function ValuePropsLight() {
 }
 
 function CategoriesLight() {
-  const soon: ReadonlyArray<{ cat: 'tt' | 'yt' | 'x' | 'tg' | 'sp' | 'fb' | 'dc'; name: string; eta: string }> = [
-    { cat: 'tt', name: 'TikTok', eta: 'Q3 2026' },
-    { cat: 'yt', name: 'YouTube', eta: 'Q3 2026' },
-    { cat: 'x', name: 'Twitter / X', eta: 'Q4 2026' },
-    { cat: 'tg', name: 'Telegram', eta: 'Q4 2026' },
-    { cat: 'sp', name: 'Spotify', eta: '2027' },
-    { cat: 'fb', name: 'Facebook', eta: '2027' },
-    { cat: 'dc', name: 'Discord', eta: '2027' },
+  const stats = usePublicStats();
+  const soon: ReadonlyArray<{ cat: 'tt' | 'yt' | 'x' | 'tg' | 'fb'; name: string }> = [
+    { cat: 'tt', name: 'TikTok' },
+    { cat: 'yt', name: 'YouTube' },
+    { cat: 'x', name: 'Twitter / X' },
+    { cat: 'tg', name: 'Telegram' },
+    { cat: 'fb', name: 'Facebook' },
   ];
   return (
     <section className="container-app py-16">
@@ -603,9 +603,9 @@ function CategoriesLight() {
           </div>
           <p className="mt-4 text-[14px] text-fg-muted">Likes · Follows · Comments</p>
           <div className="mt-6 flex items-center gap-2 font-mono text-[12px] text-fg-subtle">
-            <span>14 services</span>
+            <span>{stats?.serviceCount ?? '—'} services</span>
             <span>·</span>
-            <span>min $0.05/1k</span>
+            <span>min {fmtPrice(stats?.minPricePer1k)}/1k</span>
             <span>·</span>
             <span>30-day refill</span>
           </div>
@@ -617,7 +617,7 @@ function CategoriesLight() {
           <Card key={s.cat} className="p-5">
             <SocialTile cat={s.cat} size={36} mono />
             <div className="mt-3 text-[14px] font-medium">{s.name}</div>
-            <div className="mt-1 font-mono text-[11px] text-fg-subtle">Soon · {s.eta}</div>
+            <div className="mt-1 font-mono text-[11px] text-fg-subtle">Soon</div>
           </Card>
         ))}
       </div>
@@ -630,7 +630,7 @@ function HowItWorksLight() {
     { n: 1, title: 'Top up with crypto', detail: 'USDT (TRC-20), BTC, ETH, TON, or LTC. Auto-credit on confirm.' },
     { n: 2, title: 'Pick service · paste link', detail: 'Likes, followers, real comments. Custom comment lists. Drip-feed if you need slow.' },
     { n: 3, title: 'We dispatch through the network', detail: 'Validated, queued, executed by our delivery network. Avg start 47s. Live progress in your dashboard.' },
-    { n: 4, title: 'Non-drop · refill 30 days', detail: 'Drops detected by start-count scouts. Replacements pushed automatically.' },
+    { n: 4, title: 'Refill 30 days', detail: 'Free refill window for 30 days from completion. If delivery drops, request a refill from the order page — an operator approves and the bot re-runs.' },
   ];
   return (
     <section className="container-app py-16">

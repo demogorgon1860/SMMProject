@@ -53,11 +53,11 @@ export function Drawer({
   return (
     <div className="fixed inset-0 z-40" role="dialog" aria-modal="true">
       <div
-        className="absolute inset-0 bg-black/35 fade-in"
+        className="absolute inset-0 bg-black/35 overlay-in"
         onClick={closeOnOverlayClick ? onClose : undefined}
       />
       <div
-        className="absolute right-0 top-0 bottom-0 flex max-w-[95vw] flex-col border-l border-border bg-bg shadow-drawer fade-in"
+        className="absolute right-0 top-0 bottom-0 flex max-w-[95vw] flex-col border-l border-border bg-bg shadow-drawer slide-in-right"
         style={{ width: w }}
         onClick={(e) => e.stopPropagation()}
       >

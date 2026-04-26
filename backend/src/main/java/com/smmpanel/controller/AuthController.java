@@ -75,11 +75,10 @@ public class AuthController {
 
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user, httpRequest);
 
-        // Set refresh token as HttpOnly cookie
+        // The refresh token lives ONLY in an HttpOnly cookie. Sending it in the response body
+        // (and letting the client persist it in localStorage) defeats the cookie's XSS defense.
         setRefreshTokenCookie(response, refreshToken.getToken());
-
-        // Keep backward compatibility but also set cookie
-        authResponse.setRefreshToken(refreshToken.getToken());
+        authResponse.setRefreshToken(null);
 
         log.info("User registered successfully: {}", request.getUsername());
         return ResponseEntity.ok(authResponse);
@@ -100,11 +99,9 @@ public class AuthController {
                         .orElseThrow(() -> new UserNotFoundException("User not found"));
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user, httpRequest);
 
-        // Set refresh token as HttpOnly cookie
+        // Refresh token = HttpOnly cookie only. Never echo it in the JSON body.
         setRefreshTokenCookie(response, refreshToken.getToken());
-
-        // Keep backward compatibility but also set cookie
-        authResponse.setRefreshToken(refreshToken.getToken());
+        authResponse.setRefreshToken(null);
 
         log.info("User logged in successfully: {}", request.getUsername());
         return ResponseEntity.ok(authResponse);
@@ -173,11 +170,9 @@ public class AuthController {
             // Set new refresh token cookie
             setRefreshTokenCookie(response, newRefreshToken);
 
+            // Access token in body, refresh token in HttpOnly cookie only.
             TokenResponse tokenResponse =
-                    TokenResponse.builder()
-                            .accessToken(newAccessToken)
-                            .refreshToken(newRefreshToken) // Keep backward compatibility
-                            .build();
+                    TokenResponse.builder().accessToken(newAccessToken).build();
 
             return ResponseEntity.ok(tokenResponse);
         } catch (Exception e) {

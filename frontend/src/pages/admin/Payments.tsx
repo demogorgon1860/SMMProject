@@ -42,7 +42,13 @@ export function AdminPaymentsPage() {
       .getAllDeposits(undefined, 0, 200)
       .then((data: unknown) => {
         if (cancelled) return;
-        const arr = Array.isArray(data) ? data : (data as { content?: unknown[] })?.content ?? [];
+        // /v2/admin/deposits returns { totalPages, pageSize, currentPage, deposits: [...] }.
+        // Accept deposits/content/data envelopes so a future refactor doesn't silently blank
+        // the page (which is what was happening before — admins saw "0 total" with real data).
+        const env = data as { deposits?: unknown[]; content?: unknown[]; data?: unknown[] } | null;
+        const arr = Array.isArray(data)
+          ? (data as unknown[])
+          : env?.deposits ?? env?.content ?? env?.data ?? [];
         setPayments(arr as AdminPayment[]);
       })
       .finally(() => !cancelled && setLoading(false));

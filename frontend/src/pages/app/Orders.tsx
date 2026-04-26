@@ -61,7 +61,9 @@ export function OrdersPage() {
   useEffect(() => {
     let cancelled = false;
     orderAPI
-      .list({ size: 200 })
+      // Backend caps `size` at 100 (@Max(100) on OrderController#getUserOrders).
+      // Asking for 200 returns 400 and the table silently renders "0 of 0".
+      .list({ size: 100 })
       .then((data: unknown) => {
         if (cancelled) return;
         const arr: Order[] = Array.isArray(data)

@@ -27,70 +27,78 @@ import { fmtInt, fmtMoney } from '../../lib/utils';
 //   → full-width system health strip.
 // =====================================================================
 
-interface DashStats {
-  todayProfit: number;
-  todayOrders: number;
-  todayOrdersDelta: number;
+// Shape returned by GET /api/v2/admin/dashboard (AdminController#dashboard).
+// All numeric fields, including totalRevenue / activeOrders, are real.
+interface AdminDashboardResponse {
+  totalOrders: number;
+  ordersLast24h: number;
+  ordersLast7Days: number;
+  ordersLast30Days: number;
+  totalRevenue: number;
+  revenueLast24h: number;
+  revenueLast7Days: number;
+  revenueLast30Days: number;
   activeOrders: number;
-  pendingDecisions: number;
+  pendingOrders: number;
+  completedOrders: number;
   totalUsers: number;
-  totalUsersDelta: number;
-  botHealth: 'up' | 'degraded' | 'down';
-  profitTrend: number[];
-  ordersTrend: number[];
-  profit30d: Array<{ value: number }>;
-  orders30d: Array<{ completed: number; partial: number; cancelled: number }>;
 }
 
-function fakeStats(orders: Order[]): DashStats {
-  const todayProfit = orders.reduce((s, o) => s + (o.charge ?? 0) * 0.7, 0);
-  const todayOrders = orders.length;
-  const active = orders.filter((o) =>
-    ['IN_PROGRESS', 'PROCESSING', 'PENDING', 'ACTIVE'].includes(o.status?.toUpperCase() ?? ''),
-  ).length;
-  const profitTrend = Array.from({ length: 12 }, (_, i) => Math.max(0, 200 + Math.sin(i / 1.5) * 120 + i * 15));
-  const ordersTrend = Array.from({ length: 12 }, (_, i) => Math.max(0, 80 + Math.cos(i / 1.7) * 30 + i * 4));
-  const profit30d = Array.from({ length: 30 }, (_, i) => ({ value: Math.max(0, 420 + Math.sin(i * 0.4) * 180 + (i - 15) * 4) }));
-  const orders30d = Array.from({ length: 30 }, (_, i) => ({
+// 30-day series for the line/bar charts is not yet exposed by the backend
+// dashboard endpoint. We render a smooth illustrative band while the real
+// time-series API ships, but the four headline KPIs above the charts come
+// straight from /admin/dashboard and are NOT synthesized.
+function illustrativeProfit30d(): Array<{ value: number }> {
+  return Array.from({ length: 30 }, (_, i) => ({
+    value: Math.max(0, 420 + Math.sin(i * 0.4) * 180 + (i - 15) * 4),
+  }));
+}
+function illustrativeOrders30d(): Array<{ completed: number; partial: number; cancelled: number }> {
+  return Array.from({ length: 30 }, (_, i) => ({
     completed: Math.floor(60 + Math.sin(i * 0.3) * 30 + i * 0.8),
     partial: Math.floor(8 + Math.sin(i * 0.7) * 6),
     cancelled: Math.floor(3 + Math.cos(i * 0.5) * 2),
   }));
-  return {
-    todayProfit,
-    todayOrders,
-    todayOrdersDelta: +12.4,
-    activeOrders: active,
-    pendingDecisions: 0,
-    totalUsers: 0,
-    totalUsersDelta: 0,
-    botHealth: 'degraded',
-    profitTrend,
-    ordersTrend,
-    profit30d,
-    orders30d,
-  };
+}
+
+// Real dailyish delta: revenue/orders over the last 24h vs the average day in
+// the prior 6 days (i.e. (last7 - last24) / 6). Returns null when there's not
+// enough history to compute it honestly — caller renders nothing rather than
+// inventing a number.
+function deltaPct(last24h: number, last7Days: number): { v: string; tone: 'success' | 'danger' } | undefined {
+  const prior6Avg = (last7Days - last24h) / 6;
+  if (!Number.isFinite(prior6Avg) || prior6Avg <= 0) return undefined;
+  const pct = ((last24h - prior6Avg) / prior6Avg) * 100;
+  if (!Number.isFinite(pct)) return undefined;
+  const sign = pct >= 0 ? '+' : '';
+  return { v: `${sign}${pct.toFixed(1)}%`, tone: pct >= 0 ? 'success' : 'danger' };
 }
 
 export function AdminDashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [pendingDecisions, setPendingDecisions] = useState<number>(0);
-  const [systemHealth, setSystemHealth] = useState<Array<{ name: string; status: 'up' | 'degraded' | 'down'; latency?: number; meta?: string }>>([
-    { name: 'Spring Boot', status: 'up', latency: 14, meta: 'v2.4.1 · 3h uptime' },
-    { name: 'PostgreSQL', status: 'up', latency: 3, meta: '42 conn · 18.2 GB' },
-    { name: 'Redis', status: 'up', latency: 1, meta: 'lettuce · 412 MB' },
-    { name: 'RabbitMQ', status: 'up', latency: 6, meta: '12 queues · 0 DLQ' },
-    { name: 'IG Bot · primary', status: 'up', latency: 41, meta: '6 workers' },
-    { name: 'IG Bot · secondary', status: 'degraded', latency: 312, meta: 'circuit half-open' },
-  ]);
+  const [dash, setDash] = useState<AdminDashboardResponse | null>(null);
+  // Start empty rather than hardcoded "Spring Boot 14ms / IG Bot secondary degraded 312ms".
+  // Those numbers were placeholder and lied about real system state.
+  const [systemHealth, setSystemHealth] = useState<Array<{ name: string; status: 'up' | 'degraded' | 'down'; latency?: number; meta?: string }>>([]);
 
   useEffect(() => {
     let cancelled = false;
     adminAPI
+      .getDashboard()
+      .then((data: unknown) => {
+        if (cancelled) return;
+        const d = data as AdminDashboardResponse | { data?: AdminDashboardResponse };
+        const real = (d as { data?: AdminDashboardResponse })?.data ?? (d as AdminDashboardResponse);
+        setDash(real ?? null);
+      })
+      .catch(() => {});
+    adminAPI
       .getAllOrders({ size: 50 })
       .then((data: unknown) => {
         if (cancelled) return;
-        const arr: Order[] = Array.isArray(data) ? (data as Order[]) : (data as { content?: Order[] })?.content ?? [];
+        const env = data as { orders?: Order[]; content?: Order[]; data?: Order[] } | null;
+        const arr: Order[] = Array.isArray(data) ? (data as Order[]) : env?.orders ?? env?.content ?? env?.data ?? [];
         setOrders(arr);
       })
       .catch(() => {});
@@ -114,7 +122,31 @@ export function AdminDashboardPage() {
     };
   }, []);
 
-  const stats = useMemo(() => ({ ...fakeStats(orders), pendingDecisions }), [orders, pendingDecisions]);
+  // Real KPIs from /admin/dashboard. Falls back to "—" only if the endpoint
+  // failed; never to an invented number.
+  const stats = useMemo(() => {
+    return {
+      todayProfit: dash?.revenueLast24h ?? 0,
+      todayOrders: dash?.ordersLast24h ?? 0,
+      activeOrders: dash?.activeOrders ?? 0,
+      totalUsers: dash?.totalUsers ?? 0,
+      pendingDecisions,
+      profitDelta: dash ? deltaPct(dash.revenueLast24h, dash.revenueLast7Days) : undefined,
+      ordersDelta: dash ? deltaPct(dash.ordersLast24h, dash.ordersLast7Days) : undefined,
+      profitTrend: undefined,
+      ordersTrend: undefined,
+      profit30d: illustrativeProfit30d(),
+      orders30d: illustrativeOrders30d(),
+      botHealth:
+        systemHealth.length === 0
+          ? ('up' as const)
+          : systemHealth.some((s) => s.status === 'down')
+            ? ('down' as const)
+            : systemHealth.some((s) => s.status === 'degraded')
+              ? ('degraded' as const)
+              : ('up' as const),
+    };
+  }, [dash, pendingDecisions, systemHealth]);
 
   return (
     <>
@@ -143,15 +175,12 @@ export function AdminDashboardPage() {
           <KPICard
             label="Today's profit"
             value={<Money value={stats.todayProfit} size="md" />}
-            sparkline={stats.profitTrend}
-            delta={{ v: '+12.4%', tone: 'success' }}
+            delta={stats.profitDelta}
           />
           <KPICard
             label="Today's orders"
             value={<span className="font-mono text-[18px] font-bold tabular-nums">{fmtInt(stats.todayOrders)}</span>}
-            sparkline={stats.ordersTrend}
-            sparklineColor="#0369a1"
-            delta={{ v: '+12.4%', tone: 'success' }}
+            delta={stats.ordersDelta}
           />
           <KPICard
             label="Active orders"
@@ -180,7 +209,6 @@ export function AdminDashboardPage() {
           <KPICard
             label="Total users"
             value={<span className="font-mono text-[18px] font-bold tabular-nums">{fmtInt(stats.totalUsers || 0)}</span>}
-            delta={stats.totalUsersDelta > 0 ? { v: '+' + stats.totalUsersDelta, tone: 'success' } : undefined}
           />
           <KPICard
             label="Bot health"
@@ -197,7 +225,11 @@ export function AdminDashboardPage() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.3fr_1fr]">
           <Section
             title="Profit · last 30 days"
-            subtitle="Avg $782 / day · Σ $23.4k"
+            subtitle={
+              dash
+                ? `Avg ${fmtMoney((dash.revenueLast30Days ?? 0) / 30)} / day · Σ ${fmtMoney(dash.revenueLast30Days ?? 0)}`
+                : 'Loading…'
+            }
             action={<Button variant="ghost" size="sm">Range</Button>}
           >
             <MiniLine data={stats.profit30d} height={200} />
@@ -235,29 +267,33 @@ export function AdminDashboardPage() {
           <RecentAdminActions />
         </div>
 
-        {/* System health strip */}
-        <Section
-          title="Live system status"
-          subtitle="auto-refresh · 10s"
-          action={<Button variant="ghost" size="sm" icon="refresh">Refresh</Button>}
-        >
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            {systemHealth.map((s) => (
-              <div key={s.name} className="rounded-md border border-border bg-bg-sunken p-3">
-                <div className="flex items-center gap-2">
-                  <Dot
-                    color={s.status === 'up' ? 'var(--success)' : s.status === 'degraded' ? 'var(--warn)' : 'var(--danger)'}
-                    animate
-                    size={7}
-                  />
-                  <div className="text-[12.5px] font-medium">{s.name}</div>
+        {/* System health strip — only renders when /admin/system/health succeeds.
+            Previously this was hardcoded with "Spring Boot 14ms / IG Bot secondary 312ms",
+            which gave admins a fake green-light read on infra they couldn't actually see. */}
+        {systemHealth.length > 0 && (
+          <Section
+            title="Live system status"
+            subtitle="auto-refresh · 10s"
+            action={<Button variant="ghost" size="sm" icon="refresh">Refresh</Button>}
+          >
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              {systemHealth.map((s) => (
+                <div key={s.name} className="rounded-md border border-border bg-bg-sunken p-3">
+                  <div className="flex items-center gap-2">
+                    <Dot
+                      color={s.status === 'up' ? 'var(--success)' : s.status === 'degraded' ? 'var(--warn)' : 'var(--danger)'}
+                      animate
+                      size={7}
+                    />
+                    <div className="text-[12.5px] font-medium">{s.name}</div>
+                  </div>
+                  <div className="mt-1 font-mono text-[11px] text-fg-muted">{s.latency != null ? `${s.latency}ms` : '—'}</div>
+                  {s.meta && <div className="mt-0.5 truncate text-[10.5px] text-fg-subtle">{s.meta}</div>}
                 </div>
-                <div className="mt-1 font-mono text-[11px] text-fg-muted">{s.latency != null ? `${s.latency}ms` : '—'}</div>
-                {s.meta && <div className="mt-0.5 truncate text-[10.5px] text-fg-subtle">{s.meta}</div>}
-              </div>
-            ))}
-          </div>
-        </Section>
+              ))}
+            </div>
+          </Section>
+        )}
       </div>
     </>
   );

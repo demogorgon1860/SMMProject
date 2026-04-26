@@ -47,21 +47,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
               <AppNavLink key={it.to} item={it} />
             ))}
           </nav>
-          <div className="border-t border-border p-[10px]">
-            <Link
-              to="/profile?tab=account"
-              className="flex items-center gap-[10px] rounded-md p-[6px] hover:bg-bg-sunken"
-            >
-              <span className="flex h-[28px] w-[28px] items-center justify-center rounded-full bg-gradient-to-br from-[#4f46e5] to-[#7c3aed] text-[11px] font-semibold text-white">
-                YO
-              </span>
-              <div className="min-w-0 flex-1 leading-tight">
-                <div className="truncate text-[13px] font-medium">@you</div>
-                <div className="truncate text-[11px] text-fg-subtle">you@example.com</div>
-              </div>
-              <Icon name="chevron-right" size={12} className="text-fg-dim" />
-            </Link>
-          </div>
+          <SidebarUserPill />
         </aside>
         <div className="flex min-w-0 flex-1 flex-col">
           <AppTopBar />
@@ -69,6 +55,44 @@ export function AppShell({ children }: { children?: ReactNode }) {
         </div>
       </div>
     </ToastProvider>
+  );
+}
+
+/**
+ * Bottom-of-sidebar user pill. Reads from the auth store rather than rendering
+ * static "YO / @you / you@example.com" placeholders — those were visible on
+ * production and gave away that the widget wasn't actually wired up.
+ */
+function SidebarUserPill() {
+  const user = useAuthStore((s) => s.user);
+  const username = user?.username ?? '';
+  const email = user?.email ?? '';
+  const initials =
+    username
+      .split(/[._-]/)
+      .map((p) => p[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join('')
+      .toUpperCase() || 'U';
+  return (
+    <div className="border-t border-border p-[10px]">
+      <Link
+        to="/profile?tab=account"
+        className="flex items-center gap-[10px] rounded-md p-[6px] hover:bg-bg-sunken"
+      >
+        <span className="flex h-[28px] w-[28px] items-center justify-center rounded-full bg-gradient-to-br from-[#4f46e5] to-[#7c3aed] text-[11px] font-semibold text-white">
+          {initials}
+        </span>
+        <div className="min-w-0 flex-1 leading-tight">
+          <div className="truncate text-[13px] font-medium">
+            {username ? '@' + username : '—'}
+          </div>
+          <div className="truncate text-[11px] text-fg-subtle">{email || ''}</div>
+        </div>
+        <Icon name="chevron-right" size={12} className="text-fg-dim" />
+      </Link>
+    </div>
   );
 }
 

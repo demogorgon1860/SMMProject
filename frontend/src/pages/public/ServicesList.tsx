@@ -25,7 +25,14 @@ export function ServicesListPage() {
       .list()
       .then((data: unknown) => {
         if (cancelled) return;
-        const arr: Service[] = Array.isArray(data) ? (data as Service[]) : (data as { content?: Service[] })?.content ?? [];
+        // /v1/service/services wraps the list in PerfectPanelResponse `{ success, data: [...] }`.
+        // Accept Spring Page (`content`) and a top-level `services` field too so future envelope
+        // changes don't quietly empty the public catalog (which is what happened on prod —
+        // page rendered "0 services" because `.data` wasn't being read).
+        const d = data as { data?: Service[]; content?: Service[]; services?: Service[] } | null;
+        const arr: Service[] = Array.isArray(data)
+          ? (data as Service[])
+          : d?.data ?? d?.content ?? d?.services ?? [];
         setServices(arr);
       })
       .catch(() => setErr('Could not load services right now.'))

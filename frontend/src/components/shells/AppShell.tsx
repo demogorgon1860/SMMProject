@@ -8,10 +8,12 @@ import { useAuthStore } from '../../store/authStore';
 import { cn } from '../../lib/utils';
 
 // =====================================================================
-// AppShell — for authenticated user pages (/dashboard, /orders, etc.)
-// Sidebar (fixed 220px) + slim topbar with balance chip and profile.
-// Phase 0 stub: nav links route to placeholders. Real per-page wiring
-// lands in Phase 1.
+// AppShell — for authenticated user pages (/dashboard, /orders, etc.).
+// Desktop layout: fixed 220px sidebar + topbar.
+// Mobile layout (< lg / 1024px): sidebar collapses behind a hamburger button
+// and slides in as a drawer with a backdrop, so the main content always uses
+// the full viewport width. The drawer auto-closes on route change so a tap
+// on a nav link doesn't leave it stuck open over the new page.
 // =====================================================================
 
 interface NavItem {
@@ -32,19 +34,42 @@ const NAV: NavItem[] = [
 ];
 
 export function AppShell({ children }: { children?: ReactNode }) {
+  const [navOpen, setNavOpen] = useState(false);
+  const location = useLocation();
+
+  // Auto-close the mobile drawer on route change. Without this it stays open
+  // over the new page after the user taps a nav link.
+  useEffect(() => {
+    setNavOpen(false);
+  }, [location.pathname]);
+
+  // Lock body scroll while the drawer is open so the underlying page doesn't
+  // scroll behind the backdrop on iOS.
+  useEffect(() => {
+    if (!navOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [navOpen]);
+
+  // Esc closes the drawer.
+  useEffect(() => {
+    if (!navOpen) return;
+    const onEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setNavOpen(false);
+    };
+    document.addEventListener('keydown', onEscape);
+    return () => document.removeEventListener('keydown', onEscape);
+  }, [navOpen]);
+
   return (
     <ToastProvider>
       <div className="flex min-h-screen bg-bg text-fg">
-        <aside className="sticky top-0 flex h-screen w-[220px] flex-none flex-col border-r border-border bg-bg-elev">
-          {/* Sidebar header height matches the topbar (52px) so the two horizontal
-              dividers line up across the layout. The previous 56px gap was off by
-              4px and rendered as a visible "step" along the top border. */}
-          <div className="flex h-[52px] items-center gap-[9px] border-b border-border px-[14px]">
-            <Link to="/dashboard" className="flex items-center gap-[9px]">
-              <img src="/logo-v2.png" alt="SMMWorld" className="h-[32px] w-[32px] object-contain" />
-              <span className="text-[14px] font-semibold tracking-[-0.01em]">SMMWorld</span>
-            </Link>
-          </div>
+        {/* Desktop sidebar — always visible from lg up. */}
+        <aside className="sticky top-0 hidden h-screen w-[220px] flex-none flex-col border-r border-border bg-bg-elev lg:flex">
+          <SidebarHeader />
           <nav className="flex-1 overflow-auto p-2">
             {NAV.map((it) => (
               <AppNavLink key={it.to} item={it} />
@@ -52,8 +77,33 @@ export function AppShell({ children }: { children?: ReactNode }) {
           </nav>
           <SidebarUserPill />
         </aside>
+
+        {/* Mobile drawer — backdrop + slide-in panel from the left. */}
+        {navOpen && (
+          <button
+            type="button"
+            aria-label="Close navigation"
+            onClick={() => setNavOpen(false)}
+            className="fade-in fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] lg:hidden"
+          />
+        )}
+        <aside
+          className={cn(
+            'fixed inset-y-0 left-0 z-50 flex w-[260px] max-w-[80vw] flex-col border-r border-border bg-bg-elev shadow-pop transition-transform duration-200 ease-out lg:hidden',
+            navOpen ? 'translate-x-0' : '-translate-x-full',
+          )}
+        >
+          <SidebarHeader onClose={() => setNavOpen(false)} />
+          <nav className="flex-1 overflow-auto p-2">
+            {NAV.map((it) => (
+              <AppNavLink key={it.to} item={it} />
+            ))}
+          </nav>
+          <SidebarUserPill />
+        </aside>
+
         <div className="flex min-w-0 flex-1 flex-col">
-          <AppTopBar />
+          <AppTopBar onMenuClick={() => setNavOpen(true)} />
           <main className="min-w-0 flex-1">{children ?? <Outlet />}</main>
         </div>
       </div>
@@ -61,10 +111,30 @@ export function AppShell({ children }: { children?: ReactNode }) {
   );
 }
 
+function SidebarHeader({ onClose }: { onClose?: () => void }) {
+  return (
+    <div className="flex h-[52px] items-center gap-[9px] border-b border-border px-[14px]">
+      <Link to="/dashboard" className="flex items-center gap-[9px]">
+        <img src="/logo-v2.png" alt="SMMWorld" className="h-[32px] w-[32px] object-contain" />
+        <span className="text-[14px] font-semibold tracking-[-0.01em]">SMMWorld</span>
+      </Link>
+      {onClose && (
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close navigation"
+          className="ml-auto inline-flex h-[28px] w-[28px] items-center justify-center rounded-md text-fg-muted hover:bg-bg-sunken hover:text-fg lg:hidden"
+        >
+          <Icon name="x" size={14} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 /**
  * Bottom-of-sidebar user pill. Reads from the auth store rather than rendering
- * static "YO / @you / you@example.com" placeholders — those were visible on
- * production and gave away that the widget wasn't actually wired up.
+ * static "YO / @you / you@example.com" placeholders.
  */
 function SidebarUserPill() {
   const user = useAuthStore((s) => s.user);
@@ -118,7 +188,7 @@ function AppNavLink({ item }: { item: NavItem }) {
   );
 }
 
-function AppTopBar() {
+function AppTopBar({ onMenuClick }: { onMenuClick: () => void }) {
   // Backend serializes BigDecimal as a string for precision, so user.balance
   // can arrive as either a number (legacy) or a string. Coerce here so the
   // topbar chip shows the same value as the Dashboard wallet card.
@@ -134,28 +204,62 @@ function AppTopBar() {
           : 0
         : 0;
   return (
-    <header className="sticky top-0 z-20 flex h-[52px] flex-none items-center gap-3 border-b border-border bg-bg-elev px-5">
+    <header className="sticky top-0 z-20 flex h-[52px] flex-none items-center gap-2 border-b border-border bg-bg-elev px-3 sm:gap-3 sm:px-5">
+      {/* Hamburger — mobile only. Hidden once the sidebar is permanently visible. */}
       <button
         type="button"
-        className="flex max-w-[380px] flex-1 cursor-pointer items-center gap-2 rounded-md border border-border bg-bg-sunken px-[11px] py-[7px] text-[13px] text-fg-subtle hover:bg-bg-elev hover:text-fg transition-colors"
+        onClick={onMenuClick}
+        aria-label="Open navigation"
+        className="inline-flex h-[34px] w-[34px] flex-none items-center justify-center rounded-md text-fg-muted hover:bg-bg-sunken hover:text-fg lg:hidden"
+      >
+        <Icon name="menu" size={16} />
+      </button>
+
+      {/* Mobile-only logo so the user has a consistent anchor at the top of the page. */}
+      <Link
+        to="/dashboard"
+        className="inline-flex items-center gap-[6px] lg:hidden"
+        aria-label="Dashboard"
+      >
+        <img src="/logo-v2.png" alt="" className="h-[24px] w-[24px] object-contain" />
+        <span className="text-[13px] font-semibold tracking-[-0.01em]">SMMWorld</span>
+      </Link>
+
+      {/* Desktop search — collapses to an icon-only button below sm to free up width on phones. */}
+      <button
+        type="button"
+        className="hidden max-w-[380px] flex-1 cursor-pointer items-center gap-2 rounded-md border border-border bg-bg-sunken px-[11px] py-[7px] text-[13px] text-fg-subtle hover:bg-bg-elev hover:text-fg transition-colors md:flex"
       >
         <Icon name="search" size={13} />
         <span className="flex-1 text-left">Search orders, services…</span>
       </button>
+      <button
+        type="button"
+        aria-label="Search"
+        className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-md border border-border text-fg-muted hover:bg-bg-sunken hover:text-fg md:hidden"
+      >
+        <Icon name="search" size={14} />
+      </button>
+
       <div className="flex-1" />
+
       <Link
         to="/add-funds"
-        className="inline-flex items-center gap-[6px] rounded-md border border-border bg-bg-elev px-[10px] py-[6px] text-[12.5px] font-medium hover:bg-bg-sunken"
+        className="inline-flex items-center gap-[6px] rounded-md border border-border bg-bg-elev px-[8px] py-[6px] text-[12.5px] font-medium hover:bg-bg-sunken sm:px-[10px]"
       >
         <Icon name="wallet" size={13} className="text-fg-subtle" />
         <span className="font-mono tabular-nums">${balance.toFixed(2)}</span>
         <Icon name="plus" size={12} className="text-accent" />
       </Link>
-      <ThemeToggle />
+      {/* Theme toggle and notifications hide on the smallest viewports — duplicated inside
+          the user menu / sidebar on mobile so nothing is actually inaccessible. */}
+      <div className="hidden sm:block">
+        <ThemeToggle />
+      </div>
       <button
         type="button"
         aria-label="Notifications"
-        className="relative inline-flex h-[30px] w-[30px] items-center justify-center rounded-md border border-border text-fg-muted hover:bg-bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:[--tw-ring-color:var(--ring)]"
+        className="relative hidden h-[30px] w-[30px] items-center justify-center rounded-md border border-border text-fg-muted hover:bg-bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:[--tw-ring-color:var(--ring)] sm:inline-flex"
       >
         <Icon name="bell" size={14} />
       </button>
@@ -165,9 +269,7 @@ function AppTopBar() {
 }
 
 /**
- * Avatar dropdown with sign-out for the user-side shell. Mirrors the AdminShell version —
- * kept inline rather than extracted because the two shells are otherwise self-contained and
- * a shared helper would create cross-shell coupling.
+ * Avatar dropdown with sign-out for the user-side shell.
  */
 function UserMenu() {
   const user = useAuthStore((s) => s.user);
@@ -217,7 +319,7 @@ function UserMenu() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-2 rounded-full border border-border bg-bg-elev py-1 pl-1 pr-3 text-left transition-colors hover:bg-bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:[--tw-ring-color:var(--ring)]"
+        className="inline-flex items-center gap-2 rounded-full border border-border bg-bg-elev py-1 pl-1 pr-2 text-left transition-colors hover:bg-bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:[--tw-ring-color:var(--ring)] sm:pr-3"
       >
         <span className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-gradient-to-br from-[#4f46e5] to-[#7c3aed] text-[11px] font-semibold text-white">
           {initials || 'U'}
@@ -242,8 +344,6 @@ function UserMenu() {
             </div>
             <div className="text-[11px] text-fg-subtle">{user?.email ?? ''}</div>
           </div>
-          {/* Quick switch to the admin panel — only rendered for ADMIN role so a regular
-              user never sees a link to a route they'd just be 403'd out of. */}
           {user?.role === 'ADMIN' && (
             <Link
               to="/admin"

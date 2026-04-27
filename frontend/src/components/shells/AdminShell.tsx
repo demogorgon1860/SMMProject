@@ -66,83 +66,143 @@ const NAV: NavGroup[] = [
 
 export function AdminShell({ children }: { children?: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
   const palette = useCommandPalette();
+  const location = useLocation();
   const w = collapsed ? 56 : 224;
+
+  // Close the mobile drawer on route change so a tap on a nav link doesn't
+  // leave it stuck open.
+  useEffect(() => {
+    setNavOpen(false);
+  }, [location.pathname]);
+
+  // Lock body scroll while the drawer is open (iOS quirk fix).
+  useEffect(() => {
+    if (!navOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [navOpen]);
+
+  // Esc closes drawer.
+  useEffect(() => {
+    if (!navOpen) return;
+    const onEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setNavOpen(false);
+    };
+    document.addEventListener('keydown', onEscape);
+    return () => document.removeEventListener('keydown', onEscape);
+  }, [navOpen]);
+
+  const sidebarBody = (
+    <>
+      <div
+        className={cn(
+          'flex h-[52px] items-center gap-[10px] border-b border-border',
+          collapsed ? 'justify-center px-0' : 'justify-between px-[14px]',
+        )}
+      >
+        <Link to="/admin" className="flex items-center gap-[9px]">
+          <img src="/logo-v2.png" alt="SMMWorld" className="h-[32px] w-[32px] object-contain" />
+          {!collapsed && (
+            <div className="leading-tight">
+              <div className="text-[13px] font-semibold tracking-[-0.01em]">SMMWorld</div>
+              <div className="text-[10px] text-fg-subtle">admin</div>
+            </div>
+          )}
+        </Link>
+        {/* Collapse toggle on desktop, close-drawer on mobile. */}
+        {!collapsed && (
+          <>
+            <button
+              type="button"
+              onClick={() => setCollapsed(true)}
+              title="Collapse"
+              className="hidden rounded p-1 text-fg-subtle hover:bg-bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:[--tw-ring-color:var(--ring)] lg:inline-flex"
+            >
+              <Icon name="chevron-left" size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setNavOpen(false)}
+              aria-label="Close navigation"
+              className="ml-auto inline-flex h-[28px] w-[28px] items-center justify-center rounded-md text-fg-muted hover:bg-bg-sunken hover:text-fg lg:hidden"
+            >
+              <Icon name="x" size={14} />
+            </button>
+          </>
+        )}
+      </div>
+
+      <nav className={cn('flex-1 overflow-auto', collapsed ? 'p-[8px_4px]' : 'p-[8px_8px]')}>
+        {NAV.map((group, gi) => (
+          <div key={group.section} className={cn(gi === 0 ? 'mt-1' : 'mt-[14px]')}>
+            {!collapsed && (
+              <div className="px-2 pb-1 pt-1 text-[10px] font-medium uppercase tracking-[0.08em] text-fg-dim">
+                {group.section}
+              </div>
+            )}
+            {group.items.map((it) => (
+              <SidebarLink key={it.to} item={it} collapsed={collapsed} />
+            ))}
+          </div>
+        ))}
+      </nav>
+
+      {/* Desktop-only collapse expander (the fake "System health: Degraded · bot-02"
+          pill that used to sit here is gone — that label was hardcoded and lied
+          about real infra). */}
+      {collapsed && (
+        <button
+          type="button"
+          onClick={() => setCollapsed(false)}
+          className="flex justify-center border-t border-border p-[10px] text-fg-subtle hover:bg-bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:[--tw-ring-color:var(--ring)]"
+        >
+          <Icon name="chevron-right" size={14} />
+        </button>
+      )}
+    </>
+  );
 
   return (
     <ToastProvider>
       <CommandPalette open={palette.open} onClose={() => palette.setOpen(false)} />
       <div className="flex min-h-screen bg-bg text-fg">
+        {/* Desktop sidebar — only visible from lg up. Width animates between
+            collapsed (56px) and full (224px). */}
         <aside
-          className="sticky top-0 flex h-screen flex-none flex-col overflow-hidden border-r border-border bg-bg-elev transition-[width] duration-180"
+          className="sticky top-0 hidden h-screen flex-none flex-col overflow-hidden border-r border-border bg-bg-elev transition-[width] duration-180 lg:flex"
           style={{ width: w }}
         >
-          <div
-            className={cn(
-              // Match the topbar's 52px so the horizontal divider lines up across
-              // the full layout instead of stepping at the sidebar boundary.
-              'flex h-[52px] items-center gap-[10px] border-b border-border',
-              collapsed ? 'justify-center px-0' : 'justify-between px-[14px]',
-            )}
-          >
-            <Link to="/admin" className="flex items-center gap-[9px]">
-              <img src="/logo-v2.png" alt="SMMWorld" className="h-[32px] w-[32px] object-contain" />
-              {!collapsed && (
-                <div className="leading-tight">
-                  <div className="text-[13px] font-semibold tracking-[-0.01em]">SMMWorld</div>
-                  <div className="text-[10px] text-fg-subtle">admin · v2.4.1</div>
-                </div>
-              )}
-            </Link>
-            {!collapsed && (
-              <button
-                type="button"
-                onClick={() => setCollapsed(true)}
-                title="Collapse"
-                className="rounded p-1 text-fg-subtle hover:bg-bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:[--tw-ring-color:var(--ring)]"
-              >
-                <Icon name="chevron-left" size={14} />
-              </button>
-            )}
-          </div>
+          {sidebarBody}
+        </aside>
 
-          <nav className={cn('flex-1 overflow-auto', collapsed ? 'p-[8px_4px]' : 'p-[8px_8px]')}>
-            {NAV.map((group, gi) => (
-              <div key={group.section} className={cn(gi === 0 ? 'mt-1' : 'mt-[14px]')}>
-                {!collapsed && (
-                  <div className="px-2 pb-1 pt-1 text-[10px] font-medium uppercase tracking-[0.08em] text-fg-dim">
-                    {group.section}
-                  </div>
-                )}
-                {group.items.map((it) => (
-                  <SidebarLink key={it.to} item={it} collapsed={collapsed} />
-                ))}
-              </div>
-            ))}
-          </nav>
-
-          {collapsed ? (
-            <button
-              type="button"
-              onClick={() => setCollapsed(false)}
-              className="flex justify-center border-t border-border p-[10px] text-fg-subtle hover:bg-bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:[--tw-ring-color:var(--ring)]"
-            >
-              <Icon name="chevron-right" size={14} />
-            </button>
-          ) : (
-            <div className="border-t border-border p-[10px]">
-              <div className="mb-1 text-[11px] text-fg-subtle">System health</div>
-              <div className="flex items-center gap-[6px]">
-                <Dot color="#a16207" size={7} animate />
-                <span className="text-[12px] font-medium text-warn">Degraded</span>
-                <span className="ml-auto font-mono text-[11px] text-fg-dim">bot-02</span>
-              </div>
-            </div>
+        {/* Mobile drawer — backdrop + slide-in panel from the left. */}
+        {navOpen && (
+          <button
+            type="button"
+            aria-label="Close navigation"
+            onClick={() => setNavOpen(false)}
+            className="fade-in fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] lg:hidden"
+          />
+        )}
+        <aside
+          className={cn(
+            'fixed inset-y-0 left-0 z-50 flex w-[260px] max-w-[80vw] flex-col overflow-hidden border-r border-border bg-bg-elev shadow-pop transition-transform duration-200 ease-out lg:hidden',
+            navOpen ? 'translate-x-0' : '-translate-x-full',
           )}
+        >
+          {sidebarBody}
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <AdminTopBar onOpenPalette={() => palette.setOpen(true)} />
+          <AdminTopBar
+            onOpenPalette={() => palette.setOpen(true)}
+            onMenuClick={() => setNavOpen(true)}
+          />
           <main className="min-w-0 flex-1">{children ?? <Outlet />}</main>
         </div>
       </div>
@@ -182,13 +242,36 @@ function SidebarLink({ item, collapsed }: { item: NavItem; collapsed: boolean })
   );
 }
 
-function AdminTopBar({ onOpenPalette }: { onOpenPalette: () => void }) {
+function AdminTopBar({
+  onOpenPalette,
+  onMenuClick,
+}: {
+  onOpenPalette: () => void;
+  onMenuClick: () => void;
+}) {
   return (
-    <header className="sticky top-0 z-20 flex h-[52px] flex-none items-center gap-3 border-b border-border bg-bg-elev px-4">
+    <header className="sticky top-0 z-20 flex h-[52px] flex-none items-center gap-2 border-b border-border bg-bg-elev px-3 sm:gap-3 sm:px-4">
+      {/* Hamburger — mobile only. Hidden once the sidebar is permanently visible. */}
+      <button
+        type="button"
+        onClick={onMenuClick}
+        aria-label="Open navigation"
+        className="inline-flex h-[34px] w-[34px] flex-none items-center justify-center rounded-md text-fg-muted hover:bg-bg-sunken hover:text-fg lg:hidden"
+      >
+        <Icon name="menu" size={16} />
+      </button>
+
+      {/* Mobile-only logo so the user has an anchor at the top of every page. */}
+      <Link to="/admin" className="inline-flex items-center gap-[6px] lg:hidden" aria-label="Admin dashboard">
+        <img src="/logo-v2.png" alt="" className="h-[24px] w-[24px] object-contain" />
+        <span className="text-[13px] font-semibold tracking-[-0.01em]">Admin</span>
+      </Link>
+
+      {/* Search — full button on md+, icon-only on phones to free up width. */}
       <button
         type="button"
         onClick={onOpenPalette}
-        className="flex flex-1 max-w-[440px] cursor-pointer items-center gap-2 rounded-md border border-border bg-bg-sunken px-[11px] py-[7px] text-[13px] text-fg-subtle hover:bg-bg-elev hover:text-fg transition-colors"
+        className="hidden flex-1 max-w-[440px] cursor-pointer items-center gap-2 rounded-md border border-border bg-bg-sunken px-[11px] py-[7px] text-[13px] text-fg-subtle hover:bg-bg-elev hover:text-fg transition-colors md:flex"
       >
         <Icon name="search" size={13} />
         <span className="flex-1 text-left">Search orders, users, services…</span>
@@ -196,19 +279,30 @@ function AdminTopBar({ onOpenPalette }: { onOpenPalette: () => void }) {
           ⌘K
         </span>
       </button>
+      <button
+        type="button"
+        onClick={onOpenPalette}
+        aria-label="Search"
+        className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-md border border-border text-fg-muted hover:bg-bg-sunken hover:text-fg md:hidden"
+      >
+        <Icon name="search" size={14} />
+      </button>
+
       <div className="flex-1" />
-      <span className="inline-flex items-center gap-[6px] rounded-md bg-danger-soft px-[9px] py-1 text-[11px] font-semibold tracking-wider text-danger">
+
+      <span className="hidden items-center gap-[6px] rounded-md bg-danger-soft px-[9px] py-1 text-[11px] font-semibold tracking-wider text-danger sm:inline-flex">
         <Dot color="var(--danger)" size={6} animate />
         PROD
       </span>
-      <ThemeToggle />
+      <div className="hidden sm:block">
+        <ThemeToggle />
+      </div>
       <button
         type="button"
         aria-label="Notifications"
-        className="relative inline-flex h-[30px] w-[30px] items-center justify-center rounded-md border border-border text-fg-muted hover:bg-bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:[--tw-ring-color:var(--ring)]"
+        className="relative hidden h-[30px] w-[30px] items-center justify-center rounded-md border border-border text-fg-muted hover:bg-bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:[--tw-ring-color:var(--ring)] sm:inline-flex"
       >
         <Icon name="bell" size={14} />
-        <span className="absolute right-[5px] top-[5px] h-[7px] w-[7px] rounded-full border-[1.5px] border-bg-elev bg-danger" />
       </button>
       <UserMenu />
     </header>
@@ -269,12 +363,12 @@ function UserMenu() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-2 rounded-full border border-border bg-bg-elev py-1 pl-1 pr-3 text-left transition-colors hover:bg-bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:[--tw-ring-color:var(--ring)]"
+        className="inline-flex items-center gap-2 rounded-full border border-border bg-bg-elev py-1 pl-1 pr-2 text-left transition-colors hover:bg-bg-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:[--tw-ring-color:var(--ring)] sm:pr-3"
       >
         <span className="flex h-[26px] w-[26px] items-center justify-center rounded-full bg-gradient-to-br from-[#4f46e5] to-[#7c3aed] text-[11px] font-semibold text-white">
           {initials || 'A'}
         </span>
-        <span className="leading-tight">
+        <span className="hidden leading-tight sm:inline-block">
           <span className="block text-[12px] font-medium text-fg">{username}</span>
           <span className="block text-[10px] text-fg-subtle">{role}</span>
         </span>

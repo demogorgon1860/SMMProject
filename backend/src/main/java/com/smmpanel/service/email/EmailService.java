@@ -34,6 +34,47 @@ public class EmailService {
     @Value("${app.email.public-base-url:https://smmworld.vip}")
     private String publicBaseUrl;
 
+    /**
+     * Loud startup banner when email is disabled or misconfigured. The previous behavior was a
+     * single {@code log.warn} buried inside the per-send {@code shouldSend()} guard — easy to
+     * miss in {@code docker-compose logs} until a customer reported "registered, never got the
+     * code". This logs once on Spring boot so the operator can see the configuration mistake
+     * immediately on deploy.
+     */
+    @jakarta.annotation.PostConstruct
+    void announceConfiguration() {
+        if (!enabled) {
+            log.warn(
+                    "============================================================");
+            log.warn(
+                    "EMAIL DELIVERY DISABLED — set EMAIL_ENABLED=true and");
+            log.warn(
+                    "RESEND_API_KEY=re_... to send verification / reset / welcome");
+            log.warn(
+                    "emails. Until then, all transactional mail is logged and dropped.");
+            log.warn(
+                    "============================================================");
+            return;
+        }
+        if (!resendClient.isConfigured()) {
+            log.error(
+                    "============================================================");
+            log.error(
+                    "EMAIL DELIVERY ENABLED BUT RESEND_API_KEY IS BLANK — every");
+            log.error(
+                    "transactional send will silently no-op. Set RESEND_API_KEY in");
+            log.error(
+                    ".env.docker, or set EMAIL_ENABLED=false to silence this warning.");
+            log.error(
+                    "============================================================");
+            return;
+        }
+        log.info(
+                "Email delivery active via Resend (from={}, base-url={})",
+                formatFrom(),
+                publicBaseUrl);
+    }
+
     // =====================================================================
     // Phase 3 transactional emails (verify / reset / welcome)
     // =====================================================================

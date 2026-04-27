@@ -27,6 +27,33 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final EmailVerificationService emailVerificationService;
+
+    /**
+     * Names we never let a regular user claim. Most of these collide with display fallbacks
+     * the frontend uses when {@code user.username} is empty (so a real account with that name
+     * would be impersonating "no name") or with role-implying labels.
+     */
+    private static final java.util.Set<String> RESERVED_USERNAMES =
+            java.util.Set.of(
+                    "user",
+                    "users",
+                    "admin",
+                    "administrator",
+                    "root",
+                    "support",
+                    "moderator",
+                    "operator",
+                    "system",
+                    "smmworld",
+                    "official",
+                    "test",
+                    "anonymous",
+                    "you",
+                    "me",
+                    "guest",
+                    "null",
+                    "undefined");
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -46,6 +73,17 @@ public class AuthService {
         // Normalize username and email to lowercase to match @PrePersist behavior
         String normalizedUsername = request.getUsername().trim().toLowerCase();
         String normalizedEmail = request.getEmail().trim().toLowerCase();
+
+        // Username shape: 3-32 chars, only [a-z0-9._-]. Without this, names like "User"
+        // or " " or "@@@" sailed through and showed up as account labels everywhere.
+        if (!normalizedUsername.matches("^[a-z0-9._-]{3,32}$")) {
+            throw new IllegalArgumentException(
+                    "Username must be 3-32 characters: lowercase letters, digits, dot, dash or underscore");
+        }
+        // Reject names that map onto our display fallbacks or imply privileged roles.
+        if (RESERVED_USERNAMES.contains(normalizedUsername)) {
+            throw new IllegalArgumentException("This username is reserved — pick another one");
+        }
 
         if (userRepository.existsByUsername(normalizedUsername)) {
             throw new IllegalArgumentException("Username already exists");
@@ -71,6 +109,26 @@ public class AuthService {
         user = userRepository.save(user);
 
         log.info("New user registered: {}", user.getUsername());
+
+        // Issue + email a verification code. The frontend redirects to /verify-email
+        // immediately after a successful POST /auth/register, expecting the code to be
+        // in the user's inbox by the time they paste it. This call had been missing
+        // entirely — registration created the account but never sent any email, so users
+        // would sit on the verify-email page forever or come back later assuming they'd
+        // never registered at all.
+        //
+        // Wrapped in try/catch so a Resend outage doesn't roll back the whole registration —
+        // the user can hit Resend on the verify page once email is back up.
+        try {
+            emailVerificationService.issueCodeFor(user);
+        } catch (Exception e) {
+            log.error(
+                    "Failed to issue verification code for new user {} ({}): {}",
+                    user.getId(),
+                    user.getEmail(),
+                    e.getMessage(),
+                    e);
+        }
 
         // Generate tokens
         String accessToken = jwtService.generateToken(user.getUsername());

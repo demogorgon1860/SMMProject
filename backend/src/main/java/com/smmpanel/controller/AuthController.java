@@ -70,8 +70,10 @@ public class AuthController {
                         .findById(authResponse.getUser().getId())
                         .orElseThrow(() -> new UserNotFoundException("User not found"));
 
-        // Fire off the email verification code (async — non-blocking).
-        emailVerificationService.issueCodeFor(user);
+        // The verification code is now issued inside AuthService.register so a missed
+        // call here can't leave a freshly-registered user without an email. Don't
+        // re-issue here — that would invalidate the just-sent code and the user would
+        // type a code from email #1 that's already marked used.
 
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user, httpRequest);
 

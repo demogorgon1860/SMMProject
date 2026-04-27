@@ -224,9 +224,20 @@ export function NewOrderPage() {
                       >
                         <SocialTile cat="ig" size={32} />
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-baseline justify-between gap-2">
-                            <div className={cn('truncate text-[13px] font-medium', active && 'text-accent-fg')}>{s.name}</div>
-                            <span className="font-mono text-[11.5px] text-fg-muted">
+                          {/* Name + price are stacked so the name gets the full row width and
+                              wraps to two lines instead of getting clipped to "Instagram Custom Co…".
+                              On wide viewports we still show the price on the right via items-start
+                              + auto-margin so the visual hierarchy isn't lost. */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div
+                              className={cn(
+                                'min-w-0 break-words text-[13px] font-medium leading-snug',
+                                active && 'text-accent-fg',
+                              )}
+                            >
+                              {s.name}
+                            </div>
+                            <span className="flex-none whitespace-nowrap font-mono text-[11.5px] text-fg-muted">
                               {fmtMoney(s.rate ?? s.pricePer1000 ?? s.pricePerThousand ?? 0)}/1k
                             </span>
                           </div>

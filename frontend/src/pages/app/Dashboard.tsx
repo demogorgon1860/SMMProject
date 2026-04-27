@@ -84,8 +84,6 @@ export function DashboardPage() {
         </div>
         <aside className="space-y-6">
           <WalletCard balance={balanceNum} stats={stats} />
-          <Announcements />
-          <RoadmapCard />
           <HelpCard />
         </aside>
       </div>
@@ -357,57 +355,6 @@ function WalletCard({ balance, stats }: { balance: number; stats: DashStats }) {
             Add funds
           </Button>
         </Link>
-      </div>
-    </Card>
-  );
-}
-
-function Announcements() {
-  const items = [
-    { tag: 'Update', d: 'Apr 22', body: 'Refill API extended to all Instagram services. Free for 30 days post-completion.' },
-    { tag: 'Heads-up', d: 'Apr 18', body: 'Secondary bot saw elevated latency briefly Monday morning. Resolved.' },
-    { tag: 'Beta', d: 'Apr 12', body: 'New Cancel button on Order detail. Pending orders refund instantly.' },
-    { tag: 'Roadmap', d: 'Apr 02', body: 'TikTok services targeting Q3 2026. YouTube views to follow.' },
-  ];
-  return (
-    <Card className="p-0">
-      <div className="border-b border-border px-5 py-3 text-[13px] font-semibold">Announcements</div>
-      <ul>
-        {items.map((a) => (
-          <li key={a.body} className="border-b border-border px-5 py-3 last:border-b-0">
-            <div className="flex items-center gap-2 text-[10.5px] text-fg-subtle">
-              <span className="rounded bg-bg-sunken px-[6px] py-[1px] font-mono uppercase tracking-wider">{a.tag}</span>
-              <span className="font-mono">{a.d}</span>
-            </div>
-            <p className="mt-1 text-[13px] text-fg-muted">{a.body}</p>
-          </li>
-        ))}
-      </ul>
-    </Card>
-  );
-}
-
-function RoadmapCard() {
-  return (
-    <Card className="relative overflow-hidden p-6" style={{ background: 'var(--bg-deep)', color: '#fff' }}>
-      <div className="hero-bg" />
-      <div className="relative">
-        <div className="font-mono text-[11px] uppercase tracking-wider text-white/60">Roadmap</div>
-        <div className="mt-2 text-[16px] font-semibold">Beyond Instagram.</div>
-        <p className="mt-1 text-[12.5px] text-white/65">Platforms come online as we build the bot infrastructure.</p>
-        <ul className="mt-3 space-y-2 text-[12.5px]">
-          {[
-            ['TikTok', 'Q3 2026'],
-            ['YouTube', 'Q3 2026'],
-            ['Twitter / X', 'Q4 2026'],
-            ['Telegram', 'Q4 2026'],
-          ].map(([n, d]) => (
-            <li key={n} className="flex items-center justify-between border-b border-white/10 pb-2 last:border-b-0">
-              <span>{n}</span>
-              <span className="font-mono text-white/55">{d}</span>
-            </li>
-          ))}
-        </ul>
       </div>
     </Card>
   );

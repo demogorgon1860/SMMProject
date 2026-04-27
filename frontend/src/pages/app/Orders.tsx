@@ -78,57 +78,68 @@ export function OrdersPage() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    orderAPI
-      // Backend caps `size` at 100 (@Max(100) on OrderController#getUserOrders).
-      // Pagination is server-side so the user can reach every order they own,
-      // not just the most recent page-load.
-      .list({
-        page: page - 1,
-        size: PAGE_SIZE,
-        ...(tab !== 'all' ? { status: tab.toUpperCase() } : {}),
-        ...(debouncedQ ? { search: debouncedQ } : {}),
-      })
-      .then((data: unknown) => {
-        if (cancelled) return;
-        // PerfectPanelResponse wraps a Spring Page: { success, data: { content, totalElements, ... } }.
-        // Some legacy paths return the Page directly. Accept both shapes plus the
-        // already-unwrapped array for safety.
-        const env = data as
-          | { data?: { content?: Order[]; totalElements?: number } | Order[] }
-          | { content?: Order[]; totalElements?: number }
-          | Order[]
-          | null;
-        let arr: Order[] = [];
-        let total = 0;
-        if (Array.isArray(env)) {
-          arr = env;
-          total = env.length;
-        } else if (env && 'content' in env && Array.isArray((env as { content?: Order[] }).content)) {
-          arr = (env as { content: Order[]; totalElements?: number }).content;
-          total = (env as { totalElements?: number }).totalElements ?? arr.length;
-        } else if (env && 'data' in env) {
-          const d = (env as { data?: { content?: Order[]; totalElements?: number } | Order[] }).data;
-          if (Array.isArray(d)) {
-            arr = d;
-            total = d.length;
-          } else if (d && Array.isArray(d.content)) {
-            arr = d.content;
-            total = d.totalElements ?? arr.length;
+    const fetchPage = (showSpinner: boolean) => {
+      if (showSpinner) setLoading(true);
+      orderAPI
+        // Backend caps `size` at 100 (@Max(100) on OrderController#getUserOrders).
+        // Pagination is server-side so the user can reach every order they own,
+        // not just the most recent page-load.
+        .list({
+          page: page - 1,
+          size: PAGE_SIZE,
+          ...(tab !== 'all' ? { status: tab.toUpperCase() } : {}),
+          ...(debouncedQ ? { search: debouncedQ } : {}),
+        })
+        .then((data: unknown) => {
+          if (cancelled) return;
+          // PerfectPanelResponse wraps a Spring Page: { success, data: { content, totalElements, ... } }.
+          // Some legacy paths return the Page directly. Accept both shapes plus the
+          // already-unwrapped array for safety.
+          const env = data as
+            | { data?: { content?: Order[]; totalElements?: number } | Order[] }
+            | { content?: Order[]; totalElements?: number }
+            | Order[]
+            | null;
+          let arr: Order[] = [];
+          let total = 0;
+          if (Array.isArray(env)) {
+            arr = env;
+            total = env.length;
+          } else if (env && 'content' in env && Array.isArray((env as { content?: Order[] }).content)) {
+            arr = (env as { content: Order[]; totalElements?: number }).content;
+            total = (env as { totalElements?: number }).totalElements ?? arr.length;
+          } else if (env && 'data' in env) {
+            const d = (env as { data?: { content?: Order[]; totalElements?: number } | Order[] }).data;
+            if (Array.isArray(d)) {
+              arr = d;
+              total = d.length;
+            } else if (d && Array.isArray(d.content)) {
+              arr = d.content;
+              total = d.totalElements ?? arr.length;
+            }
           }
-        }
-        setOrders(arr);
-        setTotalElements(total);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setOrders([]);
-          setTotalElements(0);
-        }
-      })
-      .finally(() => !cancelled && setLoading(false));
+          setOrders(arr);
+          setTotalElements(total);
+        })
+        .catch(() => {
+          if (!cancelled && showSpinner) {
+            setOrders([]);
+            setTotalElements(0);
+          }
+          // Silent on background refresh failures — keep the existing rows up.
+        })
+        .finally(() => !cancelled && showSpinner && setLoading(false));
+    };
+
+    fetchPage(true);
+    // Bot pushes start_count and current_count updates every ~15 minutes; mirror
+    // that cadence here so an open Orders page picks up Remains changes without
+    // requiring the user to hit Refresh. Background refreshes don't flicker the
+    // table back to the loading skeleton.
+    const interval = window.setInterval(() => fetchPage(false), 15 * 60 * 1000);
     return () => {
       cancelled = true;
+      window.clearInterval(interval);
     };
   }, [page, tab, debouncedQ]);
 
@@ -197,7 +208,12 @@ export function OrdersPage() {
                 <th>Service</th>
                 <th>Link</th>
                 <th className="text-right">Qty</th>
-                <th>Progress</th>
+                {/* Start count + Remains restored from the pre-redesign Orders table.
+                    The bot updates these on a 15-min poll cycle (start_count is captured
+                    when it picks up the order, current_count + remains move as actions
+                    land). Both come straight off the order entity — no client math. */}
+                <th className="text-right">Start count</th>
+                <th className="text-right">Remains</th>
                 <th>Status</th>
                 <th className="text-right">Charge</th>
                 <th>Started</th>
@@ -206,7 +222,7 @@ export function OrdersPage() {
             </thead>
             <tbody>
               {filtered.map((o) => {
-                const pct = o.quantity > 0 ? Math.min(1, (o.completed ?? 0) / o.quantity) : 0;
+                const remains = computeRemains(o);
                 return (
                   <tr
                     key={o.id}
@@ -235,16 +251,11 @@ export function OrdersPage() {
                       </a>
                     </td>
                     <td className="text-right font-mono">{fmtInt(o.quantity)}</td>
-                    <td>
-                      <div className="flex items-center gap-2">
-                        <div className="h-[5px] w-[100px] overflow-hidden rounded-full bg-bg-sunken">
-                          <span
-                            className="block h-full bg-accent transition-[width] duration-400"
-                            style={{ width: `${(pct * 100).toFixed(0)}%` }}
-                          />
-                        </div>
-                        <span className="font-mono text-[11px] text-fg-muted">{(pct * 100).toFixed(0)}%</span>
-                      </div>
+                    <td className="text-right font-mono text-fg-muted">
+                      {o.startCount != null ? fmtInt(o.startCount) : '—'}
+                    </td>
+                    <td className="text-right font-mono">
+                      {remains != null ? fmtInt(remains) : '—'}
                     </td>
                     <td>
                       <StatusBadge status={o.status} />
@@ -285,6 +296,20 @@ export function OrdersPage() {
       />
     </div>
   );
+}
+
+/**
+ * Backend exposes `remains` directly when known, otherwise we derive it from
+ * (quantity − completed). For finished orders (COMPLETED / PARTIAL / CANCELLED)
+ * the entity may not carry a `remains` value, so this helper is the single
+ * source of truth.
+ */
+function computeRemains(o: Order): number | null {
+  if (typeof o.remains === 'number') return Math.max(0, o.remains);
+  if (typeof o.quantity === 'number') {
+    return Math.max(0, o.quantity - (typeof o.completed === 'number' ? o.completed : 0));
+  }
+  return null;
 }
 
 function short(url: string): string {

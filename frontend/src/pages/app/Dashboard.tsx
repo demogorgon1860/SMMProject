@@ -88,22 +88,20 @@ export function DashboardPage() {
   const balanceNum = toNum(balance?.balance ?? user?.balance);
 
   return (
-    <div className="container-app py-8">
+    <div className="container-app space-y-6 py-8">
+      {/* Hero + Wallet sit side-by-side at the top so the right column doesn't end
+          mid-page leaving a hanging gap (which is what happened after the
+          Announcements + Roadmap cards came out). On narrow viewports they stack. */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_340px]">
-        <div className="min-w-0 space-y-6">
-          <Hero
-            username={user?.username ?? 'there'}
-            balance={balanceNum}
-            stats={stats}
-          />
-          <KPIRow stats={stats} />
-          <RecentOrders orders={orders} loading={loading} />
-        </div>
-        <aside className="space-y-6">
-          <WalletCard balance={balanceNum} stats={stats} />
-          <HelpCard />
-        </aside>
+        <Hero username={user?.username ?? 'there'} balance={balanceNum} stats={stats} />
+        <WalletCard balance={balanceNum} stats={stats} />
       </div>
+
+      {/* KPI strip + Recent orders + Help all run full width below — every
+          section closes cleanly at the right edge of the layout, no orphans. */}
+      <KPIRow stats={stats} />
+      <RecentOrders orders={orders} loading={loading} />
+      <HelpCard />
     </div>
   );
 }

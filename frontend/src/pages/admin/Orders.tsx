@@ -67,43 +67,53 @@ export function AdminOrdersPage() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    adminAPI
-      .getAllOrders({
-        page: page - 1,
-        size: PAGE_SIZE,
-        ...(statusFilter ? { status: statusFilter } : {}),
-        ...(debouncedQ ? { search: debouncedQ } : {}),
-      })
-      .then((data: unknown) => {
-        if (cancelled) return;
-        // Backend returns { orders: [...], totalPages, totalElements, currentPage, pageSize }.
-        // Spring Page convention uses `content`; Perfect-Panel envelopes use `data`. Accept all
-        // three so a refactor of the response shape doesn't blank the page silently.
-        const d = data as
-          | {
-              orders?: Order[];
-              content?: Order[];
-              data?: Order[];
-              totalElements?: number;
-              totalPages?: number;
-            }
-          | null;
-        const arr: Order[] = Array.isArray(data)
-          ? (data as Order[])
-          : d?.orders ?? d?.content ?? d?.data ?? [];
-        setOrders(arr);
-        setTotalElements(d?.totalElements ?? arr.length);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setOrders([]);
-          setTotalElements(0);
-        }
-      })
-      .finally(() => !cancelled && setLoading(false));
+    const fetchPage = (showSpinner: boolean) => {
+      if (showSpinner) setLoading(true);
+      adminAPI
+        .getAllOrders({
+          page: page - 1,
+          size: PAGE_SIZE,
+          ...(statusFilter ? { status: statusFilter } : {}),
+          ...(debouncedQ ? { search: debouncedQ } : {}),
+        })
+        .then((data: unknown) => {
+          if (cancelled) return;
+          // Backend returns { orders: [...], totalPages, totalElements, currentPage, pageSize }.
+          // Spring Page convention uses `content`; Perfect-Panel envelopes use `data`. Accept all
+          // three so a refactor of the response shape doesn't blank the page silently.
+          const d = data as
+            | {
+                orders?: Order[];
+                content?: Order[];
+                data?: Order[];
+                totalElements?: number;
+                totalPages?: number;
+              }
+            | null;
+          const arr: Order[] = Array.isArray(data)
+            ? (data as Order[])
+            : d?.orders ?? d?.content ?? d?.data ?? [];
+          setOrders(arr);
+          setTotalElements(d?.totalElements ?? arr.length);
+        })
+        .catch(() => {
+          if (!cancelled && showSpinner) {
+            setOrders([]);
+            setTotalElements(0);
+          }
+        })
+        .finally(() => !cancelled && showSpinner && setLoading(false));
+    };
+
+    fetchPage(true);
+    // Bot pushes start_count and remains updates on a 15-min cycle. Auto-refresh
+    // on the same cadence so an open admin orders page reflects current state
+    // without operators needing to manually refresh. Background ticks don't show
+    // a spinner — the existing rows stay rendered while data is in flight.
+    const interval = window.setInterval(() => fetchPage(false), 15 * 60 * 1000);
     return () => {
       cancelled = true;
+      window.clearInterval(interval);
     };
   }, [page, statusFilter, debouncedQ]);
 
@@ -307,7 +317,11 @@ export function AdminOrdersPage() {
                       <th>Service</th>
                       <th>Target URL</th>
                       <th className="text-right">Qty</th>
-                      <th className="text-right">Done</th>
+                      {/* Start count + Remains restored from the pre-redesign Orders table.
+                          Bot updates start_count when it picks up the order and remains
+                          on its 15-min poll cycle. Both come straight off the order entity. */}
+                      <th className="text-right">Start count</th>
+                      <th className="text-right">Remains</th>
                       <th className="text-right">Charge</th>
                       <th>Status</th>
                       <th>Created</th>
@@ -390,12 +404,12 @@ function DayGroup({
   setSelected: React.Dispatch<React.SetStateAction<Set<number>>>;
   onOpen: (id: number | null) => void;
 }) {
-  // 11 columns total: select / id / user / service / url / qty / done / charge / status / created / chevron.
+  // 12 columns total: select / id / user / service / url / qty / start / remains / charge / status / created / chevron.
   // The day banner row spans the full width and sits in the same <tbody> so it scrolls with rows.
   return (
     <>
       <tr className="bg-bg-sunken">
-        <td colSpan={11} className="px-4 py-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-fg-subtle">
+        <td colSpan={12} className="px-4 py-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-fg-subtle">
           <span className="inline-flex items-center gap-2">
             {label}
             <span className="font-mono text-[10px] text-fg-dim">({rows.length})</span>
@@ -403,7 +417,10 @@ function DayGroup({
         </td>
       </tr>
       {rows.map((o) => {
-        const pct = o.quantity > 0 ? Math.round(((o.completed ?? 0) / o.quantity) * 100) : 0;
+        const remains =
+          typeof o.remains === 'number'
+            ? Math.max(0, o.remains)
+            : Math.max(0, o.quantity - (o.completed ?? 0));
         return (
           <tr key={o.id} className="cursor-pointer" onClick={() => onOpen(o.id)}>
             <td onClick={(e) => e.stopPropagation()}>
@@ -436,10 +453,10 @@ function DayGroup({
               </a>
             </td>
             <td className="text-right font-mono">{fmtInt(o.quantity)}</td>
-            <td className="text-right">
-              <span className="font-mono">{fmtInt(o.completed ?? 0)}</span>
-              <span className="ml-1 font-mono text-[10.5px] text-fg-subtle">{pct}%</span>
+            <td className="text-right font-mono text-fg-muted">
+              {o.startCount != null ? fmtInt(o.startCount) : '—'}
             </td>
+            <td className="text-right font-mono">{fmtInt(remains)}</td>
             <td className="text-right">
               <Money value={o.charge} />
             </td>

@@ -79,8 +79,10 @@ export function AdminShell({ children }: { children?: ReactNode }) {
         >
           <div
             className={cn(
-              'flex min-h-[56px] items-center gap-[10px] border-b border-border',
-              collapsed ? 'justify-center px-0 py-[14px]' : 'justify-between px-[14px] py-[14px]',
+              // Match the topbar's 52px so the horizontal divider lines up across
+              // the full layout instead of stepping at the sidebar boundary.
+              'flex h-[52px] items-center gap-[10px] border-b border-border',
+              collapsed ? 'justify-center px-0' : 'justify-between px-[14px]',
             )}
           >
             <Link to="/admin" className="flex items-center gap-[9px]">

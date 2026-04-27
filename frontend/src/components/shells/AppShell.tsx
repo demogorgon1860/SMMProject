@@ -36,7 +36,10 @@ export function AppShell({ children }: { children?: ReactNode }) {
     <ToastProvider>
       <div className="flex min-h-screen bg-bg text-fg">
         <aside className="sticky top-0 flex h-screen w-[220px] flex-none flex-col border-r border-border bg-bg-elev">
-          <div className="flex h-[56px] items-center gap-[9px] border-b border-border px-[14px]">
+          {/* Sidebar header height matches the topbar (52px) so the two horizontal
+              dividers line up across the layout. The previous 56px gap was off by
+              4px and rendered as a visible "step" along the top border. */}
+          <div className="flex h-[52px] items-center gap-[9px] border-b border-border px-[14px]">
             <Link to="/dashboard" className="flex items-center gap-[9px]">
               <img src="/logo-v2.png" alt="SMMWorld" className="h-[32px] w-[32px] object-contain" />
               <span className="text-[14px] font-semibold tracking-[-0.01em]">SMMWorld</span>

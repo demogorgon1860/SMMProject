@@ -91,21 +91,57 @@ export function NewOrderPage() {
 
   const isCustom = useMemo(() => /custom/i.test(selected?.name ?? ''), [selected]);
 
+  // Instagram caps a single comment at 2200 characters; longer comments would be
+  // rejected at dispatch. Surface this constraint in the UI rather than letting the
+  // bot fail the whole order downstream.
+  const MAX_COMMENT_LENGTH = 2200;
+
+  // Parse Custom-Comments textarea into validated lines.
+  const commentLines = useMemo(() => {
+    if (!isCustom) return [] as string[];
+    return comments
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+  }, [isCustom, comments]);
+  const overLengthLines = useMemo(
+    () => commentLines.filter((l) => l.length > MAX_COMMENT_LENGTH).length,
+    [commentLines],
+  );
+
   const rate = selected?.rate ?? selected?.pricePer1000 ?? selected?.pricePerThousand ?? 0;
-  const charge = qty > 0 && rate > 0 ? (qty / 1000) * rate : 0;
   const min = selected?.min ?? selected?.minOrder ?? 50;
   const max = selected?.max ?? selected?.maxOrder ?? 100000;
 
+  // For Custom-Comments services the quantity is the line count, not the number
+  // typed into the (hidden) Quantity input. The bot dispatches one comment per
+  // line in order, so quantity == comments.length is the only correct mapping.
+  const effectiveQty = isCustom ? commentLines.length : qty;
+  const charge = effectiveQty > 0 && rate > 0 ? (effectiveQty / 1000) * rate : 0;
+
   const checks = useMemo(() => {
-    const list = [
+    const list: Array<{ label: string; ok: boolean }> = [
       { label: 'Service selected', ok: !!selected },
       { label: 'Link provided', ok: link.trim().length > 6 },
-      { label: `Quantity in range (${fmtInt(min)}–${fmtInt(max)})`, ok: qty >= min && qty <= max },
-      ...(isCustom ? [{ label: 'Custom comments provided', ok: comments.trim().length > 0 }] : []),
-      { label: 'Sufficient balance', ok: charge <= balance },
     ];
+    if (isCustom) {
+      list.push({
+        label: `Comments count in range (${fmtInt(min)}–${fmtInt(max)})`,
+        ok: commentLines.length >= min && commentLines.length <= max,
+      });
+      list.push({
+        label: `All comments under ${MAX_COMMENT_LENGTH.toLocaleString()} chars`,
+        ok: overLengthLines === 0,
+      });
+    } else {
+      list.push({
+        label: `Quantity in range (${fmtInt(min)}–${fmtInt(max)})`,
+        ok: qty >= min && qty <= max,
+      });
+    }
+    list.push({ label: 'Sufficient balance', ok: charge <= balance });
     return list;
-  }, [selected, link, qty, min, max, isCustom, comments, charge, balance]);
+  }, [selected, link, qty, min, max, isCustom, commentLines, overLengthLines, charge, balance]);
 
   const allValid = checks.every((c) => c.ok);
 
@@ -116,7 +152,9 @@ export function NewOrderPage() {
       await orderAPI.create({
         service: selected.id,
         link: link.trim(),
-        quantity: qty,
+        // Custom-Comments services derive quantity from the line count so it
+        // can never desync from the comment list.
+        quantity: effectiveQty,
         comments: isCustom ? comments : undefined,
       });
       toast('Order placed.', 'success');
@@ -260,41 +298,67 @@ export function NewOrderPage() {
                   />
                 </Field>
               </div>
-              <Field label="Quantity" hint={`${fmtInt(min)}–${fmtInt(max)}`}>
-                <Input
-                  block
-                  inputSize="lg"
-                  type="number"
-                  min={min}
-                  max={max}
-                  value={qty}
-                  onChange={(e) => setQty(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
-                />
-              </Field>
-              <div>
-                <div className="mb-[6px] text-[12.5px] font-medium text-fg-muted">Quick presets</div>
-                <div className="flex flex-wrap gap-1">
-                  {PRESETS.map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setQty(Math.max(min, Math.min(max, p)))}
-                      className="rounded border border-border bg-bg-elev px-[8px] py-[4px] font-mono text-[12px] text-fg-muted hover:bg-bg-sunken"
-                    >
-                      {fmtInt(p)}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {/* For Custom-Comments services Quantity is derived from the comment list
+                  and the input is hidden — the user could only get the two out of sync
+                  otherwise. Quick presets disappear for the same reason. */}
+              {!isCustom && (
+                <>
+                  <Field label="Quantity" hint={`${fmtInt(min)}–${fmtInt(max)}`}>
+                    <Input
+                      block
+                      inputSize="lg"
+                      type="number"
+                      min={min}
+                      max={max}
+                      value={qty}
+                      onChange={(e) => setQty(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+                    />
+                  </Field>
+                  <div>
+                    <div className="mb-[6px] text-[12.5px] font-medium text-fg-muted">Quick presets</div>
+                    <div className="flex flex-wrap gap-1">
+                      {PRESETS.map((p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setQty(Math.max(min, Math.min(max, p)))}
+                          className="rounded border border-border bg-bg-elev px-[8px] py-[4px] font-mono text-[12px] text-fg-muted hover:bg-bg-sunken"
+                        >
+                          {fmtInt(p)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
               {isCustom && (
                 <div className="md:col-span-2">
                   <Field
                     label="Custom comments"
-                    hint={`${comments.split('\n').filter((l) => l.trim()).length} / ${qty} lines`}
+                    hint={
+                      <span>
+                        <span
+                          className={cn(
+                            'font-mono',
+                            commentLines.length >= min && commentLines.length <= max
+                              ? 'text-success'
+                              : 'text-fg-muted',
+                          )}
+                        >
+                          {fmtInt(commentLines.length)}
+                        </span>{' '}
+                        / {fmtInt(min)}–{fmtInt(max)} lines
+                        {overLengthLines > 0 && (
+                          <span className="ml-2 text-danger">
+                            · {overLengthLines} over {MAX_COMMENT_LENGTH.toLocaleString()} chars
+                          </span>
+                        )}
+                      </span>
+                    }
                   >
                     <Textarea
                       block
-                      rows={6}
+                      rows={8}
                       value={comments}
                       onChange={(e) => setComments(e.target.value)}
                       placeholder="One comment per line. We'll dispatch them in order."
@@ -319,14 +383,12 @@ export function NewOrderPage() {
             ) : (
               <KVRow k="Service" v="—" />
             )}
-            <KVRow k="Quantity" v={fmtInt(qty)} mono />
+            <KVRow k="Quantity" v={fmtInt(effectiveQty)} mono />
             <KVRow
               k="Rate / 1k"
               v={fmtMoney(selected?.rate ?? selected?.pricePer1000 ?? selected?.pricePerThousand ?? 0)}
               mono
             />
-            <KVRow k="Avg start" v="47s" mono />
-            <KVRow k="Refill" v="30 days" mono />
           </div>
 
           <div className="mt-5 space-y-1.5 border-t border-border pt-4">

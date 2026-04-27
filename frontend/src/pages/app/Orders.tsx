@@ -11,6 +11,7 @@ import {
   Icon,
   Input,
   Money,
+  Pagination,
   SocialTile,
   Sparkline,
   StatusBadge,
@@ -48,6 +49,8 @@ const STATUS_TABS = [
   { value: 'cancelled', label: 'Cancelled' },
 ] as const;
 
+const PAGE_SIZE = 100;
+
 export function OrdersPage() {
   const navigate = useNavigate();
   const params = useParams<{ id?: string }>();
@@ -57,39 +60,81 @@ export function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<string>(search.get('status') ?? 'all');
   const [q, setQ] = useState('');
+  // 1-indexed for the Pagination component; converted to 0-indexed when calling the API.
+  const [page, setPage] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+
+  // Debounce search so we don't refetch on every keystroke.
+  const [debouncedQ, setDebouncedQ] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(q.trim()), 250);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  // Reset to page 1 when filters change so we don't sit on a now-empty high page.
+  useEffect(() => {
+    setPage(1);
+  }, [tab, debouncedQ]);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
     orderAPI
       // Backend caps `size` at 100 (@Max(100) on OrderController#getUserOrders).
-      // Asking for 200 returns 400 and the table silently renders "0 of 0".
-      .list({ size: 100 })
+      // Pagination is server-side so the user can reach every order they own,
+      // not just the most recent page-load.
+      .list({
+        page: page - 1,
+        size: PAGE_SIZE,
+        ...(tab !== 'all' ? { status: tab.toUpperCase() } : {}),
+        ...(debouncedQ ? { search: debouncedQ } : {}),
+      })
       .then((data: unknown) => {
         if (cancelled) return;
-        const arr: Order[] = Array.isArray(data)
-          ? (data as Order[])
-          : (data as { content?: Order[] })?.content ?? (data as { data?: Order[] })?.data ?? [];
+        // PerfectPanelResponse wraps a Spring Page: { success, data: { content, totalElements, ... } }.
+        // Some legacy paths return the Page directly. Accept both shapes plus the
+        // already-unwrapped array for safety.
+        const env = data as
+          | { data?: { content?: Order[]; totalElements?: number } | Order[] }
+          | { content?: Order[]; totalElements?: number }
+          | Order[]
+          | null;
+        let arr: Order[] = [];
+        let total = 0;
+        if (Array.isArray(env)) {
+          arr = env;
+          total = env.length;
+        } else if (env && 'content' in env && Array.isArray((env as { content?: Order[] }).content)) {
+          arr = (env as { content: Order[]; totalElements?: number }).content;
+          total = (env as { totalElements?: number }).totalElements ?? arr.length;
+        } else if (env && 'data' in env) {
+          const d = (env as { data?: { content?: Order[]; totalElements?: number } | Order[] }).data;
+          if (Array.isArray(d)) {
+            arr = d;
+            total = d.length;
+          } else if (d && Array.isArray(d.content)) {
+            arr = d.content;
+            total = d.totalElements ?? arr.length;
+          }
+        }
         setOrders(arr);
+        setTotalElements(total);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setOrders([]);
+          setTotalElements(0);
+        }
       })
       .finally(() => !cancelled && setLoading(false));
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [page, tab, debouncedQ]);
 
-  const filtered = useMemo(() => {
-    return orders.filter((o) => {
-      if (tab !== 'all' && (o.status ?? '').toLowerCase() !== tab && !((tab === 'cancelled') && /cancel/i.test(o.status ?? ''))) {
-        // tolerate CANCELED vs CANCELLED
-        if (!(tab === 'cancelled' && /cancel/i.test(o.status ?? ''))) return false;
-      }
-      if (q.trim()) {
-        const needle = q.trim().toLowerCase();
-        if (!String(o.id).includes(needle) && !(o.link ?? '').toLowerCase().includes(needle) && !(o.service?.name ?? o.serviceName ?? '').toLowerCase().includes(needle)) return false;
-      }
-      return true;
-    });
-  }, [orders, tab, q]);
+  // No client-side filtering — backend handles status + search. We render the
+  // server response as-is so totals + pagination stay consistent.
+  const filtered = orders;
 
   const detailOrder = useMemo(() => {
     if (!params.id) return null;
@@ -100,7 +145,9 @@ export function OrdersPage() {
     <div className="container-app py-8">
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-[24px] font-bold tracking-[-0.02em]">Orders</h1>
-        <span className="font-mono text-[12px] text-fg-subtle">{filtered.length} of {orders.length}</span>
+        <span className="font-mono text-[12px] text-fg-subtle">
+          Page {page} of {Math.max(1, Math.ceil(totalElements / PAGE_SIZE))} · {totalElements} total
+        </span>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <Input
             icon="search"
@@ -119,11 +166,10 @@ export function OrdersPage() {
 
       <Card className="mt-4 p-0">
         <div className="overflow-x-auto px-2">
-          <Tabs
-            value={tab}
-            onChange={setTab}
-            tabs={STATUS_TABS.map((t) => ({ ...t, count: t.value === 'all' ? orders.length : orders.filter((o) => (o.status ?? '').toLowerCase() === t.value || (t.value === 'cancelled' && /cancel/i.test(o.status ?? ''))).length }))}
-          />
+          {/* Tab counts removed: with server pagination we only have the current
+              page in memory, so per-status counts couldn't be computed honestly.
+              Adding them would need a separate count endpoint per status. */}
+          <Tabs value={tab} onChange={setTab} tabs={STATUS_TABS.map((t) => ({ value: t.value, label: t.label }))} />
         </div>
 
         {loading ? (
@@ -142,7 +188,9 @@ export function OrdersPage() {
             }
           />
         ) : (
-          <table className="tbl-u">
+          <>
+          <div className="overflow-x-auto">
+            <table className="tbl-u min-w-[1000px]">
             <thead>
               <tr>
                 <th>ID</th>
@@ -213,6 +261,17 @@ export function OrdersPage() {
               })}
             </tbody>
           </table>
+          </div>
+          <Pagination
+            page={page}
+            total={totalElements}
+            pageSize={PAGE_SIZE}
+            onPage={(p) => {
+              setPage(p);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
+          </>
         )}
       </Card>
 

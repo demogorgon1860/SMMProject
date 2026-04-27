@@ -77,8 +77,24 @@ export const authAPI = {
 // Orders (user-facing)
 // =====================================================================
 export const orderAPI = {
-  create: (data: { service: number; link: string; quantity: number; comments?: string }) =>
-    api.post('/v1/orders', data).then((r) => r.data),
+  /**
+   * Place a new order. Note the wire field for custom-comments services is
+   * `customComments` (matches backend CreateOrderRequest); we accept the friendlier
+   * `comments` here in callers and remap on the way out so the rest of the app
+   * stays terse.
+   */
+  create: ({
+    comments,
+    ...rest
+  }: {
+    service: number;
+    link: string;
+    quantity: number;
+    comments?: string;
+  }) =>
+    api
+      .post('/v1/orders', { ...rest, customComments: comments })
+      .then((r) => r.data),
 
   list: (params: { status?: string; search?: string; from?: string; to?: string; page?: number; size?: number } = {}) =>
     api.get('/v1/orders', { params: { page: 0, size: 50, ...params } }).then((r) => r.data),

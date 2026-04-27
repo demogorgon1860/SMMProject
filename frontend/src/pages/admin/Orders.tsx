@@ -36,64 +36,90 @@ const STATUS_CHIPS: ReadonlyArray<string> = [
   'error',
 ];
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 100;
 
 export function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState<number | null>(null);
-  const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set());
+  // Single-select status — backend's GET /v2/admin/orders takes one `status` param,
+  // so multi-select would either be client-side-only (and break with server pagination)
+  // or fan out into N requests. One value keeps the URL→backend mapping honest.
+  const [statusFilter, setStatusFilter] = useState<string>('');
   const [q, setQ] = useState('');
   const [urlQ, setUrlQ] = useState('');
+  // 1-indexed for the Pagination component; converted to 0-indexed when calling the API.
   const [page, setPage] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
   const [selected, setSelected] = useState<Set<number>>(new Set());
+
+  // Debounce the free-text searches so we don't refetch on every keystroke.
+  const [debouncedQ, setDebouncedQ] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(q.trim()), 250);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  // Reset to page 1 whenever filters change so we don't end up on a now-out-of-range page.
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, debouncedQ]);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
     adminAPI
-      .getAllOrders({ size: 200 })
+      .getAllOrders({
+        page: page - 1,
+        size: PAGE_SIZE,
+        ...(statusFilter ? { status: statusFilter } : {}),
+        ...(debouncedQ ? { search: debouncedQ } : {}),
+      })
       .then((data: unknown) => {
         if (cancelled) return;
-        // Backend returns { orders: [...], totalPages, totalElements, ... } via AdminController.
-        // Spring Page convention is `content`; Perfect-Panel-style wrappers use `data`. Accept
-        // any of the three shapes so a future refactor of the response envelope doesn't break
-        // the page silently.
-        const d = data as { orders?: Order[]; content?: Order[]; data?: Order[] } | null;
-        const arr: Order[] = Array.isArray(data) ? (data as Order[]) : d?.orders ?? d?.content ?? d?.data ?? [];
+        // Backend returns { orders: [...], totalPages, totalElements, currentPage, pageSize }.
+        // Spring Page convention uses `content`; Perfect-Panel envelopes use `data`. Accept all
+        // three so a refactor of the response shape doesn't blank the page silently.
+        const d = data as
+          | {
+              orders?: Order[];
+              content?: Order[];
+              data?: Order[];
+              totalElements?: number;
+              totalPages?: number;
+            }
+          | null;
+        const arr: Order[] = Array.isArray(data)
+          ? (data as Order[])
+          : d?.orders ?? d?.content ?? d?.data ?? [];
         setOrders(arr);
+        setTotalElements(d?.totalElements ?? arr.length);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setOrders([]);
+          setTotalElements(0);
+        }
       })
       .finally(() => !cancelled && setLoading(false));
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [page, statusFilter, debouncedQ]);
 
-  const filtered = useMemo(() => {
-    // Sort newest-first (descending createdAt) so the day-grouped rows below
-    // render in chronological order — Today first, then Yesterday, then prior dates.
+  // urlQ stays purely client-side: backend's `search` covers id/service/user but not URL.
+  // We narrow the rows already on the current page rather than refetching.
+  const pageRows = useMemo(() => {
     const sorted = [...orders].sort((a, b) => {
       const ta = a.createdAt ? Date.parse(a.createdAt) : 0;
       const tb = b.createdAt ? Date.parse(b.createdAt) : 0;
       return tb - ta;
     });
-    return sorted.filter((o) => {
-      if (statusFilters.size > 0 && !statusFilters.has((o.status ?? '').toLowerCase())) return false;
-      if (q.trim()) {
-        const needle = q.trim().toLowerCase();
-        if (
-          !String(o.id).includes(needle) &&
-          !(o.service?.name ?? o.serviceName ?? '').toLowerCase().includes(needle) &&
-          !String(o.userId).includes(needle)
-        ) {
-          return false;
-        }
-      }
-      if (urlQ.trim() && !(o.link ?? '').toLowerCase().includes(urlQ.toLowerCase())) return false;
-      return true;
-    });
-  }, [orders, statusFilters, q, urlQ]);
+    if (!urlQ.trim()) return sorted;
+    const needle = urlQ.trim().toLowerCase();
+    return sorted.filter((o) => (o.link ?? '').toLowerCase().includes(needle));
+  }, [orders, urlQ]);
 
-  const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const allOnPageSelected = pageRows.length > 0 && pageRows.every((o) => selected.has(o.id));
   const someOnPageSelected = pageRows.some((o) => selected.has(o.id));
 
@@ -156,13 +182,8 @@ export function AdminOrdersPage() {
   };
 
   const toggleStatus = (st: string) => {
-    setStatusFilters((s) => {
-      const next = new Set(s);
-      if (next.has(st)) next.delete(st);
-      else next.add(st);
-      return next;
-    });
-    setPage(1);
+    // Toggle: clicking the active chip clears the filter.
+    setStatusFilter((curr) => (curr === st ? '' : st));
   };
 
   const onAfterAction = (updated: Partial<Order> & { id: number }) => {
@@ -177,8 +198,9 @@ export function AdminOrdersPage() {
         title="Orders"
         subtitle={
           <span>
-            <span className="font-mono text-fg">{filtered.length}</span> filtered ·{' '}
-            <span className="font-mono text-fg">{orders.length}</span> total
+            Page <span className="font-mono text-fg">{page}</span> of{' '}
+            <span className="font-mono text-fg">{Math.max(1, Math.ceil(totalElements / PAGE_SIZE))}</span>{' '}
+            · <span className="font-mono text-fg">{totalElements}</span> total
           </span>
         }
       />
@@ -202,12 +224,12 @@ export function AdminOrdersPage() {
               onChange={(e) => setUrlQ(e.target.value)}
               containerClassName="min-w-[200px]"
             />
-            {(statusFilters.size > 0 || q || urlQ) && (
+            {(statusFilter || q || urlQ) && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  setStatusFilters(new Set());
+                  setStatusFilter('');
                   setQ('');
                   setUrlQ('');
                 }}
@@ -218,7 +240,7 @@ export function AdminOrdersPage() {
           </div>
           <div className="mt-3 flex flex-wrap gap-1.5">
             {STATUS_CHIPS.map((st) => {
-              const active = statusFilters.has(st);
+              const active = statusFilter === st;
               return (
                 <button
                   key={st}
@@ -258,50 +280,65 @@ export function AdminOrdersPage() {
           </div>
         )}
 
-        {/* Table */}
+        {/* Table — overflow-x-auto so the wide layout (11 columns + URL) scrolls
+            horizontally inside the card on narrow viewports instead of being clipped
+            by the parent layout. Without this the right-most columns (status / created
+            / chevron) sat behind the page chrome on screens under ~1400px. */}
         <Card className="p-0">
           {loading ? (
             <div className="p-12 text-center text-[13px] text-fg-subtle">Loading…</div>
-          ) : filtered.length === 0 ? (
+          ) : pageRows.length === 0 ? (
             <Empty icon="orders" title="No orders match" subtitle="Adjust filters above." />
           ) : (
             <>
-              <table className="tbl">
-                <thead>
-                  <tr>
-                    <th style={{ width: 32 }}>
-                      <Checkbox
-                        checked={allOnPageSelected}
-                        indeterminate={!allOnPageSelected && someOnPageSelected}
-                        onChange={togglePageSelect}
+              <div className="overflow-x-auto">
+                <table className="tbl min-w-[1100px]">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 32 }}>
+                        <Checkbox
+                          checked={allOnPageSelected}
+                          indeterminate={!allOnPageSelected && someOnPageSelected}
+                          onChange={togglePageSelect}
+                        />
+                      </th>
+                      <th>ID</th>
+                      <th>User</th>
+                      <th>Service</th>
+                      <th>Target URL</th>
+                      <th className="text-right">Qty</th>
+                      <th className="text-right">Done</th>
+                      <th className="text-right">Charge</th>
+                      <th>Status</th>
+                      <th>Created</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {groupedPageRows.map((g) => (
+                      <DayGroup
+                        key={g.key}
+                        label={g.label}
+                        rows={g.rows}
+                        selected={selected}
+                        setSelected={setSelected}
+                        onOpen={setOpenId}
                       />
-                    </th>
-                    <th>ID</th>
-                    <th>User</th>
-                    <th>Service</th>
-                    <th>Target URL</th>
-                    <th className="text-right">Qty</th>
-                    <th className="text-right">Done</th>
-                    <th className="text-right">Charge</th>
-                    <th>Status</th>
-                    <th>Created</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {groupedPageRows.map((g) => (
-                    <DayGroup
-                      key={g.key}
-                      label={g.label}
-                      rows={g.rows}
-                      selected={selected}
-                      setSelected={setSelected}
-                      onOpen={setOpenId}
-                    />
-                  ))}
-                </tbody>
-              </table>
-              <Pagination page={page} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <Pagination
+                page={page}
+                total={totalElements}
+                pageSize={PAGE_SIZE}
+                onPage={(p) => {
+                  setPage(p);
+                  // Scroll to top of the table when paginating so the user lands at the
+                  // header of the next page rather than the bottom of the last one.
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+              />
             </>
           )}
         </Card>

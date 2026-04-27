@@ -172,6 +172,15 @@ export const profileAPI = {
 
   myRefillRequests: () => api.get('/v1/me/refill-requests').then((r) => r.data),
 
+  /** Daily order/spend series for the user's own dashboard charts (last `days` days, default 30). */
+  dailyStats: (days = 30) =>
+    api
+      .get<Array<{ date: string; total: number; completed: number; partial: number; cancelled: number; revenue: string | number }>>(
+        '/v1/me/stats/daily',
+        { params: { days } },
+      )
+      .then((r) => r.data),
+
   // Not implemented — UI must hide or disable controls that depend on these.
   sessions: notImplemented('sessions'),
   signOutOthers: notImplemented('signOutOthers'),
@@ -250,6 +259,15 @@ export const adminAPI = {
   // System monitoring (only health is implemented today; queue/redis/error
   // stats are not in scope for this release).
   systemHealth: () => api.get('/v2/admin/system/health').then((r) => r.data),
+
+  /** Daily order/revenue breakdown for admin dashboard charts. */
+  dailyStats: (days = 30) =>
+    api
+      .get<Array<{ date: string; total: number; completed: number; partial: number; cancelled: number; revenue: string | number }>>(
+        '/v2/admin/stats/daily',
+        { params: { days } },
+      )
+      .then((r) => r.data),
 
   // Bot fleet — read-only health view today; scale operations are not yet
   // exposed. Surfaced as explicit rejections so the UI can disable controls

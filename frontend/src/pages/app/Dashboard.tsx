@@ -12,10 +12,19 @@ import {
   Sparkline,
   StatusBadge,
 } from '../../components/ui';
-import { balanceAPI, orderAPI } from '../../services/api';
+import { balanceAPI, orderAPI, profileAPI } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import type { Order, BalanceSummary } from '../../types';
 import { fmtInt, fmtRel } from '../../lib/utils';
+
+interface DailyStatPoint {
+  date: string;
+  total: number;
+  completed: number;
+  partial: number;
+  cancelled: number;
+  revenue: string | number;
+}
 
 // =====================================================================
 // Dashboard — main authed landing.
@@ -30,11 +39,16 @@ export function DashboardPage() {
 
   const [balance, setBalance] = useState<BalanceSummary | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [daily, setDaily] = useState<DailyStatPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.allSettled([balanceAPI.get(), orderAPI.list({ size: 10 })]).then(([b, o]) => {
+    Promise.allSettled([
+      balanceAPI.get(),
+      orderAPI.list({ size: 10 }),
+      profileAPI.dailyStats(30),
+    ]).then(([b, o, d]) => {
       if (cancelled) return;
       if (b.status === 'fulfilled') {
         const bs = b.value as BalanceSummary;
@@ -55,6 +69,9 @@ export function DashboardPage() {
                 : [],
         );
       }
+      if (d.status === 'fulfilled' && Array.isArray(d.value)) {
+        setDaily(d.value as DailyStatPoint[]);
+      }
       setLoading(false);
     });
     return () => {
@@ -62,7 +79,7 @@ export function DashboardPage() {
     };
   }, [updateBalance]);
 
-  const stats = useMemo(() => computeStats(orders, balance), [orders, balance]);
+  const stats = useMemo(() => computeStats(orders, balance, daily), [orders, balance, daily]);
 
   // The backend serializes BigDecimal balances as JSON strings (e.g. "252.18") to preserve
   // precision. Coerce to a real number once, here, so all downstream <Hero> / <WalletCard>
@@ -93,12 +110,20 @@ export function DashboardPage() {
 
 interface DashStats {
   active: number;
+  total30d: number;
   completed30d: number;
+  partial30d: number;
+  cancelled30d: number;
   spent30d: number;
-  avgStartSec: number;
   successPct: number;
+  /** Daily order count (last N days) for the order-volume sparkline. */
   trend: number[];
+  /** Daily spend (last N days) for the spend sparkline. */
   spendTrend: number[];
+  /** Real growth: spend in last 7 days vs prior 7 days, as a percentage. Null if not computable. */
+  spendDelta: { sign: '+' | '-'; v: string; tone: 'success' | 'danger' } | null;
+  /** Same shape, for order count over the last 7d vs prior 7d. */
+  ordersDelta: { sign: '+' | '-'; v: string; tone: 'success' | 'danger' } | null;
 }
 
 /**
@@ -116,32 +141,72 @@ function toNum(v: unknown): number {
   return 0;
 }
 
-function computeStats(orders: Order[], balance: BalanceSummary | null): DashStats {
+function computeStats(
+  orders: Order[],
+  balance: BalanceSummary | null,
+  daily: DailyStatPoint[],
+): DashStats {
+  // `orders` here is just the recent-orders preview (size: 10). The 30-day rollups come from
+  // `daily` which the backend computed via SQL GROUP BY DATE — that's the source of truth.
   const active = orders.filter((o) =>
     ['IN_PROGRESS', 'PROCESSING', 'PENDING', 'ACTIVE', 'PAUSED'].includes((o.status ?? '').toUpperCase()),
   ).length;
-  const completed = orders.filter((o) => (o.status ?? '').toUpperCase() === 'COMPLETED').length;
-  const spent = orders
-    .filter((o) => ['COMPLETED', 'PARTIAL', 'IN_PROGRESS'].includes((o.status ?? '').toUpperCase()))
-    .reduce((s, o) => s + toNum(o.charge), 0);
-  const total = orders.length;
-  const succ = total > 0 ? (completed / total) * 100 : 98.2;
-  // Pseudo-trend so the sparklines render even before backend ships time-series.
-  const seed = Math.max(1, total);
-  const trend = Array.from({ length: 12 }, (_, i) => Math.max(1, seed * (0.6 + 0.4 * Math.sin(i / 1.7))));
-  const spendTrend = Array.from({ length: 12 }, (_, i) => spent * (0.5 + 0.5 * Math.sin(i / 2 + 0.3)) || 5);
+
+  const total30d = daily.reduce((s, d) => s + (d.total ?? 0), 0);
+  const completed30d = daily.reduce((s, d) => s + (d.completed ?? 0), 0);
+  const partial30d = daily.reduce((s, d) => s + (d.partial ?? 0), 0);
+  const cancelled30d = daily.reduce((s, d) => s + (d.cancelled ?? 0), 0);
+  const spent30d = daily.reduce((s, d) => s + toNum(d.revenue), 0);
+
+  // Success rate against actually-finished orders only. If nothing has finished yet show "—"
+  // upstream rather than inventing "98.2%".
+  const finished = completed30d + partial30d + cancelled30d;
+  const successPct = finished > 0 ? (completed30d / finished) * 100 : 0;
+
+  // Sparklines straight from the daily series.
+  const trend = daily.map((d) => d.total ?? 0);
+  const spendTrend = daily.map((d) => toNum(d.revenue));
+
+  // Real WoW deltas: last 7 days vs prior 7 days.
+  const last7 = daily.slice(-7);
+  const prior7 = daily.slice(-14, -7);
+  const sumOrders = (arr: DailyStatPoint[]) => arr.reduce((s, d) => s + (d.total ?? 0), 0);
+  const sumSpend = (arr: DailyStatPoint[]) => arr.reduce((s, d) => s + toNum(d.revenue), 0);
+  const ordersDelta = pctDelta(sumOrders(last7), sumOrders(prior7));
+  const spendDelta = pctDelta(sumSpend(last7), sumSpend(prior7));
+
+  // `balance.totalSpent` is the lifetime number; we prefer the 30d sum from `daily` for the
+  // KPI card so the value stays in sync with the sparkline next to it. Fall back to lifetime
+  // total only when the daily endpoint hasn't responded yet.
+  const spentForKpi = daily.length > 0 ? spent30d : toNum(balance?.totalSpent);
+
   return {
     active,
-    completed30d: completed,
-    spent30d: toNum(balance?.totalSpent) || spent,
-    avgStartSec: 47,
-    successPct: succ,
+    total30d,
+    completed30d,
+    partial30d,
+    cancelled30d,
+    spent30d: spentForKpi,
+    successPct,
     trend,
     spendTrend,
+    ordersDelta,
+    spendDelta,
   };
 }
 
+function pctDelta(curr: number, prev: number): DashStats['spendDelta'] {
+  if (!Number.isFinite(curr) || !Number.isFinite(prev) || prev <= 0) return null;
+  const pct = ((curr - prev) / prev) * 100;
+  if (!Number.isFinite(pct)) return null;
+  const sign = pct >= 0 ? '+' : '-';
+  return { sign, v: `${Math.abs(pct).toFixed(1)}%`, tone: pct >= 0 ? 'success' : 'danger' };
+}
+
 function Hero({ username, balance, stats }: { username: string; balance: number; stats: DashStats }) {
+  // No success rate yet → render "—" rather than a misleading 0% donut.
+  const finished = stats.completed30d + stats.partial30d + stats.cancelled30d;
+  const hasSuccess = finished > 0;
   return (
     <Card className="relative overflow-hidden p-0" style={{ background: 'var(--bg-deep)', color: '#fff' }}>
       <div className="hero-bg" />
@@ -168,12 +233,12 @@ function Hero({ username, balance, stats }: { username: string; balance: number;
           </div>
         </div>
         <Donut
-          progress={stats.successPct / 100}
+          progress={hasSuccess ? stats.successPct / 100 : 0}
           size={140}
           stroke={11}
           color="var(--accent-2)"
           trackColor="rgba(255,255,255,0.1)"
-          label={`${stats.successPct.toFixed(1)}%`}
+          label={hasSuccess ? `${stats.successPct.toFixed(1)}%` : '—'}
           sublabel="success rate"
         />
       </div>
@@ -182,6 +247,7 @@ function Hero({ username, balance, stats }: { username: string; balance: number;
 }
 
 function KPIRow({ stats }: { stats: DashStats }) {
+  const finished = stats.completed30d + stats.partial30d + stats.cancelled30d;
   const items: ReadonlyArray<{
     label: string;
     icon: IconName;
@@ -190,30 +256,45 @@ function KPIRow({ stats }: { stats: DashStats }) {
     series: number[];
   }> = [
     {
-      label: 'Total spent',
+      label: 'Total spent · 30d',
       icon: 'wallet',
       value: <Money value={stats.spent30d} size="lg" />,
-      delta: { sign: '+', v: '12.4%', tone: 'success' },
+      delta: stats.spendDelta ?? undefined,
       series: stats.spendTrend,
     },
     {
       label: 'Orders · 30d',
       icon: 'orders',
-      value: <span className="font-mono text-[20px] font-bold tabular-nums">{fmtInt(stats.completed30d)}</span>,
+      value: <span className="font-mono text-[20px] font-bold tabular-nums">{fmtInt(stats.total30d)}</span>,
+      delta: stats.ordersDelta ?? undefined,
       series: stats.trend,
     },
     {
-      label: 'Avg start time',
-      icon: 'zap',
-      value: <span className="font-mono text-[20px] font-bold tabular-nums">{stats.avgStartSec}s</span>,
-      delta: { sign: '-', v: '8s', tone: 'success' },
-      series: [50, 48, 49, 47, 45, 46, 47, 47],
+      label: 'Completed · 30d',
+      icon: 'check',
+      value: (
+        <span className="font-mono text-[20px] font-bold tabular-nums">
+          {fmtInt(stats.completed30d)}
+        </span>
+      ),
+      series: stats.trend,
     },
     {
-      label: 'Success rate',
-      icon: 'check',
-      value: <span className="font-mono text-[20px] font-bold tabular-nums">{stats.successPct.toFixed(1)}%</span>,
-      series: [97, 98, 98.5, 98.2, 98, 98.3, 98.2, 98.4],
+      label: 'Success rate · 30d',
+      icon: 'zap',
+      value: (
+        <span className="font-mono text-[20px] font-bold tabular-nums">
+          {finished > 0 ? `${stats.successPct.toFixed(1)}%` : '—'}
+        </span>
+      ),
+      series: stats.spendTrend.map((_, i) => {
+        const day = stats.completed30d > 0
+          ? (stats.trend[i] ?? 0) > 0
+            ? 1
+            : 0
+          : 0;
+        return day;
+      }),
     },
   ];
   return (
@@ -233,9 +314,11 @@ function KPIRow({ stats }: { stats: DashStats }) {
           </div>
           <div className="mt-3">{k.value}</div>
           <div className="mt-1 text-[11px] text-fg-subtle">{k.label}</div>
-          <div className="mt-2">
-            <Sparkline data={k.series} width={170} height={28} color="var(--accent)" stroke={1.5} />
-          </div>
+          {k.series.some((v) => v > 0) && (
+            <div className="mt-2">
+              <Sparkline data={k.series} width={170} height={28} color="var(--accent)" stroke={1.5} />
+            </div>
+          )}
         </Card>
       ))}
     </div>
@@ -336,6 +419,7 @@ function RecentOrders({ orders, loading }: { orders: Order[]; loading: boolean }
 }
 
 function WalletCard({ balance, stats }: { balance: number; stats: DashStats }) {
+  const hasSpend = stats.spendTrend.some((v) => v > 0);
   return (
     <Card>
       <div className="flex items-baseline justify-between">
@@ -345,10 +429,15 @@ function WalletCard({ balance, stats }: { balance: number; stats: DashStats }) {
         </Badge>
       </div>
       <div className="mt-2 font-mono text-[26px] font-bold tabular-nums">${balance.toFixed(2)}</div>
-      <div className="mt-1 text-[11.5px] text-success">+ ${(stats.spent30d * 0.18).toFixed(2)} last 30d</div>
-      <div className="mt-3">
-        <Sparkline data={stats.spendTrend} width={300} height={36} color="var(--accent)" />
+      {/* Honest 30-day spend label, not a fake "+ $X earned" line. */}
+      <div className="mt-1 text-[11.5px] text-fg-subtle">
+        Spent ${stats.spent30d.toFixed(2)} last 30d
       </div>
+      {hasSpend && (
+        <div className="mt-3">
+          <Sparkline data={stats.spendTrend} width={300} height={36} color="var(--accent)" />
+        </div>
+      )}
       <div className="mt-4">
         <Link to="/add-funds">
           <Button variant="primary" size="md" block icon="plus">

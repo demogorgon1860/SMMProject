@@ -156,6 +156,34 @@ public interface OrderRepository
                     + "GROUP BY DATE(o.createdAt) ORDER BY DATE(o.createdAt)")
     List<Object[]> getDailyRevenue(@Param("startDate") LocalDateTime startDate);
 
+    /**
+     * Per-day breakdown for the admin dashboard charts. Returns one row per
+     * (day, status) tuple so the frontend can render stacked bars (completed /
+     * partial / cancelled) and a profit line without inventing data via Math.sin.
+     * Cheaper than fetching every order: a single GROUP BY on indexed (created_at, status).
+     */
+    @Query(
+            "SELECT DATE(o.createdAt) as date, o.status as status,"
+                    + " COUNT(o) as cnt, COALESCE(SUM(o.charge), 0) as revenue "
+                    + "FROM Order o WHERE o.createdAt >= :startDate "
+                    + "GROUP BY DATE(o.createdAt), o.status "
+                    + "ORDER BY DATE(o.createdAt)")
+    List<Object[]> getDailyOrderBreakdown(@Param("startDate") LocalDateTime startDate);
+
+    /**
+     * Per-day stats for a single user (the wallet-card sparkline + dashboard
+     * KPI deltas on /dashboard). Same shape as getDailyOrderBreakdown but
+     * scoped to one userId.
+     */
+    @Query(
+            "SELECT DATE(o.createdAt) as date, o.status as status,"
+                    + " COUNT(o) as cnt, COALESCE(SUM(o.charge), 0) as revenue "
+                    + "FROM Order o WHERE o.user.id = :userId AND o.createdAt >= :startDate "
+                    + "GROUP BY DATE(o.createdAt), o.status "
+                    + "ORDER BY DATE(o.createdAt)")
+    List<Object[]> getDailyOrderBreakdownForUser(
+            @Param("userId") Long userId, @Param("startDate") LocalDateTime startDate);
+
     long countByStatusIn(List<OrderStatus> statuses);
 
     long countByStatus(OrderStatus status);

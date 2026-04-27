@@ -45,6 +45,18 @@ public class AdminController {
         return ResponseEntity.ok(stats);
     }
 
+    /**
+     * Daily breakdown for the last N days (default 30, capped at 90). Powers the Profit + Orders
+     * charts on the admin dashboard. Returns one entry per day, including zero-volume days, so the
+     * client can render a contiguous N-day series without rebucketing.
+     */
+    @GetMapping("/stats/daily")
+    public ResponseEntity<List<DailyStatPoint>> getDailyStats(
+            @RequestParam(defaultValue = "30") int days) {
+        int safeDays = Math.max(1, Math.min(days, 90));
+        return ResponseEntity.ok(adminService.getDailyStats(safeDays));
+    }
+
     @GetMapping("/orders")
     public ResponseEntity<Map<String, Object>> getAllOrders(
             @RequestParam(required = false) String status,

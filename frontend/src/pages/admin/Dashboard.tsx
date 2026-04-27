@@ -44,21 +44,23 @@ interface AdminDashboardResponse {
   totalUsers: number;
 }
 
-// 30-day series for the line/bar charts is not yet exposed by the backend
-// dashboard endpoint. We render a smooth illustrative band while the real
-// time-series API ships, but the four headline KPIs above the charts come
-// straight from /admin/dashboard and are NOT synthesized.
-function illustrativeProfit30d(): Array<{ value: number }> {
-  return Array.from({ length: 30 }, (_, i) => ({
-    value: Math.max(0, 420 + Math.sin(i * 0.4) * 180 + (i - 15) * 4),
-  }));
+// Shape of one row from /api/v2/admin/stats/daily.
+interface DailyStatPoint {
+  date: string;
+  total: number;
+  completed: number;
+  partial: number;
+  cancelled: number;
+  revenue: string | number;
 }
-function illustrativeOrders30d(): Array<{ completed: number; partial: number; cancelled: number }> {
-  return Array.from({ length: 30 }, (_, i) => ({
-    completed: Math.floor(60 + Math.sin(i * 0.3) * 30 + i * 0.8),
-    partial: Math.floor(8 + Math.sin(i * 0.7) * 6),
-    cancelled: Math.floor(3 + Math.cos(i * 0.5) * 2),
-  }));
+
+function toNum(v: unknown): number {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+  if (typeof v === 'string') {
+    const n = Number.parseFloat(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
 }
 
 // Real dailyish delta: revenue/orders over the last 24h vs the average day in
@@ -78,6 +80,7 @@ export function AdminDashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [pendingDecisions, setPendingDecisions] = useState<number>(0);
   const [dash, setDash] = useState<AdminDashboardResponse | null>(null);
+  const [daily, setDaily] = useState<DailyStatPoint[]>([]);
   // Start empty rather than hardcoded "Spring Boot 14ms / IG Bot secondary degraded 312ms".
   // Those numbers were placeholder and lied about real system state.
   const [systemHealth, setSystemHealth] = useState<Array<{ name: string; status: 'up' | 'degraded' | 'down'; latency?: number; meta?: string }>>([]);
@@ -91,6 +94,13 @@ export function AdminDashboardPage() {
         const d = data as AdminDashboardResponse | { data?: AdminDashboardResponse };
         const real = (d as { data?: AdminDashboardResponse })?.data ?? (d as AdminDashboardResponse);
         setDash(real ?? null);
+      })
+      .catch(() => {});
+    adminAPI
+      .dailyStats(30)
+      .then((data) => {
+        if (cancelled) return;
+        setDaily(Array.isArray(data) ? data : []);
       })
       .catch(() => {});
     adminAPI
@@ -125,6 +135,15 @@ export function AdminDashboardPage() {
   // Real KPIs from /admin/dashboard. Falls back to "—" only if the endpoint
   // failed; never to an invented number.
   const stats = useMemo(() => {
+    // Bucket the daily series into shapes the existing MiniLine / MiniBars want.
+    // Both charts default to an empty array — they render an "Awaiting data"
+    // placeholder rather than a Math.sin curve.
+    const profit30d = daily.map((d) => ({ value: toNum(d.revenue) }));
+    const orders30d = daily.map((d) => ({
+      completed: d.completed ?? 0,
+      partial: d.partial ?? 0,
+      cancelled: d.cancelled ?? 0,
+    }));
     return {
       todayProfit: dash?.revenueLast24h ?? 0,
       todayOrders: dash?.ordersLast24h ?? 0,
@@ -133,10 +152,8 @@ export function AdminDashboardPage() {
       pendingDecisions,
       profitDelta: dash ? deltaPct(dash.revenueLast24h, dash.revenueLast7Days) : undefined,
       ordersDelta: dash ? deltaPct(dash.ordersLast24h, dash.ordersLast7Days) : undefined,
-      profitTrend: undefined,
-      ordersTrend: undefined,
-      profit30d: illustrativeProfit30d(),
-      orders30d: illustrativeOrders30d(),
+      profit30d,
+      orders30d,
       botHealth:
         systemHealth.length === 0
           ? ('up' as const)
@@ -146,7 +163,7 @@ export function AdminDashboardPage() {
               ? ('degraded' as const)
               : ('up' as const),
     };
-  }, [dash, pendingDecisions, systemHealth]);
+  }, [dash, daily, pendingDecisions, systemHealth]);
 
   return (
     <>
@@ -226,8 +243,10 @@ export function AdminDashboardPage() {
           <Section
             title="Profit · last 30 days"
             subtitle={
-              dash
-                ? `Avg ${fmtMoney((dash.revenueLast30Days ?? 0) / 30)} / day · Σ ${fmtMoney(dash.revenueLast30Days ?? 0)}`
+              stats.profit30d.length > 0
+                ? `Avg ${fmtMoney(
+                    stats.profit30d.reduce((s, d) => s + d.value, 0) / stats.profit30d.length,
+                  )} / day · Σ ${fmtMoney(stats.profit30d.reduce((s, d) => s + d.value, 0))}`
                 : 'Loading…'
             }
             action={<Button variant="ghost" size="sm">Range</Button>}

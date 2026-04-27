@@ -86,6 +86,142 @@ public class AdminService {
                 .build();
     }
 
+    /**
+     * Daily order/revenue series for the admin dashboard charts. Returns exactly {@code days}
+     * entries — one per calendar day from (today - days + 1) through today, inclusive — so the
+     * frontend can render a contiguous N-day series. Days with no orders come back as zero rows
+     * rather than gaps.
+     */
+    @Transactional(readOnly = true)
+    public List<com.smmpanel.dto.admin.DailyStatPoint> getDailyStats(int days) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.LocalDate startDate = today.minusDays(days - 1L);
+        java.time.LocalDateTime startDateTime = startDate.atStartOfDay();
+
+        List<Object[]> rows = orderRepository.getDailyOrderBreakdown(startDateTime);
+
+        java.util.Map<java.time.LocalDate, com.smmpanel.dto.admin.DailyStatPoint> byDay =
+                new java.util.HashMap<>();
+        for (java.time.LocalDate d = startDate;
+                !d.isAfter(today);
+                d = d.plusDays(1)) {
+            byDay.put(
+                    d,
+                    com.smmpanel.dto.admin.DailyStatPoint.builder()
+                            .date(d)
+                            .total(0L)
+                            .completed(0L)
+                            .partial(0L)
+                            .cancelled(0L)
+                            .revenue(java.math.BigDecimal.ZERO)
+                            .build());
+        }
+
+        for (Object[] row : rows) {
+            // row: [DATE date, OrderStatus status, long count, BigDecimal revenue]
+            java.time.LocalDate d = toLocalDate(row[0]);
+            if (d == null || d.isBefore(startDate) || d.isAfter(today)) continue;
+            com.smmpanel.dto.admin.DailyStatPoint p = byDay.get(d);
+            if (p == null) continue;
+
+            OrderStatus status = (OrderStatus) row[1];
+            long count = ((Number) row[2]).longValue();
+            java.math.BigDecimal revenue =
+                    row[3] == null ? java.math.BigDecimal.ZERO : (java.math.BigDecimal) row[3];
+
+            p.setTotal(p.getTotal() + count);
+            switch (status) {
+                case COMPLETED -> p.setCompleted(p.getCompleted() + count);
+                case PARTIAL -> p.setPartial(p.getPartial() + count);
+                case CANCELLED, ERROR -> p.setCancelled(p.getCancelled() + count);
+                default -> {
+                    /* in-progress / pending / etc. counted only in `total` */
+                }
+            }
+            // Revenue: only count completed + partial as realized; matches DailyProfitService.
+            if (status == OrderStatus.COMPLETED || status == OrderStatus.PARTIAL) {
+                p.setRevenue(p.getRevenue().add(revenue));
+            }
+        }
+
+        return byDay.values().stream()
+                .sorted(java.util.Comparator.comparing(com.smmpanel.dto.admin.DailyStatPoint::getDate))
+                .toList();
+    }
+
+    /** Same daily breakdown, scoped to a single user. */
+    @Transactional(readOnly = true)
+    public List<com.smmpanel.dto.admin.DailyStatPoint> getDailyStatsForUser(Long userId, int days) {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.time.LocalDate startDate = today.minusDays(days - 1L);
+        java.time.LocalDateTime startDateTime = startDate.atStartOfDay();
+
+        List<Object[]> rows =
+                orderRepository.getDailyOrderBreakdownForUser(userId, startDateTime);
+
+        java.util.Map<java.time.LocalDate, com.smmpanel.dto.admin.DailyStatPoint> byDay =
+                new java.util.HashMap<>();
+        for (java.time.LocalDate d = startDate;
+                !d.isAfter(today);
+                d = d.plusDays(1)) {
+            byDay.put(
+                    d,
+                    com.smmpanel.dto.admin.DailyStatPoint.builder()
+                            .date(d)
+                            .total(0L)
+                            .completed(0L)
+                            .partial(0L)
+                            .cancelled(0L)
+                            .revenue(java.math.BigDecimal.ZERO)
+                            .build());
+        }
+
+        for (Object[] row : rows) {
+            java.time.LocalDate d = toLocalDate(row[0]);
+            if (d == null || d.isBefore(startDate) || d.isAfter(today)) continue;
+            com.smmpanel.dto.admin.DailyStatPoint p = byDay.get(d);
+            if (p == null) continue;
+
+            OrderStatus status = (OrderStatus) row[1];
+            long count = ((Number) row[2]).longValue();
+            java.math.BigDecimal revenue =
+                    row[3] == null ? java.math.BigDecimal.ZERO : (java.math.BigDecimal) row[3];
+
+            p.setTotal(p.getTotal() + count);
+            switch (status) {
+                case COMPLETED -> p.setCompleted(p.getCompleted() + count);
+                case PARTIAL -> p.setPartial(p.getPartial() + count);
+                case CANCELLED, ERROR -> p.setCancelled(p.getCancelled() + count);
+                default -> {
+                    /* nothing extra */
+                }
+            }
+            // From the user's perspective, "spent" = charge they were billed for completed/partial.
+            if (status == OrderStatus.COMPLETED || status == OrderStatus.PARTIAL) {
+                p.setRevenue(p.getRevenue().add(revenue));
+            }
+        }
+
+        return byDay.values().stream()
+                .sorted(java.util.Comparator.comparing(com.smmpanel.dto.admin.DailyStatPoint::getDate))
+                .toList();
+    }
+
+    /**
+     * Coerce whatever the DATE() JPQL function gives back (java.sql.Date on Postgres,
+     * sometimes java.time.LocalDate via Hibernate dialect) into a LocalDate.
+     */
+    private static java.time.LocalDate toLocalDate(Object raw) {
+        if (raw == null) return null;
+        if (raw instanceof java.time.LocalDate ld) return ld;
+        if (raw instanceof java.sql.Date sd) return sd.toLocalDate();
+        if (raw instanceof java.util.Date ud)
+            return ud.toInstant()
+                    .atZone(java.time.ZoneId.systemDefault())
+                    .toLocalDate();
+        return java.time.LocalDate.parse(raw.toString());
+    }
+
     @Transactional(readOnly = true)
     public Map<String, Object> getAllOrders(
             String status, String search, String dateFrom, String dateTo, Pageable pageable) {

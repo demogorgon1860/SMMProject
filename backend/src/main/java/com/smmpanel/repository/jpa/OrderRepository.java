@@ -143,6 +143,14 @@ public interface OrderRepository
     @Query("SELECT COUNT(o) FROM Order o WHERE o.createdAt >= :date")
     Long countOrdersCreatedAfter(@Param("date") LocalDateTime date);
 
+    /**
+     * Per-user order counts for the admin Users table. Single GROUP BY query against an indexed
+     * column avoids the N+1 we'd otherwise have if the listing called countByUserId per row.
+     * Returns rows of [userId, count] for users with at least one order.
+     */
+    @Query("SELECT o.user.id, COUNT(o) FROM Order o WHERE o.user.id IN :userIds GROUP BY o.user.id")
+    List<Object[]> countOrdersByUserIds(@Param("userIds") List<Long> userIds);
+
     @Query("SELECT SUM(o.charge) FROM Order o WHERE o.createdAt >= :date")
     Double sumRevenueAfter(@Param("date") LocalDateTime date);
 

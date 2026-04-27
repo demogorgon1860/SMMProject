@@ -1240,9 +1240,47 @@ public class AdminService {
         }
 
         Page<User> users = userRepository.findAll(spec, pageable);
+        List<User> content = users.getContent();
+
+        // Batch the per-user order count so the listing is a single extra query, not N+1.
+        java.util.Map<Long, Long> ordersCountByUser;
+        if (content.isEmpty()) {
+            ordersCountByUser = java.util.Collections.emptyMap();
+        } else {
+            List<Long> ids = content.stream().map(User::getId).toList();
+            ordersCountByUser =
+                    orderRepository.countOrdersByUserIds(ids).stream()
+                            .collect(
+                                    java.util.stream.Collectors.toMap(
+                                            row -> ((Number) row[0]).longValue(),
+                                            row -> ((Number) row[1]).longValue()));
+        }
+
+        List<com.smmpanel.dto.admin.UserAdminDto> dtos =
+                content.stream()
+                        .map(
+                                u ->
+                                        com.smmpanel.dto.admin.UserAdminDto.builder()
+                                                .id(u.getId())
+                                                .username(u.getUsername())
+                                                .email(u.getEmail())
+                                                .balance(u.getBalance())
+                                                .totalSpent(u.getTotalSpent())
+                                                .role(u.getRole() == null ? null : u.getRole().name())
+                                                // "active" matches the entity's @Column boolean.
+                                                // Anything else (locked, deactivated by admin) shows as "suspended".
+                                                .status(u.isActive() ? "active" : "suspended")
+                                                .emailVerified(u.isEmailVerified())
+                                                .twoFactorEnabled(u.isTwoFactorEnabled())
+                                                .apiKeyConfigured(u.getApiKeyHash() != null)
+                                                .ordersCount(ordersCountByUser.getOrDefault(u.getId(), 0L))
+                                                .createdAt(u.getCreatedAt())
+                                                .lastLoginAt(u.getLastLoginAt())
+                                                .build())
+                        .toList();
 
         Map<String, Object> response = new HashMap<>();
-        response.put("users", users.getContent());
+        response.put("users", dtos);
         response.put("totalPages", users.getTotalPages());
         response.put("totalElements", users.getTotalElements());
         response.put("currentPage", users.getNumber());

@@ -22,13 +22,35 @@ import type { User } from '../../types';
 import { fmtInt } from '../../lib/utils';
 import { AdjustBalanceModal } from './_modals';
 
-type AdminUser = User & {
+// Mirrors UserAdminDto on the backend. Note `status` ("active" | "suspended") and
+// `ordersCount` are computed server-side now; we never read User.isActive directly because
+// Jackson serializes the entity's @JsonProperty as `active`, not `isActive`, which made every
+// row show as "suspended" in the table.
+type AdminUser = Omit<User, 'isActive' | 'balance'> & {
+  balance?: number | string;
   ordersCount?: number;
-  totalSpent?: number;
+  totalSpent?: number | string;
   apiKeyConfigured?: boolean;
+  emailVerified?: boolean;
+  twoFactorEnabled?: boolean;
   status?: 'active' | 'suspended' | string;
   roles?: string[];
 };
+
+function isUserActive(u: AdminUser): boolean {
+  if (typeof u.status === 'string') return u.status.toLowerCase() === 'active';
+  // Defensive fallback if some legacy path returns the old shape with `active`.
+  return Boolean((u as unknown as { active?: boolean }).active);
+}
+
+function toNum(v: unknown): number {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+  if (typeof v === 'string') {
+    const n = Number.parseFloat(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
 
 const PAGE_SIZE = 25;
 
@@ -65,9 +87,17 @@ export function AdminUsersPage() {
 
   const filtered = useMemo(() => {
     return users.filter((u) => {
-      if (statusFilter !== 'all' && (u.status ?? (u.isActive ? 'active' : 'suspended')).toLowerCase() !== statusFilter) return false;
-      if (balanceFilter === 'has' && (u.balance ?? 0) <= 0) return false;
-      if (balanceFilter === 'zero' && (u.balance ?? 0) > 0) return false;
+      const active = isUserActive(u);
+      if (statusFilter === 'active' && !active) return false;
+      if (statusFilter === 'suspended' && active) return false;
+      const balanceNum =
+        typeof u.balance === 'number'
+          ? u.balance
+          : typeof u.balance === 'string'
+            ? Number.parseFloat(u.balance) || 0
+            : 0;
+      if (balanceFilter === 'has' && balanceNum <= 0) return false;
+      if (balanceFilter === 'zero' && balanceNum > 0) return false;
       if (q.trim()) {
         const needle = q.trim().toLowerCase();
         if (
@@ -86,7 +116,9 @@ export function AdminUsersPage() {
   const openUser = users.find((u) => u.id === openId) ?? null;
 
   const onBalanceChanged = (userId: number, delta: number) => {
-    setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, balance: (u.balance ?? 0) + delta } : u)));
+    setUsers((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, balance: toNum(u.balance) + delta } : u)),
+    );
   };
 
   return (
@@ -97,7 +129,7 @@ export function AdminUsersPage() {
           <span>
             <span className="font-mono text-fg">{filtered.length}</span> filtered ·{' '}
             <span className="font-mono text-fg">{users.length}</span> total ·{' '}
-            <span className="font-mono text-success">{users.filter((u) => u.isActive).length}</span> active
+            <span className="font-mono text-success">{users.filter(isUserActive).length}</span> active
           </span>
         }
       />
@@ -167,14 +199,17 @@ export function AdminUsersPage() {
                       <td className="text-[13px]">{u.email}</td>
                       <td className="font-mono text-[12px] text-fg-muted">@{u.username}</td>
                       <td className="text-right">
-                        <Money value={u.balance ?? 0} />
+                        <Money value={toNum(u.balance)} />
                       </td>
                       <td className="text-right font-mono">{fmtInt(u.ordersCount ?? 0)}</td>
                       <td className="text-right font-mono text-fg-muted">
-                        <Money value={u.totalSpent ?? 0} />
+                        <Money value={toNum(u.totalSpent)} />
                       </td>
                       <td>
-                        <StatusBadge status={u.isActive ? 'completed' : 'suspended'} label={u.isActive ? 'active' : 'suspended'} />
+                        <StatusBadge
+                          status={isUserActive(u) ? 'completed' : 'suspended'}
+                          label={isUserActive(u) ? 'active' : 'suspended'}
+                        />
                       </td>
                       <td>
                         {u.apiKeyConfigured ? (
@@ -218,7 +253,10 @@ export function AdminUsersPage() {
 
       <AdjustBalanceModal
         open={!!adjustFor}
-        user={adjustFor}
+        // AdjustBalanceModal types `user` as the canonical User where balance is a number.
+        // Our row uses the wider AdminUser (balance can come back as a BigDecimal-string).
+        // Coerce on the way in so the modal sees the same shape it always has.
+        user={adjustFor ? { ...adjustFor, balance: toNum(adjustFor.balance), isActive: isUserActive(adjustFor) } as User : null}
         onClose={() => setAdjustFor(null)}
         onSuccess={(delta) => {
           if (adjustFor) onBalanceChanged(adjustFor.id, delta);
@@ -253,7 +291,7 @@ function UserDrawer({ user, onClose, onAdjust }: UserDrawerProps) {
       }
       subtitle={
         <span className="flex items-center gap-2 text-[12px] text-fg-subtle">
-          <StatusBadge status={user.isActive ? 'completed' : 'suspended'} label={user.isActive ? 'active' : 'suspended'} size="sm" />
+          <StatusBadge status={isUserActive(user) ? 'completed' : 'suspended'} label={isUserActive(user) ? 'active' : 'suspended'} size="sm" />
           <span className="font-mono">@{user.username}</span> · joined <TimeCell iso={user.createdAt} />
         </span>
       }
@@ -268,12 +306,12 @@ function UserDrawer({ user, onClose, onAdjust }: UserDrawerProps) {
             icon="shield"
             onClick={() => {
               adminAPI
-                .updateUserRole(user.id, user.isActive ? 'USER' : 'USER')
-                .then(() => toast(user.isActive ? 'User suspended.' : 'User unsuspended.', 'success'))
+                .updateUserRole(user.id, isUserActive(user) ? 'USER' : 'USER')
+                .then(() => toast(isUserActive(user) ? 'User suspended.' : 'User unsuspended.', 'success'))
                 .catch(() => toast('Action failed.', 'error'));
             }}
           >
-            {user.isActive ? 'Suspend' : 'Unsuspend'}
+            {isUserActive(user) ? 'Suspend' : 'Unsuspend'}
           </Button>
         </>
       }
@@ -325,7 +363,7 @@ function UserOverview({ user, onAdjust }: { user: AdminUser; onAdjust: () => voi
       <Card>
         <div className="eyebrow">Wallet</div>
         <div className="mt-2">
-          <Money value={user.balance ?? 0} size="lg" />
+          <Money value={toNum(user.balance)} size="lg" />
         </div>
         <div className="mt-3">
           <Button variant="primary" size="md" icon="wallet" onClick={onAdjust}>
@@ -336,11 +374,11 @@ function UserOverview({ user, onAdjust }: { user: AdminUser; onAdjust: () => voi
       <Card>
         <div className="eyebrow">Lifetime value</div>
         <div className="mt-2">
-          <Money value={user.totalSpent ?? 0} size="lg" />
+          <Money value={toNum(user.totalSpent)} size="lg" />
         </div>
         <div className="mt-3 grid grid-cols-3 gap-2 font-mono text-[11.5px]">
           <Stat k="Orders" v={fmtInt(user.ordersCount ?? 0)} />
-          <Stat k="Avg order" v={user.ordersCount ? '$' + ((user.totalSpent ?? 0) / user.ordersCount).toFixed(2) : '$0.00'} />
+          <Stat k="Avg order" v={user.ordersCount ? '$' + (toNum(user.totalSpent) / user.ordersCount).toFixed(2) : '$0.00'} />
           <Stat k="Roles" v={(user.roles ?? ['user']).join(', ')} />
         </div>
       </Card>
@@ -351,7 +389,7 @@ function UserOverview({ user, onAdjust }: { user: AdminUser; onAdjust: () => voi
             ['User ID', '#' + user.id],
             ['Email', user.email],
             ['Username', '@' + user.username],
-            ['Status', user.isActive ? 'active' : 'suspended'],
+            ['Status', isUserActive(user) ? 'active' : 'suspended'],
             ['Roles', (user.roles ?? ['user']).join(', ')],
             ['API key', user.apiKeyConfigured ? '••••••••••••••••' : 'not configured'],
             ['Registered', user.createdAt.replace('T', ' ').slice(0, 19) + ' UTC'],
@@ -382,7 +420,7 @@ function UserActionsTab({ user, onAdjust }: { user: AdminUser; onAdjust: () => v
   const cards: Array<{ icon: 'wallet' | 'shield' | 'lock' | 'user'; title: string; body: string; variant: 'primary' | 'secondary' | 'danger'; onClick: () => void }> = [
     { icon: 'wallet', title: 'Adjust balance', body: 'Credit or debit user wallet. Logged in audit.', variant: 'primary', onClick: onAdjust },
     { icon: 'lock', title: 'Reset password', body: 'Sends password reset email to user.', variant: 'secondary', onClick: () => toast('Reset email sent.', 'success') },
-    { icon: 'shield', title: user.isActive ? 'Suspend' : 'Unsuspend', body: 'Freezes the account; orders pause.', variant: 'danger', onClick: () => toast('Action saved.', 'success') },
+    { icon: 'shield', title: isUserActive(user) ? 'Suspend' : 'Unsuspend', body: 'Freezes the account; orders pause.', variant: 'danger', onClick: () => toast('Action saved.', 'success') },
     { icon: 'user', title: 'Impersonate', body: 'Sign in as this user (read-only marker visible).', variant: 'secondary', onClick: () => toast('Impersonation: Phase 3.', 'info') },
   ];
   return (

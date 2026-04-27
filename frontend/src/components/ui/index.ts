@@ -29,6 +29,7 @@ export { Breadcrumb } from './Breadcrumb';
 export { PageHeader } from './PageHeader';
 export { SocialTile } from './SocialTile';
 export { CopyBtn } from './CopyBtn';
+export { CopyIcon } from './CopyIcon';
 
 // Overlays
 export { Modal, ConfirmModal } from './Modal';

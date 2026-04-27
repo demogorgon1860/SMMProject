@@ -5,10 +5,12 @@ import {
   Button,
   Card,
   CopyBtn,
+  CopyIcon,
   Donut,
   Drawer,
   Empty,
   Icon,
+  IDCell,
   Input,
   Money,
   Pagination,
@@ -229,7 +231,9 @@ export function OrdersPage() {
                     className="cursor-pointer"
                     onClick={() => navigate(`/orders/${o.id}`)}
                   >
-                    <td className="font-mono text-[12px]">#{o.id}</td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <IDCell id={o.id} />
+                    </td>
                     <td>
                       <div className="flex items-center gap-2">
                         <SocialTile cat="ig" size={26} />
@@ -239,16 +243,18 @@ export function OrdersPage() {
                         </div>
                       </div>
                     </td>
-                    <td>
-                      <a
-                        href={o.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="font-mono text-[12px] text-accent hover:underline"
-                      >
-                        {short(o.link)}
-                      </a>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <span className="inline-flex items-center gap-1.5">
+                        <a
+                          href={o.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono text-[12px] text-accent hover:underline"
+                        >
+                          {short(o.link)}
+                        </a>
+                        <CopyIcon value={o.link ?? ''} title="Copy link" />
+                      </span>
                     </td>
                     <td className="text-right font-mono">{fmtInt(o.quantity)}</td>
                     <td className="text-right font-mono text-fg-muted">

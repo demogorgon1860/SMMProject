@@ -16,13 +16,36 @@ import {
 } from '../../components/ui';
 import { adminAPI } from '../../services/api';
 
+/**
+ * Mirrors the actual /v2/admin/deposits payload (DepositResponse on the backend).
+ * Earlier iterations of this page assumed a `{ user: { email }, amount, crypto }` shape
+ * that the API never returned, which rendered "$NaN", "@—", and an empty crypto column
+ * for every row. Field names below match the JSON keys exactly.
+ */
 interface AdminPayment {
-  id: string;
-  user: { email?: string; username?: string; id?: number };
-  amount: number;
-  crypto: string;
-  status: 'paid' | 'pending' | 'expired' | 'failed' | string;
+  id: number;
+  /** Per-deposit identifier we hand to Cryptomus; useful as a copy/paste reference. */
+  orderId?: string;
+  username?: string;
+  userId?: number;
+  /** USD amount the user is paying. Backend serializes BigDecimal as number-or-string. */
+  amountUsdt?: number | string;
+  cryptoAmount?: number | string;
+  cryptomusPaymentId?: string;
+  paymentUrl?: string;
+  status: string;
   createdAt: string;
+  confirmedAt?: string | null;
+  expiresAt?: string | null;
+}
+
+function toNum(v: unknown): number {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+  if (typeof v === 'string') {
+    const n = Number.parseFloat(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
 }
 
 const PAGE_SIZE = 25;
@@ -59,22 +82,28 @@ export function AdminPaymentsPage() {
 
   const filtered = useMemo(() => {
     return payments.filter((p) => {
+      // Backend statuses are upper-case (PENDING / COMPLETED / FAILED / EXPIRED);
+      // the filter <Select> still uses lower-case. Normalize on read.
       if (statusFilter !== 'all' && (p.status ?? '').toLowerCase() !== statusFilter) return false;
-      if (cryptoFilter !== 'all' && p.crypto !== cryptoFilter) return false;
       if (q.trim()) {
         const needle = q.trim().toLowerCase();
-        if (!String(p.id).includes(needle) && !(p.user?.email ?? '').toLowerCase().includes(needle)) return false;
+        if (
+          !String(p.id).includes(needle) &&
+          !(p.username ?? '').toLowerCase().includes(needle) &&
+          !(p.orderId ?? '').toLowerCase().includes(needle)
+        )
+          return false;
       }
       return true;
     });
-  }, [payments, q, statusFilter, cryptoFilter]);
+  }, [payments, q, statusFilter]);
 
-  const failed = payments.filter((p) => p.status?.toLowerCase() === 'failed').length;
+  const failed = payments.filter((p) => (p.status ?? '').toLowerCase() === 'failed').length;
   const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  const cryptoColor = (sym: string) => {
-    return ({ BTC: '#f7931a', ETH: '#627eea', USDT: '#26a17b', TRX: '#ef1e1e', USDC: '#2775ca' } as Record<string, string>)[sym] ?? 'var(--fg-dim)';
-  };
+  // Cryptomus chooses the actual coin at checkout; we don't store which one was used,
+  // so the per-row crypto chip is gone. Use the cryptomusPaymentId column instead.
+  const _ = cryptoFilter;
+  void _;
 
   return (
     <>
@@ -128,19 +157,6 @@ export function AdminPaymentsPage() {
                 { value: 'failed', label: 'Failed' },
               ]}
             />
-            <Select
-              selectSize="md"
-              value={cryptoFilter}
-              onChange={(e) => setCryptoFilter(e.target.value)}
-              options={[
-                { value: 'all', label: 'Any crypto' },
-                'BTC',
-                'USDT',
-                'ETH',
-                'TRX',
-                'USDC',
-              ]}
-            />
           </div>
         </Card>
 
@@ -154,57 +170,58 @@ export function AdminPaymentsPage() {
               <table className="tbl">
                 <thead>
                   <tr>
-                    <th>Payment ID</th>
+                    <th>ID</th>
                     <th>User</th>
                     <th className="text-right">Amount</th>
-                    <th>Crypto</th>
+                    <th>Cryptomus ID</th>
                     <th>Status</th>
                     <th>Created</th>
                     <th />
                   </tr>
                 </thead>
                 <tbody>
-                  {pageRows.map((p) => (
-                    <tr key={p.id}>
-                      <td className="font-mono text-[12px]">{p.id}</td>
-                      <td>
-                        <div className="text-[13px]">{p.user?.email ?? '—'}</div>
-                        <div className="font-mono text-[11px] text-fg-subtle">@{p.user?.username ?? '—'}</div>
-                      </td>
-                      <td className="text-right">
-                        <Money value={p.amount} />
-                      </td>
-                      <td>
-                        <span className="inline-flex items-center gap-1.5 rounded border border-border bg-bg-sunken px-2 py-[2px] font-mono text-[11px]">
-                          <span className="h-[6px] w-[6px] rounded-full" style={{ background: cryptoColor(p.crypto) }} />
-                          {p.crypto}
-                        </span>
-                      </td>
-                      <td>
-                        <StatusBadge status={p.status} />
-                      </td>
-                      <td>
-                        <TimeCell iso={p.createdAt} />
-                      </td>
-                      <td className="text-right">
-                        {p.status === 'pending' && (
-                          <Button variant="ghost" size="sm">
-                            Verify
-                          </Button>
-                        )}
-                        {p.status === 'failed' && (
-                          <span className="flex justify-end gap-1.5">
-                            <Button variant="secondary" size="sm">
-                              Retry
-                            </Button>
-                            <Button variant="danger" size="sm">
-                              Force credit
-                            </Button>
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {pageRows.map((p) => {
+                    const status = (p.status ?? '').toLowerCase();
+                    return (
+                      <tr key={p.id}>
+                        <td className="font-mono text-[12px]">#{p.id}</td>
+                        <td>
+                          {p.username ? (
+                            <span className="font-mono text-[12.5px]">@{p.username}</span>
+                          ) : (
+                            <span className="text-fg-subtle">—</span>
+                          )}
+                        </td>
+                        <td className="text-right">
+                          <Money value={toNum(p.amountUsdt)} />
+                        </td>
+                        <td>
+                          {p.cryptomusPaymentId ? (
+                            <span className="font-mono text-[11px] text-fg-muted">
+                              {p.cryptomusPaymentId.slice(0, 8)}…
+                            </span>
+                          ) : (
+                            <span className="text-fg-subtle">—</span>
+                          )}
+                        </td>
+                        <td>
+                          <StatusBadge status={p.status} />
+                        </td>
+                        <td>
+                          <TimeCell iso={p.createdAt} />
+                        </td>
+                        <td className="text-right">
+                          {status === 'pending' && p.paymentUrl && (
+                            <a href={p.paymentUrl} target="_blank" rel="noopener noreferrer">
+                              <Button variant="ghost" size="sm">
+                                Open invoice
+                              </Button>
+                            </a>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
               <Pagination page={page} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} />

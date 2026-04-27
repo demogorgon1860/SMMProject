@@ -533,8 +533,13 @@ function OrderAdminDrawer({ order, onClose, onAfterAction }: DrawerProps) {
         }
         subtitle={
           <span className="text-[12px] text-fg-subtle">
-            {order.service?.name ?? order.serviceName ?? '—'} · user #{order.userId} · created{' '}
-            <TimeCell iso={order.createdAt} />
+            {order.service?.name ?? order.serviceName ?? '—'} ·{' '}
+            {(order as Order & { username?: string }).username
+              ? '@' + (order as Order & { username?: string }).username
+              : order.userId
+                ? 'user #' + order.userId
+                : '—'}{' '}
+            · created <TimeCell iso={order.createdAt} />
           </span>
         }
         actions={
@@ -642,24 +647,46 @@ function OrderAdminDrawer({ order, onClose, onAfterAction }: DrawerProps) {
 }
 
 function OverviewTab({ order }: { order: Order }) {
-  const pct = order.quantity > 0 ? Math.min(1, (order.completed ?? 0) / order.quantity) : 0;
+  // Admin /v2/admin/orders returns { id, username, serviceName, quantity, charge,
+  // startCount, remains, status, createdAt, updatedAt, ... }. It does NOT return
+  // userId, a nested service object, completed, currentCount, instagramBotOrderId,
+  // trafficStatus, or errorMessage — so we derive what we can and skip the rest
+  // rather than render "#undefined" placeholders for fields the API never sent.
+  const ext = order as Order & { username?: string };
+  const remains =
+    typeof order.remains === 'number'
+      ? Math.max(0, order.remains)
+      : Math.max(0, order.quantity - (order.completed ?? 0));
+  const completed =
+    typeof order.completed === 'number' ? order.completed : Math.max(0, order.quantity - remains);
+  const pct = order.quantity > 0 ? Math.min(1, completed / order.quantity) : 0;
+  const charge =
+    typeof order.charge === 'number' ? order.charge : Number.parseFloat(String(order.charge ?? 0));
+  const startCount = typeof order.startCount === 'number' ? order.startCount : null;
+  const currentCount =
+    typeof order.currentCount === 'number'
+      ? order.currentCount
+      : startCount != null
+        ? startCount + completed
+        : null;
+  const fields: Array<[string, React.ReactNode]> = [
+    ['User', ext.username ? '@' + ext.username : order.userId ? '#' + order.userId : '—'],
+    ['Service', order.service?.name ?? order.serviceName ?? '—'],
+    ['Quantity', fmtInt(order.quantity)],
+    ['Completed', `${fmtInt(completed)} (${(pct * 100).toFixed(1)}%)`],
+    ['Remains', fmtInt(remains)],
+    ['Charge', '$' + (Number.isFinite(charge) ? charge : 0).toFixed(2)],
+    ['Created', order.createdAt.replace('T', ' ').slice(0, 19) + ' UTC'],
+    ['Updated', order.updatedAt ? order.updatedAt.replace('T', ' ').slice(0, 19) + ' UTC' : '—'],
+  ];
+  if (order.instagramBotOrderId) fields.splice(6, 0, ['Bot order id', order.instagramBotOrderId]);
+  if (order.trafficStatus) fields.splice(7, 0, ['Traffic status', order.trafficStatus]);
+
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_280px]">
       <Card>
         <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-[13px]">
-          {[
-            ['User', '#' + order.userId],
-            ['Service', order.service?.name ?? order.serviceName ?? '—'],
-            ['Category', order.service?.category ?? '—'],
-            ['Quantity', fmtInt(order.quantity)],
-            ['Completed', `${fmtInt(order.completed ?? 0)} (${(pct * 100).toFixed(1)}%)`],
-            ['Remains', fmtInt(Math.max(0, order.quantity - (order.completed ?? 0)))],
-            ['Charge', '$' + order.charge.toFixed(2)],
-            ['Bot order id', order.instagramBotOrderId ?? '—'],
-            ['Traffic status', order.trafficStatus ?? 'NORMAL'],
-            ['Created', order.createdAt.replace('T', ' ').slice(0, 19) + ' UTC'],
-            ['Updated', order.updatedAt?.replace('T', ' ').slice(0, 19) + ' UTC' || '—'],
-          ].map(([k, v]) => (
+          {fields.map(([k, v]) => (
             <div key={k} className="border-b border-border pb-2">
               <div className="text-[11px] uppercase tracking-wider text-fg-subtle">{k}</div>
               <div className="mt-0.5 font-mono text-[13px]">{v}</div>
@@ -688,28 +715,32 @@ function OverviewTab({ order }: { order: Order }) {
           </div>
           <div className="mt-1 flex justify-between font-mono text-[11.5px]">
             <span className="text-fg-muted">
-              {fmtInt(order.completed ?? 0)} / {fmtInt(order.quantity)}
+              {fmtInt(completed)} / {fmtInt(order.quantity)}
             </span>
             <span>{(pct * 100).toFixed(1)}%</span>
           </div>
         </Card>
-        <Card>
-          <div className="text-[12.5px] font-medium">Instagram count</div>
-          <div className="mt-2 grid grid-cols-3 gap-2 text-center font-mono text-[11px]">
-            <div>
-              <div className="text-fg-subtle">Start</div>
-              <div className="mt-1 text-[14px]">{fmtInt(order.startCount ?? 0)}</div>
+        {startCount != null && (
+          <Card>
+            <div className="text-[12.5px] font-medium">Instagram count</div>
+            <div className="mt-2 grid grid-cols-3 gap-2 text-center font-mono text-[11px]">
+              <div>
+                <div className="text-fg-subtle">Start</div>
+                <div className="mt-1 text-[14px]">{fmtInt(startCount)}</div>
+              </div>
+              <div>
+                <div className="text-fg-subtle">Current</div>
+                <div className="mt-1 text-[14px]">
+                  {currentCount != null ? fmtInt(currentCount) : '—'}
+                </div>
+              </div>
+              <div>
+                <div className="text-fg-subtle">Δ</div>
+                <div className="mt-1 text-[14px] text-success">+{fmtInt(completed)}</div>
+              </div>
             </div>
-            <div>
-              <div className="text-fg-subtle">Current</div>
-              <div className="mt-1 text-[14px]">{fmtInt(order.currentCount ?? (order.startCount ?? 0) + (order.completed ?? 0))}</div>
-            </div>
-            <div>
-              <div className="text-fg-subtle">Δ</div>
-              <div className="mt-1 text-[14px] text-success">+{fmtInt(order.completed ?? 0)}</div>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        )}
       </div>
     </div>
   );

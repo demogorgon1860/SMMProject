@@ -235,9 +235,18 @@ public class AdminService {
                             Sort.by(Sort.Direction.DESC, "id"));
         }
 
+        // Accept the status filter case-insensitively and tolerate either underscored
+        // ("IN_PROGRESS") or human-spelled ("in progress") input. An unrecognized value
+        // resolves to null, which the rest of the method treats as "no filter" rather
+        // than blowing up with IllegalArgumentException -> 500.
         OrderStatus orderStatus = null;
-        if (status != null && !status.isEmpty()) {
-            orderStatus = OrderStatus.valueOf(status.toUpperCase());
+        if (status != null && !status.isBlank()) {
+            try {
+                orderStatus =
+                        OrderStatus.valueOf(status.trim().toUpperCase().replace(' ', '_'));
+            } catch (IllegalArgumentException ignored) {
+                log.warn("Unknown status filter on /v2/admin/orders: '{}'", status);
+            }
         }
 
         // Parse date filters

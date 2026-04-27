@@ -1600,15 +1600,19 @@ public class OrderService {
                                     "userOrderNumber"));
         }
 
+        // Resolve the requested status once. mapFromPerfectPanelStatus returns null for blank /
+        // unknown input — when null we treat it the same as "no filter" rather than silently
+        // narrowing to PENDING (which is what the old default did and is why "In progress" /
+        // "Cancelled" / "Processing" tabs returned no orders on prod).
+        OrderStatus orderStatus =
+                (status == null || status.isEmpty()) ? null : mapFromPerfectPanelStatus(status);
+
         // When no search term, use original optimized repository methods
         if (search == null || search.isEmpty()) {
-            Page<Order> orders;
-            if (status != null && !status.isEmpty()) {
-                OrderStatus orderStatus = mapFromPerfectPanelStatus(status);
-                orders = orderRepository.findByUserAndStatus(user, orderStatus, pageable);
-            } else {
-                orders = orderRepository.findByUser(user, pageable);
-            }
+            Page<Order> orders =
+                    orderStatus != null
+                            ? orderRepository.findByUserAndStatus(user, orderStatus, pageable)
+                            : orderRepository.findByUser(user, pageable);
             return orders.map(this::mapToOrderResponse);
         }
 
@@ -1618,27 +1622,19 @@ public class OrderService {
         try {
             Long orderId = Long.parseLong(term);
             // Search by exact order ID
-            Page<Order> orders;
-            if (status != null && !status.isEmpty()) {
-                OrderStatus orderStatus = mapFromPerfectPanelStatus(status);
-                orders =
-                        orderRepository.searchByUserAndIdAndStatus(
-                                user, orderId, orderStatus, pageable);
-            } else {
-                orders = orderRepository.searchByUserAndId(user, orderId, pageable);
-            }
+            Page<Order> orders =
+                    orderStatus != null
+                            ? orderRepository.searchByUserAndIdAndStatus(
+                                    user, orderId, orderStatus, pageable)
+                            : orderRepository.searchByUserAndId(user, orderId, pageable);
             return orders.map(this::mapToOrderResponse);
         } catch (NumberFormatException e) {
             // Search by link
-            Page<Order> orders;
-            if (status != null && !status.isEmpty()) {
-                OrderStatus orderStatus = mapFromPerfectPanelStatus(status);
-                orders =
-                        orderRepository.searchByUserAndLinkAndStatus(
-                                user, "%" + term + "%", orderStatus, pageable);
-            } else {
-                orders = orderRepository.searchByUserAndLink(user, "%" + term + "%", pageable);
-            }
+            Page<Order> orders =
+                    orderStatus != null
+                            ? orderRepository.searchByUserAndLinkAndStatus(
+                                    user, "%" + term + "%", orderStatus, pageable)
+                            : orderRepository.searchByUserAndLink(user, "%" + term + "%", pageable);
             return orders.map(this::mapToOrderResponse);
         }
     }
@@ -1675,18 +1671,44 @@ public class OrderService {
                 .build();
     }
 
+    /**
+     * Resolve a status string into the matching {@link OrderStatus}. Accepts:
+     *
+     * <ul>
+     *   <li>Native enum names (case-insensitive): {@code IN_PROGRESS}, {@code CANCELLED}, etc.
+     *       This is what the SMMWorld frontend sends (tab.toUpperCase()).
+     *   <li>PerfectPanel-style human strings: {@code "in progress"}, {@code "canceled"} (US
+     *       spelling), {@code "partial"}, etc. Reseller integrations send these via /api/v2.
+     * </ul>
+     *
+     * Returns {@code null} when the input doesn't map to any known status — the caller treats
+     * a {@code null} filter the same as "any". Returning {@code PENDING} as a default (the old
+     * behavior) silently changed the filter the user picked, so picking "In progress" actually
+     * showed pending orders, which is the bug this method had on prod.
+     */
     private OrderStatus mapFromPerfectPanelStatus(String status) {
-        return switch (status.toLowerCase()) {
+        if (status == null || status.isBlank()) return null;
+        // Native enum match first (FRONTEND CASE): IN_PROGRESS, CANCELLED, COMPLETED, ...
+        try {
+            return OrderStatus.valueOf(status.trim().toUpperCase().replace(' ', '_'));
+        } catch (IllegalArgumentException ignored) {
+            // Fall through to legacy PerfectPanel aliases below.
+        }
+        // PerfectPanel-style aliases for backwards compatibility.
+        return switch (status.trim().toLowerCase()) {
             case "pending" -> OrderStatus.PENDING;
-            case "in progress" -> OrderStatus.IN_PROGRESS;
+            case "in progress", "in_progress", "inprogress" -> OrderStatus.IN_PROGRESS;
+            case "processing" -> OrderStatus.PROCESSING;
+            case "active" -> OrderStatus.ACTIVE;
             case "partial" -> OrderStatus.PARTIAL;
             case "completed" -> OrderStatus.COMPLETED;
-            case "canceled" -> OrderStatus.CANCELLED;
+            case "canceled", "cancelled" -> OrderStatus.CANCELLED;
             case "paused" -> OrderStatus.PAUSED;
+            case "holding" -> OrderStatus.HOLDING;
             case "refill" -> OrderStatus.REFILL;
             case "error" -> OrderStatus.ERROR;
             case "suspended" -> OrderStatus.SUSPENDED;
-            default -> OrderStatus.PENDING;
+            default -> null;
         };
     }
 

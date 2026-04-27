@@ -95,16 +95,43 @@ export interface Service {
 
 // ----- Balance / Transactions --------------------------------------
 
-export type TransactionType = 'DEPOSIT' | 'CHARGE' | 'REFUND' | 'MANUAL_ADJUST' | 'BONUS';
+/**
+ * Mirrors {@code com.smmpanel.entity.TransactionType} on the backend. Values come straight off
+ * the enum via {@code transaction.getTransactionType().toString()}, so the frontend has to know
+ * every value or it'll silently bucket unknowns into "Adjustment".
+ *
+ * Older builds used a slim 5-value union (DEPOSIT/CHARGE/REFUND/MANUAL_ADJUST/BONUS); we keep
+ * the legacy names as accepted aliases so a deploy lag doesn't render existing rows wrong.
+ */
+export type TransactionType =
+  | 'DEPOSIT'
+  | 'ORDER_PAYMENT'
+  | 'REFUND'
+  | 'REFILL'
+  | 'ADJUSTMENT'
+  | 'BONUS'
+  | 'TRANSFER_IN'
+  | 'TRANSFER_OUT'
+  | 'COMMISSION'
+  | 'PENALTY'
+  // Legacy aliases — older API versions used these.
+  | 'CHARGE'
+  | 'MANUAL_ADJUST';
 
 export interface BalanceTransaction {
   id: number;
   type: TransactionType;
+  /** Numeric on the wire; coerce with {@code Number()} since backend uses BigDecimal-as-string. */
   amount: number;
   balanceBefore?: number;
   balanceAfter?: number;
   orderId?: number | null;
+  /** Backend field name on TransactionHistoryResponse. */
+  description?: string;
+  /** Legacy alias kept for build/back-compat. Read both. */
   reason?: string;
+  /** Cryptomus order id, refund reference, etc. — opaque external identifier. */
+  referenceNumber?: string;
   actor?: string;
   actorType?: 'system' | 'admin';
   createdAt: string;

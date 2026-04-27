@@ -26,13 +26,45 @@ import { fmtMoney, fmtRel } from '../../lib/utils';
 //   - simple ledger table
 // =====================================================================
 
+// Tab `value` is the *frontend bucket* — multiple backend TransactionType values
+// can share a tab (e.g. ORDER_PAYMENT and CHARGE both render under "Orders").
 const TYPE_TABS = [
   { value: 'all', label: 'All' },
-  { value: 'DEPOSIT', label: 'Deposits' },
-  { value: 'CHARGE', label: 'Orders' },
-  { value: 'REFUND', label: 'Refunds' },
-  { value: 'MANUAL_ADJUST', label: 'Adjustments' },
+  { value: 'deposit', label: 'Deposits' },
+  { value: 'order', label: 'Orders' },
+  { value: 'refund', label: 'Refunds' },
+  { value: 'adjust', label: 'Adjustments' },
 ] as const;
+
+/**
+ * Map the raw backend type onto a frontend bucket. ORDER_PAYMENT (a real per-order charge)
+ * was previously falling into the MANUAL_ADJUST default and rendering as "Adjustment", which
+ * is what the customer screenshot called out — every order charge looked like a manual admin
+ * adjustment. REFILL collapses to "refund" because that's how the user perceives it; positive
+ * ADJUSTMENT (admin top-up) keeps a distinct icon so the operator origin is visible.
+ */
+function bucketOf(type: string | undefined): 'deposit' | 'order' | 'refund' | 'adjust' | 'other' {
+  switch ((type ?? '').toUpperCase()) {
+    case 'DEPOSIT':
+    case 'TRANSFER_IN':
+      return 'deposit';
+    case 'ORDER_PAYMENT':
+    case 'CHARGE':
+      return 'order';
+    case 'REFUND':
+    case 'REFILL':
+      return 'refund';
+    case 'ADJUSTMENT':
+    case 'MANUAL_ADJUST':
+    case 'BONUS':
+    case 'COMMISSION':
+    case 'PENALTY':
+    case 'TRANSFER_OUT':
+      return 'adjust';
+    default:
+      return 'other';
+  }
+}
 
 export function TransactionsPage() {
   const updateBalance = useAuthStore((s) => s.updateBalance);
@@ -66,17 +98,38 @@ export function TransactionsPage() {
   }, [updateBalance]);
 
   const stats = useMemo(() => {
-    const dep = sum(txs, 'DEPOSIT');
-    const charge = -sum(txs, 'CHARGE');
-    const refund = sum(txs, 'REFUND');
-    const adjust = sum(txs, 'MANUAL_ADJUST');
+    // Sum by frontend bucket so both the new (ORDER_PAYMENT/ADJUSTMENT) and legacy
+    // (CHARGE/MANUAL_ADJUST) names roll up into the right number.
+    let dep = 0;
+    let charge = 0;
+    let refund = 0;
+    let adjust = 0;
+    for (const t of txs) {
+      const amt = Number(t.amount) || 0;
+      switch (bucketOf(t.type)) {
+        case 'deposit':
+          dep += amt;
+          break;
+        case 'order':
+          charge += -amt; // displayed as a positive "spent" total
+          break;
+        case 'refund':
+          refund += amt;
+          break;
+        case 'adjust':
+          adjust += amt;
+          break;
+        default:
+          break;
+      }
+    }
     // Build a 30-day flow series from txs (running sum of net flow per day).
     const now = Date.now();
     const buckets = Array.from({ length: 30 }, () => 0);
     for (const t of txs) {
       const d = new Date(t.createdAt).getTime();
       const idx = 29 - Math.floor((now - d) / 86_400_000);
-      if (idx >= 0 && idx < 30) buckets[idx] += t.amount;
+      if (idx >= 0 && idx < 30) buckets[idx] += Number(t.amount) || 0;
     }
     let acc = 0;
     const flow = buckets.map((v) => (acc += v));
@@ -85,13 +138,14 @@ export function TransactionsPage() {
 
   const filtered = useMemo(() => {
     return txs.filter((t) => {
-      if (tab !== 'all' && t.type !== tab) return false;
+      if (tab !== 'all' && bucketOf(t.type) !== tab) return false;
       if (q.trim()) {
         const needle = q.trim().toLowerCase();
         if (
           !String(t.id).includes(needle) &&
-          !(t.reason ?? '').toLowerCase().includes(needle) &&
-          !String(t.orderId ?? '').includes(needle)
+          !(t.description ?? t.reason ?? '').toLowerCase().includes(needle) &&
+          !String(t.orderId ?? '').includes(needle) &&
+          !(t.referenceNumber ?? '').toLowerCase().includes(needle)
         ) {
           return false;
         }
@@ -190,7 +244,11 @@ export function TransactionsPage() {
                   <td>
                     <TypeBadge type={t.type} />
                   </td>
-                  <td>{t.reason ?? '—'}</td>
+                  <td className="max-w-[280px]">
+                    <span className="block truncate text-[12.5px]" title={t.description ?? t.reason ?? ''}>
+                      {t.description ?? t.reason ?? '—'}
+                    </span>
+                  </td>
                   <td className="font-mono text-[12px] text-fg-muted">
                     {t.orderId ? (
                       <Link to={`/orders/${t.orderId}`} className="text-accent hover:underline">
@@ -237,15 +295,32 @@ function Stat({ label, value, icon }: { label: string; value: React.ReactNode; i
   );
 }
 
+// Per-type rendering. Keyed by the actual backend enum value (and legacy aliases).
+// "Order payment", "Refill", "Bonus" etc. all get distinct labels — previously every
+// non-(Deposit/Charge/Refund/Manual_Adjust/Bonus) row collapsed into "Adjustment".
+const TYPE_RENDER: Record<
+  string,
+  { label: string; icon: IconName; bg: string; fg: string; tone: 'success' | 'info' | 'violet' | 'accent' | 'warn' | 'danger' }
+> = {
+  DEPOSIT: { label: 'Deposit', icon: 'arrow-up-right', bg: 'bg-success-soft', fg: 'text-success', tone: 'success' },
+  ORDER_PAYMENT: { label: 'Order payment', icon: 'zap', bg: 'bg-info-soft', fg: 'text-info', tone: 'info' },
+  CHARGE: { label: 'Order payment', icon: 'zap', bg: 'bg-info-soft', fg: 'text-info', tone: 'info' },
+  REFUND: { label: 'Refund', icon: 'refresh', bg: 'bg-violet-soft', fg: 'text-violet', tone: 'violet' },
+  REFILL: { label: 'Refill', icon: 'refresh', bg: 'bg-violet-soft', fg: 'text-violet', tone: 'violet' },
+  ADJUSTMENT: { label: 'Adjustment', icon: 'spark', bg: 'bg-accent-soft', fg: 'text-accent-fg', tone: 'accent' },
+  MANUAL_ADJUST: { label: 'Adjustment', icon: 'spark', bg: 'bg-accent-soft', fg: 'text-accent-fg', tone: 'accent' },
+  BONUS: { label: 'Bonus', icon: 'check', bg: 'bg-warn-soft', fg: 'text-warn', tone: 'warn' },
+  TRANSFER_IN: { label: 'Transfer in', icon: 'arrow-up-right', bg: 'bg-success-soft', fg: 'text-success', tone: 'success' },
+  TRANSFER_OUT: { label: 'Transfer out', icon: 'arrow-up-right', bg: 'bg-bg-sunken', fg: 'text-fg-muted', tone: 'accent' },
+  COMMISSION: { label: 'Commission', icon: 'check', bg: 'bg-success-soft', fg: 'text-success', tone: 'success' },
+  PENALTY: { label: 'Penalty', icon: 'warning', bg: 'bg-danger-soft', fg: 'text-danger', tone: 'danger' },
+};
+function renderFor(type: string | undefined) {
+  return TYPE_RENDER[(type ?? '').toUpperCase()] ?? TYPE_RENDER.ADJUSTMENT;
+}
+
 function TypeIcon({ type }: { type: TransactionType }) {
-  const map: Record<TransactionType, { icon: IconName; bg: string; fg: string }> = {
-    DEPOSIT: { icon: 'arrow-up-right', bg: 'bg-success-soft', fg: 'text-success' },
-    CHARGE: { icon: 'zap', bg: 'bg-info-soft', fg: 'text-info' },
-    REFUND: { icon: 'refresh', bg: 'bg-violet-soft', fg: 'text-violet' },
-    MANUAL_ADJUST: { icon: 'spark', bg: 'bg-accent-soft', fg: 'text-accent-fg' },
-    BONUS: { icon: 'check', bg: 'bg-warn-soft', fg: 'text-warn' },
-  };
-  const m = map[type] ?? map.MANUAL_ADJUST;
+  const m = renderFor(type);
   return (
     <span className={`flex h-8 w-8 items-center justify-center rounded-md ${m.bg} ${m.fg}`}>
       <Icon name={m.icon} size={14} />
@@ -254,23 +329,12 @@ function TypeIcon({ type }: { type: TransactionType }) {
 }
 
 function TypeBadge({ type }: { type: TransactionType }) {
-  const map: Record<TransactionType, { label: string; tone: 'success' | 'info' | 'violet' | 'accent' | 'warn' }> = {
-    DEPOSIT: { label: 'Deposit', tone: 'success' },
-    CHARGE: { label: 'Order', tone: 'info' },
-    REFUND: { label: 'Refund', tone: 'violet' },
-    MANUAL_ADJUST: { label: 'Adjustment', tone: 'accent' },
-    BONUS: { label: 'Bonus', tone: 'warn' },
-  };
-  const m = map[type] ?? map.MANUAL_ADJUST;
+  const m = renderFor(type);
   return (
-    <Badge tone={m.tone} size="sm">
+    <Badge tone={m.tone === 'danger' ? 'danger' : m.tone} size="sm">
       {m.label}
     </Badge>
   );
-}
-
-function sum(txs: BalanceTransaction[], type: TransactionType): number {
-  return txs.filter((t) => t.type === type).reduce((s, t) => s + Math.abs(t.amount), 0);
 }
 
 // Suppress unused warning if fmtMoney isn't directly used in the body.

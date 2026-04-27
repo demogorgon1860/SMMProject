@@ -54,7 +54,7 @@ function PublicNav({ variant }: { variant: 'light' | 'dark' }) {
           {[
             { to: '/services-list', label: 'Services' },
             { to: '/pricing', label: 'Pricing' },
-            { to: '/api-docs', label: 'API' },
+            { to: '/docs', label: 'API' },
             { to: '/help', label: 'Help' },
           ].map((l) => (
             <NavLink key={l.to} to={l.to} className={({ isActive }) => cn('navlink', isActive && 'active', isDark && 'text-white/80 hover:text-white')}>
@@ -114,7 +114,7 @@ function PublicFooter({ variant }: { variant: 'light' | 'dark' }) {
           </div>
           <p className="text-[13px] leading-relaxed">Infrastructure for Instagram growth.</p>
         </div>
-        <FooterCol title="Product" links={[['Services', '/services-list'], ['Pricing', '/pricing'], ['API', '/api-docs']]} />
+        <FooterCol title="Product" links={[['Services', '/services-list'], ['Pricing', '/pricing'], ['API', '/docs']]} />
         <FooterCol title="Company" links={[['Help', '/help'], ['Terms', '/legal/terms'], ['Privacy', '/legal/privacy']]} />
         <FooterCol title="Refund & AML" links={[['Refund Policy', '/legal/refund'], ['AML Policy', '/legal/aml']]} />
       </div>

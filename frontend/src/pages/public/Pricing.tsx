@@ -43,7 +43,7 @@ export function PricingPage() {
               See the catalog
             </Button>
           </Link>
-          <Link to="/api-docs">
+          <Link to="/docs">
             <Button variant="secondary" size="xl">
               API docs
             </Button>

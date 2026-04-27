@@ -28,7 +28,7 @@ const NAV: NavItem[] = [
   { to: '/orders', label: 'Orders', icon: 'list' },
   { to: '/transactions', label: 'Transactions', icon: 'receipt' },
   { to: '/add-funds', label: 'Add funds', icon: 'wallet' },
-  { to: '/api-docs', label: 'API', icon: 'code' },
+  { to: '/docs', label: 'API', icon: 'code' },
   { to: '/help', label: 'Help', icon: 'help' },
   { to: '/profile', label: 'Profile', icon: 'user' },
 ];

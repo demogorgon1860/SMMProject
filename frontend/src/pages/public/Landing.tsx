@@ -439,7 +439,7 @@ function CTABanner() {
                   Create your account
                 </Button>
               </Link>
-              <Link to="/api-docs">
+              <Link to="/docs">
                 <Button variant="outline-dark" size="xl">
                   Read API docs
                 </Button>
@@ -695,7 +695,7 @@ function CTABannerLight() {
                 Create your account
               </Button>
             </Link>
-            <Link to="/api-docs">
+            <Link to="/docs">
               <Button variant="secondary" size="xl">
                 Read API docs
               </Button>

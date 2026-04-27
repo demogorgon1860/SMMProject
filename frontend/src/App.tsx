@@ -97,7 +97,7 @@ function App() {
                 <Route path="services-list" element={<ServicesListPage />} />
                 <Route path="pricing" element={<PricingPage />} />
                 <Route path="help" element={<HelpPage />} />
-                <Route path="api-docs" element={<ApiDocsPage />} />
+                <Route path="docs" element={<ApiDocsPage />} />
                 <Route path="legal/terms" element={<TermsPage />} />
                 <Route path="legal/privacy" element={<PrivacyPage />} />
                 <Route path="legal/refund" element={<RefundPage />} />

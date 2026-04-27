@@ -3,7 +3,8 @@ import { Badge, Card, CopyBtn, Icon } from '../../components/ui';
 import { cn } from '../../lib/utils';
 
 // =====================================================================
-// API Docs — public, also embedded in /api-docs route (kind: both).
+// API Docs — public, served at /docs (renamed from /api-docs to avoid
+// colliding with SpringDoc's /api-docs endpoint on the backend).
 // 3-column layout: TOC scroll-spy / docs body / sandbox aside.
 // Real API console (per user direction) lives at the bottom of the
 // sandbox card; clicking opens an embedded request runner panel.

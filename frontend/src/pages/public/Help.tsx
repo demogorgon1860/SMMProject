@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Badge, Button, Card, Field, Icon, Input, Tabs, Textarea, useToast } from '../../components/ui';
+import { Badge, Button, Card, Field, Icon, Input, Tabs, Textarea, TimeCell, useToast } from '../../components/ui';
 import { Select } from '../../components/ui/Select';
 import { supportAPI } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import type { Ticket } from '../../types';
-import { cn, fmtRel } from '../../lib/utils';
+import { cn } from '../../lib/utils';
 import { unwrapList } from '../../lib/api';
 
 const FAQ: ReadonlyArray<{ q: string; a: string }> = [
@@ -188,7 +188,7 @@ function TicketsTab() {
                   {t.status.toLowerCase()}
                 </Badge>
               </td>
-              <td className="font-mono text-[12px] text-fg-muted">{fmtRel(t.updatedAt)}</td>
+              <td><TimeCell iso={t.updatedAt} /></td>
             </tr>
           ))}
         </tbody>

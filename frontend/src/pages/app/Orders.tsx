@@ -19,12 +19,13 @@ import {
   Sparkline,
   StatusBadge,
   Tabs,
+  TimeCell,
   useToast,
 } from '../../components/ui';
 import { Confirm } from './_OrderActions';
 import { orderAPI } from '../../services/api';
 import type { Order } from '../../types';
-import { cn, fmtDate, fmtInt, fmtMoney, fmtRel } from '../../lib/utils';
+import { cn, fmtDate, fmtDateTime, fmtInt, fmtMoney } from '../../lib/utils';
 
 interface RefillRequest {
   id: number;
@@ -219,7 +220,7 @@ export function OrdersPage() {
                     <td className="text-right">
                       <Money value={o.charge} />
                     </td>
-                    <td className="font-mono text-[12px] text-fg-muted">{fmtRel(o.createdAt)}</td>
+                    <td><TimeCell iso={o.createdAt} /></td>
                     <td>
                       <Icon name="chevron-right" size={14} className="text-fg-dim" />
                     </td>
@@ -396,7 +397,7 @@ function OrderDetailDrawer({ order, onClose, onAfterAction }: DetailProps) {
       }
       subtitle={
         <span className="flex items-center gap-2 text-[12px] text-fg-subtle">
-          {order.service?.name ?? order.serviceName ?? '—'} · {fmtRel(order.createdAt)}
+          {order.service?.name ?? order.serviceName ?? '—'} · {fmtDateTime(order.createdAt)}
         </span>
       }
       actions={
@@ -631,7 +632,7 @@ function TimelineTab({ order }: { order: Order }) {
           />
           <div className="text-[13.5px] font-medium">{ev.label}</div>
           <div className="font-mono text-[11px] text-fg-subtle" title={fmtDate(ev.t)}>
-            {fmtRel(ev.t)}
+            {fmtDateTime(ev.t)}
           </div>
         </li>
       ))}

@@ -12,11 +12,12 @@ import {
   Sparkline,
   StatusBadge,
   Tabs,
+  TimeCell,
 } from '../../components/ui';
 import { balanceAPI } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import type { BalanceTransaction, TransactionType, BalanceSummary } from '../../types';
-import { fmtMoney, fmtRel, toNum } from '../../lib/utils';
+import { fmtMoney, toNum } from '../../lib/utils';
 
 // =====================================================================
 // Transactions — wallet ledger.
@@ -335,7 +336,7 @@ export function TransactionsPage() {
                       `tx-${t.id}`
                     )}
                   </td>
-                  <td className="font-mono text-[12px] text-fg-muted">{fmtRel(t.createdAt)}</td>
+                  <td><TimeCell iso={t.createdAt} /></td>
                   <td className="text-right">
                     <Money value={t.amount} sign />
                   </td>

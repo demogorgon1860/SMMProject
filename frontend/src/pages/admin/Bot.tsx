@@ -12,7 +12,7 @@ import {
   useToast,
 } from '../../components/ui';
 import { adminAPI, type BotInstanceStatus, type BotWebhookEvent } from '../../services/api';
-import { cn, fmtInt, fmtRel } from '../../lib/utils';
+import { cn, fmtDateTime, fmtInt } from '../../lib/utils';
 
 type Severity = NonNullable<BotWebhookEvent['severity']>;
 
@@ -266,7 +266,7 @@ function InstanceCard({
             <Stat label="Uptime" value={b.uptime ?? '—'} mono={false} />
             <Stat
               label="Heartbeat"
-              value={b.heartbeatAt ? fmtRel(b.heartbeatAt) : '—'}
+              value={b.heartbeatAt ? fmtDateTime(b.heartbeatAt) : '—'}
               mono={false}
             />
           </div>
@@ -572,7 +572,7 @@ function QueueSnapshot({ id }: { id: string }) {
                   </td>
                   <td className="text-right font-mono">{fmtInt(toInt(o.completed))}</td>
                   <td className="text-right font-mono">{fmtInt(toInt(o.count))}</td>
-                  <td className="text-[12px] text-fg-muted">{fmtRelOr(o.created_at)}</td>
+                  <td className="text-[12px] text-fg-muted">{fmtDateTimeOr(o.created_at)}</td>
                 </tr>
               );
             })}
@@ -596,9 +596,9 @@ function parseTs(v: unknown): number {
   const t = Date.parse(String(v));
   return Number.isFinite(t) ? t : 0;
 }
-function fmtRelOr(v: unknown): string {
+function fmtDateTimeOr(v: unknown): string {
   const t = parseTs(v);
-  return t > 0 ? fmtRel(new Date(t)) : '—';
+  return t > 0 ? fmtDateTime(new Date(t)) : '—';
 }
 function statusColor(s: string): string {
   switch (s) {

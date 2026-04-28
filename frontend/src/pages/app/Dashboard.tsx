@@ -15,7 +15,7 @@ import {
 import { balanceAPI, orderAPI, profileAPI } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import type { Order, BalanceSummary } from '../../types';
-import { fmtInt, fmtRel, toNum } from '../../lib/utils';
+import { fmtInt, toNum } from '../../lib/utils';
 import { unwrapList } from '../../lib/api';
 import { useDailyStats, type DailyStatPoint } from '../../lib/hooks/useDailyStats';
 
@@ -447,5 +447,3 @@ function short(url: string): string {
   }
 }
 
-// We don't currently use fmtRel here, but Recent Orders may switch to it later.
-void fmtRel;

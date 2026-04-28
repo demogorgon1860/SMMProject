@@ -7,12 +7,13 @@ import {
   Input,
   Money,
   StatusBadge,
+  TimeCell,
   useToast,
 } from '../../components/ui';
 import { balanceAPI, depositsAPI } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import type { Deposit } from '../../types';
-import { fmtMoney, fmtRel } from '../../lib/utils';
+import { fmtMoney } from '../../lib/utils';
 
 // =====================================================================
 // Add Funds — minimal flow:
@@ -220,7 +221,7 @@ export function AddFundsPage() {
                   <td>
                     <StatusBadge status={String(d.status).toLowerCase()} />
                   </td>
-                  <td className="font-mono text-[12px] text-fg-muted">{fmtRel(d.createdAt)}</td>
+                  <td><TimeCell iso={d.createdAt} /></td>
                   <td className="font-mono text-[12px] text-fg-muted">
                     {d.txHash ? d.txHash.slice(0, 10) + '…' : '—'}
                   </td>

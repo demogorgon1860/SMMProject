@@ -20,7 +20,7 @@ import { Select } from '../../components/ui/Select';
 import { apiKeyAPI, profileAPI, type LifetimeStats, type Session } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { useTheme, type Density } from '../../contexts/ThemeContext';
-import { cn, fmtInt, fmtMoney, fmtRel, toNum } from '../../lib/utils';
+import { cn, fmtDateTime, fmtInt, fmtMoney, toNum } from '../../lib/utils';
 
 // =====================================================================
 // Profile — 5 tabs:
@@ -59,7 +59,7 @@ export function ProfilePage() {
               verified
             </Badge>
             <span>·</span>
-            <span>joined {user?.createdAt ? fmtRel(user.createdAt) : '—'}</span>
+            <span>joined {user?.createdAt ? fmtDateTime(user.createdAt) : '—'}</span>
           </div>
         </div>
       </div>
@@ -235,9 +235,9 @@ function AccountTab() {
               loading={statsLoading}
               value={
                 stats?.memberSince
-                  ? fmtRel(stats.memberSince)
+                  ? fmtDateTime(stats.memberSince)
                   : user?.createdAt
-                  ? fmtRel(user.createdAt)
+                  ? fmtDateTime(user.createdAt)
                   : '—'
               }
             />
@@ -650,7 +650,7 @@ function SessionsTab() {
                   )}
                 </div>
                 <div className="font-mono text-[11.5px] text-fg-subtle truncate">
-                  {s.ipAddress ?? '—'} · last active {fmtRel(s.lastUsedAt)}
+                  {s.ipAddress ?? '—'} · last active {fmtDateTime(s.lastUsedAt)}
                 </div>
               </div>
               {!s.current && (
@@ -796,7 +796,7 @@ function DangerTab() {
             </p>
             {paused && pausedAt && (
               <p className="mt-2 text-[12px] text-warn">
-                Paused {fmtRel(pausedAt)}.
+                Paused {fmtDateTime(pausedAt)}.
               </p>
             )}
           </div>

@@ -28,6 +28,22 @@ export function fmtDate(iso: string | Date): string {
   return d.toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
 }
 
+/**
+ * Local-time date+time, `YYYY-MM-DD HH:MM`. Used as the primary display in tables and
+ * inline labels — explicit so the operator never has to mouse-hover to read a date.
+ * Local time (not UTC) because users naturally read in their own zone; the UTC variant
+ * stays available via {@link fmtDate} for audit tooltips.
+ */
+export function fmtDateTime(iso: string | Date): string {
+  const d = iso instanceof Date ? iso : new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ` +
+    `${pad(d.getHours())}:${pad(d.getMinutes())}`
+  );
+}
+
 /** Relative time vs. now, `Xs/m/h/d ago`. Pass `nowMs` for deterministic tests. */
 export function fmtRel(iso: string | Date, nowMs: number = Date.now()): string {
   const d = (iso instanceof Date ? iso : new Date(iso)).getTime();

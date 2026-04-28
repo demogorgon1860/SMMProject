@@ -182,10 +182,17 @@ logging:
     org.springframework.web: DEBUG
     org.springframework.security: DEBUG
     org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    # BasicBinder at DEBUG (was TRACE) — TRACE prints every JDBC bind value
+    # (BCrypt hashes, OTP codes, refresh tokens). DEBUG keeps the SQL with `?`
+    # placeholders, plenty for query inspection without dumping secrets.
+    org.hibernate.type.descriptor.sql.BasicBinder: DEBUG
     org.springframework.kafka: INFO
     org.apache.kafka: WARN
-    org.springframework.data.redis: DEBUG
+    # org.springframework.data.redis intentionally NOT at DEBUG: the connection
+    # lifecycle logs ("Fetching/Closing Redis Connection") feed the Logback
+    # Redis appender, which opens another Redis connection to write them, which
+    # logs again — the loop produced ~100k spam lines/min on prod when the
+    # `dev` profile was active there. Default WARN from application.yml is fine.
     liquibase: INFO
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

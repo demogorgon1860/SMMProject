@@ -902,13 +902,24 @@ info:
 logging:
   level:
     root: INFO
-    com.smmpanel: DEBUG
-    org.springframework.security: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
-    org.hibernate.type: TRACE
-    org.springframework.orm.jpa: DEBUG
-    org.springframework.transaction: DEBUG
+    com.smmpanel: INFO
+    # Hibernate / Spring DEBUG/TRACE moved out of the safe defaults: BasicBinder
+    # at TRACE leaks every JDBC bind value (BCrypt hashes, refresh tokens, OTP
+    # codes) to logs — the kind of thing an audit dings as a P1. Keep them at
+    # WARN here; flip them up only via application-dev.yml or LOGGING_LEVEL_*
+    # env vars when actively debugging.
+    org.springframework.security: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.hibernate.type: WARN
+    org.springframework.orm.jpa: INFO
+    org.springframework.transaction: INFO
+    # Spring Data Redis on DEBUG would self-feed the Logback Redis appender:
+    # every appender write opens a Redis connection, the connection lifecycle
+    # logs at DEBUG, those events go through the appender chain, the appender
+    # writes again — a runaway loop that produced ~100k spam lines per minute
+    # on prod and drowned every real event in the /admin/system Logs tab.
+    org.springframework.data.redis: WARN
   pattern:
     console: >
       "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

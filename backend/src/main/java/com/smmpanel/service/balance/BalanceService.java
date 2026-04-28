@@ -789,6 +789,29 @@ public class BalanceService {
         return transactions.map(this::mapToTransactionResponse);
     }
 
+    /**
+     * Per-type sums over the user's entire transaction history. Returns a map keyed by the
+     * {@link com.smmpanel.entity.TransactionType} enum name (e.g. {@code "DEPOSIT"},
+     * {@code "ORDER_PAYMENT"}, {@code "REFUND"}, {@code "ADJUSTMENT"}), value = signed
+     * BigDecimal sum of {@code amount}. Types that the user has never transacted in are
+     * omitted from the map — the caller should default to zero.
+     *
+     * <p>Used by the Transactions page stat cards so they reflect real lifetime totals
+     * rather than just the latest paginated page.
+     */
+    @Transactional(readOnly = true)
+    public java.util.Map<String, java.math.BigDecimal> getTransactionSummary(Long userId) {
+        java.util.List<Object[]> rows = transactionRepository.sumAmountByTypeForUser(userId);
+        java.util.Map<String, java.math.BigDecimal> result = new java.util.HashMap<>();
+        for (Object[] row : rows) {
+            if (row == null || row.length < 2 || row[0] == null) continue;
+            com.smmpanel.entity.TransactionType type = (com.smmpanel.entity.TransactionType) row[0];
+            java.math.BigDecimal sum = (java.math.BigDecimal) row[1];
+            result.put(type.name(), sum != null ? sum : java.math.BigDecimal.ZERO);
+        }
+        return result;
+    }
+
     /** Get recent transactions as DTOs for API response */
     public List<TransactionHistoryResponse> getRecentTransactions(Long userId, int limit) {
         Pageable pageable = PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "createdAt"));

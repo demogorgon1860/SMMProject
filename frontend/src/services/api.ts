@@ -186,6 +186,13 @@ export const balanceAPI = {
       .then((r) => r.data),
 
   recentTransactions: () => api.get('/v1/balance/transactions/recent').then((r) => r.data),
+
+  // Lifetime sums by TransactionType — single GROUP BY on backend. Used by the
+  // Transactions page stat cards (Deposited / Spent / Refunded). Computing from a
+  // paginated last-N is wrong for active users (old deposits get pushed off-window).
+  // BigDecimal serializes as string, hence Record<string, string>.
+  transactionSummary: (): Promise<Record<string, string>> =>
+    api.get('/v1/balance/transactions/summary').then((r) => r.data),
 };
 
 // =====================================================================

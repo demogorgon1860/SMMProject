@@ -129,6 +129,18 @@ public class BalanceController {
         return ResponseEntity.ok(transactions);
     }
 
+    @GetMapping("/transactions/summary")
+    @Operation(
+            summary = "Lifetime transaction sums by type",
+            description =
+                    "Returns a map keyed by TransactionType enum name (DEPOSIT, ORDER_PAYMENT,"
+                            + " REFUND, ADJUSTMENT, ...) with signed BigDecimal sums over the"
+                            + " user's entire history. Used by the Transactions page stat cards.")
+    public ResponseEntity<java.util.Map<String, BigDecimal>> getTransactionSummary() {
+        User user = getCurrentUser();
+        return ResponseEntity.ok(balanceService.getTransactionSummary(user.getId()));
+    }
+
     @PostMapping("/check-funds")
     @Operation(
             summary = "Check if user has sufficient funds",

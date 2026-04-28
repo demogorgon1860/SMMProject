@@ -16,7 +16,7 @@ import {
 import { balanceAPI } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import type { BalanceTransaction, TransactionType, BalanceSummary } from '../../types';
-import { fmtMoney, fmtRel } from '../../lib/utils';
+import { fmtMoney, fmtRel, toNum } from '../../lib/utils';
 
 // =====================================================================
 // Transactions — wallet ledger.
@@ -90,15 +90,23 @@ export function TransactionsPage() {
   // thousands of ORDER_PAYMENT rows, their few DEPOSIT entries appear.
   const [tabTxs, setTabTxs] = useState<BalanceTransaction[]>([]);
   const [balance, setBalance] = useState<BalanceSummary | null>(null);
+  // Lifetime sums by TransactionType — drives the stat cards. Backend GROUP BY
+  // gives us real totals regardless of how many transactions the user has.
+  const [summary, setSummary] = useState<Record<string, string> | null>(null);
   const [loading, setLoading] = useState(true);
   const [tabLoading, setTabLoading] = useState(false);
   const [tab, setTab] = useState<string>('all');
   const [q, setQ] = useState('');
 
-  // Initial: load full last-200 (for stats) + balance.
+  // Initial: load last-200 (for the 30-day flow chart and the All tab table) +
+  // balance + lifetime summary (drives the stat cards).
   useEffect(() => {
     let cancelled = false;
-    Promise.allSettled([balanceAPI.transactions(0, 200), balanceAPI.get()]).then(([t, b]) => {
+    Promise.allSettled([
+      balanceAPI.transactions(0, 200),
+      balanceAPI.get(),
+      balanceAPI.transactionSummary(),
+    ]).then(([t, b, s]) => {
       if (cancelled) return;
       if (t.status === 'fulfilled') {
         const v = t.value as unknown;
@@ -112,6 +120,11 @@ export function TransactionsPage() {
         setBalance(bs);
         if (typeof bs.balance === 'number') updateBalance(bs.balance);
       }
+      if (s.status === 'fulfilled') {
+        setSummary(s.value as Record<string, string>);
+      }
+      // Note: if summary fails, stats fall back to summing over txs (last-200) —
+      // imperfect for active users but better than blanks.
       setLoading(false);
     });
     return () => {
@@ -149,29 +162,45 @@ export function TransactionsPage() {
   }, [tab]);
 
   const stats = useMemo(() => {
-    // Sum by frontend bucket so both the new (ORDER_PAYMENT/ADJUSTMENT) and legacy
-    // (CHARGE/MANUAL_ADJUST) names roll up into the right number.
+    // Sums for the stat cards. Prefer the backend lifetime `summary` (GROUP BY over
+    // the user's full history) — falls back to summing the last-200 page if the
+    // summary endpoint is unavailable.
     let dep = 0;
     let charge = 0;
     let refund = 0;
     let adjust = 0;
-    for (const t of txs) {
-      const amt = Number(t.amount) || 0;
-      switch (bucketOf(t.type)) {
-        case 'deposit':
-          dep += amt;
-          break;
-        case 'order':
-          charge += -amt; // displayed as a positive "spent" total
-          break;
-        case 'refund':
-          refund += amt;
-          break;
-        case 'adjust':
-          adjust += amt;
-          break;
-        default:
-          break;
+    if (summary) {
+      // Bucket map matches `bucketOf` on row-level: DEPOSIT/TRANSFER_IN → deposits,
+      // ORDER_PAYMENT (negative in DB) → spent, REFUND/REFILL → refunded,
+      // ADJUSTMENT/BONUS/COMMISSION/PENALTY/TRANSFER_OUT → adjustments.
+      dep = toNum(summary.DEPOSIT) + toNum(summary.TRANSFER_IN);
+      charge = -toNum(summary.ORDER_PAYMENT); // stored signed-negative; show positive
+      refund = toNum(summary.REFUND) + toNum(summary.REFILL);
+      adjust =
+        toNum(summary.ADJUSTMENT) +
+        toNum(summary.BONUS) +
+        toNum(summary.COMMISSION) +
+        toNum(summary.PENALTY) +
+        toNum(summary.TRANSFER_OUT);
+    } else {
+      for (const t of txs) {
+        const amt = Number(t.amount) || 0;
+        switch (bucketOf(t.type)) {
+          case 'deposit':
+            dep += amt;
+            break;
+          case 'order':
+            charge += -amt;
+            break;
+          case 'refund':
+            refund += amt;
+            break;
+          case 'adjust':
+            adjust += amt;
+            break;
+          default:
+            break;
+        }
       }
     }
     // Build a 30-day flow series from txs (running sum of net flow per day).
@@ -185,7 +214,7 @@ export function TransactionsPage() {
     let acc = 0;
     const flow = buckets.map((v) => (acc += v));
     return { dep, charge, refund, adjust, flow };
-  }, [txs]);
+  }, [txs, summary]);
 
   const filtered = useMemo(() => {
     // 'all' tab — show the unfiltered last-200 (`txs`); other tabs show the

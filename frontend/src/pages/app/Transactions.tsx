@@ -107,24 +107,12 @@ export function TransactionsPage() {
   const [dateFrom, setDateFrom] = useState<string | undefined>(undefined);
   const [dateTo, setDateTo] = useState<string | undefined>(undefined);
 
-  // Initial / range-scoped: load last-200 transactions (range-narrowed when set)
-  // + balance + lifetime summary (drives the stat cards — always lifetime, the
-  // range filter narrows the table only). Re-runs when the user changes range.
+  // One-shot: balance + lifetime summary. These don't depend on the active tab
+  // or the date range — fetch once on mount.
   useEffect(() => {
     let cancelled = false;
-    Promise.allSettled([
-      balanceAPI.transactions(0, 200, undefined, dateFrom, dateTo),
-      balanceAPI.get(),
-      balanceAPI.transactionSummary(),
-    ]).then(([t, b, s]) => {
+    Promise.allSettled([balanceAPI.get(), balanceAPI.transactionSummary()]).then(([b, s]) => {
       if (cancelled) return;
-      if (t.status === 'fulfilled') {
-        const v = t.value as unknown;
-        const arr: BalanceTransaction[] = Array.isArray(v)
-          ? (v as BalanceTransaction[])
-          : (v as { content?: BalanceTransaction[] })?.content ?? [];
-        setTxs(arr);
-      }
       if (b.status === 'fulfilled') {
         const bs = b.value as BalanceSummary;
         setBalance(bs);
@@ -135,12 +123,37 @@ export function TransactionsPage() {
       }
       // Note: if summary fails, stats fall back to summing over txs — imperfect
       // for active users but better than blanks.
-      setLoading(false);
     });
     return () => {
       cancelled = true;
     };
-  }, [updateBalance, dateFrom, dateTo]);
+  }, [updateBalance]);
+
+  // Range-scoped: load the last-200 transactions narrowed by the date range
+  // (used for the All tab table + the 30-day flow chart). Re-runs when the
+  // user picks a new range; balance + summary above are intentionally not
+  // re-fetched since they're lifetime metrics.
+  useEffect(() => {
+    let cancelled = false;
+    balanceAPI
+      .transactions(0, 200, undefined, dateFrom, dateTo)
+      .then((v) => {
+        if (cancelled) return;
+        const arr: BalanceTransaction[] = Array.isArray(v)
+          ? (v as BalanceTransaction[])
+          : (v as { content?: BalanceTransaction[] })?.content ?? [];
+        setTxs(arr);
+      })
+      .catch(() => {
+        if (!cancelled) setTxs([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dateFrom, dateTo]);
 
   // Tab-scoped: load type-filtered list for the active non-'all' tab. Combines
   // with the date range when one is set.

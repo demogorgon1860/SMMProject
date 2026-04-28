@@ -1,5 +1,10 @@
 # Production Environment Configuration
 # Optimized for performance with minimal logging and maximum throughput
+#
+# IMPORTANT: keep all top-level keys unique (single `spring:`, single `management:`,
+# single `server:`). YAML loaders treat duplicate top-level keys as a replacement,
+# not a merge — historically this file had two `spring:` blocks and the second one
+# silently dropped the entire spring.liquibase + spring.jpa production overrides.
 
 spring:
   # ===============================
@@ -16,6 +21,16 @@ spring:
     rollback-file: /var/log/smm-panel/liquibase-rollback.sql
 
   # ===============================
+  # PRODUCTION DATASOURCE OVERRIDES
+  # ===============================
+  datasource:
+    hikari:
+      maximum-pool-size: ${DB_MAX_POOL_SIZE:200}    # Optimized for production load
+      minimum-idle: ${DB_MIN_IDLE:20}               # Higher minimum for prod
+      connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}  # Standard prod timeout
+      max-lifetime: ${DB_MAX_LIFETIME:1800000}      # 30 minutes
+
+  # ===============================
   # PRODUCTION JPA/HIBERNATE CONFIG
   # ===============================
   jpa:
@@ -27,12 +42,12 @@ spring:
         format_sql: false
         use_sql_comments: false
         highlight_sql: false
-        
+
         # ===============================
         # PRODUCTION STATISTICS
         # ===============================
         generate_statistics: false
-        
+
         # ===============================
         # OPTIMIZED BATCH CONFIGURATION
         # ===============================
@@ -41,13 +56,13 @@ spring:
           batch_versioned_data: true
           fetch_size: 200  # Larger fetch size for production
           time_zone: UTC
-          
+
         # ===============================
         # PRODUCTION QUERY OPTIMIZATION
         # ===============================
         default_batch_fetch_size: 64  # Maximum batch fetch for production
         max_fetch_depth: 3
-        
+
         # ===============================
         # QUERY PLAN CACHING (PRODUCTION)
         # ===============================
@@ -55,7 +70,7 @@ spring:
           plan_cache_max_size: 8192  # Large cache for production
           plan_parameter_metadata_max_size: 512
           in_clause_parameter_padding: true
-          
+
         # ===============================
         # SECOND LEVEL CACHE (PRODUCTION)
         # ===============================
@@ -65,7 +80,7 @@ spring:
           region:
             factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
           default_cache_concurrency_strategy: read_write
-          
+
         # ===============================
         # PRODUCTION OPTIMIZATIONS
         # ===============================
@@ -77,40 +92,33 @@ spring:
 # ===============================
 # PRODUCTION LOGGING CONFIGURATION
 # ===============================
+# Console output is JSON (see logback-spring.xml `prod` springProfile block) — these
+# levels just gate which events reach the encoder. Pattern overrides intentionally
+# omitted: the JSON encoder ignores them, and a duplicated text pattern would only
+# confuse anyone reading the rolling file with `tail -f`.
 logging:
   level:
-    root: WARN
+    root: INFO
     com.smmpanel: INFO
     org.hibernate: WARN
     org.hibernate.SQL: WARN
-    org.springframework.security: WARN
-    com.zaxxer.hikari: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.hibernate.type: WARN
+    org.springframework.security: INFO
     org.springframework.orm.jpa: WARN
     org.springframework.transaction: WARN
-    
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    org.springframework.web: INFO
+    com.zaxxer.hikari: WARN
+    io.lettuce: WARN
+    io.netty: WARN
+    org.apache.kafka: WARN
+    org.apache.kafka.clients.consumer.internals: WARN
+    org.springframework.kafka: INFO
 
 # ===============================
-# PRODUCTION DATABASE CONFIGURATION
+# APP-LEVEL PRODUCTION CACHE CONFIG
 # ===============================
-# ===============================
-# PRODUCTION DATASOURCE OVERRIDES
-# ===============================
-spring:
-  datasource:
-    hikari:
-      maximum-pool-size: ${DB_MAX_POOL_SIZE:200}    # Optimized for production load
-      minimum-idle: ${DB_MIN_IDLE:20}               # Higher minimum for prod
-      connection-timeout: ${DB_CONNECTION_TIMEOUT:30000}  # Standard prod timeout
-      max-lifetime: ${DB_MAX_LIFETIME:1800000}      # 30 minutes
-
 app:
-
-  # ===============================
-  # PRODUCTION CACHE CONFIGURATION
-  # ===============================
   cache:
     # Production cache TTL - longer for better performance
     services:
@@ -119,8 +127,6 @@ app:
       ttl: ${CACHE_USERS_TTL:3600}         # 1 hour - balance freshness/performance
     conversion-coefficients:
       ttl: ${CACHE_COEFFICIENTS_TTL:14400}  # 4 hours - rarely change
-    youtube-stats:
-      ttl: ${CACHE_YOUTUBE_TTL:600}         # 10 minutes - regular updates needed
 
 # ===============================
 # PRODUCTION MONITORING

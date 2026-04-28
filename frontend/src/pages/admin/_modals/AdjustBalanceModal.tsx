@@ -38,23 +38,26 @@ export function AdjustBalanceModal({ open, user, onClose, onSuccess }: AdjustBal
   const signed = direction === 'credit' ? amount : -amount;
   const newBalance = balance + signed;
   const amountValid = amount > 0;
-  const reasonValid = reason.trim().length >= 10;
+  // Reason is optional. Adjustments above $500 still require the type-the-id guard.
   const overdraft = direction === 'debit' && newBalance < 0;
   const highValue = amount > 500;
   const guardOK = isGuardCleared(highValue, String(user.id), guard);
-  const canSubmit = amountValid && reasonValid && !overdraft && guardOK && !submitting;
+  const canSubmit = amountValid && !overdraft && guardOK && !submitting;
 
   const submit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
     try {
       await adminAPI.adjustUserBalance(user.id, signed, reason);
+      const trimmed = reason.trim();
       pushAction({
         action: 'balance.manual_adjust',
         target: 'user:' + user.id,
         targetLabel: '@' + (user.username ?? user.email),
         amount: signed,
-        summary: `${direction === 'credit' ? 'Credited' : 'Debited'} ${fmtMoney(amount)} ${direction === 'credit' ? 'to' : 'from'} @${user.username ?? user.email} · ${reason}`,
+        summary:
+          `${direction === 'credit' ? 'Credited' : 'Debited'} ${fmtMoney(amount)} ${direction === 'credit' ? 'to' : 'from'} @${user.username ?? user.email}` +
+          (trimmed ? ` · ${trimmed}` : ''),
       });
       toast(`Balance ${direction === 'credit' ? 'credited' : 'debited'} · ${fmtMoney(amount)}`, 'success');
       onSuccess(signed);
@@ -170,7 +173,7 @@ export function AdjustBalanceModal({ open, user, onClose, onSuccess }: AdjustBal
         </div>
       )}
 
-      <Field label="Reason" hint={reason.length > 0 && reason.length < 10 ? `${reason.length}/10 chars min` : undefined} error={reason.length > 0 && !reasonValid}>
+      <Field label="Reason (optional)">
         <Textarea
           block
           rows={3}

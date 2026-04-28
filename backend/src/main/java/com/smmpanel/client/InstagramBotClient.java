@@ -650,6 +650,183 @@ public class InstagramBotClient {
         return callbackBaseUrl + "/api/webhook/instagram";
     }
 
+    /**
+     * Snapshot of one bot instance's live state, intended for the admin /admin/bot page. Uses the
+     * fast (3s) RestTemplate and bypasses circuit breakers / retries — we want the page to show
+     * "Offline" within seconds of an outage rather than waiting for the breaker to flip.
+     *
+     * <p>If the instance is unreachable, the returned status has {@code online=false} and a {@code
+     * lastError} populated; everything else is null.
+     */
+    public InstanceStatus getInstanceStatus(String instance) {
+        InstanceStatus.InstanceStatusBuilder builder = InstanceStatus.builder().baseUrl(instance);
+
+        Map<String, Object> health;
+        try {
+            ResponseEntity<Map> healthResp =
+                    fastRestTemplate.getForEntity(instance + "/api/health", Map.class);
+            if (!healthResp.getStatusCode().is2xxSuccessful() || healthResp.getBody() == null) {
+                return builder.online(false)
+                        .lastError("health: HTTP " + healthResp.getStatusCode().value())
+                        .build();
+            }
+            @SuppressWarnings("unchecked")
+            Map<String, Object> body = healthResp.getBody();
+            health = body;
+        } catch (Exception e) {
+            return builder.online(false).lastError("health: " + e.getMessage()).build();
+        }
+
+        Map<String, Object> stats;
+        try {
+            ResponseEntity<Map> statsResp =
+                    fastRestTemplate.getForEntity(instance + "/api/orders/stats", Map.class);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> body = statsResp.getBody() != null ? statsResp.getBody() : Map.of();
+            stats = body;
+        } catch (Exception e) {
+            // Health succeeded but stats failed — still report online with the partial data.
+            stats = Map.of();
+        }
+
+        builder.online(true)
+                .status((String) health.get("status"))
+                .version((String) health.get("version"))
+                .uptime(asString(health.get("uptime")))
+                .uptimeSec(asLong(health.get("uptime_sec")))
+                .heartbeatAt(java.time.Instant.now().toString())
+                .running(asBoolean(stats.get("is_running")))
+                .draining(asBoolean(stats.get("is_draining")))
+                .activeWorkers(asInt(stats.get("active_workers")));
+
+        Object countsObj = stats.get("counts");
+        if (countsObj instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> counts = (Map<String, Object>) countsObj;
+            builder.queueDepth(asInt(counts.get("pending")));
+            builder.inProgress(asInt(counts.get("processing")) + asInt(counts.get("scouting")));
+            builder.totalOrders(asInt(counts.get("total")));
+            builder.completedOrders(asInt(counts.get("completed")));
+            builder.failedOrders(asInt(counts.get("failed")));
+            builder.cancelledOrders(asInt(counts.get("cancelled")));
+        }
+
+        return builder.build();
+    }
+
+    /** Returns a per-instance status snapshot for every configured bot. Never throws. */
+    public List<InstanceStatus> getAllInstanceStatuses() {
+        List<InstanceStatus> out = new ArrayList<>(botInstances.size());
+        for (int i = 0; i < botInstances.size(); i++) {
+            String instance = botInstances.get(i);
+            InstanceStatus s = getInstanceStatus(instance);
+            s.setId("bot-" + String.format("%02d", i + 1));
+            out.add(s);
+        }
+        return out;
+    }
+
+    /**
+     * Proxies to the bot's POST /api/orders/workers using the fast template (3s). Returns the raw
+     * bot response body so the caller can show what the bot acknowledged.
+     */
+    public Map<String, Object> setWorkers(String instance, String action) {
+        return postJsonFast(instance, "/api/orders/workers", Map.of("action", action));
+    }
+
+    /** Proxies to the bot's POST /api/orders/drain ({"action":"start"|"stop"}). */
+    public Map<String, Object> setDrain(String instance, String action) {
+        return postJsonFast(instance, "/api/orders/drain", Map.of("action", action));
+    }
+
+    /** Proxies to the bot's POST /api/admin/reload. */
+    public Map<String, Object> reload(String instance) {
+        return postJsonFast(instance, "/api/admin/reload", Map.of());
+    }
+
+    /** Proxies to the bot's GET /api/orders, returning the raw payload. */
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> listOrdersFromInstance(String instance) {
+        try {
+            ResponseEntity<Map> resp =
+                    fastRestTemplate.getForEntity(instance + "/api/orders", Map.class);
+            if (resp.getStatusCode().is2xxSuccessful() && resp.getBody() != null) {
+                Object o = resp.getBody().get("orders");
+                if (o instanceof List) {
+                    return (List<Map<String, Object>>) o;
+                }
+            }
+        } catch (Exception e) {
+            log.debug("listOrdersFromInstance({}) failed: {}", instance, e.getMessage());
+        }
+        return List.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> postJsonFast(String instance, String path, Map<?, ?> body) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            String json = objectMapper.writeValueAsString(body);
+            HttpEntity<String> entity = new HttpEntity<>(json, headers);
+            ResponseEntity<Map> resp =
+                    fastRestTemplate.exchange(instance + path, HttpMethod.POST, entity, Map.class);
+            if (resp.getBody() != null) {
+                return (Map<String, Object>) resp.getBody();
+            }
+            return Map.of("success", false, "error", "empty response");
+        } catch (Exception e) {
+            log.warn("POST {} on {} failed: {}", path, instance, e.getMessage());
+            return Map.of("success", false, "error", e.getMessage());
+        }
+    }
+
+    private static String asString(Object o) {
+        return o == null ? null : o.toString();
+    }
+
+    private static Long asLong(Object o) {
+        if (o instanceof Number n) return n.longValue();
+        return null;
+    }
+
+    private static int asInt(Object o) {
+        if (o instanceof Number n) return n.intValue();
+        return 0;
+    }
+
+    private static boolean asBoolean(Object o) {
+        return o instanceof Boolean b && b;
+    }
+
+    /** Live snapshot of one bot instance, used by the admin /admin/bot page. */
+    @lombok.Data
+    @lombok.Builder
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    @com.fasterxml.jackson.annotation.JsonInclude(
+            com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+    public static class InstanceStatus {
+        private String id;
+        private String baseUrl;
+        private boolean online;
+        private String status;
+        private String version;
+        private String uptime;
+        private Long uptimeSec;
+        private String heartbeatAt;
+        private boolean running;
+        private boolean draining;
+        private Integer activeWorkers;
+        private Integer queueDepth;
+        private Integer inProgress;
+        private Integer totalOrders;
+        private Integer completedOrders;
+        private Integer failedOrders;
+        private Integer cancelledOrders;
+        private String lastError;
+    }
+
     // ==================== Internal Helpers ====================
 
     private InstagramOrderStatus mapToOrderStatus(Map<String, Object> body) {

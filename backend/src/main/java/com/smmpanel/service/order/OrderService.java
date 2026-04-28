@@ -2,12 +2,8 @@ package com.smmpanel.service.order;
 
 import com.smmpanel.config.OrderQuotaCheckProperties;
 import com.smmpanel.dto.OrderCreateRequest;
-import com.smmpanel.dto.binom.BinomIntegrationResponse;
-import com.smmpanel.dto.binom.CampaignStatsResponse;
-import com.smmpanel.dto.kafka.VideoProcessingMessage;
 import com.smmpanel.dto.request.CreateOrderRequest;
 import com.smmpanel.dto.response.OrderResponse;
-import com.smmpanel.dto.result.StateTransitionResult;
 import com.smmpanel.entity.*;
 import com.smmpanel.event.OrderCreatedEvent;
 import com.smmpanel.exception.InsufficientBalanceException;
@@ -21,35 +17,28 @@ import com.smmpanel.service.balance.BalanceService;
 import com.smmpanel.service.core.CqrsReadModelService;
 import com.smmpanel.service.core.EventSourcingService;
 import com.smmpanel.service.fraud.FraudDetectionService;
-import com.smmpanel.service.integration.BinomService;
 import com.smmpanel.service.integration.InstagramService;
-import com.smmpanel.service.integration.YouTubeService;
 import com.smmpanel.service.notification.NotificationService;
 import com.smmpanel.service.notification.TelegramNotificationService;
 import com.smmpanel.service.order.state.OrderStateManager;
+import com.smmpanel.service.settings.AppSettingsService;
 import com.smmpanel.service.validation.OrderValidationService;
-import com.smmpanel.service.video.VideoProcessingService;
-import com.smmpanel.service.video.YouTubeProcessingService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
@@ -68,27 +57,21 @@ public class OrderService {
     private final UserRepository userRepository;
     private final ServiceRepository serviceRepository;
     private final BalanceService balanceService;
-    private final YouTubeProcessingService youTubeProcessingService;
-    private final BinomService binomService;
     private final OrderStateManagementService orderStateManagementService;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
     private final EventSourcingService eventSourcingService;
     private final CqrsReadModelService cqrsReadModelService;
     private final ApiKeyService apiKeyService;
-    private final YouTubeService youTubeService;
-    private final YouTubeStartCountService youTubeStartCountService;
     private final InstagramService instagramService;
     private final org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
     private final OrderStateManager orderStateManager;
-    private final VideoProcessingService videoProcessingService;
     private final NotificationService notificationService;
     private final TelegramNotificationService telegramNotificationService;
     private final com.smmpanel.service.core.ServiceService serviceService;
     private final OrderValidationService orderValidationService;
     private final FraudDetectionService fraudDetectionService;
-    private final ConversionCoefficientRepository conversionCoefficientRepository;
     private final OrderEventProducer orderEventProducer;
     private final OrderQuotaCheckProperties quotaCheckProperties;
+    private final AppSettingsService appSettingsService;
 
     /**
      * Statuses that occupy a slot on a URL — either reserved (pending/active work) or already
@@ -107,15 +90,23 @@ public class OrderService {
                     OrderStatus.PAUSED,
                     OrderStatus.HOLDING);
 
+    /**
+     * Strictly *in-flight* statuses for the per-user concurrent-orders cap. Excludes terminal/
+     * completed states (COMPLETED, PARTIAL) — those don't occupy a worker slot anymore — but keeps
+     * everything that's still consuming resources or could resume work.
+     */
+    private static final List<OrderStatus> QUOTA_COUNTING_INFLIGHT_STATUSES =
+            List.of(
+                    OrderStatus.PENDING,
+                    OrderStatus.IN_PROGRESS,
+                    OrderStatus.PROCESSING,
+                    OrderStatus.ACTIVE,
+                    OrderStatus.PAUSED,
+                    OrderStatus.HOLDING);
+
     // Redis namespace constants
-    private static final String REDIS_YOUTUBE_START_COUNT = "youtube:startCount:";
-    private static final String REDIS_YOUTUBE_CURRENT_COUNT = "youtube:currentCount:";
     private static final String REDIS_ORDER_PROGRESS = "order:progress:";
-    private static final String REDIS_ORDER_CLIP_URL = "order:clip:";
-    private static final String REDIS_BINOM_OFFER = "binom:offer:";
-    private static final int REDIS_START_COUNT_TTL_DAYS = 30;
     private static final int REDIS_PROGRESS_TTL_HOURS = 24;
-    private static final int REDIS_CLIP_TTL_DAYS = 7;
 
     /** CRITICAL: Create order with API key (Perfect Panel compatibility) */
     @Transactional(
@@ -198,8 +189,37 @@ public class OrderService {
                                         : ""));
             }
 
-            // 5. Calculate charge based on effective quantity
+            // 5. Calculate charge based on effective quantity (markup applied if configured)
             BigDecimal charge = calculateCharge(service, effectiveQuantity);
+
+            // 5a. Reject orders below the configured platform-wide minimum charge.
+            // This is a money-floor — guarantees the panel doesn't process sub-cent orders that
+            // cost more in payment processing than they earn.
+            BigDecimal minCharge =
+                    appSettingsService.getDecimal(
+                            AppSettingsService.KEY_MIN_ORDER_CHARGE, BigDecimal.ZERO);
+            if (minCharge.signum() > 0 && charge.compareTo(minCharge) < 0) {
+                throw new OrderValidationException(
+                        String.format(
+                                "Order amount $%s is below the minimum charge of $%s",
+                                charge.toPlainString(), minCharge.toPlainString()));
+            }
+
+            // 5b. Concurrent-orders quota — count this user's in-flight orders and reject if at
+            // or above the configured cap. 0 means "unlimited" (skip the check entirely).
+            int maxConcurrent =
+                    appSettingsService.getInt(AppSettingsService.KEY_MAX_CONCURRENT_ORDERS, 0);
+            if (maxConcurrent > 0) {
+                long inFlight =
+                        orderRepository.countByUserIdAndStatusIn(
+                                user.getId(), QUOTA_COUNTING_INFLIGHT_STATUSES);
+                if (inFlight >= maxConcurrent) {
+                    throw new OrderQuotaExceededException(
+                            String.format(
+                                    "Concurrent orders limit reached: %d in-flight, max %d",
+                                    inFlight, maxConcurrent));
+                }
+            }
 
             // 6. Create order first (optimistic approach)
             Order order = new Order();
@@ -209,7 +229,6 @@ public class OrderService {
                     normalizeInstagramUrl(request.getLink())); // Normalize /reel/, /reels/ → /p/
             order.setQuantity(effectiveQuantity); // Use calculated quantity
             order.setCharge(charge);
-            // StartCount will be set immediately after save for YouTube orders
             order.setStartCount(0);
             order.setRemains(effectiveQuantity); // Use calculated quantity
             order.setStatus(OrderStatus.PENDING);
@@ -251,142 +270,12 @@ public class OrderService {
             // 8. Update CQRS read model
             cqrsReadModelService.updateOrderReadModel(order);
 
-            // 9. CRITICAL: Immediately capture YouTube startCount for baseline
-            if (isYouTubeOrder(order)) {
-                try {
-                    String videoId = extractYouTubeVideoId(order.getLink());
-                    log.info(
-                            "Order {} - Extracted YouTube video ID: {} from URL: {}",
-                            order.getId(),
-                            videoId,
-                            order.getLink());
-
-                    if (videoId != null) {
-                        // Get current view count from YouTube API
-                        int startCount = youTubeService.getVideoViewCount(videoId);
-
-                        // Update order with startCount
-                        order.setStartCount(startCount);
-                        order.setYoutubeVideoId(videoId);
-                        orderRepository.save(order);
-
-                        // CRITICAL: Check if video is deleted/blocked (startCount = 0)
-                        if (startCount == 0) {
-                            log.warn(
-                                    "Order {} - Video is deleted or blocked (startCount = 0)."
-                                        + " Automatically marking as PARTIAL and refunding user.",
-                                    order.getId());
-
-                            // Mark order as PARTIAL
-                            order.setStatus(OrderStatus.PARTIAL);
-                            order.setRemains(order.getQuantity()); // No views delivered
-                            order.setErrorMessage("Video deleted or unavailable");
-
-                            // Full refund to user
-                            try {
-                                balanceService.refund(
-                                        user,
-                                        charge,
-                                        order,
-                                        "Refund for deleted/blocked video - Order #"
-                                                + order.getId());
-                                // CRITICAL: Set charge to 0 after full refund
-                                order.setCharge(BigDecimal.ZERO);
-                                log.info(
-                                        "Order {} - Refunded {} to user {} for deleted/blocked"
-                                                + " video",
-                                        order.getId(),
-                                        charge,
-                                        user.getUsername());
-                            } catch (Exception e) {
-                                log.error(
-                                        "Failed to refund deleted video order {}: {}",
-                                        order.getId(),
-                                        e.getMessage());
-                            }
-
-                            orderRepository.save(order);
-
-                            // Don't send to processing queue - return early
-                            return mapToOrderResponse(order);
-                        }
-
-                        // Cache the startCount
-                        cacheStartCount(order.getId(), videoId, startCount);
-
-                        log.info(
-                                "Order {} - YouTube startCount captured: {}, video ID: {}",
-                                order.getId(),
-                                startCount,
-                                videoId);
-                    } else {
-                        log.warn(
-                                "Order {} - Could not extract video ID from URL: {}",
-                                order.getId(),
-                                order.getLink());
-                    }
-                } catch (Exception e) {
-                    log.error(
-                            "Failed to capture startCount for order {}: {}",
-                            order.getId(),
-                            e.getMessage());
-
-                    // CRITICAL: Check if startCount is still 0 after exception (video might be
-                    // blocked/deleted)
-                    // Reload order to get current state
-                    Order reloadedOrder = orderRepository.findById(order.getId()).orElse(order);
-                    if (reloadedOrder.getStartCount() == null
-                            || reloadedOrder.getStartCount() == 0) {
-                        log.warn(
-                                "Order {} - Video startCount check failed and remains 0. Video may"
-                                    + " be deleted/blocked. Marking as PARTIAL and refunding user.",
-                                order.getId());
-
-                        // Mark order as PARTIAL
-                        reloadedOrder.setStatus(OrderStatus.PARTIAL);
-                        reloadedOrder.setRemains(reloadedOrder.getQuantity()); // No views delivered
-                        reloadedOrder.setErrorMessage(
-                                "Video unavailable or startCount check failed");
-
-                        // Full refund to user
-                        try {
-                            balanceService.refund(
-                                    user,
-                                    charge,
-                                    reloadedOrder,
-                                    "Refund for unavailable video (startCount check failed) - Order"
-                                            + " #"
-                                            + order.getId());
-                            // CRITICAL: Set charge to 0 after full refund
-                            reloadedOrder.setCharge(BigDecimal.ZERO);
-                            log.info(
-                                    "Order {} - Refunded {} to user {} for unavailable video",
-                                    order.getId(),
-                                    charge,
-                                    user.getUsername());
-                        } catch (Exception refundEx) {
-                            log.error(
-                                    "Failed to refund unavailable video order {}: {}",
-                                    order.getId(),
-                                    refundEx.getMessage());
-                        }
-
-                        orderRepository.save(reloadedOrder);
-
-                        // Don't send to processing queue - return early
-                        return mapToOrderResponse(reloadedOrder);
-                    }
-
-                    // If startCount was successfully set before exception, continue processing
-                }
-            } else if (isInstagramOrder(order)) {
-                // INSTAGRAM ORDER - Send to Kafka for async processing
+            // 9. Dispatch Instagram order for async processing
+            if (isInstagramOrder(order)) {
                 log.info(
-                        "Order {} - Instagram order detected, publishing to Kafka for async"
-                                + " processing",
+                        "Order {} - Instagram order detected, publishing OrderCreatedEvent",
                         order.getId());
 
-                // Publish OrderCreatedEvent for async processing by consumer
                 OrderCreatedEvent instagramOrderEvent = new OrderCreatedEvent();
                 instagramOrderEvent.setOrderId(order.getId());
                 instagramOrderEvent.setUserId(user.getId());
@@ -395,63 +284,15 @@ public class OrderService {
                 instagramOrderEvent.setTimestamp(LocalDateTime.now());
 
                 orderEventProducer.publishOrderCreatedEvent(instagramOrderEvent);
-                log.info(
-                        "Published Instagram OrderCreatedEvent for order {} to Kafka",
-                        order.getId());
-
-                return mapToOrderResponse(order);
+                log.info("Published Instagram OrderCreatedEvent for order {}", order.getId());
             } else {
                 log.info(
-                        "Order {} - Not a YouTube or Instagram order, skipping special processing",
+                        "Order {} - Not an Instagram order, skipping special processing",
                         order.getId());
             }
 
-            // 10. Send to processing queue for clip creation and Binom setup (YouTube only)
-            // Create and send VideoProcessingMessage
-            String videoIdForProcessing =
-                    order.getYoutubeVideoId() != null
-                            ? order.getYoutubeVideoId()
-                            : extractYouTubeVideoId(order.getLink());
-
-            VideoProcessingMessage vpmsg =
-                    VideoProcessingMessage.builder()
-                            .messageId(UUID.randomUUID().toString())
-                            .timestamp(LocalDateTime.now())
-                            .orderId(order.getId())
-                            .videoId(videoIdForProcessing)
-                            .originalUrl(order.getLink())
-                            .targetQuantity(order.getQuantity())
-                            .processingType(VideoProcessingMessage.VideoProcessingType.VIEWS)
-                            .priority(VideoProcessingMessage.ProcessingPriority.MEDIUM)
-                            .createdAt(LocalDateTime.now())
-                            .attemptNumber(1)
-                            .maxAttempts(3)
-                            .build();
-
             log.info(
-                    "KAFKA MESSAGE: Sending order {} to smm.video.processing with videoId={},"
-                            + " targetQuantity={}",
-                    order.getId(),
-                    videoIdForProcessing,
-                    order.getQuantity());
-
-            kafkaTemplate.send("smm.video.processing", vpmsg);
-
-            // 11. Publish OrderCreatedEvent for async processing
-            OrderCreatedEvent orderCreatedEvent = new OrderCreatedEvent();
-            orderCreatedEvent.setOrderId(order.getId());
-            orderCreatedEvent.setUserId(user.getId());
-            orderCreatedEvent.setServiceId(service.getId());
-            orderCreatedEvent.setQuantity(order.getQuantity());
-            orderCreatedEvent.setTimestamp(LocalDateTime.now());
-
-            orderEventProducer.publishOrderCreatedEvent(orderCreatedEvent);
-            log.info("Published OrderCreatedEvent for order {} to Kafka", order.getId());
-
-            log.info(
-                    "Order {} created successfully for user {} and sent to processing queue",
-                    order.getId(),
-                    user.getUsername());
+                    "Order {} created successfully for user {}", order.getId(), user.getUsername());
 
             return mapToOrderResponse(order);
 
@@ -559,30 +400,10 @@ public class OrderService {
             throw new OrderValidationException("Order must be completed to refill");
         }
 
-        // Change status to REFILL and send to processing
+        // Change status to REFILL — Instagram refill flow handled by InstagramService
         order.setStatus(OrderStatus.REFILL);
         order.setUpdatedAt(LocalDateTime.now());
         orderRepository.save(order);
-
-        // Create and send VideoProcessingMessage
-        VideoProcessingMessage vpmsg =
-                VideoProcessingMessage.builder()
-                        .messageId(UUID.randomUUID().toString())
-                        .timestamp(LocalDateTime.now())
-                        .orderId(order.getId())
-                        .videoId(
-                                order.getYoutubeVideoId() != null
-                                        ? order.getYoutubeVideoId()
-                                        : extractYouTubeVideoId(order.getLink()))
-                        .originalUrl(order.getLink())
-                        .targetQuantity(order.getQuantity())
-                        .processingType(VideoProcessingMessage.VideoProcessingType.VIEWS)
-                        .priority(VideoProcessingMessage.ProcessingPriority.MEDIUM)
-                        .createdAt(LocalDateTime.now())
-                        .attemptNumber(1)
-                        .maxAttempts(3)
-                        .build();
-        kafkaTemplate.send("smm.video.processing", vpmsg);
 
         log.info("Order {} refill initiated by user {}", orderId, user.getUsername());
     }
@@ -716,27 +537,6 @@ public class OrderService {
         Order order = orderRepository.findById(orderId).orElseThrow();
         order.setStatus(OrderStatus.PROCESSING);
         orderRepository.save(order);
-        // Need to fetch order first to create proper message
-        Order orderToProcess = orderRepository.findById(orderId).orElseThrow();
-        String videoId =
-                orderToProcess.getYoutubeVideoId() != null
-                        ? orderToProcess.getYoutubeVideoId()
-                        : extractYouTubeVideoId(orderToProcess.getLink());
-        VideoProcessingMessage vpmsg2 =
-                VideoProcessingMessage.builder()
-                        .messageId(UUID.randomUUID().toString())
-                        .timestamp(LocalDateTime.now())
-                        .orderId(orderId)
-                        .videoId(videoId)
-                        .originalUrl(orderToProcess.getLink())
-                        .targetQuantity(orderToProcess.getQuantity())
-                        .processingType(VideoProcessingMessage.VideoProcessingType.VIEWS)
-                        .priority(VideoProcessingMessage.ProcessingPriority.MEDIUM)
-                        .createdAt(LocalDateTime.now())
-                        .attemptNumber(1)
-                        .maxAttempts(3)
-                        .build();
-        kafkaTemplate.send("smm.video.processing", vpmsg2);
     }
 
     @Transactional
@@ -884,27 +684,6 @@ public class OrderService {
         order.setStatus(OrderStatus.PROCESSING);
         order.setLastRetryAt(LocalDateTime.now());
         orderRepository.save(order);
-        // Need to fetch order first to create proper message
-        Order orderToProcess = orderRepository.findById(orderId).orElseThrow();
-        String videoId =
-                orderToProcess.getYoutubeVideoId() != null
-                        ? orderToProcess.getYoutubeVideoId()
-                        : extractYouTubeVideoId(orderToProcess.getLink());
-        VideoProcessingMessage vpmsg2 =
-                VideoProcessingMessage.builder()
-                        .messageId(UUID.randomUUID().toString())
-                        .timestamp(LocalDateTime.now())
-                        .orderId(orderId)
-                        .videoId(videoId)
-                        .originalUrl(orderToProcess.getLink())
-                        .targetQuantity(orderToProcess.getQuantity())
-                        .processingType(VideoProcessingMessage.VideoProcessingType.VIEWS)
-                        .priority(VideoProcessingMessage.ProcessingPriority.MEDIUM)
-                        .createdAt(LocalDateTime.now())
-                        .attemptNumber(1)
-                        .maxAttempts(3)
-                        .build();
-        kafkaTemplate.send("smm.video.processing", vpmsg2);
     }
 
     @Transactional
@@ -960,7 +739,9 @@ public class OrderService {
 
     @Transactional
     public void triggerOrderProcessing(Long orderId) {
-        kafkaTemplate.send("smm.order.processing", orderId);
+        // Instagram orders are dispatched via OrderEventProducer at creation time;
+        // this method exists for state-machine compatibility but is now a no-op.
+        log.debug("triggerOrderProcessing called for order {} (no-op for Instagram flow)", orderId);
     }
 
     // Private helper methods
@@ -1006,9 +787,28 @@ public class OrderService {
     }
 
     private BigDecimal calculateCharge(com.smmpanel.entity.Service service, int quantity) {
-        return service.getPricePer1000()
+        BigDecimal effectiveRate = applyMarkup(service.getPricePer1000());
+        return effectiveRate
                 .multiply(BigDecimal.valueOf(quantity))
                 .divide(BigDecimal.valueOf(1000), 4, java.math.RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Apply the configured platform markup percentage to a base rate. A markup of 15% multiplies by
+     * 1.15. Markups are non-negative; a 0% setting returns the base rate unchanged. The same
+     * function is used for charge calculation AND for the rate shown in {@code /v1/services} so
+     * customers always see exactly what they will pay.
+     */
+    private BigDecimal applyMarkup(BigDecimal baseRate) {
+        if (baseRate == null) return BigDecimal.ZERO;
+        BigDecimal markupPct =
+                appSettingsService.getDecimal(
+                        AppSettingsService.KEY_MARKUP_PERCENT, BigDecimal.ZERO);
+        if (markupPct.signum() <= 0) return baseRate;
+        BigDecimal multiplier =
+                BigDecimal.ONE.add(
+                        markupPct.divide(BigDecimal.valueOf(100), 6, RoundingMode.HALF_UP));
+        return baseRate.multiply(multiplier);
     }
 
     /**
@@ -1047,20 +847,43 @@ public class OrderService {
     }
 
     private BigDecimal calculateRefund(Order order) {
-        if (order.getRemains() <= 0) {
-            return BigDecimal.ZERO;
-        }
+        return calculateRefund(order.getCharge(), order.getQuantity(), order.getRemains());
+    }
 
-        // Refund proportional to remaining quantity
-        BigDecimal totalCharge = order.getCharge();
-        BigDecimal completedRatio =
-                BigDecimal.valueOf(order.getQuantity() - order.getRemains())
-                        .divide(
-                                BigDecimal.valueOf(order.getQuantity()),
-                                4,
-                                java.math.RoundingMode.HALF_UP);
+    /**
+     * Pure-function refund formula. Extracted from {@link #calculateRefund(Order)} so the math is
+     * unit-testable in isolation and the edge cases (zero quantity, overdelivery, BigDecimal
+     * precision) can't silently regress.
+     *
+     * <p>Formula: {@code refund = charge * remains / quantity}, equivalent to {@code charge * (1 -
+     * completed / quantity)} where {@code completed = quantity - remains}.
+     *
+     * <p>Edge cases handled defensively:
+     *
+     * <ul>
+     *   <li>{@code charge == null} or {@code charge <= 0} → ZERO (nothing was charged → nothing to
+     *       refund).
+     *   <li>{@code quantity <= 0} → ZERO. The field is {@code @Min(1)} on the validator so this
+     *       shouldn't happen in production, but guarding defends the wallet against a manual SQL
+     *       write or a corrupt import.
+     *   <li>{@code remains <= 0} → ZERO (fully delivered, no refund).
+     *   <li>{@code remains >= quantity} → full charge (overdelivery / nothing-delivered both end up
+     *       here; we never refund more than was charged).
+     * </ul>
+     *
+     * <p>Result is rounded to two decimal places (cents) using HALF_UP — the same rounding mode the
+     * wallet uses, so the credit row matches the expected amount to the cent.
+     */
+    static BigDecimal calculateRefund(BigDecimal charge, int quantity, Integer remains) {
+        if (charge == null || charge.signum() <= 0) return BigDecimal.ZERO;
+        if (quantity <= 0) return BigDecimal.ZERO;
+        if (remains == null || remains <= 0) return BigDecimal.ZERO;
+        if (remains >= quantity) return charge.setScale(2, java.math.RoundingMode.HALF_UP);
 
-        return totalCharge.subtract(totalCharge.multiply(completedRatio));
+        BigDecimal ratio =
+                BigDecimal.valueOf(remains)
+                        .divide(BigDecimal.valueOf(quantity), 6, java.math.RoundingMode.HALF_UP);
+        return charge.multiply(ratio).setScale(2, java.math.RoundingMode.HALF_UP);
     }
 
     private OrderResponse mapToOrderResponse(Order order) {
@@ -1098,7 +921,9 @@ public class OrderService {
         serviceMap.put("service", service.getId());
         serviceMap.put("name", service.getName());
         serviceMap.put("category", service.getCategory());
-        serviceMap.put("rate", service.getPricePer1000().toString());
+        // Show the marked-up rate to clients — what they see here matches what
+        // calculateCharge will bill them.
+        serviceMap.put("rate", applyMarkup(service.getPricePer1000()).toString());
         serviceMap.put("min", service.getMinOrder());
         serviceMap.put("max", service.getMaxOrder());
         serviceMap.put("description", service.getDescription());
@@ -1122,24 +947,6 @@ public class OrderService {
         };
     }
 
-    /** Cache the startCount for monitoring */
-    private void cacheStartCount(Long orderId, String videoId, int startCount) {
-        try {
-            // Store startCount in Redis for monitoring
-            String key = REDIS_YOUTUBE_START_COUNT + orderId;
-            Map<String, Object> data = new HashMap<>();
-            data.put("videoId", videoId);
-            data.put("startCount", startCount);
-            data.put("capturedAt", LocalDateTime.now().toString());
-
-            redisTemplate.opsForHash().putAll(key, data);
-            redisTemplate.expire(key, java.time.Duration.ofDays(30));
-
-        } catch (Exception e) {
-            log.warn("Failed to cache startCount: {}", e.getMessage());
-        }
-    }
-
     /** Store order progress in Redis for fast access during monitoring */
     private void storeOrderProgressInCache(Long orderId, int startCount, int targetQuantity) {
         try {
@@ -1159,17 +966,6 @@ public class OrderService {
         } catch (Exception e) {
             log.warn("Failed to cache order progress for {}: {}", orderId, e.getMessage());
         }
-    }
-
-    /** Check if order is for YouTube service */
-    private boolean isYouTubeOrder(Order order) {
-        if (order.getService() == null) return false;
-        String serviceName = order.getService().getName();
-        String category = order.getService().getCategory();
-        return (serviceName != null
-                        && (serviceName.toLowerCase().contains("youtube")
-                                || serviceName.toLowerCase().contains("views")))
-                || (category != null && category.toLowerCase().contains("youtube"));
     }
 
     /** Check if order is for Instagram service */
@@ -1336,39 +1132,6 @@ public class OrderService {
         return url;
     }
 
-    /** Extract YouTube video ID from various URL formats */
-    private String extractYouTubeVideoId(String url) {
-        if (url == null) return null;
-
-        // Handle youtube.com/watch?v=VIDEO_ID
-        if (url.contains("youtube.com/watch")) {
-            String[] parts = url.split("[?&]");
-            for (String part : parts) {
-                if (part.startsWith("v=")) {
-                    return part.substring(2).split("[&]")[0];
-                }
-            }
-        }
-
-        // Handle youtu.be/VIDEO_ID
-        if (url.contains("youtu.be/")) {
-            String[] parts = url.split("youtu.be/");
-            if (parts.length > 1) {
-                return parts[1].split("[?&]")[0];
-            }
-        }
-
-        // Handle youtube.com/shorts/VIDEO_ID
-        if (url.contains("youtube.com/shorts/")) {
-            String[] parts = url.split("shorts/");
-            if (parts.length > 1) {
-                return parts[1].split("[?&]")[0];
-            }
-        }
-
-        return null;
-    }
-
     // Additional methods required by the interface
     public OrderResponse createOrder(CreateOrderRequest request, String username) {
         User user =
@@ -1497,16 +1260,12 @@ public class OrderService {
         // Deduct balance
         balanceService.deductBalance(user, charge, order, "Order #" + order.getId());
 
-        // Capture YouTube startCount asynchronously to avoid blocking response
-        if (isYouTubeOrder(order)) {
-            youTubeStartCountService.captureStartCountAsync(order.getId(), order.getLink());
-        } else if (isInstagramOrder(order)) {
-            // INSTAGRAM ORDER - Send to Kafka for async processing
+        // Dispatch Instagram order for async processing
+        if (isInstagramOrder(order)) {
             log.info(
-                    "Order {} - Instagram order detected, publishing to Kafka for async processing",
+                    "Order {} - Instagram order detected, publishing OrderCreatedEvent",
                     order.getId());
 
-            // Publish OrderCreatedEvent for async processing by consumer
             OrderCreatedEvent instagramOrderEvent = new OrderCreatedEvent();
             instagramOrderEvent.setOrderId(order.getId());
             instagramOrderEvent.setUserId(user.getId());
@@ -1515,50 +1274,14 @@ public class OrderService {
             instagramOrderEvent.setTimestamp(LocalDateTime.now());
 
             orderEventProducer.publishOrderCreatedEvent(instagramOrderEvent);
-            log.info("Published Instagram OrderCreatedEvent for order {} to Kafka", order.getId());
-
-            return mapToOrderResponse(order);
+            log.info("Published Instagram OrderCreatedEvent for order {}", order.getId());
         } else {
             log.info(
-                    "Order {} - Not a YouTube or Instagram order, skipping special processing",
+                    "Order {} - Not an Instagram order, skipping special processing",
                     order.getId());
         }
 
-        // Send to processing queue (YouTube orders only)
-        // Create and send VideoProcessingMessage
-        String videoIdForProcessing =
-                order.getYoutubeVideoId() != null
-                        ? order.getYoutubeVideoId()
-                        : extractYouTubeVideoId(order.getLink());
-
-        VideoProcessingMessage vpmsg =
-                VideoProcessingMessage.builder()
-                        .messageId(UUID.randomUUID().toString())
-                        .timestamp(LocalDateTime.now())
-                        .orderId(order.getId())
-                        .videoId(videoIdForProcessing)
-                        .originalUrl(order.getLink())
-                        .targetQuantity(order.getQuantity())
-                        .processingType(VideoProcessingMessage.VideoProcessingType.VIEWS)
-                        .priority(VideoProcessingMessage.ProcessingPriority.MEDIUM)
-                        .createdAt(LocalDateTime.now())
-                        .attemptNumber(1)
-                        .maxAttempts(3)
-                        .build();
-
-        log.info(
-                "KAFKA MESSAGE: Sending order {} to smm.video.processing with videoId={},"
-                        + " targetQuantity={}",
-                order.getId(),
-                videoIdForProcessing,
-                order.getQuantity());
-
-        kafkaTemplate.send("smm.video.processing", vpmsg);
-
-        log.info(
-                "Order {} created successfully for user {} and sent to processing queue",
-                order.getId(),
-                username);
+        log.info("Order {} created successfully for user {}", order.getId(), username);
 
         return mapToOrderResponse(order);
     }
@@ -1607,12 +1330,25 @@ public class OrderService {
         OrderStatus orderStatus =
                 (status == null || status.isEmpty()) ? null : mapFromPerfectPanelStatus(status);
 
-        // When no search term, use original optimized repository methods
+        // When no search term, use original optimized repository methods. We coalesce
+        // IN_PROGRESS / PROCESSING into a single bucket on the way to the DB — the panel UI
+        // hides PROCESSING entirely and renders both as "In progress", so a click on the
+        // "In progress" tab must surface orders in either real status (otherwise PROCESSING
+        // orders silently vanish from the user's list).
         if (search == null || search.isEmpty()) {
-            Page<Order> orders =
-                    orderStatus != null
-                            ? orderRepository.findByUserAndStatus(user, orderStatus, pageable)
-                            : orderRepository.findByUser(user, pageable);
+            Page<Order> orders;
+            if (orderStatus == null) {
+                orders = orderRepository.findByUser(user, pageable);
+            } else if (orderStatus == OrderStatus.IN_PROGRESS
+                    || orderStatus == OrderStatus.PROCESSING) {
+                orders =
+                        orderRepository.findByUserAndStatusIn(
+                                user,
+                                java.util.List.of(OrderStatus.IN_PROGRESS, OrderStatus.PROCESSING),
+                                pageable);
+            } else {
+                orders = orderRepository.findByUserAndStatus(user, orderStatus, pageable);
+            }
             return orders.map(this::mapToOrderResponse);
         }
 
@@ -1675,14 +1411,14 @@ public class OrderService {
      * Resolve a status string into the matching {@link OrderStatus}. Accepts:
      *
      * <ul>
-     *   <li>Native enum names (case-insensitive): {@code IN_PROGRESS}, {@code CANCELLED}, etc.
-     *       This is what the SMMWorld frontend sends (tab.toUpperCase()).
+     *   <li>Native enum names (case-insensitive): {@code IN_PROGRESS}, {@code CANCELLED}, etc. This
+     *       is what the SMMWorld frontend sends (tab.toUpperCase()).
      *   <li>PerfectPanel-style human strings: {@code "in progress"}, {@code "canceled"} (US
      *       spelling), {@code "partial"}, etc. Reseller integrations send these via /api/v2.
      * </ul>
      *
-     * Returns {@code null} when the input doesn't map to any known status — the caller treats
-     * a {@code null} filter the same as "any". Returning {@code PENDING} as a default (the old
+     * Returns {@code null} when the input doesn't map to any known status — the caller treats a
+     * {@code null} filter the same as "any". Returning {@code PENDING} as a default (the old
      * behavior) silently changed the filter the user picked, so picking "In progress" actually
      * showed pending orders, which is the bug this method had on prod.
      */
@@ -1745,366 +1481,11 @@ public class OrderService {
         return result;
     }
 
-    /**
-     * CRITICAL: Check order completion based on 3-campaign distribution Integrates campaign stats
-     * to determine if order should be completed
-     */
-    @Transactional(readOnly = true)
-    public boolean isOrderCompletedBasedOnCampaigns(Long orderId) {
-        try {
-            Order order = orderRepository.findById(orderId).orElse(null);
-            if (order == null || !order.getStatus().equals(OrderStatus.ACTIVE)) {
-                return false;
-            }
-
-            // Get aggregated campaign stats from all 3 campaigns
-            CampaignStatsResponse campaignStats = binomService.getCampaignStatsForOrder(orderId);
-
-            if (campaignStats == null) {
-                log.warn("No campaign stats available for order {}", orderId);
-                return false;
-            }
-
-            // Check if all 3 campaigns are working (ensure proper distribution)
-            boolean has3CampaignsActive = campaignStats.getCampaignId().split(",").length == 3;
-            if (!has3CampaignsActive) {
-                log.warn("Order {} does not have 3 active campaigns as expected", orderId);
-            }
-
-            // Calculate completion based on total conversions from all campaigns
-            long totalConversions = campaignStats.getConversions();
-            int targetQuantity = order.getQuantity();
-
-            boolean isCompleted = totalConversions >= targetQuantity;
-
-            if (isCompleted) {
-                log.info(
-                        "Order {} completed based on campaign data: {}/{} conversions achieved"
-                                + " across {} campaigns",
-                        orderId,
-                        totalConversions,
-                        targetQuantity,
-                        campaignStats.getCampaignId().split(",").length);
-            }
-
-            return isCompleted;
-
-        } catch (Exception e) {
-            log.error(
-                    "Failed to check campaign completion for order {}: {}",
-                    orderId,
-                    e.getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * CRITICAL: Update order progress using campaign data from 3-campaign distribution This method
-     * aggregates data from all campaigns and updates order accordingly
-     */
-    @Transactional(propagation = Propagation.REQUIRED)
-    public void updateOrderProgressFromCampaigns(Long orderId) {
-        try {
-            Order order = orderRepository.findById(orderId).orElse(null);
-            if (order == null || !order.getStatus().equals(OrderStatus.ACTIVE)) {
-                log.debug("Skipping campaign progress update for order {} - not active", orderId);
-                return;
-            }
-
-            // Get aggregated campaign stats
-            CampaignStatsResponse campaignStats = binomService.getCampaignStatsForOrder(orderId);
-
-            if (campaignStats == null) {
-                log.warn("No campaign stats available for order {}", orderId);
-                return;
-            }
-
-            // Calculate progress from campaign data
-            long totalConversions = campaignStats.getConversions();
-            int targetQuantity = order.getQuantity();
-            int remains = Math.max(0, targetQuantity - (int) totalConversions);
-
-            // Update order progress
-            order.setRemains(remains);
-            order.setUpdatedAt(LocalDateTime.now());
-
-            // Check for completion based on campaign data
-            if (remains <= 0 && totalConversions >= targetQuantity) {
-                // Use state management for proper completion transition
-                StateTransitionResult result =
-                        orderStateManagementService.transitionToCompleted(
-                                orderId, order.getStartCount() + (int) totalConversions);
-
-                if (result.isSuccess()) {
-                    log.info(
-                            "Order {} completed via campaign aggregation: {} conversions from {}"
-                                    + " campaigns",
-                            orderId,
-                            totalConversions,
-                            campaignStats.getCampaignId().split(",").length);
-
-                    // Remove offer from all campaigns to stop spending
-                    try {
-                        binomService.removeOfferForOrder(orderId);
-                    } catch (Exception e) {
-                        log.error(
-                                "Failed to remove offer for completed order {}: {}",
-                                orderId,
-                                e.getMessage());
-                    }
-                } else {
-                    log.warn(
-                            "Failed to transition order {} to completed: {}",
-                            orderId,
-                            result.getErrorMessage());
-                }
-            } else {
-                orderRepository.save(order);
-                log.debug(
-                        "Updated order {} progress from campaigns: {}/{} conversions, {} remains",
-                        orderId,
-                        totalConversions,
-                        targetQuantity,
-                        remains);
-            }
-
-            // Publish Kafka event for order progress update (maintaining compatibility)
-            Map<String, Object> progressEvent = new HashMap<>();
-            progressEvent.put("orderId", orderId);
-            progressEvent.put("totalConversions", totalConversions);
-            progressEvent.put("remains", remains);
-            progressEvent.put("campaignCount", campaignStats.getCampaignId().split(",").length);
-            progressEvent.put("updateSource", "campaign-aggregation");
-
-            kafkaTemplate.send("smm.order.progress", orderId.toString(), progressEvent);
-
-        } catch (Exception e) {
-            log.error(
-                    "Failed to update order progress from campaigns for order {}: {}",
-                    orderId,
-                    e.getMessage());
-        }
-    }
-
-    /**
-     * Automatically start processing PENDING YouTube orders Runs every 10 seconds for immediate
-     * processing DISABLED: To avoid race condition with Kafka consumer flow
-     */
-    // @Scheduled(fixedDelay = 10000, initialDelay = 5000)
-    // @Transactional(propagation = Propagation.REQUIRED)
-    public void processPendingYouTubeOrders() {
-        // DISABLED: This scheduled job causes race conditions with the Kafka consumer
-        // The order processing is now handled entirely through Kafka messages sent during order
-        // creation
-        // This prevents duplicate processing and status conflicts
-    }
-
-    /**
-     * DISABLED: Binom integration moved to BinomSyncScheduler for proper separation of concerns
-     *
-     * <p>OrderService handles: Order creation, business logic, status management BinomSyncScheduler
-     * handles: Binom integration, click tracking, offer removal
-     *
-     * <p>This prevents duplicate Binom API calls and race conditions between schedulers.
-     */
-    // @Scheduled(fixedDelay = 5000)
-    @Transactional(propagation = Propagation.REQUIRED)
-    public void monitorActiveOrders() {
-        try {
-            // Monitor all active orders, not just IN_PROGRESS
-            List<Order> activeOrders =
-                    orderRepository.findByStatusIn(
-                            List.of(
-                                    OrderStatus.PROCESSING,
-                                    OrderStatus.ACTIVE,
-                                    OrderStatus.IN_PROGRESS));
-
-            log.debug(
-                    "Monitoring {} active orders (PROCESSING/ACTIVE/IN_PROGRESS)",
-                    activeOrders.size());
-
-            for (Order order : activeOrders) {
-                try {
-                    monitorOrderProgress(order);
-                } catch (Exception e) {
-                    log.error("Failed to monitor order {}: {}", order.getId(), e.getMessage());
-                }
-            }
-
-        } catch (Exception e) {
-            log.error("Failed to monitor active orders: {}", e.getMessage());
-        }
-    }
-
-    /** Monitor individual order progress When clicks reach target, verify YouTube views */
-    private void monitorOrderProgress(Order order) {
-        Long orderId = order.getId();
-
-        // Skip orders without Binom offer ID
-        if (order.getBinomOfferId() == null) {
-            log.debug("Order {} has no Binom offer ID, skipping monitoring", orderId);
-            return;
-        }
-
-        // Get Binom campaign stats
-        CampaignStatsResponse stats = binomService.getCampaignStatsForOrder(orderId);
-        if (stats == null) {
-            log.warn("No campaign stats for order {}", orderId);
-            return;
-        }
-
-        long currentClicks = stats.getClicks();
-        int targetClicks =
-                order.getTargetViews() != null
-                        ? order.getTargetViews()
-                        : (int) (order.getQuantity() * order.getCoefficient().doubleValue());
-
-        // Calculate early pull threshold to prevent overshoot
-        // Pull at 95% of target to account for clicks that accumulate between checks
-        int earlyPullThreshold = (int) (targetClicks * 0.95);
-
-        log.debug(
-                "Order {} - Clicks: {}/{} (early pull at: {})",
-                orderId,
-                currentClicks,
-                targetClicks,
-                earlyPullThreshold);
-
-        // Check if clicks reached early pull threshold to minimize overshoot
-        if (currentClicks >= earlyPullThreshold) {
-            log.info(
-                    "Order {} reached early pull threshold: {}/{} (95% of target {})",
-                    orderId, currentClicks, earlyPullThreshold, targetClicks);
-
-            // Stop the Binom offer immediately to prevent more clicks (costs money!)
-            try {
-                binomService.removeOfferForOrder(orderId);
-                log.info("Removed Binom offer for order {} from campaigns", orderId);
-            } catch (Exception e) {
-                log.error("Failed to stop offer for order {}: {}", orderId, e.getMessage());
-            }
-
-            // Transition to PENDING status and schedule view verification
-            order.setStatus(OrderStatus.PENDING);
-            orderRepository.save(order);
-            log.info("Order {} transitioned to PENDING after reaching click target", orderId);
-
-            // Store second startCount in Redis and schedule first view check
-            scheduleInitialViewCheck(order);
-        }
-    }
-
-    /**
-     * Verify YouTube views when clicks reach target Compare current count with startCount + ordered
-     * quantity
-     */
-    private void verifyYouTubeViews(Order order) {
-        try {
-            Long orderId = order.getId();
-            String videoId = order.getYoutubeVideoId();
-
-            if (videoId == null) {
-                log.error("No YouTube video ID for order {}", orderId);
-                return;
-            }
-
-            // Get current view count (second check)
-            int currentViewCount = youTubeService.getVideoViewCount(videoId);
-            int startCount = order.getStartCount();
-            int targetViews = order.getQuantity();
-            int viewsGained = currentViewCount - startCount;
-
-            log.info(
-                    "Order {} - StartCount: {}, Current: {}, Gained: {}, Target: {}",
-                    orderId,
-                    startCount,
-                    currentViewCount,
-                    viewsGained,
-                    targetViews);
-
-            // Check if target views reached
-            if (viewsGained >= targetViews) {
-                // SUCCESS - Complete the order
-                completeOrderWithViews(order, currentViewCount);
-            } else {
-                // Views not reached - schedule retry
-                scheduleViewRetry(order, currentViewCount, viewsGained);
-            }
-
-        } catch (Exception e) {
-            log.error("Error verifying views for order {}: {}", order.getId(), e.getMessage());
-        }
-    }
-
-    /** Complete order when views are verified */
-    @Transactional
-    private void completeOrderWithViews(Order order, int finalViewCount) {
-        order.setStatus(OrderStatus.COMPLETED);
-        order.setRemains(0);
-        order.setUpdatedAt(LocalDateTime.now());
-        orderRepository.save(order);
-
-        // Ensure Binom offer is completely removed (should already be stopped)
-        try {
-            binomService.removeOfferForOrder(order.getId());
-        } catch (Exception e) {
-            log.error("Failed to remove offer for order {}: {}", order.getId(), e.getMessage());
-        }
-
-        // Clean up Redis keys
-        cleanupRedisKeys(order.getId());
-
-        log.info(
-                "Order {} COMPLETED - Views delivered: {}",
-                order.getId(),
-                finalViewCount - order.getStartCount());
-    }
-
-    /** Schedule retry for view verification Retry every 10 minutes up to 12 times (2 hours) */
-    private void scheduleViewRetry(Order order, int currentViewCount, int viewsGained) {
-        Long orderId = order.getId();
-        String retryKey = "order:retry:" + orderId;
-
-        // Get or initialize retry count
-        Integer retryCount = (Integer) redisTemplate.opsForValue().get(retryKey);
-        if (retryCount == null) {
-            retryCount = 0;
-        }
-
-        // Max retries check removed - PARTIAL status is now manual-only via admin action
-        // Auto-PARTIAL only occurs for deleted/blocked videos (startCount = 0)
-
-        // Increment retry count
-        retryCount++;
-        redisTemplate.opsForValue().set(retryKey, retryCount, java.time.Duration.ofDays(1));
-
-        // Store retry state
-        String stateKey = "order:retry:state:" + orderId;
-        Map<String, Object> state = new HashMap<>();
-        state.put("currentViewCount", currentViewCount);
-        state.put("viewsGained", viewsGained);
-        state.put("retryCount", retryCount);
-        state.put("nextRetryAt", LocalDateTime.now().plusMinutes(30).toString());
-
-        redisTemplate.opsForHash().putAll(stateKey, state);
-        redisTemplate.expire(stateKey, java.time.Duration.ofDays(1));
-
-        log.info(
-                "Order {} - Views {}/{}. Retry {} scheduled in 30 minutes",
-                orderId,
-                viewsGained,
-                order.getQuantity(),
-                retryCount);
-    }
-
-    /**
-     * Process scheduled view verification retries Runs every minute to check for pending retries
-     */
+    /** Lightweight progress update — Instagram orders update remains via webhook/RabbitMQ. */
     public void updateOrderProgress(Long orderId, Integer clicksDelivered, Integer totalClicks) {
         try {
             Order order = orderRepository.findById(orderId).orElse(null);
             if (order != null) {
-                // Update order progress based on clicks
                 if (totalClicks != null && totalClicks > 0 && order.getQuantity() > 0) {
                     int progress = (clicksDelivered * 100) / totalClicks;
                     log.debug(
@@ -2122,170 +1503,6 @@ public class OrderService {
             redisTemplate.opsForValue().set(cacheKey, progressData, Duration.ofHours(24));
         } catch (Exception e) {
             log.error("Failed to update progress cache: {}", e.getMessage());
-        }
-    }
-
-    @Scheduled(fixedDelay = 5000)
-    public void processViewRetries() {
-        try {
-            // Process both PENDING (waiting for initial view check) and IN_PROGRESS orders
-            List<Order> ordersToCheck = new ArrayList<>();
-            ordersToCheck.addAll(orderRepository.findByStatus(OrderStatus.PENDING));
-            ordersToCheck.addAll(orderRepository.findByStatus(OrderStatus.IN_PROGRESS));
-
-            for (Order order : ordersToCheck) {
-                String stateKey = "order:retry:state:" + order.getId();
-                Map<Object, Object> state = redisTemplate.opsForHash().entries(stateKey);
-
-                if (!state.isEmpty()) {
-                    String nextRetryAt = (String) state.get("nextRetryAt");
-                    if (nextRetryAt != null) {
-                        LocalDateTime retryTime = LocalDateTime.parse(nextRetryAt);
-                        if (LocalDateTime.now().isAfter(retryTime)) {
-                            log.info("Processing retry for order {}", order.getId());
-                            verifyYouTubeViews(order);
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.error("Error processing view retries: {}", e.getMessage());
-        }
-    }
-
-    /**
-     * Schedule initial view check after offer removal PUBLIC: Called by BinomSyncScheduler after
-     * removing offer from campaigns
-     */
-    /**
-     * Schedule initial view check after offer removal.
-     *
-     * <p>CRITICAL: This method sets Redis key "order:secondStartCount:{orderId}" which causes
-     * BinomSyncScheduler to SKIP syncing the order. This is the ONLY method that should set this
-     * key, and it should ONLY be called when offers are actually removed from Binom.
-     *
-     * <p>EDGE CASE FIX: Added comprehensive logging with stack traces to detect when this is called
-     * unexpectedly (e.g., from disabled schedulers, manual scripts, or during transaction
-     * rollbacks).
-     */
-    public void scheduleInitialViewCheck(Order order) {
-        Long orderId = order.getId();
-
-        try {
-            String videoId = order.getYoutubeVideoId();
-
-            if (videoId == null) {
-                log.error("No YouTube video ID for order {}", orderId);
-                return;
-            }
-
-            // CRITICAL: Log WHO called this method and WHY (to catch edge cases)
-            StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
-            String caller = stackTrace.length > 2 ? stackTrace[2].toString() : "unknown";
-            String callerClass = stackTrace.length > 2 ? stackTrace[2].getClassName() : "unknown";
-
-            log.warn(
-                    "REDIS KEY CREATION INITIATED - Order {}: scheduleInitialViewCheck() called by"
-                            + " {} (class: {})",
-                    orderId,
-                    caller,
-                    callerClass);
-
-            // Capture second startCount and store in Redis
-            int secondStartCount = youTubeService.getVideoViewCount(videoId);
-
-            String secondCountKey = "order:secondStartCount:" + orderId;
-            Map<String, Object> secondCountData = new HashMap<>();
-            secondCountData.put("videoId", videoId);
-            secondCountData.put("secondStartCount", secondStartCount);
-            secondCountData.put("capturedAt", LocalDateTime.now().toString());
-            secondCountData.put("firstStartCount", order.getStartCount());
-            secondCountData.put("calledBy", caller); // Track who created this key
-            secondCountData.put("callerClass", callerClass);
-
-            // Log BEFORE setting the Redis key (in case of transaction rollback)
-            log.info(
-                    "Order {} - ABOUT TO SET Redis secondStartCount key: videoId={},"
-                            + " secondCount={}, firstCount={}, caller={}",
-                    orderId,
-                    videoId,
-                    secondStartCount,
-                    order.getStartCount(),
-                    caller);
-
-            redisTemplate.opsForHash().putAll(secondCountKey, secondCountData);
-            redisTemplate.expire(secondCountKey, java.time.Duration.ofDays(7));
-
-            // Log AFTER setting the Redis key (confirms it was set)
-            log.warn(
-                    "REDIS KEY CREATED - Order {} - secondStartCount key SET in Redis: {} (first"
-                            + " was: {}). This order will NOW BE SKIPPED by BinomSyncScheduler!",
-                    orderId,
-                    secondStartCount,
-                    order.getStartCount());
-
-            // Schedule first view check in 30 minutes
-            String stateKey = "order:retry:state:" + orderId;
-            Map<String, Object> state = new HashMap<>();
-            state.put("currentViewCount", secondStartCount);
-            state.put("viewsGained", secondStartCount - order.getStartCount());
-            state.put("retryCount", 0);
-            state.put("nextRetryAt", LocalDateTime.now().plusMinutes(30).toString());
-
-            redisTemplate.opsForHash().putAll(stateKey, state);
-            redisTemplate.expire(stateKey, java.time.Duration.ofDays(1));
-
-            log.info("Order {} - Initial view check scheduled in 30 minutes", orderId);
-
-        } catch (Exception e) {
-            log.error(
-                    "CRITICAL ERROR - Failed to schedule initial view check for order {}: {}. Stack"
-                            + " trace:",
-                    orderId,
-                    e.getMessage(),
-                    e);
-
-            // Log full stack trace to understand what happened
-            for (StackTraceElement element : e.getStackTrace()) {
-                log.error("  at {}", element);
-            }
-        }
-    }
-
-    /** Clean up Redis keys associated with an order */
-    private void cleanupRedisKeys(Long orderId) {
-        try {
-            String prefix = "order:" + orderId + ":*";
-            log.debug("Cleaning up Redis keys for order {} with pattern: {}", orderId, prefix);
-
-            // Clean up order-specific keys
-            String progressKey = "order:" + orderId + ":progress";
-            String statusKey = "order:" + orderId + ":status";
-            String viewsKey = "order:" + orderId + ":views";
-            String clipKey = "order:" + orderId + ":clip";
-            String secondCountKey = "order:secondStartCount:" + orderId;
-            String retryKey = "order:retry:" + orderId;
-            String retryStateKey = "order:retry:state:" + orderId;
-            String backoffKey = "order:offerRemoval:nextRetry:" + orderId;
-            String viewCheckScheduledKey = "order:viewCheckScheduled:" + orderId;
-
-            // Delete keys if they exist
-            if (redisTemplate != null) {
-                redisTemplate.delete(progressKey);
-                redisTemplate.delete(statusKey);
-                redisTemplate.delete(viewsKey);
-                redisTemplate.delete(clipKey);
-                redisTemplate.delete(secondCountKey);
-                redisTemplate.delete(retryKey);
-                redisTemplate.delete(retryStateKey);
-                redisTemplate.delete(backoffKey);
-                redisTemplate.delete(viewCheckScheduledKey);
-
-                log.debug("Cleaned up Redis keys for order {}", orderId);
-            }
-        } catch (Exception e) {
-            log.warn("Failed to clean up Redis keys for order {}: {}", orderId, e.getMessage());
-            // Non-critical error, don't throw
         }
     }
 
@@ -2309,7 +1526,7 @@ public class OrderService {
         }
     }
 
-    /** Main order processing workflow */
+    /** Main order processing workflow — Instagram orders are dispatched via OrderEventProducer. */
     @Transactional(propagation = Propagation.REQUIRED)
     public void processNewOrder(Long orderId) {
         Order order =
@@ -2321,39 +1538,15 @@ public class OrderService {
         log.info("Processing new order: {} for user: {}", orderId, order.getUser().getUsername());
 
         try {
-            // 1. Validate order is in correct state
             if (!order.getStatus().equals(OrderStatus.PENDING)) {
                 log.warn("Order {} is not in PENDING status: {}", orderId, order.getStatus());
                 return;
             }
 
-            // 2. Update to IN_PROGRESS
+            // Transition to IN_PROGRESS — Instagram delivery is owned by InstagramService.
             orderStateManager.transitionTo(order, OrderStatus.IN_PROGRESS);
-
-            // 3. Get initial view count
-            String videoId = youTubeService.extractVideoId(order.getLink());
-            int startCount = youTubeService.getVideoViewCount(videoId);
-            order.setStartCount(startCount);
             order.setRemains(order.getQuantity());
             orderRepository.save(order);
-
-            // 4. Create video processing record
-            VideoProcessing videoProcessing = videoProcessingService.createProcessingRecord(order);
-
-            // 5. Determine if clip creation is needed
-            ConversionCoefficient coefficient =
-                    getConversionCoefficient(order.getService().getId());
-            boolean createClip = shouldCreateClip(order, coefficient);
-
-            if (createClip) {
-                // Start clip creation process
-                videoProcessingService.startClipCreation(videoProcessing);
-                orderStateManager.transitionTo(order, OrderStatus.PROCESSING);
-            } else {
-                // Direct to Binom without clip
-                createBinomCampaign(order, order.getLink(), coefficient.getWithoutClip());
-                orderStateManager.transitionTo(order, OrderStatus.ACTIVE);
-            }
 
             log.info("Order {} processing initiated successfully", orderId);
 
@@ -2386,9 +1579,6 @@ public class OrderService {
             order.setErrorMessage("Paused: " + reason);
             orderRepository.save(order);
 
-            // Pause Binom campaigns
-            pauseBinomCampaigns(orderId);
-
             log.info("Paused order {} - reason: {}", orderId, reason);
 
         } catch (Exception e) {
@@ -2397,42 +1587,7 @@ public class OrderService {
         }
     }
 
-    @Transactional(propagation = Propagation.REQUIRED)
-    public void handleClipCreationCompleted(Long videoProcessingId) {
-        VideoProcessing videoProcessing = videoProcessingService.getById(videoProcessingId);
-        Order order = videoProcessing.getOrder();
-
-        try {
-            if (!videoProcessing.isClipCreated()) {
-                throw new IllegalStateException("Clip creation not completed");
-            }
-
-            ConversionCoefficient coefficient =
-                    getConversionCoefficient(order.getService().getId());
-            createBinomCampaign(order, videoProcessing.getClipUrl(), coefficient.getWithClip());
-
-            orderStateManager.transitionTo(order, OrderStatus.ACTIVE);
-
-            log.info(
-                    "Order {} activated with clip: {}",
-                    order.getId(),
-                    videoProcessing.getClipUrl());
-
-        } catch (Exception e) {
-            log.error(
-                    "Failed to activate order {} after clip creation: {}",
-                    order.getId(),
-                    e.getMessage(),
-                    e);
-            orderStateManager.transitionTo(order, OrderStatus.HOLDING);
-            notificationService.notifyOperators(
-                    "Order " + order.getId() + " requires manual intervention");
-        }
-    }
-
-    /**
-     * Complete order processing (called after successful video processing and Binom integration)
-     */
+    /** Complete order processing (transition to ACTIVE — delivery in progress) */
     @Transactional(propagation = Propagation.REQUIRED)
     public void completeOrderProcessing(Long orderId) {
         try {
@@ -2460,52 +1615,6 @@ public class OrderService {
             log.error("Failed to complete order processing for {}: {}", orderId, e.getMessage());
             throw e;
         }
-    }
-
-    private void createBinomCampaign(Order order, String targetUrl, BigDecimal coefficient) {
-        try {
-            // Calculate required clicks based on coefficient
-            int targetViews =
-                    new BigDecimal(order.getQuantity())
-                            .multiply(coefficient)
-                            .divide(BigDecimal.valueOf(1000), 0, RoundingMode.UP)
-                            .intValue();
-
-            // Distribute offer across 3 pre-configured campaigns
-            BinomIntegrationResponse response =
-                    binomService.createBinomIntegration(order, targetUrl, true, targetUrl);
-
-            if (response.isSuccess()) {
-                log.info(
-                        "Offer distributed to {} campaigns for order {}",
-                        response.getCampaignsCreated(),
-                        order.getId());
-            }
-
-        } catch (Exception e) {
-            log.error(
-                    "Failed to create Binom campaign for order {}: {}",
-                    order.getId(),
-                    e.getMessage(),
-                    e);
-            throw e;
-        }
-    }
-
-    private boolean shouldCreateClip(Order order, ConversionCoefficient coefficient) {
-        // Create clip if it provides better conversion rate
-        return coefficient.getWithClip().compareTo(coefficient.getWithoutClip()) < 0;
-    }
-
-    private ConversionCoefficient getConversionCoefficient(Long serviceId) {
-        return conversionCoefficientRepository
-                .findByServiceId(serviceId)
-                .orElse(
-                        ConversionCoefficient.builder()
-                                .serviceId(serviceId)
-                                .withClip(BigDecimal.valueOf(3.0)) // Default values
-                                .withoutClip(BigDecimal.valueOf(4.0))
-                                .build());
     }
 
     /** Handle order processing failure */
@@ -2589,15 +1698,5 @@ public class OrderService {
         return order.getStatus() == OrderStatus.ACTIVE
                 || order.getStatus() == OrderStatus.PROCESSING
                 || order.getStatus() == OrderStatus.IN_PROGRESS;
-    }
-
-    /** Pause Binom campaigns for an order */
-    private void pauseBinomCampaigns(Long orderId) {
-        try {
-            // Implementation would pause campaigns in Binom
-            log.info("Pausing Binom campaigns for order {}", orderId);
-        } catch (Exception e) {
-            log.error("Failed to pause Binom campaigns for order {}: {}", orderId, e.getMessage());
-        }
     }
 }

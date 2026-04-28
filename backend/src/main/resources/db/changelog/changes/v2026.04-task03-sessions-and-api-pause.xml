@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      Task 03: Real Sessions list + user-controlled API pause.
+
+      1. refresh_tokens.last_used_at  — tracked per session so the Sessions
+         tab can sort by recency and render "last active 2 min ago".
+         Backfilled to created_at for existing rows so the first render
+         after deploy is sensible (no NULLs in the UI).
+
+      2. users.api_key_paused_at      — non-null = the API key is paused by
+         the owner. ApiKeyAuthenticationFilter checks this column and
+         rejects the request with 403 when set. Pause/resume is a
+         self-service action under Profile → Danger Zone.
+    -->
+
+    <changeSet id="v2026.04-task03-add-last-used-at" author="dev">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <not><columnExists tableName="refresh_tokens" columnName="last_used_at"/></not>
+        </preConditions>
+        <addColumn tableName="refresh_tokens">
+            <column name="last_used_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </addColumn>
+        <sql>
+            UPDATE refresh_tokens
+            SET last_used_at = created_at
+            WHERE last_used_at IS NULL;
+        </sql>
+        <createIndex tableName="refresh_tokens" indexName="idx_refresh_tokens_user_last_used">
+            <column name="user_id"/>
+            <column name="last_used_at" descending="true"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="refresh_tokens" indexName="idx_refresh_tokens_user_last_used"/>
+            <dropColumn tableName="refresh_tokens" columnName="last_used_at"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="v2026.04-task03-add-api-key-paused-at" author="dev">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <not><columnExists tableName="users" columnName="api_key_paused_at"/></not>
+        </preConditions>
+        <addColumn tableName="users">
+            <column name="api_key_paused_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </addColumn>
+        <rollback>
+            <dropColumn tableName="users" columnName="api_key_paused_at"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

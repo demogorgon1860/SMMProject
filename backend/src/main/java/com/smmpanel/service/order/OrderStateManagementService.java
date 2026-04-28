@@ -3,7 +3,7 @@ package com.smmpanel.service.order;
 import com.smmpanel.dto.result.StateTransitionResult;
 import com.smmpanel.entity.Order;
 import com.smmpanel.entity.OrderStatus;
-import com.smmpanel.exception.VideoProcessingException;
+import com.smmpanel.exception.OrderProcessingException;
 import com.smmpanel.repository.jpa.OrderRepository;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
@@ -61,8 +61,7 @@ public class OrderStateManagementService {
      * validation
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public OrderValidationResult validateAndUpdateOrderForProcessing(
-            Long orderId, String youtubeVideoId) {
+    public OrderValidationResult validateAndUpdateOrderForProcessing(Long orderId) {
         try {
             log.info("Validating and updating order for processing: orderId={}", orderId);
 
@@ -72,7 +71,7 @@ public class OrderStateManagementService {
                             .findById(orderId)
                             .orElseThrow(
                                     () ->
-                                            new VideoProcessingException(
+                                            new OrderProcessingException(
                                                     "Order not found: " + orderId));
 
             // Validate current state
@@ -95,7 +94,6 @@ public class OrderStateManagementService {
             // Perform immediate status transition
             OrderStatus previousStatus = order.getStatus();
             order.setStatus(OrderStatus.PROCESSING);
-            order.setYoutubeVideoId(youtubeVideoId);
             order.setUpdatedAt(LocalDateTime.now());
 
             // Add processing metadata
@@ -137,7 +135,7 @@ public class OrderStateManagementService {
                             .findById(orderId)
                             .orElseThrow(
                                     () ->
-                                            new VideoProcessingException(
+                                            new OrderProcessingException(
                                                     "Order not found: " + orderId));
 
             // Validate order is in processing state
@@ -191,7 +189,7 @@ public class OrderStateManagementService {
                             .findById(orderId)
                             .orElseThrow(
                                     () ->
-                                            new VideoProcessingException(
+                                            new OrderProcessingException(
                                                     "Order not found: " + orderId));
 
             // Validate transition
@@ -249,7 +247,7 @@ public class OrderStateManagementService {
                             .findById(orderId)
                             .orElseThrow(
                                     () ->
-                                            new VideoProcessingException(
+                                            new OrderProcessingException(
                                                     "Order not found: " + orderId));
 
             // Validate transition
@@ -300,7 +298,7 @@ public class OrderStateManagementService {
                             .findById(orderId)
                             .orElseThrow(
                                     () ->
-                                            new VideoProcessingException(
+                                            new OrderProcessingException(
                                                     "Order not found: " + orderId));
 
             // Holding is allowed from any non-terminal state
@@ -353,7 +351,7 @@ public class OrderStateManagementService {
                             .findById(orderId)
                             .orElseThrow(
                                     () ->
-                                            new VideoProcessingException(
+                                            new OrderProcessingException(
                                                     "Order not found: " + orderId));
 
             // PARTIAL is allowed from PENDING, PROCESSING, or ACTIVE states
@@ -399,7 +397,7 @@ public class OrderStateManagementService {
                             .findById(orderId)
                             .orElseThrow(
                                     () ->
-                                            new VideoProcessingException(
+                                            new OrderProcessingException(
                                                     "Order not found: " + orderId));
 
             // Only update progress for active orders

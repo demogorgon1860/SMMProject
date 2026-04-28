@@ -186,11 +186,7 @@ public class MassOrderParser {
                 || urlLower.contains(".")
                 || // Domain with TLD
                 urlLower.startsWith("www.")
-                || urlLower.contains("youtube.")
-                || urlLower.contains("instagram.")
-                || urlLower.contains("facebook.")
-                || urlLower.contains("twitter.")
-                || urlLower.contains("tiktok.");
+                || urlLower.contains("instagram.");
     }
 
     /**

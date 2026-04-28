@@ -9,6 +9,10 @@ public class OrderProcessingException extends RuntimeException {
     private final OrderStatus currentStatus;
     private final Boolean retryable;
 
+    public OrderProcessingException(String message) {
+        this(message, null, null, null, null);
+    }
+
     public OrderProcessingException(String message, Long orderId, OrderStatus currentStatus) {
         this(message, orderId, currentStatus, null, null);
     }

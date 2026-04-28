@@ -51,7 +51,8 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(
-            HttpSecurity http, RateLimitFilter rateLimitFilter) throws Exception {
+            HttpSecurity http, RateLimitFilter rateLimitFilter, MaintenanceFilter maintenanceFilter)
+            throws Exception {
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(
                         csrf ->
@@ -115,11 +116,7 @@ public class SecurityConfig {
 
                                                 // Error and debug
                                                 "/api/debug/**",
-                                                "/error",
-
-                                                // YouTube session setup (temporary public for
-                                                // initial cookie capture)
-                                                "/api/v*/admin/youtube-session/**")
+                                                "/error")
                                         .permitAll()
 
                                         // Admin endpoints (following REST pattern)
@@ -167,6 +164,10 @@ public class SecurityConfig {
                                                         hstsConfig
                                                                 .maxAgeInSeconds(31536000)
                                                                 .includeSubDomains(true)))
+                // Maintenance filter runs FIRST — short-circuits non-admin /api/v1/* with 503
+                // before auth work happens, so a maintenance window doesn't burn DB/Redis time on
+                // requests we're going to reject anyway.
+                .addFilterBefore(maintenanceFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useServerPagination } from '../../lib/hooks/useServerPagination';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Badge,
@@ -41,11 +42,14 @@ interface RefillRequest {
 // /orders/:id      → list + drawer auto-open
 // =====================================================================
 
+// PROCESSING is intentionally NOT exposed as a tab — it's an internal sub-state of
+// IN_PROGRESS. The badge component renders both as "In progress" and the backend
+// coalesces the IN_PROGRESS filter to match BOTH PROCESSING and IN_PROGRESS rows, so
+// the user sees one unified bucket.
 const STATUS_TABS = [
   { value: 'all', label: 'All' },
   { value: 'in_progress', label: 'In progress' },
   { value: 'pending', label: 'Pending' },
-  { value: 'processing', label: 'Processing' },
   { value: 'completed', label: 'Completed' },
   { value: 'partial', label: 'Partial' },
   { value: 'cancelled', label: 'Cancelled' },
@@ -58,104 +62,50 @@ export function OrdersPage() {
   const params = useParams<{ id?: string }>();
   const [search] = useSearchParams();
 
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<string>(search.get('status') ?? 'all');
   const [q, setQ] = useState('');
-  // 1-indexed for the Pagination component; converted to 0-indexed when calling the API.
-  const [page, setPage] = useState(1);
-  const [totalElements, setTotalElements] = useState(0);
 
-  // Debounce search so we don't refetch on every keystroke.
-  const [debouncedQ, setDebouncedQ] = useState('');
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedQ(q.trim()), 250);
-    return () => clearTimeout(t);
-  }, [q]);
+  // Stable identity for the hook's effect dependency: only changes when `tab` actually changes,
+  // so a re-render that doesn't touch the filter doesn't trigger a refetch.
+  const baseParams = useMemo(
+    () => (tab !== 'all' ? { status: tab.toUpperCase() } : {}),
+    [tab],
+  );
 
-  // Reset to page 1 when filters change so we don't sit on a now-empty high page.
-  useEffect(() => {
-    setPage(1);
-  }, [tab, debouncedQ]);
+  // Backend caps `size` at 100 (@Max(100) on OrderController#getUserOrders).
+  // Server-pagination so the user can reach every order they own.
+  const {
+    items: orders,
+    totalElements,
+    page,
+    setPage,
+    loading,
+  } = useServerPagination<Order>({
+    fetcher: orderAPI.list,
+    baseParams,
+    pageSize: PAGE_SIZE,
+    search: q,
+  });
 
-  useEffect(() => {
-    let cancelled = false;
-    const fetchPage = (showSpinner: boolean) => {
-      if (showSpinner) setLoading(true);
-      orderAPI
-        // Backend caps `size` at 100 (@Max(100) on OrderController#getUserOrders).
-        // Pagination is server-side so the user can reach every order they own,
-        // not just the most recent page-load.
-        .list({
-          page: page - 1,
-          size: PAGE_SIZE,
-          ...(tab !== 'all' ? { status: tab.toUpperCase() } : {}),
-          ...(debouncedQ ? { search: debouncedQ } : {}),
-        })
-        .then((data: unknown) => {
-          if (cancelled) return;
-          // PerfectPanelResponse wraps a Spring Page: { success, data: { content, totalElements, ... } }.
-          // Some legacy paths return the Page directly. Accept both shapes plus the
-          // already-unwrapped array for safety.
-          const env = data as
-            | { data?: { content?: Order[]; totalElements?: number } | Order[] }
-            | { content?: Order[]; totalElements?: number }
-            | Order[]
-            | null;
-          let arr: Order[] = [];
-          let total = 0;
-          if (Array.isArray(env)) {
-            arr = env;
-            total = env.length;
-          } else if (env && 'content' in env && Array.isArray((env as { content?: Order[] }).content)) {
-            arr = (env as { content: Order[]; totalElements?: number }).content;
-            total = (env as { totalElements?: number }).totalElements ?? arr.length;
-          } else if (env && 'data' in env) {
-            const d = (env as { data?: { content?: Order[]; totalElements?: number } | Order[] }).data;
-            if (Array.isArray(d)) {
-              arr = d;
-              total = d.length;
-            } else if (d && Array.isArray(d.content)) {
-              arr = d.content;
-              total = d.totalElements ?? arr.length;
-            }
-          }
-          setOrders(arr);
-          setTotalElements(total);
-        })
-        .catch(() => {
-          if (!cancelled && showSpinner) {
-            setOrders([]);
-            setTotalElements(0);
-          }
-          // Silent on background refresh failures — keep the existing rows up.
-        })
-        .finally(() => !cancelled && showSpinner && setLoading(false));
-    };
-
-    fetchPage(true);
-    // Bot pushes start_count and current_count updates every ~15 minutes; mirror
-    // that cadence here so an open Orders page picks up Remains changes without
-    // requiring the user to hit Refresh. Background refreshes don't flicker the
-    // table back to the loading skeleton.
-    const interval = window.setInterval(() => fetchPage(false), 15 * 60 * 1000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
-  }, [page, tab, debouncedQ]);
-
-  // No client-side filtering — backend handles status + search. We render the
-  // server response as-is so totals + pagination stay consistent.
-  const filtered = orders;
+  // Local optimistic-update bridge: when the drawer cancels/refills an order, mirror it onto
+  // the items array so the table reflects the new status without waiting for the next refetch.
+  const [overrides, setOverrides] = useState<Record<number, Partial<Order>>>({});
+  const filtered = useMemo(() => {
+    if (Object.keys(overrides).length === 0) return orders;
+    return orders.map((o) => (overrides[o.id] ? { ...o, ...overrides[o.id] } : o));
+  }, [orders, overrides]);
 
   const detailOrder = useMemo(() => {
     if (!params.id) return null;
-    return orders.find((o) => String(o.id) === params.id) ?? null;
-  }, [orders, params.id]);
+    // Read from `filtered` so the drawer reflects optimistic post-action overrides.
+    return filtered.find((o) => String(o.id) === params.id) ?? null;
+  }, [filtered, params.id]);
 
   return (
-    <div className="container-app py-8">
+    // Use the wider container — Orders is the only data-dense table on the user side, and a
+    // 1240px cap (container-app) leaves obvious whitespace on FullHD+. container-wide caps at
+    // 1800px so the table breathes on wide monitors without going edge-to-edge on 4K.
+    <div className="container-wide py-8">
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-[24px] font-bold tracking-[-0.02em]">Orders</h1>
         <span className="font-mono text-[12px] text-fg-subtle">
@@ -297,7 +247,7 @@ export function OrdersPage() {
         onClose={() => navigate('/orders')}
         onAfterAction={(updated) => {
           if (!updated) return;
-          setOrders((prev) => prev.map((o) => (o.id === updated.id ? { ...o, ...updated } : o)));
+          setOverrides((prev) => ({ ...prev, [updated.id]: { ...prev[updated.id], ...updated } }));
         }}
       />
     </div>
@@ -641,8 +591,8 @@ function ProgressTab({ order, pct }: { order: Order; pct: number }) {
       </Card>
 
       <div className="mt-4 text-[13px] text-fg-muted">
-        Progress: <span className="font-mono">{(pct * 100).toFixed(1)}%</span>. Median start time was 47s; remaining
-        actions queued across the closest healthy region.
+        Progress: <span className="font-mono">{(pct * 100).toFixed(1)}%</span>. Remaining actions are queued across the
+        delivery network and dripfeed based on the service profile.
       </div>
     </div>
   );

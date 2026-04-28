@@ -29,6 +29,15 @@ public class TelegramWebhookRegistrar implements ApplicationRunner {
             log.info("Telegram notifications disabled — skipping webhook registration");
             return;
         }
+        if (!StringUtils.hasText(props.getBot().getToken())
+                || !StringUtils.hasText(props.getBot().getChatId())) {
+            log.warn("============================================================");
+            log.warn("TELEGRAM NOTIFICATIONS ENABLED BUT TOKEN/CHAT_ID MISSING —");
+            log.warn("set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID in .env.docker, or");
+            log.warn("set TELEGRAM_NOTIFICATIONS_ENABLED=false to silence this warning.");
+            log.warn("============================================================");
+            return;
+        }
         try {
             String url = String.format(SET_WEBHOOK_URL, props.getBot().getToken());
             String webhookUrl = "https://smmworld.vip" + WEBHOOK_PATH;

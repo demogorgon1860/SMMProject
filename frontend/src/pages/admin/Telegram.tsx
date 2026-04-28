@@ -20,6 +20,7 @@ import {
 import { adminAPI } from '../../services/api';
 import { useAdminActions } from '../../store/adminActions';
 import { cn, fmtDur, fmtInt } from '../../lib/utils';
+import { unwrapList } from '../../lib/api';
 
 // =====================================================================
 // Admin Telegram Control —
@@ -48,8 +49,7 @@ export function AdminTelegramPage() {
       .telegramPending()
       .then((data: unknown) => {
         if (cancelled) return;
-        const arr = Array.isArray(data) ? (data as PendingDecision[]) : (data as { content?: PendingDecision[] })?.content ?? [];
-        setPending(arr);
+        setPending(unwrapList<PendingDecision>(data));
       })
       .catch(() => {});
     return () => {

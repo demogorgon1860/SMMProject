@@ -116,12 +116,6 @@ app:
     allow-credentials: true
   
   # External services (use mock/sandbox versions)
-  binom:
-    api:
-      url: ${BINOM_API_URL}  # From .env file
-      key: ${BINOM_API_KEY}  # From .env file
-      timeout: 30000
-  
   cryptomus:
     enabled: ${CRYPTOMUS_ENABLED:true}  ## From .env file
     api:
@@ -133,9 +127,6 @@ app:
     merchant-id: ${CRYPTOMUS_MERCHANT_ID}  ## Merchant ID
     sandbox: false  ## Simple user accounts use production mode
     min-deposit: 5.00  ## Minimum deposit amount
-  
-  youtube:
-    api-key: ${YOUTUBE_API_KEY}  # From .env file
 
 # Security settings for development
 security:

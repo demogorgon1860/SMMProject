@@ -3,6 +3,22 @@
 // Field names match the Spring Boot DTOs / JPA entities (see backend
 // audit). Where the API still returns mixed casing, normalize at the
 // store/hook layer, not here.
+//
+// Generated-types workflow (see Task 11.D):
+//   1. Start backend locally (`./gradlew bootRun` or `docker-compose -f
+//      docker-compose.dev.yml up -d`).
+//   2. Run `npm run gen-types` — writes `src/types/api.gen.ts` from
+//      `/v3/api-docs`. Never hand-edit that file.
+//   3. Replace any hand-typed DTO in this file with a thin re-export:
+//        import type { components } from './api.gen';
+//        export type Order = components['schemas']['OrderResponse'];
+//      TypeScript compile errors will surface field-name drift across
+//      consumers — fix call-sites; that's the whole point.
+//   4. Commit `api.gen.ts` so CI can compare via `npm run gen-types:check`
+//      and fail the build on drift.
+//
+// Until that loop runs end-to-end, the hand-written interfaces below
+// remain authoritative.
 // =====================================================================
 
 export type UserRole = 'USER' | 'ADMIN' | 'OPERATOR';

@@ -146,17 +146,7 @@ dependencies {
     // Removed redundant jakarta.mail (already included via starter-mail)
     
     // Removed redundant spring-security-core (already included via starter-security)
-    
-    // YouTube API
-    implementation 'com.google.api-client:google-api-client:2.2.0'
-    implementation 'com.google.apis:google-api-services-youtube:v3-rev20231011-2.0.0'
-    implementation 'com.google.http-client:google-http-client-jackson2:1.43.3'
-    
-    // Selenium
-    implementation 'org.seleniumhq.selenium:selenium-java:4.15.0'
-    implementation 'org.seleniumhq.selenium:selenium-chrome-driver:4.15.0'
-    implementation 'org.seleniumhq.selenium:selenium-support:4.15.0'
-    
+
     // HTTP Client
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation 'org.apache.httpcomponents.client5:httpclient5:5.3'
@@ -229,6 +219,11 @@ dependencies {
     // Monitoring
     implementation 'io.micrometer:micrometer-registry-prometheus'
     implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
+
+    // Sentry — error reporting / release tracking. Auto-configures on Spring Boot if
+    // SENTRY_DSN is set; gracefully no-ops if it's blank, so dev/CI need no extra config.
+    implementation 'io.sentry:sentry-spring-boot-starter-jakarta:7.14.0'
+    implementation 'io.sentry:sentry-logback:7.14.0'
     
     // Development tools
     developmentOnly 'org.springframework.boot:spring-boot-devtools'

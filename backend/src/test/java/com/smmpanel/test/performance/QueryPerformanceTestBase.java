@@ -229,9 +229,6 @@ public abstract class QueryPerformanceTestBase {
                                 .startCount(0)
                                 .remains(null)
                                 .status(statuses[random.nextInt(statuses.length)])
-                                .youtubeVideoId("test_video_" + random.nextInt(10000))
-                                .targetViews(1000 + random.nextInt(9000))
-                                .targetCountry("US")
                                 .orderId(
                                         "ORDER_"
                                                 + System.currentTimeMillis()

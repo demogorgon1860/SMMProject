@@ -27,6 +27,4 @@ public class AdminOrderDto {
 
     // Additional fields for admin view
     private String orderName; // Format: "{startCount} views"
-    private String binomOfferId; // Binom offer ID for this order
-    private String youtubeVideoId; // YouTube video ID if available
 }

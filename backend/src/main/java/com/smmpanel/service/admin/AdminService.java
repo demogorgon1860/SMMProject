@@ -3,23 +3,16 @@ package com.smmpanel.service.admin;
 import com.smmpanel.client.InstagramBotClient;
 import com.smmpanel.dto.admin.*;
 import com.smmpanel.entity.*;
-import com.smmpanel.entity.YouTubeAccountStatus;
 import com.smmpanel.repository.jpa.*;
 import com.smmpanel.service.balance.BalanceService;
 import com.smmpanel.service.core.AuditService;
-import com.smmpanel.service.integration.BinomService;
-import com.smmpanel.service.integration.SeleniumService;
-import com.smmpanel.service.integration.YouTubeService;
 import com.smmpanel.service.notification.DailyProfitService;
 import com.smmpanel.service.notification.TelegramNotificationService;
 import com.smmpanel.service.order.state.OrderStateManager;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,15 +35,10 @@ public class AdminService {
     private final UserRepository userRepository;
     private final ServiceRepository serviceRepository;
     private final ConversionCoefficientRepository coefficientRepository;
-    private final YouTubeAccountRepository youTubeAccountRepository;
     private final OperatorLogRepository operatorLogRepository;
     private final BalanceService balanceService;
-    private final SeleniumService seleniumService;
-    private final BinomService binomService;
-    private final YouTubeService youTubeService;
     private final OrderStateManager orderStateManager;
     private final AuditService auditService;
-    private final com.smmpanel.repository.jpa.VideoProcessingRepository videoProcessingRepository;
     private final BalanceDepositRepository balanceDepositRepository;
     private final org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
     private final InstagramBotClient instagramBotClient;
@@ -58,6 +46,7 @@ public class AdminService {
     private final TelegramNotificationService telegramNotificationService;
 
     @Transactional(readOnly = true)
+    @Cacheable("dashboard-stats")
     public DashboardStats getDashboardStats() {
         LocalDateTime last24Hours = LocalDateTime.now().minusHours(24);
         LocalDateTime last7Days = LocalDateTime.now().minusDays(7);
@@ -82,7 +71,6 @@ public class AdminService {
                 .pendingOrders((int) orderRepository.countByStatus(OrderStatus.PENDING))
                 .completedOrders((int) orderRepository.countByStatus(OrderStatus.COMPLETED))
                 .totalUsers(userRepository.count())
-                .activeYouTubeAccounts((int) youTubeAccountRepository.countActiveAccounts())
                 .build();
     }
 
@@ -93,6 +81,7 @@ public class AdminService {
      * rather than gaps.
      */
     @Transactional(readOnly = true)
+    @Cacheable(value = "daily-stats", key = "#days")
     public List<com.smmpanel.dto.admin.DailyStatPoint> getDailyStats(int days) {
         java.time.LocalDate today = java.time.LocalDate.now();
         java.time.LocalDate startDate = today.minusDays(days - 1L);
@@ -102,9 +91,7 @@ public class AdminService {
 
         java.util.Map<java.time.LocalDate, com.smmpanel.dto.admin.DailyStatPoint> byDay =
                 new java.util.HashMap<>();
-        for (java.time.LocalDate d = startDate;
-                !d.isAfter(today);
-                d = d.plusDays(1)) {
+        for (java.time.LocalDate d = startDate; !d.isAfter(today); d = d.plusDays(1)) {
             byDay.put(
                     d,
                     com.smmpanel.dto.admin.DailyStatPoint.builder()
@@ -145,7 +132,9 @@ public class AdminService {
         }
 
         return byDay.values().stream()
-                .sorted(java.util.Comparator.comparing(com.smmpanel.dto.admin.DailyStatPoint::getDate))
+                .sorted(
+                        java.util.Comparator.comparing(
+                                com.smmpanel.dto.admin.DailyStatPoint::getDate))
                 .toList();
     }
 
@@ -156,14 +145,11 @@ public class AdminService {
         java.time.LocalDate startDate = today.minusDays(days - 1L);
         java.time.LocalDateTime startDateTime = startDate.atStartOfDay();
 
-        List<Object[]> rows =
-                orderRepository.getDailyOrderBreakdownForUser(userId, startDateTime);
+        List<Object[]> rows = orderRepository.getDailyOrderBreakdownForUser(userId, startDateTime);
 
         java.util.Map<java.time.LocalDate, com.smmpanel.dto.admin.DailyStatPoint> byDay =
                 new java.util.HashMap<>();
-        for (java.time.LocalDate d = startDate;
-                !d.isAfter(today);
-                d = d.plusDays(1)) {
+        for (java.time.LocalDate d = startDate; !d.isAfter(today); d = d.plusDays(1)) {
             byDay.put(
                     d,
                     com.smmpanel.dto.admin.DailyStatPoint.builder()
@@ -203,28 +189,53 @@ public class AdminService {
         }
 
         return byDay.values().stream()
-                .sorted(java.util.Comparator.comparing(com.smmpanel.dto.admin.DailyStatPoint::getDate))
+                .sorted(
+                        java.util.Comparator.comparing(
+                                com.smmpanel.dto.admin.DailyStatPoint::getDate))
                 .toList();
     }
 
     /**
-     * Coerce whatever the DATE() JPQL function gives back (java.sql.Date on Postgres,
-     * sometimes java.time.LocalDate via Hibernate dialect) into a LocalDate.
+     * Coerce whatever the DATE() JPQL function gives back (java.sql.Date on Postgres, sometimes
+     * java.time.LocalDate via Hibernate dialect) into a LocalDate.
      */
     private static java.time.LocalDate toLocalDate(Object raw) {
         if (raw == null) return null;
         if (raw instanceof java.time.LocalDate ld) return ld;
         if (raw instanceof java.sql.Date sd) return sd.toLocalDate();
         if (raw instanceof java.util.Date ud)
-            return ud.toInstant()
-                    .atZone(java.time.ZoneId.systemDefault())
-                    .toLocalDate();
+            return ud.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
         return java.time.LocalDate.parse(raw.toString());
     }
 
     @Transactional(readOnly = true)
     public Map<String, Object> getAllOrders(
             String status, String search, String dateFrom, String dateTo, Pageable pageable) {
+        return getAllOrders(status, search, null, dateFrom, dateTo, pageable);
+    }
+
+    /**
+     * Server-side admin order list. Two search levers, applied together:
+     *
+     * <ul>
+     *   <li>{@code search} — the legacy disambiguating field. Numeric → exact id; contains {@code
+     *       "/"} or {@code "instagram"} → URL substring; otherwise → username substring.
+     *   <li>{@code urlSearch} — explicit URL substring. Use this for short URL fragments like
+     *       "/p/ABC123" that the heuristic would otherwise mis-route to the username column. When
+     *       supplied, it overrides whatever URL guess {@code search} would have made.
+     * </ul>
+     *
+     * <p>The previous frontend filter was client-side-only on the current page (Task {@code
+     * 14d0b976}); useless across the production 6k+ orders. Pushing it to the server lets the
+     * {@code orders.link} index do the work and lets the search match across pages.
+     */
+    public Map<String, Object> getAllOrders(
+            String status,
+            String search,
+            String urlSearch,
+            String dateFrom,
+            String dateTo,
+            Pageable pageable) {
 
         // Default sort by ID descending if no sort specified
         if (pageable.getSort().isUnsorted()) {
@@ -242,8 +253,7 @@ public class AdminService {
         OrderStatus orderStatus = null;
         if (status != null && !status.isBlank()) {
             try {
-                orderStatus =
-                        OrderStatus.valueOf(status.trim().toUpperCase().replace(' ', '_'));
+                orderStatus = OrderStatus.valueOf(status.trim().toUpperCase().replace(' ', '_'));
             } catch (IllegalArgumentException ignored) {
                 log.warn("Unknown status filter on /v2/admin/orders: '{}'", status);
             }
@@ -275,10 +285,21 @@ public class AdminService {
                 }
             }
         }
+        // Explicit URL search beats the heuristic. Common case: admin pastes "/p/ABC123" —
+        // doesn't contain "instagram", but it's clearly a URL fragment.
+        if (urlSearch != null && !urlSearch.isBlank()) {
+            searchLink = "%" + urlSearch.trim().toLowerCase() + "%";
+        }
 
+        // Filter coalescing: PROCESSING is hidden from the UI and rendered as IN_PROGRESS,
+        // so a click on the "In progress" chip must surface orders in EITHER status. Without
+        // this, the operator would filter to "in progress" and PROCESSING orders silently
+        // disappear from the list.
+        java.util.Collection<OrderStatus> statuses =
+                orderStatus == null ? null : expandInProgressFilter(orderStatus);
         Page<Order> orders =
-                orderRepository.adminSearch(
-                        orderStatus,
+                orderRepository.adminSearchInStatuses(
+                        statuses,
                         fromDateTime,
                         toDateTime,
                         searchId,
@@ -504,15 +525,7 @@ public class AdminService {
                 order.getStatus(),
                 order.getUser().getUsername());
 
-        // 1. Delete related video_processing records (cascade delete)
-        try {
-            videoProcessingRepository.deleteByOrderId(orderId);
-            log.info("Deleted video_processing records for order {}", orderId);
-        } catch (Exception e) {
-            log.warn("No video_processing records found for order {}: {}", orderId, e.getMessage());
-        }
-
-        // 2. Clear Redis cache keys related to this order
+        // 1. Clear Redis cache keys related to this order
         try {
             // Clear clip URL cache (by order ID)
             String orderClipKey = "order:clip:" + orderId;
@@ -533,7 +546,7 @@ public class AdminService {
             log.warn("Failed to clear Redis keys for order {}: {}", orderId, e.getMessage());
         }
 
-        // 3. Hard delete the order from database
+        // 2. Hard delete the order from database
         orderRepository.delete(order);
 
         log.warn("HARD DELETE completed for order {}", orderId);
@@ -564,12 +577,8 @@ public class AdminService {
         }
 
         order.setStartCount(newStartCount);
-
-        // Recalculate remains
-        int currentViews = getCurrentViewCount(order);
-        int viewsGained = currentViews - newStartCount;
-        order.setRemains(Math.max(0, order.getQuantity() - viewsGained));
-
+        // Remains is maintained by the Instagram bot via webhook callbacks; we no longer
+        // recompute it here from a live view count (YouTube path removed).
         orderRepository.save(order);
 
         log.info(
@@ -787,17 +796,6 @@ public class AdminService {
             }
         }
 
-        // Stop order processing by deleting Binom offer if exists
-        if (order.getBinomOfferId() != null) {
-            try {
-                binomService.removeOfferForOrder(orderId);
-                log.info("Deleted Binom offer for partial order {}", orderId);
-            } catch (Exception e) {
-                log.error("Failed to delete Binom offer for order {}: {}", orderId, e.getMessage());
-                // Continue even if offer deletion fails
-            }
-        }
-
         // Mark order as PARTIAL
         order.setStatus(OrderStatus.PARTIAL);
 
@@ -889,17 +887,6 @@ public class AdminService {
             }
         }
 
-        // Stop order processing by deleting Binom offer if exists
-        if (order.getBinomOfferId() != null) {
-            try {
-                binomService.removeOfferForOrder(orderId);
-                log.info("Deleted Binom offer for partial order {}", orderId);
-            } catch (Exception e) {
-                log.error("Failed to delete Binom offer for order {}: {}", orderId, e.getMessage());
-                // Continue even if offer deletion fails
-            }
-        }
-
         // Mark order as PARTIAL
         order.setStatus(OrderStatus.PARTIAL);
 
@@ -922,8 +909,7 @@ public class AdminService {
 
     /**
      * Calculate refund amount for partial order based on remains field. Uses the 'remains' field
-     * which is set by the bot or can be manually adjusted in the database. This works for both
-     * YouTube and Instagram orders.
+     * which is set by the bot or can be manually adjusted in the database.
      */
     private BigDecimal calculatePartialRefund(Order order) {
         // Full refund for pending or in-progress orders (nothing delivered yet)
@@ -932,29 +918,9 @@ public class AdminService {
             return order.getCharge();
         }
 
-        // Use the 'remains' field for calculation (works for all order types)
+        // Use the 'remains' field for calculation
         Integer remains = order.getRemains();
         Integer quantity = order.getQuantity();
-
-        // If remains is null or not set, try to calculate for YouTube orders
-        if (remains == null || remains.equals(quantity)) {
-            // For YouTube orders, try to get current count
-            if (isYouTubeOrder(order)) {
-                try {
-                    int currentViews = getCurrentViewCount(order);
-                    int startCount =
-                            order.getStartCount() != null ? order.getStartCount() : currentViews;
-                    int viewsDelivered = currentViews - startCount;
-                    remains = Math.max(0, quantity - viewsDelivered);
-                } catch (Exception e) {
-                    log.warn(
-                            "Could not get current view count for YouTube order {}, using remains"
-                                    + " field: {}",
-                            order.getId(),
-                            e.getMessage());
-                }
-            }
-        }
 
         // If still no valid remains, default to full refund
         if (remains == null) {
@@ -989,15 +955,6 @@ public class AdminService {
                 order.getId(), delivered, quantity, deliveredPercentage, remains, refund);
 
         return refund;
-    }
-
-    /** Check if order is a YouTube order based on service category */
-    private boolean isYouTubeOrder(Order order) {
-        if (order.getService() == null || order.getService().getCategory() == null) {
-            return false;
-        }
-        String category = order.getService().getCategory().toUpperCase();
-        return category.contains("YOUTUBE") || category.equals("YOUTUBE");
     }
 
     @Transactional
@@ -1080,66 +1037,6 @@ public class AdminService {
                         .updatedAt(LocalDateTime.now())
                         .build();
         return coefficientRepository.save(coefficient);
-    }
-
-    @Transactional(readOnly = true)
-    public Map<String, Object> getYouTubeAccounts(Pageable pageable) {
-        Page<YouTubeAccount> accounts = youTubeAccountRepository.findAll(pageable);
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("accounts", accounts.getContent());
-        response.put("totalPages", accounts.getTotalPages());
-        response.put("totalElements", accounts.getTotalElements());
-        response.put("currentPage", accounts.getNumber());
-        response.put("pageSize", accounts.getSize());
-
-        return response;
-    }
-
-    @Transactional
-    public void resetYouTubeAccountDailyLimit(Long id) {
-        // Daily limits have been removed - this method is now a no-op for backward compatibility
-        log.info(
-                "resetYouTubeAccountDailyLimit called for account {} but daily limits have been"
-                        + " removed",
-                id);
-    }
-
-    @Transactional
-    public void updateYouTubeAccountStatus(Long id, String status) {
-        YouTubeAccount account =
-                youTubeAccountRepository
-                        .findById(id)
-                        .orElseThrow(
-                                () ->
-                                        new IllegalArgumentException(
-                                                "YouTube account not found: " + id));
-
-        YouTubeAccountStatus newStatus = YouTubeAccountStatus.valueOf(status.toUpperCase());
-        account.setStatus(newStatus);
-        youTubeAccountRepository.save(account);
-
-        log.info("Updated YouTube account {} status to {}", account.getEmail(), status);
-    }
-
-    @Transactional(readOnly = true)
-    public Map<String, Object> getSystemHealth() {
-        Map<String, Object> health = new HashMap<>();
-
-        // Check Selenium connection
-        health.put("selenium", seleniumService.testConnection());
-
-        // Check database
-        health.put("database", true); // If we're here, DB is working
-
-        // Count active components
-        health.put(
-                "activeYouTubeAccounts",
-                youTubeAccountRepository.findByStatus(YouTubeAccountStatus.ACTIVE).size());
-        health.put("pendingOrders", orderRepository.findByStatus(OrderStatus.PENDING).size());
-        health.put("processingOrders", orderRepository.findByStatus(OrderStatus.PROCESSING).size());
-
-        return health;
     }
 
     @Transactional(readOnly = true)
@@ -1275,14 +1172,20 @@ public class AdminService {
                                                 .email(u.getEmail())
                                                 .balance(u.getBalance())
                                                 .totalSpent(u.getTotalSpent())
-                                                .role(u.getRole() == null ? null : u.getRole().name())
+                                                .role(
+                                                        u.getRole() == null
+                                                                ? null
+                                                                : u.getRole().name())
                                                 // "active" matches the entity's @Column boolean.
-                                                // Anything else (locked, deactivated by admin) shows as "suspended".
+                                                // Anything else (locked, deactivated by admin)
+                                                // shows as "suspended".
                                                 .status(u.isActive() ? "active" : "suspended")
                                                 .emailVerified(u.isEmailVerified())
                                                 .twoFactorEnabled(u.isTwoFactorEnabled())
                                                 .apiKeyConfigured(u.getApiKeyHash() != null)
-                                                .ordersCount(ordersCountByUser.getOrDefault(u.getId(), 0L))
+                                                .ordersCount(
+                                                        ordersCountByUser.getOrDefault(
+                                                                u.getId(), 0L))
                                                 .createdAt(u.getCreatedAt())
                                                 .lastLoginAt(u.getLastLoginAt())
                                                 .build())
@@ -1366,51 +1269,26 @@ public class AdminService {
             return order.getCharge(); // Full refund
         }
 
-        int currentViews = getCurrentViewCount(order);
-        int viewsDelivered = currentViews - order.getStartCount();
+        Integer remains = order.getRemains();
+        Integer quantity = order.getQuantity();
 
-        if (viewsDelivered <= 0) {
-            return order.getCharge(); // Full refund if no views delivered
+        // No remains tracked yet — assume nothing delivered, full refund.
+        if (remains == null || quantity == null || quantity <= 0) {
+            return order.getCharge();
         }
 
-        if (viewsDelivered >= order.getQuantity()) {
-            return BigDecimal.ZERO; // No refund if target reached
+        if (remains <= 0) {
+            return BigDecimal.ZERO; // Fully delivered, no refund
         }
 
-        // Partial refund based on remaining views
-        double deliveryPercentage = (double) viewsDelivered / order.getQuantity();
-        double refundPercentage = 1.0 - deliveryPercentage;
-
-        return order.getCharge().multiply(BigDecimal.valueOf(refundPercentage));
-    }
-
-    private int getCurrentViewCount(Order order) {
-        try {
-            String videoId = order.getYoutubeVideoId();
-            if (videoId == null) {
-                // Extract from URL if not stored
-                videoId = extractVideoIdFromUrl(order.getLink());
-            }
-
-            Long viewCount = youTubeService.getViewCount(videoId);
-            return viewCount.intValue();
-        } catch (Exception e) {
-            log.warn(
-                    "Could not get current view count for order {}: {}",
-                    order.getId(),
-                    e.getMessage());
-            return order.getStartCount();
+        if (remains >= quantity) {
+            return order.getCharge(); // Nothing delivered, full refund
         }
-    }
 
-    private String extractVideoIdFromUrl(String url) {
-        // Basic extraction - should use YouTubeService.extractVideoId()
-        if (url.contains("youtube.com/watch?v=")) {
-            return url.split("v=")[1].split("&")[0];
-        } else if (url.contains("youtu.be/")) {
-            return url.split("youtu.be/")[1].split("\\?")[0];
-        }
-        throw new IllegalArgumentException("Invalid YouTube URL");
+        // Partial refund proportional to undelivered remains.
+        return order.getCharge()
+                .multiply(BigDecimal.valueOf(remains))
+                .divide(BigDecimal.valueOf(quantity), 4, java.math.RoundingMode.HALF_UP);
     }
 
     private void logOperatorAction(
@@ -1429,24 +1307,20 @@ public class AdminService {
         operatorLogRepository.save(log);
     }
 
-    private AdminOrderDto mapToAdminOrderDto(Order order) {
-        // Get Binom offer ID directly from order entity
-        // Removed external Binom API call to prevent transaction rollback issues
-        String binomOfferId = null;
-        if (order.getBinomOfferId() != null) {
-            binomOfferId = String.valueOf(order.getBinomOfferId());
+    /**
+     * UI-coalescing: the panel hides {@link OrderStatus#PROCESSING} and renders it as {@code
+     * IN_PROGRESS}. Status filters must follow suit — clicking either label returns orders in
+     * either real DB status. Other statuses pass through as-is.
+     */
+    private static java.util.Collection<OrderStatus> expandInProgressFilter(OrderStatus s) {
+        if (s == OrderStatus.IN_PROGRESS || s == OrderStatus.PROCESSING) {
+            return java.util.List.of(OrderStatus.IN_PROGRESS, OrderStatus.PROCESSING);
         }
+        return java.util.List.of(s);
+    }
 
-        // Use YouTube video ID with startCount in brackets
-        // Removed external YouTube API call to prevent transaction rollback issues
-        String orderName = "N/A";
-        if (order.getYoutubeVideoId() != null) {
-            String startCount =
-                    order.getStartCount() != null ? order.getStartCount().toString() : "0";
-            orderName = "Video ID: " + order.getYoutubeVideoId() + " (" + startCount + ")";
-        } else if (order.getLink() != null) {
-            orderName = order.getLink();
-        }
+    private AdminOrderDto mapToAdminOrderDto(Order order) {
+        String orderName = order.getLink() != null ? order.getLink() : "N/A";
 
         return AdminOrderDto.builder()
                 .id(order.getId())
@@ -1462,8 +1336,6 @@ public class AdminService {
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
                 .orderName(orderName)
-                .binomOfferId(binomOfferId != null ? binomOfferId : "No offer")
-                .youtubeVideoId(order.getYoutubeVideoId())
                 .build();
     }
 
@@ -1489,427 +1361,6 @@ public class AdminService {
                 .build();
     }
 
-    // Test Service Methods for Service Testing Page
-
-    public Map<String, Object> testBinomConnection() {
-        Map<String, Object> response = new HashMap<>();
-        try {
-            // Test connection by getting campaigns
-            boolean isConnected = binomService.testConnection();
-            if (isConnected) {
-                response.put("status", "success");
-                response.put("message", "Successfully connected to Binom");
-                response.put("connected", true);
-            } else {
-                response.put("status", "error");
-                response.put("error", "Connection failed");
-                response.put("connected", false);
-            }
-        } catch (Exception e) {
-            log.error("Binom connection test failed", e);
-            response.put("status", "error");
-            response.put("error", "Connection failed: " + e.getMessage());
-            response.put("connected", false);
-        }
-        return response;
-    }
-
-    public Map<String, Object> syncBinomCampaigns() {
-        Map<String, Object> response = new HashMap<>();
-        try {
-            int syncedCount = binomService.syncAllCampaigns();
-            response.put("status", "success");
-            response.put("message", "Successfully synced " + syncedCount + " campaigns");
-            response.put("syncedCount", syncedCount);
-        } catch (Exception e) {
-            log.error("Binom sync failed", e);
-            response.put("status", "error");
-            response.put("error", "Sync failed: " + e.getMessage());
-        }
-        return response;
-    }
-
-    public Map<String, Object> checkYouTubeViews(String videoUrl) {
-        Map<String, Object> response = new HashMap<>();
-        try {
-            if (videoUrl == null || videoUrl.isEmpty()) {
-                response.put("status", "error");
-                response.put("error", "Video URL is required");
-                return response;
-            }
-
-            // Extract video ID from URL
-            String videoId = extractVideoId(videoUrl);
-            if (videoId == null) {
-                response.put("status", "error");
-                response.put("error", "Invalid YouTube URL");
-                return response;
-            }
-
-            // Get complete video statistics using the new method
-            YouTubeService.VideoStatistics stats = youTubeService.getVideoStatistics(videoId);
-
-            // Get video details for title and duration
-            YouTubeService.VideoDetails details = youTubeService.getVideoDetails(videoId);
-
-            response.put("status", "success");
-            response.put("videoId", videoId);
-            response.put("title", details.getTitle());
-            response.put("channelTitle", details.getChannelTitle());
-
-            // Add all statistics fields
-            response.put("viewCount", stats.getViewCount());
-            response.put("likeCount", stats.getLikeCount());
-            response.put("dislikeCount", stats.getDislikeCount()); // Will be 0 (deprecated)
-            response.put("favoriteCount", stats.getFavoriteCount()); // Will be 0 (deprecated)
-            response.put("commentCount", stats.getCommentCount());
-
-            // Add quota usage info
-            response.put(
-                    "quotaUsage",
-                    String.format("%.2f%%", youTubeService.getQuotaUsagePercentage()));
-
-        } catch (Exception e) {
-            log.error("YouTube check failed for URL: " + videoUrl, e);
-            response.put("status", "error");
-            response.put("error", "Failed to check video: " + e.getMessage());
-        }
-        return response;
-    }
-
-    public Map<String, Object> createSeleniumClip(
-            String videoUrl, Integer startTime, Integer endTime) {
-        Map<String, Object> response = new HashMap<>();
-        try {
-            if (videoUrl == null || videoUrl.isEmpty()) {
-                response.put("status", "error");
-                response.put("error", "Video URL is required");
-                return response;
-            }
-
-            // Default times if not provided
-            if (startTime == null) startTime = 0;
-            if (endTime == null) endTime = 15;
-
-            if (startTime >= endTime) {
-                response.put("status", "error");
-                response.put("error", "Start time must be less than end time");
-                return response;
-            }
-
-            // For testing, try to get a real YouTube account
-            YouTubeAccount testAccount = getTestYouTubeAccount();
-            if (testAccount == null) {
-                // If no account available, use async mock for demo
-                log.warn("No YouTube account available, using mock async clip creation");
-                Map<String, Object> jobResult =
-                        seleniumService.createClipAsync(videoUrl, startTime, endTime);
-                response.put("status", "success");
-                response.put("message", "Clip creation job started (mock)");
-                response.put("jobId", jobResult.get("jobId"));
-                response.put("progress", jobResult.get("progress"));
-                response.put("mock", true);
-                return response;
-            }
-
-            // Start async clip creation with real Selenium
-            String jobId = UUID.randomUUID().toString();
-            response.put("status", "success");
-            response.put("message", "Clip creation job started");
-            response.put("jobId", jobId);
-            response.put("progress", 0);
-            response.put("videoUrl", videoUrl);
-
-            // Store initial job status
-            Map<String, Object> jobStatus = new ConcurrentHashMap<>();
-            jobStatus.put("jobId", jobId);
-            jobStatus.put("status", "IN_PROGRESS");
-            jobStatus.put("progress", 0);
-            jobStatus.put("videoUrl", videoUrl);
-            jobStatus.put("createdAt", System.currentTimeMillis());
-            seleniumJobTracker.put(jobId, jobStatus);
-
-            // Execute clip creation asynchronously
-            CompletableFuture.runAsync(
-                    () -> {
-                        try {
-                            log.info("Starting real Selenium clip creation for job: {}", jobId);
-                            updateSeleniumJobStatus(
-                                    jobId, "IN_PROGRESS", 10, "Initializing Selenium");
-
-                            // Generate clip title
-                            String clipTitle =
-                                    "Test Clip - "
-                                            + LocalDateTime.now()
-                                                    .format(
-                                                            DateTimeFormatter.ofPattern(
-                                                                    "yyyy-MM-dd HH:mm"));
-
-                            updateSeleniumJobStatus(
-                                    jobId, "IN_PROGRESS", 30, "Navigating to video");
-
-                            // Create the clip using real Selenium automation
-                            String clipUrl =
-                                    seleniumService.createClip(videoUrl, testAccount, clipTitle);
-
-                            if (clipUrl != null) {
-                                updateSeleniumJobStatus(
-                                        jobId, "COMPLETED", 100, "Clip created successfully");
-                                jobStatus.put("clipUrl", clipUrl);
-                                jobStatus.put("completedAt", System.currentTimeMillis());
-                                log.info(
-                                        "Successfully created clip for job {}: {}", jobId, clipUrl);
-                            } else {
-                                updateSeleniumJobStatus(
-                                        jobId, "FAILED", -1, "Failed to create clip");
-                                jobStatus.put("error", "Clip creation returned null");
-                            }
-
-                        } catch (Exception e) {
-                            log.error(
-                                    "Selenium clip creation failed for job {}: {}",
-                                    jobId,
-                                    e.getMessage(),
-                                    e);
-                            updateSeleniumJobStatus(
-                                    jobId, "FAILED", -1, "Error: " + e.getMessage());
-                            jobStatus.put("error", e.getMessage());
-                        }
-                    });
-
-        } catch (Exception e) {
-            log.error("Selenium clip creation failed", e);
-            response.put("status", "error");
-            response.put("error", "Failed to create clip: " + e.getMessage());
-        }
-        return response;
-    }
-
-    public Map<String, Object> getClipJobStatus(String jobId) {
-        Map<String, Object> response = new HashMap<>();
-        try {
-            // First check our real job tracker
-            Map<String, Object> trackedJob = seleniumJobTracker.get(jobId);
-            if (trackedJob != null) {
-                response.putAll(trackedJob);
-                return response;
-            }
-
-            // Fall back to mock job status if not found in tracker
-            Map<String, Object> status = seleniumService.getJobStatus(jobId);
-            response.putAll(status);
-        } catch (Exception e) {
-            log.error("Failed to get clip job status for jobId: " + jobId, e);
-            response.put("status", "error");
-            response.put("error", "Failed to get job status: " + e.getMessage());
-        }
-        return response;
-    }
-
-    // Job tracker for Selenium operations
-    private final Map<String, Map<String, Object>> seleniumJobTracker = new ConcurrentHashMap<>();
-
-    private void updateSeleniumJobStatus(
-            String jobId, String status, int progress, String message) {
-        Map<String, Object> jobStatus = seleniumJobTracker.get(jobId);
-        if (jobStatus != null) {
-            jobStatus.put("status", status);
-            jobStatus.put("progress", progress);
-            jobStatus.put("message", message);
-            jobStatus.put("updatedAt", System.currentTimeMillis());
-            log.debug("Updated job {} status: {} ({}%)", jobId, status, progress);
-        }
-    }
-
-    private YouTubeAccount getTestYouTubeAccount() {
-        try {
-            // Get YouTube account from the repository
-            List<YouTubeAccount> accounts = youTubeAccountRepository.findAll();
-            if (!accounts.isEmpty()) {
-                // Return the first active account
-                YouTubeAccount account =
-                        accounts.stream()
-                                .filter(acc -> acc.getStatus() == YouTubeAccountStatus.ACTIVE)
-                                .findFirst()
-                                .orElse(accounts.get(0));
-
-                log.info("Using YouTube account from database: {}", account.getEmail());
-                return account;
-            }
-
-            // No accounts found in database
-            log.error(
-                    "No YouTube accounts found in database. Please add an account to the"
-                            + " youtube_accounts table.");
-            return null;
-        } catch (Exception e) {
-            log.error("Failed to get YouTube account from database: {}", e.getMessage());
-            return null;
-        }
-    }
-
-    /** Test Selenium connection and WebDriver availability */
-    public Map<String, Object> testSeleniumConnection() {
-        return testSeleniumConnection(null);
-    }
-
-    /** Test Selenium connection with custom URL for noVNC viewing */
-    public Map<String, Object> testSeleniumConnection(String testUrl) {
-        Map<String, Object> response = new HashMap<>();
-        try {
-            boolean isConnected =
-                    seleniumService.testConnection(
-                            testUrl != null ? testUrl : "https://www.youtube.com");
-            response.put("status", isConnected ? "success" : "error");
-            response.put("connected", isConnected);
-            response.put(
-                    "message",
-                    isConnected
-                            ? "Selenium Grid is connected and operational. Watch live at"
-                                    + " http://localhost:7900"
-                            : "Failed to connect to Selenium Grid");
-            response.put("hubUrl", seleniumService.getSeleniumHubUrl());
-            response.put("noVncUrl", "http://localhost:7900");
-            response.put("testUrl", testUrl != null ? testUrl : "https://www.youtube.com");
-            response.put("viewDuration", "60 seconds");
-            response.put("timestamp", System.currentTimeMillis());
-
-            // Add browser capabilities info
-            Map<String, Object> capabilities = new HashMap<>();
-            capabilities.put("browser", "Chrome");
-            capabilities.put("headless", false);
-            capabilities.put("incognito", true);
-            response.put("capabilities", capabilities);
-
-        } catch (Exception e) {
-            log.error("Selenium connection test failed", e);
-            response.put("status", "error");
-            response.put("connected", false);
-            response.put("error", "Connection test failed: " + e.getMessage());
-        }
-        return response;
-    }
-
-    /** Get available YouTube accounts for testing */
-    public List<Map<String, Object>> getAvailableYouTubeAccounts() {
-        List<Map<String, Object>> accounts = new ArrayList<>();
-        try {
-            List<YouTubeAccount> ytAccounts = youTubeAccountRepository.findAll();
-            for (YouTubeAccount account : ytAccounts) {
-                Map<String, Object> accountInfo = new HashMap<>();
-                accountInfo.put("id", account.getId());
-                accountInfo.put("email", account.getEmail());
-                // Username field removed - only email and password needed
-                accountInfo.put("status", account.getStatus());
-                accountInfo.put("active", account.getStatus() == YouTubeAccountStatus.ACTIVE);
-                accountInfo.put("totalClipsCreated", account.getTotalClipsCreated());
-                accountInfo.put("createdAt", account.getCreatedAt());
-                accounts.add(accountInfo);
-            }
-
-            // If no accounts, add a mock test account info
-            if (accounts.isEmpty()) {
-                Map<String, Object> testAccount = new HashMap<>();
-                testAccount.put("id", 0L);
-                testAccount.put("email", "bastardofedderdstark@gmail.com");
-                testAccount.put("username", "testuser");
-                testAccount.put("channelId", "test-channel");
-                testAccount.put("active", true);
-                testAccount.put("creditsAvailable", 100);
-                testAccount.put("note", "Test account (not in database)");
-                accounts.add(testAccount);
-            }
-
-        } catch (Exception e) {
-            log.error("Failed to get YouTube accounts", e);
-            Map<String, Object> errorAccount = new HashMap<>();
-            errorAccount.put("error", "Failed to retrieve accounts: " + e.getMessage());
-            accounts.add(errorAccount);
-        }
-        return accounts;
-    }
-
-    /**
-     * Test YouTube API statistics retrieval - comprehensive test Tests the new getVideoStatistics
-     * method with all fields
-     */
-    public Map<String, Object> testYouTubeStatistics(String videoUrl) {
-        Map<String, Object> response = new HashMap<>();
-        try {
-            if (videoUrl == null || videoUrl.isEmpty()) {
-                response.put("status", "error");
-                response.put("error", "Video URL is required");
-                return response;
-            }
-
-            // Extract video ID
-            String videoId = youTubeService.extractVideoId(videoUrl);
-
-            // Test 1: Get view count only (cached, efficient)
-            long startTime = System.currentTimeMillis();
-            Long viewCount = youTubeService.getViewCount(videoId);
-            long viewCountTime = System.currentTimeMillis() - startTime;
-
-            // Test 2: Get complete statistics
-            startTime = System.currentTimeMillis();
-            YouTubeService.VideoStatistics stats = youTubeService.getVideoStatistics(videoId);
-            long statsTime = System.currentTimeMillis() - startTime;
-
-            // Test 3: Get video details
-            startTime = System.currentTimeMillis();
-            YouTubeService.VideoDetails details = youTubeService.getVideoDetails(videoId);
-            long detailsTime = System.currentTimeMillis() - startTime;
-
-            // Build response
-            response.put("status", "success");
-            response.put("videoId", videoId);
-
-            // Video information
-            Map<String, Object> videoInfo = new HashMap<>();
-            videoInfo.put("title", details.getTitle());
-            videoInfo.put("channelTitle", details.getChannelTitle());
-            response.put("videoInfo", videoInfo);
-
-            // Statistics (all fields from YouTube API v3)
-            Map<String, Object> statistics = new HashMap<>();
-            statistics.put("viewCount", stats.getViewCount());
-            statistics.put("likeCount", stats.getLikeCount());
-            statistics.put("dislikeCount", stats.getDislikeCount());
-            statistics.put("favoriteCount", stats.getFavoriteCount());
-            statistics.put("commentCount", stats.getCommentCount());
-            response.put("statistics", statistics);
-
-            // Performance metrics
-            Map<String, Object> performance = new HashMap<>();
-            performance.put("viewCountApiTime", viewCountTime + "ms");
-            performance.put("statisticsApiTime", statsTime + "ms");
-            performance.put("detailsApiTime", detailsTime + "ms");
-            performance.put("totalTime", (viewCountTime + statsTime + detailsTime) + "ms");
-            response.put("performance", performance);
-
-            // API quota information
-            Map<String, Object> quotaInfo = new HashMap<>();
-            quotaInfo.put(
-                    "quotaUsagePercentage",
-                    String.format("%.2f%%", youTubeService.getQuotaUsagePercentage()));
-            quotaInfo.put("quotaCost", "3 units (1 per API call)");
-            response.put("quotaInfo", quotaInfo);
-
-            // Cache status
-            Map<String, Object> cacheInfo = new HashMap<>();
-            cacheInfo.put("viewCountCached", viewCountTime < 50 ? "Yes" : "No");
-            cacheInfo.put("cacheTTL", "600 seconds for views, 300 seconds for stats");
-            response.put("cacheInfo", cacheInfo);
-
-        } catch (Exception e) {
-            log.error("YouTube statistics test failed for URL: " + videoUrl, e);
-            response.put("status", "error");
-            response.put("error", "Failed to get statistics: " + e.getMessage());
-            response.put("errorType", e.getClass().getSimpleName());
-        }
-        return response;
-    }
-
     /** Get orders requiring attention (errors, long processing times, etc.) */
     public Page<AdminOrderDto> getOrdersRequiringAttention(Pageable pageable) {
         LocalDateTime threshold = LocalDateTime.now().minusHours(24);
@@ -1930,30 +1381,6 @@ public class AdminService {
 
         Page<Order> orders = orderRepository.findAll(spec, pageable);
         return orders.map(this::mapToAdminOrderDto);
-    }
-
-    // Private helper methods
-
-    private String extractVideoId(String url) {
-        if (url == null || url.isEmpty()) {
-            return null;
-        }
-
-        String videoId = null;
-
-        if (url.contains("youtube.com/watch?v=")) {
-            String[] parts = url.split("v=");
-            if (parts.length > 1) {
-                videoId = parts[1].split("&")[0];
-            }
-        } else if (url.contains("youtu.be/")) {
-            String[] parts = url.split("youtu.be/");
-            if (parts.length > 1) {
-                videoId = parts[1].split("\\?")[0];
-            }
-        }
-
-        return videoId;
     }
 
     /**

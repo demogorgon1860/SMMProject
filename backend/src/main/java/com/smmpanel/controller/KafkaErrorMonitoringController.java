@@ -140,13 +140,7 @@ public class KafkaErrorMonitoringController {
             Map<String, Object> dlqTopics =
                     Map.of(
                             "smm.order.processing.dlq",
-                                    Map.of("enabled", true, "messageCount", "N/A"),
-                            "smm.video.processing.dlq",
-                                    Map.of("enabled", true, "messageCount", "N/A"),
-                            "smm.youtube.processing.dlq",
-                                    Map.of("enabled", true, "messageCount", "N/A"),
-                            "smm.offer.assignments.dlq",
-                                    Map.of("enabled", true, "messageCount", "N/A"));
+                            Map.of("enabled", true, "messageCount", "N/A"));
 
             dlqStatus.put("topics", dlqTopics);
             dlqStatus.put("processingEnabled", true);
@@ -347,12 +341,7 @@ public class KafkaErrorMonitoringController {
                             "database", 0,
                             "unknown", 0));
 
-            recentErrors.put(
-                    "errorsByTopic",
-                    Map.of(
-                            "smm.order.processing", 0,
-                            "smm.video.processing", 0,
-                            "smm.youtube.processing", 0));
+            recentErrors.put("errorsByTopic", Map.of("smm.order.processing", 0));
 
             return ResponseEntity.ok(recentErrors);
 

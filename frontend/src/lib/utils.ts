@@ -53,3 +53,19 @@ export function fmtMMSS(secondsLeft: number): string {
   const r = s % 60;
   return `${m.toString().padStart(2, '0')}:${r.toString().padStart(2, '0')}`;
 }
+
+/**
+ * Coerce a value that may already be a number, or a string we got back from a `BigDecimal` JSON
+ * field, into a finite `number`. Returns `0` for null/undefined/NaN/non-numeric input — never
+ * propagates NaN. Use this whenever doing arithmetic on a money field — backend sends BigDecimal
+ * as a string to preserve precision, so `+x` would silently coerce `"123.45"` → 123.45 BUT
+ * `null` → 0 BUT `undefined` → NaN, and the NaN propagates through `.toFixed`/comparisons.
+ */
+export function toNum(value: unknown): number {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (typeof value === 'string') {
+    const n = Number.parseFloat(value);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}

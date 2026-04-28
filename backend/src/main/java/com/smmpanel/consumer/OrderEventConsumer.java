@@ -9,11 +9,8 @@ import com.smmpanel.repository.jpa.OrderRepository;
 import com.smmpanel.service.balance.BalanceService;
 import com.smmpanel.service.core.MessageProcessingService;
 import com.smmpanel.service.integration.InstagramService;
-import com.smmpanel.service.integration.YouTubeService;
 import com.smmpanel.service.kafka.MessageIdempotencyService;
-import com.smmpanel.service.order.OrderProcessingContext;
 import com.smmpanel.service.order.OrderStateManagementService;
-import com.smmpanel.service.video.YouTubeProcessingService;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,8 +32,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class OrderEventConsumer {
 
     private final OrderRepository orderRepository;
-    private final YouTubeService youTubeService;
-    private final YouTubeProcessingService youTubeProcessingService;
     private final OrderStateManagementService orderStateManagementService;
     private final OrderEventProducer orderEventProducer;
     private final MessageProcessingService messageProcessingService;
@@ -162,75 +157,6 @@ public class OrderEventConsumer {
         }
     }
 
-    /** Process YouTube verification */
-    private void processYouTubeVerification(Order order) {
-        try {
-            if (order.getLink() != null && order.getLink().contains("youtube")) {
-                String videoId = youTubeService.extractVideoId(order.getLink());
-                Long viewCount = youTubeService.getViewCount(videoId);
-
-                order.setYoutubeVideoId(videoId);
-                order.setStartCount(viewCount.intValue());
-
-                // CRITICAL FIX: Check if video is blocked/deleted (startCount = 0)
-                if (viewCount == 0) {
-                    log.warn(
-                            "Order {} - Video is deleted or blocked (startCount = 0)."
-                                    + " Using shared transition method",
-                            order.getId());
-
-                    // Use shared state transition method for consistency
-                    orderStateManagementService.transitionToPartialVideoUnavailable(
-                            order.getId(), "Video deleted or unavailable");
-
-                    log.info(
-                            "Order {} marked as PARTIAL due to blocked/deleted video",
-                            order.getId());
-                    return;
-                }
-
-                orderRepository.save(order);
-
-                log.info(
-                        "YouTube verification completed: orderId={}, videoId={}, startCount={}",
-                        order.getId(),
-                        videoId,
-                        viewCount);
-            }
-        } catch (Exception e) {
-            log.error(
-                    "YouTube verification failed for order {}: {}",
-                    order.getId(),
-                    e.getMessage(),
-                    e);
-
-            // CRITICAL FIX: Check if startCount is still 0 after exception
-            // Reload order to get current state
-            Order reloadedOrder =
-                    orderRepository.findByIdWithAllDetails(order.getId()).orElse(order);
-            if (reloadedOrder.getStartCount() == null || reloadedOrder.getStartCount() == 0) {
-                log.warn(
-                        "Order {} - Video startCount check failed and remains 0. "
-                                + "Video may be deleted/blocked. Using shared transition method",
-                        order.getId());
-
-                // Use shared state transition method for consistency
-                orderStateManagementService.transitionToPartialVideoUnavailable(
-                        order.getId(), "Video unavailable or startCount check failed");
-
-                log.info(
-                        "Order {} marked as PARTIAL after YouTube verification failure",
-                        order.getId());
-            } else {
-                log.warn(
-                        "Order {} YouTube verification failed but startCount was set ({})."
-                                + " Continuing.",
-                        order.getId(),
-                        reloadedOrder.getStartCount());
-            }
-        }
-    }
-
     /** Update order status */
     private void updateOrderStatus(Order order, OrderStatus newStatus) {
         OrderStatus oldStatus = order.getStatus();
@@ -247,19 +173,16 @@ public class OrderEventConsumer {
     /** Handle order activated */
     private void handleOrderActivated(Order order) {
         log.info("Order activated: orderId={}", order.getId());
-        // Additional logic for activated orders
     }
 
     /** Handle order completed */
     private void handleOrderCompleted(Order order) {
         log.info("Order completed: orderId={}", order.getId());
-        // Additional logic for completed orders
     }
 
     /** Handle order cancelled */
     private void handleOrderCancelled(Order order) {
         log.info("Order cancelled: orderId={}", order.getId());
-        // Additional logic for cancelled orders
     }
 
     /** Generate unique message ID for idempotency */
@@ -278,7 +201,6 @@ public class OrderEventConsumer {
                                                 "Order not found: " + event.getOrderId()));
 
         // Skip processing if order is not in PENDING status
-        // (e.g., admin manually marked as PARTIAL, CANCELLED, or already processed)
         if (!OrderStatus.PENDING.equals(order.getStatus())) {
             log.warn(
                     "Skipping order processing - order {} not in PENDING status: {}",
@@ -287,60 +209,8 @@ public class OrderEventConsumer {
             return;
         }
 
-        // Check if this is an Instagram order
-        if (isInstagramOrder(order)) {
-            processInstagramOrder(order);
-            return;
-        }
-
-        // Initialize order processing with modern flow that creates video_processing records
-        OrderProcessingContext context =
-                youTubeProcessingService.initializeOrderProcessing(order.getId());
-
-        if (context != null) {
-            // Trigger async processing (clip creation, Binom integration, etc.)
-            youTubeProcessingService.processOrderAsync(context);
-            log.info("Order created event processed successfully: orderId={}", event.getOrderId());
-        } else {
-            log.warn(
-                    "Failed to initialize order processing for order: {}, falling back to old"
-                            + " logic",
-                    order.getId());
-
-            // Fallback to old logic if modern flow fails
-            processYouTubeVerification(order);
-
-            // Reload order to get latest state (processYouTubeVerification uses REQUIRES_NEW
-            // transaction)
-            Order refreshedOrder =
-                    orderRepository.findByIdWithAllDetails(order.getId()).orElse(order);
-
-            // Only transition to ACTIVE if still in PENDING (i.e., not marked PARTIAL by
-            // verification)
-            if (OrderStatus.PENDING.equals(refreshedOrder.getStatus())) {
-                // Use shared transition method for consistency
-                int startCount =
-                        refreshedOrder.getStartCount() != null ? refreshedOrder.getStartCount() : 0;
-                orderStateManagementService.transitionToActive(order.getId(), startCount);
-                log.info(
-                        "Order {} transitioned to ACTIVE after fallback processing", order.getId());
-            } else {
-                log.info(
-                        "Order {} already in status {} after YouTube verification, skipping ACTIVE"
-                                + " transition",
-                        order.getId(),
-                        refreshedOrder.getStatus());
-            }
-        }
-    }
-
-    /** Check if order is for Instagram service */
-    private boolean isInstagramOrder(Order order) {
-        if (order.getService() == null) return false;
-        String category = order.getService().getCategory();
-        String serviceName = order.getService().getName();
-        return (category != null && category.toLowerCase().contains("instagram"))
-                || (serviceName != null && serviceName.toLowerCase().contains("instagram"));
+        // All orders are Instagram orders now (panel pivoted to Instagram-only)
+        processInstagramOrder(order);
     }
 
     /** Process Instagram order - send to Instagram bot with retry support */

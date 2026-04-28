@@ -59,11 +59,13 @@ function Hero() {
             comment is delivered by us directly. Real quality, refill 30 days, crypto only.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
+            {/* TEMP: registration closed — restore by uncommenting
             <Link to="/register">
               <Button variant="primary" size="xl" iconRight="arrow-right">
                 Get started
               </Button>
             </Link>
+            */}
             <Link to="/services-list">
               <Button variant="outline-dark" size="xl">
                 Browse services
@@ -280,9 +282,8 @@ function ValueProps() {
 function Categories() {
   const stats = usePublicStats();
   const live = { cat: 'ig' as const, name: 'Instagram', sub: 'Likes · Follows · Comments' };
-  const soon: ReadonlyArray<{ cat: 'tt' | 'yt' | 'x' | 'tg' | 'fb'; name: string }> = [
+  const soon: ReadonlyArray<{ cat: 'tt' | 'x' | 'tg' | 'fb'; name: string }> = [
     { cat: 'tt', name: 'TikTok' },
-    { cat: 'yt', name: 'YouTube' },
     { cat: 'x', name: 'Twitter / X' },
     { cat: 'tg', name: 'Telegram' },
     { cat: 'fb', name: 'Facebook' },
@@ -347,7 +348,7 @@ function HowItWorks() {
     {
       n: 3,
       title: 'We dispatch through the network',
-      detail: 'Validated, queued, executed by our delivery network. Avg start 47s. Live progress in your dashboard.',
+      detail: 'Validated, queued, executed by our delivery network. Live progress in your dashboard.',
     },
     {
       n: 4,
@@ -434,11 +435,13 @@ function CTABanner() {
               Free $5 welcome credit. No card. No phone number. Connect via API in 5 minutes.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
+              {/* TEMP: registration closed — restore by uncommenting
               <Link to="/register">
                 <Button variant="primary" size="xl" iconRight="arrow-right">
                   Create your account
                 </Button>
               </Link>
+              */}
               <Link to="/docs">
                 <Button variant="outline-dark" size="xl">
                   Read API docs
@@ -475,11 +478,13 @@ function LandingLight() {
                 comment is delivered by us directly. Real quality, refill 30 days, crypto only.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
+                {/* TEMP: registration closed — restore by uncommenting
                 <Link to="/register">
                   <Button variant="primary" size="xl" iconRight="arrow-right">
                     Get started
                   </Button>
                 </Link>
+                */}
                 <Link to="/services-list">
                   <Button variant="secondary" size="xl">
                     Browse services
@@ -575,9 +580,8 @@ function ValuePropsLight() {
 
 function CategoriesLight() {
   const stats = usePublicStats();
-  const soon: ReadonlyArray<{ cat: 'tt' | 'yt' | 'x' | 'tg' | 'fb'; name: string }> = [
+  const soon: ReadonlyArray<{ cat: 'tt' | 'x' | 'tg' | 'fb'; name: string }> = [
     { cat: 'tt', name: 'TikTok' },
-    { cat: 'yt', name: 'YouTube' },
     { cat: 'x', name: 'Twitter / X' },
     { cat: 'tg', name: 'Telegram' },
     { cat: 'fb', name: 'Facebook' },
@@ -629,7 +633,7 @@ function HowItWorksLight() {
   const steps = [
     { n: 1, title: 'Top up with crypto', detail: 'USDT (TRC-20), BTC, ETH, TON, or LTC. Auto-credit on confirm.' },
     { n: 2, title: 'Pick service · paste link', detail: 'Likes, followers, real comments. Custom comment lists. Drip-feed if you need slow.' },
-    { n: 3, title: 'We dispatch through the network', detail: 'Validated, queued, executed by our delivery network. Avg start 47s. Live progress in your dashboard.' },
+    { n: 3, title: 'We dispatch through the network', detail: 'Validated, queued, executed by our delivery network. Live progress in your dashboard.' },
     { n: 4, title: 'Refill 30 days', detail: 'Free refill window for 30 days from completion. If delivery drops, request a refill from the order page — an operator approves and the bot re-runs.' },
   ];
   return (
@@ -690,11 +694,13 @@ function CTABannerLight() {
             Free $5 welcome credit. No card. No phone number. Connect via API in 5 minutes.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
+            {/* TEMP: registration closed — restore by uncommenting
             <Link to="/register">
               <Button variant="primary" size="xl" iconRight="arrow-right">
                 Create your account
               </Button>
             </Link>
+            */}
             <Link to="/docs">
               <Button variant="secondary" size="xl">
                 Read API docs

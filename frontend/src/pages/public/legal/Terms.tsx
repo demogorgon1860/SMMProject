@@ -1,5 +1,8 @@
 import { LegalLayout, type LegalSection } from './LegalLayout';
 
+// Bump this only when the policy text actually changes.
+const LAST_UPDATED = '2026-04-27';
+
 const sections: ReadonlyArray<LegalSection> = [
   { id: 'who', title: 'Who we are' },
   { id: 'service', title: 'What the service is' },
@@ -15,7 +18,7 @@ const sections: ReadonlyArray<LegalSection> = [
 
 export function TermsPage() {
   return (
-    <LegalLayout eyebrow="Legal" title="Terms of Service" lastUpdated="2026-04-15" sections={sections}>
+    <LegalLayout eyebrow="Legal" title="Terms of Service" lastUpdated={LAST_UPDATED} sections={sections}>
       <h2 id="who">Who we are</h2>
       <p>
         SMMWorld ("we", "our", "us") is operated by SMMWorld Ltd. We provide an Instagram growth
@@ -38,7 +41,7 @@ export function TermsPage() {
       <p>API keys grant full account access. Treat them like passwords. Rotate them in Profile → Security at any time.</p>
 
       <h2 id="orders">Orders & delivery</h2>
-      <p>Order processing begins automatically once payment is confirmed. Median start time is 47 seconds. Larger orders dripfeed based on the service profile.</p>
+      <p>Order processing begins automatically once payment is confirmed. Larger orders dripfeed based on the service profile. We do not warrant any specific start or completion time.</p>
       <p>We do not guarantee Instagram won't change its policies or remove content. We do guarantee that we will replace dropped actions during the 30-day refill window.</p>
 
       <h2 id="aup">Acceptable use</h2>

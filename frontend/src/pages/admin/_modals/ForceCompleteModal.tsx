@@ -28,10 +28,11 @@ export function ForceCompleteModal({ open, order, onClose, onSuccess }: ForceCom
 
   if (!order) return null;
 
-  const reasonValid = reason.trim().length >= 10;
+  // Reason is optional — admin may leave blank. The high-value type-the-id guard still
+  // gates the submit so $100+ orders aren't completed by a stray click.
   const highValue = order.charge > 50;
   const guardOK = isGuardCleared(highValue, String(order.id), guard);
-  const canSubmit = reasonValid && guardOK && !submitting;
+  const canSubmit = guardOK && !submitting;
 
   const submit = async () => {
     if (!canSubmit) return;
@@ -43,7 +44,9 @@ export function ForceCompleteModal({ open, order, onClose, onSuccess }: ForceCom
         target: 'order:' + order.id,
         targetLabel: 'Order #' + order.id,
         amount: order.charge,
-        summary: `Force-completed Order #${order.id} · ${reason}`,
+        summary: reason.trim()
+          ? `Force-completed Order #${order.id} · ${reason}`
+          : `Force-completed Order #${order.id}`,
       });
       toast(`Order #${order.id} force-completed`, 'success');
       onSuccess({ id: order.id, status: 'COMPLETED', completed: order.quantity });
@@ -95,12 +98,7 @@ export function ForceCompleteModal({ open, order, onClose, onSuccess }: ForceCom
         <Snapshot k="Charge" v={<Money value={order.charge} />} />
       </div>
 
-      <Field
-        label="Reason (visible in operator audit)"
-        hint={reason.length > 0 && reason.length < 10 ? `${reason.length}/10 chars min` : undefined}
-        error={reason.length > 0 && !reasonValid}
-        className="mt-4"
-      >
+      <Field label="Reason (optional, visible in operator audit)" className="mt-4">
         <Textarea
           block
           rows={3}

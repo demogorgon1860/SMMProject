@@ -291,10 +291,20 @@ html.dark[data-accent='amber'] {
     margin: 0 auto;
     padding: 0 24px;
   }
+  /* Wider container for data-dense table pages (Orders). Same horizontal padding
+     and centering as container-app, but caps at 1800px so wide monitors get the
+     extra columns of room without sacrificing the grid alignment used by the rest
+     of the user shell. */
+  .container-wide {
+    max-width: 1800px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
   @media (max-width: 640px) {
     .container-app,
     .container-narrow,
-    .container-legal {
+    .container-legal,
+    .container-wide {
       padding: 0 18px;
     }
   }

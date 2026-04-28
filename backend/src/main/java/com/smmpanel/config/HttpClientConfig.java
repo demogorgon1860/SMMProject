@@ -182,12 +182,6 @@ public class HttpClientConfig {
         return createCustomRestTemplate("Cryptomus");
     }
 
-    @Bean("binomRestTemplate")
-    public RestTemplate binomRestTemplate() {
-        // Binom needs higher limits for bulk operations
-        return createCustomRestTemplateWithLimits("Binom", 100, 30);
-    }
-
     @Bean("exchangeRateRestTemplate")
     public RestTemplate exchangeRateRestTemplate() {
         return createCustomRestTemplate("ExchangeRate");
@@ -198,20 +192,9 @@ public class HttpClientConfig {
         return createCustomWebClient("Cryptomus");
     }
 
-    @Bean("binomWebClient")
-    public WebClient binomWebClient() {
-        return createCustomWebClient("Binom");
-    }
-
     @Bean("exchangeRateWebClient")
     public WebClient exchangeRateWebClient() {
         return createCustomWebClient("ExchangeRate");
-    }
-
-    @Bean("youtubeRestTemplate")
-    public RestTemplate youtubeRestTemplate() {
-        // YouTube API needs specific connection limits
-        return createCustomRestTemplateWithLimits("YouTube", 50, 20);
     }
 
     @Bean("instagramBotRestTemplate")

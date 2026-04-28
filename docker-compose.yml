@@ -276,12 +276,22 @@ services:
       - ./backend/logs:/app/logs
       - ./backend/uploads:/app/uploads
       - selenium_profiles:/app/selenium-profiles
+    # Probe readiness, not the catch-all /actuator/health: readiness flips to
+    # DOWN only when an essential dependency (Postgres / Redis) is unreachable.
+    # /actuator/health/liveness is intentionally NOT used here because liveness
+    # going DOWN should trigger a *restart*, which docker-compose's healthcheck
+    # doesn't do — that's the orchestrator's job.
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health/readiness"]
       interval: 30s
-      timeout: 30s
+      timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 90s
+    # Pair with `server.shutdown: graceful` + `spring.lifecycle.timeout-per-shutdown-phase: 30s`.
+    # On SIGTERM: Spring stops accepting new connections, finishes in-flight requests, then
+    # closes Hikari/Lettuce pools. We give it 35s — 5s of headroom on top of Spring's 30s
+    # so the JVM can exit cleanly before docker SIGKILLs it.
+    stop_grace_period: 35s
     deploy:
       resources:
         limits:
@@ -466,6 +476,13 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      # Vite bakes VITE_* into the bundle at build time. Runtime `environment:` below
+      # is irrelevant for these — pass them here so Sentry actually initializes in prod.
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        VITE_SENTRY_ENVIRONMENT: ${VITE_SENTRY_ENVIRONMENT:-production}
+        VITE_SENTRY_RELEASE: ${VITE_SENTRY_RELEASE:-}
     container_name: smm_frontend
     restart: unless-stopped
     ports:

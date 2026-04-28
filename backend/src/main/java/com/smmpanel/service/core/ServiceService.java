@@ -5,6 +5,9 @@ import com.smmpanel.entity.Service;
 import com.smmpanel.entity.User;
 import com.smmpanel.exception.OrderValidationException;
 import com.smmpanel.repository.jpa.ServiceRepository;
+import com.smmpanel.service.settings.AppSettingsService;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ServiceService {
 
     private final ServiceRepository serviceRepository;
+    private final AppSettingsService appSettingsService;
 
     @Cacheable(value = "services", key = "'active-services'")
     public List<ServiceResponse> getAllActiveServices() {
@@ -65,11 +69,26 @@ public class ServiceService {
                 .category(service.getCategory())
                 .minOrder(service.getMinOrder())
                 .maxOrder(service.getMaxOrder())
-                .pricePer1000(service.getPricePer1000())
+                // Public catalog rate is the base rate × (1 + markup%) so what the customer
+                // sees on /services-list matches what they're billed at order time. The base
+                // value stays untouched in the DB.
+                .pricePer1000(applyMarkup(service.getPricePer1000()))
                 .description(service.getDescription())
                 .active(service.getActive())
                 .createdAt(service.getCreatedAt())
                 .updatedAt(service.getUpdatedAt())
                 .build();
+    }
+
+    private BigDecimal applyMarkup(BigDecimal baseRate) {
+        if (baseRate == null) return BigDecimal.ZERO;
+        BigDecimal markupPct =
+                appSettingsService.getDecimal(
+                        AppSettingsService.KEY_MARKUP_PERCENT, BigDecimal.ZERO);
+        if (markupPct.signum() <= 0) return baseRate;
+        BigDecimal multiplier =
+                BigDecimal.ONE.add(
+                        markupPct.divide(BigDecimal.valueOf(100), 6, RoundingMode.HALF_UP));
+        return baseRate.multiply(multiplier);
     }
 }

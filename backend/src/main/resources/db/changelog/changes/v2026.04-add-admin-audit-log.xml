@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      Lightweight admin-action feed. Backs the "Recent admin actions" sidebar on
+      /admin/dashboard and the GET /v2/admin/audit-log endpoint.
+
+      Why a dedicated table when audit_logs already exists?
+        - audit_logs is the comprehensive compliance trail (payment events, system writes,
+          7-year retention) — heavy schema, every event enriched with IP/user-agent. Pointing
+          the dashboard sidebar at it would mean either filtering large category enums on
+          every page render, or reading hundreds of system rows the operator doesn't care about.
+        - admin_audit_log is the operator-facing feed: just the human action ("cancelled order
+          #1234", "credited @bob $5.00"). Tiny schema, fast queries, distinct from compliance
+          retention rules.
+
+      Both tables live side-by-side. Compliance writes go to both; cosmetic/light admin-only
+      events (e.g. mark-partial) go only here.
+    -->
+    <changeSet id="v2026.04-add-admin-audit-log" author="dev">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <not><tableExists tableName="admin_audit_log"/></not>
+        </preConditions>
+        <createTable tableName="admin_audit_log">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <!-- The admin who performed the action. NULLABLE — system-triggered admin-style
+                 actions (e.g. scheduler-driven cancel-timeout) have no user; we still want them
+                 in the feed labelled "system". The cascade rule (SET NULL on user delete) is
+                 added below via addForeignKeyConstraint so we can express ON DELETE behavior. -->
+            <column name="admin_id" type="BIGINT"/>
+            <column name="admin_username" type="VARCHAR(100)"/>
+            <!-- Machine action key. Examples:
+                  order.cancel, order.force_complete, order.mark_partial, order.refund,
+                  user.balance_adjust, user.suspend, user.unsuspend,
+                  refill.approve, refill.reject, settings.update, telegram.cancel_decision -->
+            <column name="action" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <!-- Target the action was performed on. target_type matches the entity name
+                 (ORDER, USER, REFILL_REQUEST, SETTING). target_id is the primary key. -->
+            <column name="target_type" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="target_id" type="BIGINT"/>
+            <column name="target_label" type="VARCHAR(255)"/>
+            <!-- Plain-language description shown in the feed row. -->
+            <column name="summary" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <!-- Optional signed money delta. Negative for refund; positive for credit. -->
+            <column name="amount" type="DECIMAL(10,2)"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <!-- Sidebar query: "most recent N actions, all admins" — covered by created_at index. -->
+        <createIndex tableName="admin_audit_log" indexName="idx_aal_created_at_desc">
+            <column name="created_at" descending="true"/>
+        </createIndex>
+
+        <!-- Per-admin history (manager review of one operator) — wider but rare. -->
+        <createIndex tableName="admin_audit_log" indexName="idx_aal_admin_created">
+            <column name="admin_id"/>
+            <column name="created_at" descending="true"/>
+        </createIndex>
+
+        <!-- ON DELETE SET NULL: hard-deleting a user must preserve their action history (the
+             admin_username column captures who they were, even if the FK is gone). The audit
+             trail outlives the actor — important for compliance/forensics, identical pattern to
+             how audit_logs.user_id is treated by the account-deletion FK cascades. -->
+        <addForeignKeyConstraint
+                baseTableName="admin_audit_log"
+                baseColumnNames="admin_id"
+                constraintName="fk_aal_admin"
+                referencedTableName="users"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+
+        <rollback>
+            <dropTable tableName="admin_audit_log"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -6,6 +6,7 @@ import com.smmpanel.entity.Order;
 import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.entity.Service;
 import com.smmpanel.repository.jpa.OrderRepository;
+import com.smmpanel.service.admin.BotWebhookEventRecorder;
 import com.smmpanel.service.balance.BalanceService;
 import com.smmpanel.service.instagram.InstagramRabbitPublisher;
 import com.smmpanel.service.notification.TelegramNotificationService;
@@ -34,6 +35,7 @@ public class InstagramService {
     private final TelegramNotificationService telegramNotificationService;
     private final InstagramRabbitPublisher rabbitPublisher;
     private final BalanceService balanceService;
+    private final BotWebhookEventRecorder botWebhookEventRecorder;
 
     @Value("${app.instagram.use-rabbitmq:true}")
     private boolean useRabbitMQ;
@@ -213,6 +215,14 @@ public class InstagramService {
                 callback.getExternalId(),
                 callback.getStatus());
 
+        // Record event for the admin Bot page (LIST + pub/sub). Best-effort — must never
+        // break the order processing path even on a programming bug in the recorder itself.
+        try {
+            botWebhookEventRecorder.recordWebhook(callback);
+        } catch (Exception e) {
+            log.warn("Bot webhook event recorder threw: {}", e.getMessage());
+        }
+
         try {
             // Find the order by external_id (our order ID)
             Long orderId = Long.parseLong(callback.getExternalId());
@@ -239,20 +249,40 @@ public class InstagramService {
                 order.setInstagramBotOrderId(callback.getId());
             }
 
+            // TERMINAL-STATE GUARD (mirrors InstagramResultConsumer). After force_complete /
+            // mark_partial / cancel, the panel has already booked the outcome. A delayed bot
+            // webhook with "completed" / "failed" / "pending_cancel" must NOT reapply refunds
+            // or re-run the completion notification — that would double-credit/double-charge
+            // and re-fire the Telegram message. The "cancelled" echo is special-cased below
+            // (it never overwrote status) so it's allowed through to persist the bot-ID sync.
+            String botStatus = callback.getStatus();
+            boolean isCancelEcho = "cancelled".equalsIgnoreCase(botStatus);
+            if (order.getStatus() != null && order.getStatus().isTerminal() && !isCancelEcho) {
+                log.info(
+                        "Ignoring webhook for order {} — already in terminal status {}"
+                                + " (incoming bot status='{}', completed={})",
+                        order.getId(),
+                        order.getStatus(),
+                        botStatus,
+                        callback.getCompleted());
+                orderRepository.save(order); // commit any bot-ID sync from above
+                return;
+            }
+
             // Update order based on callback status
-            if ("completed".equalsIgnoreCase(callback.getStatus())) {
+            if ("completed".equalsIgnoreCase(botStatus)) {
                 handleOrderCompleted(order, callback);
-            } else if ("failed".equalsIgnoreCase(callback.getStatus())) {
+            } else if ("failed".equalsIgnoreCase(botStatus)) {
                 handleOrderFailed(order, callback);
-            } else if ("pending_cancel".equalsIgnoreCase(callback.getStatus())) {
+            } else if ("pending_cancel".equalsIgnoreCase(botStatus)) {
                 handleOrderPendingCancelFromBot(order, callback);
-            } else if ("cancelled".equalsIgnoreCase(callback.getStatus())) {
+            } else if (isCancelEcho) {
                 // Panel-initiated cancel echo — bot acknowledged our cancel request.
                 // No status change here, but persist the bot-ID sync above (if any).
                 orderRepository.save(order);
                 log.info("Bot acknowledged cancel for order {} (panel-initiated)", order.getId());
             } else {
-                log.warn("Unknown callback status: {}", callback.getStatus());
+                log.warn("Unknown callback status: {}", botStatus);
             }
 
         } catch (NumberFormatException e) {

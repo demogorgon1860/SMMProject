@@ -781,4 +781,25 @@
     <!-- One-time welcome credit tracking column on users -->
     <include file="db/changelog/changes/v2026.04-add-welcome-credit-column.xml"/>
 
+    <!-- Task 03: refresh_tokens.last_used_at + users.api_key_paused_at -->
+    <include file="db/changelog/changes/v2026.04-task03-sessions-and-api-pause.xml"/>
+
+    <!-- Task 04: GDPR account deletion — users.deleted_at + FK cascades -->
+    <include file="db/changelog/changes/v2026.04-account-deletion.xml"/>
+
+    <!-- Task 09: app_settings table — backs /admin/settings persistence + runtime enforcement -->
+    <include file="db/changelog/changes/v2026.04-app-settings.xml"/>
+
+    <!-- Task 10: dead-code cleanup — drop YouTube/Binom infrastructure tables, retire YouTube services -->
+    <include file="db/changelog/changes/v2026.04-task10-drop-youtube-binom-tables.xml"/>
+
+    <!-- Task 13.2: balance_deposits(user_id, status, created_at DESC) for deposits hot path -->
+    <include file="db/changelog/changes/v2026.04-task13-deposits-user-status-index.xml"/>
+
+    <!-- Task 16.5: Stripe-style idempotency keys for POST /v1/orders (and future money-moving paths) -->
+    <include file="db/changelog/changes/v2026.04-add-idempotency-keys.xml"/>
+
+    <!-- Task 16.10: Persistent admin audit log (replaces in-memory Zustand useAdminActions) -->
+    <include file="db/changelog/changes/v2026.04-add-admin-audit-log.xml"/>
+
 </databaseChangeLog>

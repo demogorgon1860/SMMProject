@@ -44,12 +44,14 @@ export function LoginPage() {
     <>
       <div className="eyebrow">Sign in</div>
       <h1 className="mt-2 text-[28px] font-bold tracking-[-0.02em]">Welcome back.</h1>
+      {/* TEMP: registration closed — restore by uncommenting
       <p className="mt-1 text-[14px] text-fg-muted">
         New to SMMWorld?{' '}
         <Link to="/register" className="font-medium text-accent hover:underline">
           Create account
         </Link>
       </p>
+      */}
 
       <form className="mt-8" onSubmit={submit} noValidate>
         <Field label="Email or username">

@@ -6,7 +6,6 @@ import com.smmpanel.entity.Service;
 import com.smmpanel.entity.User;
 import com.smmpanel.repository.jpa.ServiceRepository;
 import com.smmpanel.repository.jpa.UserRepository;
-import com.smmpanel.service.integration.YouTubeService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Optional;
@@ -22,7 +21,6 @@ public class OrderValidationService {
 
     private final UserRepository userRepository;
     private final ServiceRepository serviceRepository;
-    private final YouTubeService youTubeService;
 
     public ValidationResult validateOrder(Long userId, CreateOrderRequest request) {
         ValidationResult result = ValidationResult.builder().build();
@@ -42,10 +40,7 @@ public class OrderValidationService {
         // 3. Validate quantity against service limits
         validateQuantity(request.getQuantity(), service, result);
 
-        // 4. Validate YouTube video
-        validateYouTubeVideo(request.getLink(), result);
-
-        // 5. Check balance if all other validations pass
+        // 4. Check balance if all other validations pass
         if (!result.hasErrors()) {
             validateBalance(userId, request, service, result);
         }
@@ -102,23 +97,6 @@ public class OrderValidationService {
             result.addError(
                     "quantity",
                     String.format("Maximum order quantity is %d", service.getMaxOrder()));
-        }
-    }
-
-    private void validateYouTubeVideo(String videoUrl, ValidationResult result) {
-        try {
-            String videoId = youTubeService.extractVideoId(videoUrl);
-            if (videoId == null || videoId.trim().isEmpty()) {
-                result.addError("link", "Invalid YouTube URL format");
-                return;
-            }
-
-            // Additional YouTube validation can be added here
-            // For example, checking if video exists, is public, etc.
-
-        } catch (Exception e) {
-            log.error("Error validating YouTube video: {}", e.getMessage(), e);
-            result.addError("link", "Unable to validate YouTube video: " + e.getMessage());
         }
     }
 

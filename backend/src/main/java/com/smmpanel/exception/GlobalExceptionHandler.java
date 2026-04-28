@@ -170,35 +170,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED).body(errorResponse);
     }
 
-    /** Handle external service exceptions */
-    @ExceptionHandler(BinomApiException.class)
-    public ResponseEntity<ErrorResponse> handleBinomApiError(
-            BinomApiException ex, HttpServletRequest request) {
-        ErrorResponse errorResponse =
-                createErrorResponse(
-                        HttpStatus.SERVICE_UNAVAILABLE,
-                        "EXTERNAL_SERVICE_ERROR",
-                        "External service temporarily unavailable. Please try again later.",
-                        request);
-
-        log.error("Binom API error: {}", ex.getMessage(), ex);
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorResponse);
-    }
-
-    @ExceptionHandler(VideoProcessingException.class)
-    public ResponseEntity<ErrorResponse> handleVideoProcessingError(
-            VideoProcessingException ex, HttpServletRequest request) {
-        ErrorResponse errorResponse =
-                createErrorResponse(
-                        HttpStatus.UNPROCESSABLE_ENTITY,
-                        "VIDEO_PROCESSING_ERROR",
-                        "Video processing failed. Please check your video URL and try again.",
-                        request);
-
-        log.error("Video processing error: {}", ex.getMessage(), ex);
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
-    }
-
     /** Handle state transition errors */
     @ExceptionHandler(IllegalOrderStateTransitionException.class)
     public ResponseEntity<ErrorResponse> handleIllegalStateTransition(

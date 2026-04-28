@@ -37,6 +37,4 @@ public class AdminRefillDto {
 
     // Calculated fields for display
     private String orderName; // Format: "Order #{originalOrderId} - Refill #{refillNumber}"
-    private String binomOfferId;
-    private String youtubeVideoId;
 }

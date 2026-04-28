@@ -19,7 +19,9 @@ import {
 import { adminAPI } from '../../services/api';
 import { useAdminActions } from '../../store/adminActions';
 import type { Order } from '../../types';
-import { fmtInt, fmtMoney } from '../../lib/utils';
+import { fmtInt, fmtMoney, toNum } from '../../lib/utils';
+import { unwrapList } from '../../lib/api';
+import { useDailyStats } from '../../lib/hooks/useDailyStats';
 
 // =====================================================================
 // Admin Dashboard — operations overview.
@@ -44,25 +46,6 @@ interface AdminDashboardResponse {
   totalUsers: number;
 }
 
-// Shape of one row from /api/v2/admin/stats/daily.
-interface DailyStatPoint {
-  date: string;
-  total: number;
-  completed: number;
-  partial: number;
-  cancelled: number;
-  revenue: string | number;
-}
-
-function toNum(v: unknown): number {
-  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
-  if (typeof v === 'string') {
-    const n = Number.parseFloat(v);
-    return Number.isFinite(n) ? n : 0;
-  }
-  return 0;
-}
-
 // Real dailyish delta: revenue/orders over the last 24h vs the average day in
 // the prior 6 days (i.e. (last7 - last24) / 6). Returns null when there's not
 // enough history to compute it honestly — caller renders nothing rather than
@@ -80,10 +63,11 @@ export function AdminDashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [pendingDecisions, setPendingDecisions] = useState<number>(0);
   const [dash, setDash] = useState<AdminDashboardResponse | null>(null);
-  const [daily, setDaily] = useState<DailyStatPoint[]>([]);
   // Start empty rather than hardcoded "Spring Boot 14ms / IG Bot secondary degraded 312ms".
   // Those numbers were placeholder and lied about real system state.
   const [systemHealth, setSystemHealth] = useState<Array<{ name: string; status: 'up' | 'degraded' | 'down'; latency?: number; meta?: string }>>([]);
+
+  const { daily } = useDailyStats(adminAPI.dailyStats, 30);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,27 +81,17 @@ export function AdminDashboardPage() {
       })
       .catch(() => {});
     adminAPI
-      .dailyStats(30)
-      .then((data) => {
-        if (cancelled) return;
-        setDaily(Array.isArray(data) ? data : []);
-      })
-      .catch(() => {});
-    adminAPI
       .getAllOrders({ size: 50 })
       .then((data: unknown) => {
         if (cancelled) return;
-        const env = data as { orders?: Order[]; content?: Order[]; data?: Order[] } | null;
-        const arr: Order[] = Array.isArray(data) ? (data as Order[]) : env?.orders ?? env?.content ?? env?.data ?? [];
-        setOrders(arr);
+        setOrders(unwrapList<Order>(data, ['orders']));
       })
       .catch(() => {});
     adminAPI
       .telegramPending()
       .then((data: unknown) => {
         if (cancelled) return;
-        const arr = Array.isArray(data) ? data : (data as { content?: unknown[] })?.content ?? [];
-        setPendingDecisions(arr.length);
+        setPendingDecisions(unwrapList(data).length);
       })
       .catch(() => {});
     adminAPI
@@ -127,6 +101,10 @@ export function AdminDashboardPage() {
         if (Array.isArray(data)) setSystemHealth(data as typeof systemHealth);
       })
       .catch(() => {});
+    // Persistent admin-action feed: hydrate from server so refresh keeps history. The
+    // Zustand store's `push` still fires on local actions for instant feedback; the next
+    // refresh tick deduplicates with the server-recorded row.
+    void useAdminActions.getState().loadFromServer();
     return () => {
       cancelled = true;
     };
@@ -409,13 +387,6 @@ function RecentAdminActions() {
     <Section
       title="Recent admin actions"
       subtitle="Most recent first"
-      action={
-        <Link to="/admin/settings?tab=audit">
-          <Button variant="ghost" size="sm" iconRight="arrow-right">
-            Full audit log
-          </Button>
-        </Link>
-      }
       pad={false}
     >
       {actions.length === 0 ? (

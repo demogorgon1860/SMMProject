@@ -15,16 +15,9 @@ import {
 import { balanceAPI, orderAPI, profileAPI } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import type { Order, BalanceSummary } from '../../types';
-import { fmtInt, fmtRel } from '../../lib/utils';
-
-interface DailyStatPoint {
-  date: string;
-  total: number;
-  completed: number;
-  partial: number;
-  cancelled: number;
-  revenue: string | number;
-}
+import { fmtInt, fmtRel, toNum } from '../../lib/utils';
+import { unwrapList } from '../../lib/api';
+import { useDailyStats, type DailyStatPoint } from '../../lib/hooks/useDailyStats';
 
 // =====================================================================
 // Dashboard — main authed landing.
@@ -39,16 +32,13 @@ export function DashboardPage() {
 
   const [balance, setBalance] = useState<BalanceSummary | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [daily, setDaily] = useState<DailyStatPoint[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const { daily } = useDailyStats(profileAPI.dailyStats, 30);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.allSettled([
-      balanceAPI.get(),
-      orderAPI.list({ size: 10 }),
-      profileAPI.dailyStats(30),
-    ]).then(([b, o, d]) => {
+    Promise.allSettled([balanceAPI.get(), orderAPI.list({ size: 10 })]).then(([b, o]) => {
       if (cancelled) return;
       if (b.status === 'fulfilled') {
         const bs = b.value as BalanceSummary;
@@ -58,19 +48,7 @@ export function DashboardPage() {
         if (n > 0 || bs.balance != null) updateBalance(n);
       }
       if (o.status === 'fulfilled') {
-        const v = o.value as { content?: Order[] } | Order[] | { data?: Order[] };
-        setOrders(
-          Array.isArray(v)
-            ? v
-            : Array.isArray((v as { content?: Order[] }).content)
-              ? (v as { content: Order[] }).content
-              : Array.isArray((v as { data?: Order[] }).data)
-                ? (v as { data: Order[] }).data
-                : [],
-        );
-      }
-      if (d.status === 'fulfilled' && Array.isArray(d.value)) {
-        setDaily(d.value as DailyStatPoint[]);
+        setOrders(unwrapList<Order>(o.value, ['orders']));
       }
       setLoading(false);
     });
@@ -122,21 +100,6 @@ interface DashStats {
   spendDelta: { sign: '+' | '-'; v: string; tone: 'success' | 'danger' } | null;
   /** Same shape, for order count over the last 7d vs prior 7d. */
   ordersDelta: { sign: '+' | '-'; v: string; tone: 'success' | 'danger' } | null;
-}
-
-/**
- * Coerce a maybe-string-maybe-number-maybe-undefined money value into a real Number.
- * The backend serializes BigDecimal as a JSON string ("252.18") to preserve precision; the
- * frontend math (toFixed, comparisons, arithmetic) needs a real Number. Returns 0 for null /
- * undefined / NaN / non-finite input — never propagates NaN downstream.
- */
-function toNum(v: unknown): number {
-  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
-  if (typeof v === 'string') {
-    const n = Number.parseFloat(v);
-    return Number.isFinite(n) ? n : 0;
-  }
-  return 0;
 }
 
 function computeStats(

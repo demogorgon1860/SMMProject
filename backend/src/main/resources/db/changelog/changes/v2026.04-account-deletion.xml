@@ -1,0 +1,284 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      Task 04: GDPR-compliant account deletion.
+
+      Two-phase erasure:
+        1. Soft delete  — `users.deleted_at` is stamped, identity columns are
+           anonymized, refresh tokens revoked, API key cleared. The user can
+           contact support inside the 30-day grace window to be restored.
+        2. Hard delete  — a daily scheduler purges users whose deleted_at is
+           older than 30 days. Orders / transactions / deposits are kept for
+           AML retention; their user_id is set to NULL on user purge so the
+           link to the (now deleted) person is severed but the financial
+           record survives.
+
+      To make the hard-delete cascade safe:
+        - relax NOT NULL on long-retention FKs (orders, balance_transactions,
+          balance_deposits, support_tickets, refill_requests) and set their
+          FK action to ON DELETE SET NULL;
+        - set ON DELETE CASCADE on ephemeral / auth-only tables
+          (refresh_tokens, email_verification_tokens, password_reset_tokens,
+          user_notification_prefs).
+
+      All changesets are idempotent (preConditions + IF EXISTS) so they
+      are safe to re-run on environments where DDL was applied out of band.
+    -->
+
+    <!-- 1. users.deleted_at — soft-delete marker. Null = active account. -->
+    <changeSet id="v2026.04-account-deletion-add-deleted-at" author="dev">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <not><columnExists tableName="users" columnName="deleted_at"/></not>
+        </preConditions>
+        <addColumn tableName="users">
+            <column name="deleted_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </addColumn>
+        <createIndex tableName="users" indexName="idx_users_deleted_at">
+            <column name="deleted_at"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="users" indexName="idx_users_deleted_at"/>
+            <dropColumn tableName="users" columnName="deleted_at"/>
+        </rollback>
+    </changeSet>
+
+    <!--
+      2. Long-retention tables: nullable user_id + ON DELETE SET NULL.
+         We use raw SQL because the FKs already exist with the wrong action.
+         Each statement is `IF EXISTS` so re-running on prod where the constraint
+         names may differ (older DBs) is a safe no-op.
+    -->
+    <changeSet id="v2026.04-account-deletion-orders-fk-set-null" author="dev">
+        <comment>
+            Allow orders.user_id to be NULL after a user is hard-deleted, and
+            switch the FK to ON DELETE SET NULL so the cascade happens at the
+            DB layer (single source of truth, atomic with the user delete).
+            Orders are retained for 7 years per AML — only the user link is severed.
+
+            OPS NOTE: orders is a partitioned table with ~24 monthly partitions.
+            ADD CONSTRAINT validates existing rows against users(id), which scans
+            every partition under SHARE ROW EXCLUSIVE — briefly blocks writes on
+            orders during the migration. Run during a low-traffic window. All
+            existing rows already satisfy the FK (the column was NOT NULL with the
+            same target), so the validation is fast in practice.
+        </comment>
+        <sql>
+            ALTER TABLE orders ALTER COLUMN user_id DROP NOT NULL;
+        </sql>
+        <!--
+            splitStatements=false because the DO $$ ... $$ block contains semicolons
+            that would otherwise be split as separate statements by Liquibase's naive
+            splitter, corrupting the PL/pgSQL body.
+        -->
+        <sql splitStatements="false">
+            DO $$
+            DECLARE c_name text;
+            BEGIN
+                SELECT conname INTO c_name FROM pg_constraint
+                 WHERE conrelid = 'orders'::regclass
+                   AND contype = 'f'
+                   AND pg_get_constraintdef(oid) LIKE '%REFERENCES users%';
+                IF c_name IS NOT NULL THEN
+                    EXECUTE format('ALTER TABLE orders DROP CONSTRAINT %I', c_name);
+                END IF;
+            END $$;
+        </sql>
+        <sql>
+            ALTER TABLE orders
+                ADD CONSTRAINT fk_orders_user
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+        </sql>
+        <rollback>
+            <sql>
+                ALTER TABLE orders DROP CONSTRAINT IF EXISTS fk_orders_user;
+                ALTER TABLE orders
+                    ADD CONSTRAINT orders_user_id_fkey
+                    FOREIGN KEY (user_id) REFERENCES users(id);
+                ALTER TABLE orders ALTER COLUMN user_id SET NOT NULL;
+            </sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="v2026.04-account-deletion-balance-transactions-fk-set-null" author="dev">
+        <comment>Same treatment for balance_transactions — kept for AML.</comment>
+        <sql splitStatements="true">
+            ALTER TABLE balance_transactions ALTER COLUMN user_id DROP NOT NULL;
+        </sql>
+        <sql splitStatements="true">
+            ALTER TABLE balance_transactions DROP CONSTRAINT IF EXISTS fk_transactions_user;
+        </sql>
+        <sql splitStatements="true">
+            ALTER TABLE balance_transactions
+                ADD CONSTRAINT fk_transactions_user
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+        </sql>
+        <rollback>
+            <sql>
+                ALTER TABLE balance_transactions DROP CONSTRAINT IF EXISTS fk_transactions_user;
+                ALTER TABLE balance_transactions
+                    ADD CONSTRAINT fk_transactions_user
+                    FOREIGN KEY (user_id) REFERENCES users(id);
+                ALTER TABLE balance_transactions ALTER COLUMN user_id SET NOT NULL;
+            </sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="v2026.04-account-deletion-balance-deposits-fk-set-null" author="dev">
+        <comment>Same treatment for balance_deposits — kept for AML.</comment>
+        <sql splitStatements="true">
+            ALTER TABLE balance_deposits ALTER COLUMN user_id DROP NOT NULL;
+        </sql>
+        <sql splitStatements="true">
+            ALTER TABLE balance_deposits DROP CONSTRAINT IF EXISTS fk_deposits_user;
+        </sql>
+        <sql splitStatements="true">
+            ALTER TABLE balance_deposits
+                ADD CONSTRAINT fk_deposits_user
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+        </sql>
+        <rollback>
+            <sql>
+                ALTER TABLE balance_deposits DROP CONSTRAINT IF EXISTS fk_deposits_user;
+                ALTER TABLE balance_deposits
+                    ADD CONSTRAINT fk_deposits_user
+                    FOREIGN KEY (user_id) REFERENCES users(id);
+                ALTER TABLE balance_deposits ALTER COLUMN user_id SET NOT NULL;
+            </sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="v2026.04-account-deletion-support-tickets-fk-set-null" author="dev">
+        <comment>support_tickets — keep ticket history for compliance, sever user link.</comment>
+        <sql splitStatements="true">
+            ALTER TABLE support_tickets ALTER COLUMN user_id DROP NOT NULL;
+        </sql>
+        <sql splitStatements="true">
+            ALTER TABLE support_tickets DROP CONSTRAINT IF EXISTS fk_st_user;
+        </sql>
+        <sql splitStatements="true">
+            ALTER TABLE support_tickets
+                ADD CONSTRAINT fk_st_user
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+        </sql>
+        <rollback>
+            <sql>
+                ALTER TABLE support_tickets DROP CONSTRAINT IF EXISTS fk_st_user;
+                ALTER TABLE support_tickets
+                    ADD CONSTRAINT fk_st_user
+                    FOREIGN KEY (user_id) REFERENCES users(id);
+                ALTER TABLE support_tickets ALTER COLUMN user_id SET NOT NULL;
+            </sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="v2026.04-account-deletion-refill-requests-fk-set-null" author="dev">
+        <comment>refill_requests — keep history, sever user link.</comment>
+        <sql splitStatements="true">
+            ALTER TABLE refill_requests ALTER COLUMN user_id DROP NOT NULL;
+        </sql>
+        <sql splitStatements="true">
+            ALTER TABLE refill_requests DROP CONSTRAINT IF EXISTS fk_rr_user;
+        </sql>
+        <sql splitStatements="true">
+            ALTER TABLE refill_requests
+                ADD CONSTRAINT fk_rr_user
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+        </sql>
+        <rollback>
+            <sql>
+                ALTER TABLE refill_requests DROP CONSTRAINT IF EXISTS fk_rr_user;
+                ALTER TABLE refill_requests
+                    ADD CONSTRAINT fk_rr_user
+                    FOREIGN KEY (user_id) REFERENCES users(id);
+                ALTER TABLE refill_requests ALTER COLUMN user_id SET NOT NULL;
+            </sql>
+        </rollback>
+    </changeSet>
+
+    <!--
+      3. Ephemeral tables: ON DELETE CASCADE so they vanish with the user row
+         (no value in keeping a refresh-token row for a person who no longer
+         exists, and the user_notification_prefs PK is the user_id itself).
+    -->
+    <changeSet id="v2026.04-account-deletion-refresh-tokens-cascade" author="dev">
+        <sql splitStatements="true">
+            ALTER TABLE refresh_tokens DROP CONSTRAINT IF EXISTS fk_refresh_tokens_user;
+        </sql>
+        <sql splitStatements="true">
+            ALTER TABLE refresh_tokens
+                ADD CONSTRAINT fk_refresh_tokens_user
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+        </sql>
+        <rollback>
+            <sql>
+                ALTER TABLE refresh_tokens DROP CONSTRAINT IF EXISTS fk_refresh_tokens_user;
+                ALTER TABLE refresh_tokens
+                    ADD CONSTRAINT fk_refresh_tokens_user
+                    FOREIGN KEY (user_id) REFERENCES users(id);
+            </sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="v2026.04-account-deletion-email-verification-cascade" author="dev">
+        <sql splitStatements="true">
+            ALTER TABLE email_verification_tokens DROP CONSTRAINT IF EXISTS fk_evt_user;
+        </sql>
+        <sql splitStatements="true">
+            ALTER TABLE email_verification_tokens
+                ADD CONSTRAINT fk_evt_user
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+        </sql>
+        <rollback>
+            <sql>
+                ALTER TABLE email_verification_tokens DROP CONSTRAINT IF EXISTS fk_evt_user;
+                ALTER TABLE email_verification_tokens
+                    ADD CONSTRAINT fk_evt_user
+                    FOREIGN KEY (user_id) REFERENCES users(id);
+            </sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="v2026.04-account-deletion-password-reset-cascade" author="dev">
+        <sql splitStatements="true">
+            ALTER TABLE password_reset_tokens DROP CONSTRAINT IF EXISTS fk_prt_user;
+        </sql>
+        <sql splitStatements="true">
+            ALTER TABLE password_reset_tokens
+                ADD CONSTRAINT fk_prt_user
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+        </sql>
+        <rollback>
+            <sql>
+                ALTER TABLE password_reset_tokens DROP CONSTRAINT IF EXISTS fk_prt_user;
+                ALTER TABLE password_reset_tokens
+                    ADD CONSTRAINT fk_prt_user
+                    FOREIGN KEY (user_id) REFERENCES users(id);
+            </sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="v2026.04-account-deletion-notification-prefs-cascade" author="dev">
+        <sql splitStatements="true">
+            ALTER TABLE user_notification_prefs DROP CONSTRAINT IF EXISTS fk_unp_user;
+        </sql>
+        <sql splitStatements="true">
+            ALTER TABLE user_notification_prefs
+                ADD CONSTRAINT fk_unp_user
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+        </sql>
+        <rollback>
+            <sql>
+                ALTER TABLE user_notification_prefs DROP CONSTRAINT IF EXISTS fk_unp_user;
+                ALTER TABLE user_notification_prefs
+                    ADD CONSTRAINT fk_unp_user
+                    FOREIGN KEY (user_id) REFERENCES users(id);
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

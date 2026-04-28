@@ -17,6 +17,8 @@ import org.springframework.stereotype.Repository;
 public interface BalanceTransactionRepository extends JpaRepository<BalanceTransaction, Long> {
     Page<BalanceTransaction> findByUserOrderByCreatedAtDesc(User user, Pageable pageable);
 
+    List<BalanceTransaction> findByUser_IdOrderByCreatedAtAsc(Long userId);
+
     Page<BalanceTransaction> findByUserId(Long userId, Pageable pageable);
 
     Page<BalanceTransaction> findByUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);

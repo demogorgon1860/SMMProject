@@ -12,7 +12,8 @@ import org.hibernate.annotations.CreationTimestamp;
             @Index(name = "idx_refresh_token", columnList = "token"),
             @Index(name = "idx_refresh_token_user", columnList = "user_id"),
             @Index(name = "idx_refresh_token_expiry", columnList = "expires_at"),
-            @Index(name = "idx_refresh_token_revoked", columnList = "revoked")
+            @Index(name = "idx_refresh_token_revoked", columnList = "revoked"),
+            @Index(name = "idx_refresh_tokens_user_last_used", columnList = "user_id, last_used_at")
         })
 @Getter
 @Setter
@@ -51,6 +52,14 @@ public class RefreshToken {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    /**
+     * Last time this session was observed alive — refreshed every time the access token is rotated
+     * via {@code POST /auth/refresh}. Drives the "last active 2 min ago" line in Profile →
+     * Sessions. Nullable for legacy rows; the migration backfills to {@code created_at}.
+     */
+    @Column(name = "last_used_at")
+    private LocalDateTime lastUsedAt;
 
     @Version
     @Column(name = "version")

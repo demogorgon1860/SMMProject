@@ -4,7 +4,6 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
-import java.time.Duration;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -21,15 +20,11 @@ public class AppProperties {
     private Security security = new Security();
     private Cors cors = new Cors();
     private RateLimit rateLimit = new RateLimit();
-    private Binom binom = new Binom();
-    private Youtube youtube = new Youtube();
     private Cryptomus cryptomus = new Cryptomus();
-    private Selenium selenium = new Selenium();
     private Cache cache = new Cache();
     private File file = new File();
     private Error error = new Error();
     private Order order = new Order();
-    private Video video = new Video();
     private Balance balance = new Balance();
     private Perfectpanel perfectpanel = new Perfectpanel();
     private Features features = new Features();
@@ -107,68 +102,6 @@ public class AppProperties {
     }
 
     @Data
-    public static class Binom {
-        private Api api = new Api();
-        private double defaultCoefficient = 3.0;
-
-        @Min(1)
-        private int maxCampaignsPerOrder = 5;
-
-        @Data
-        public static class Api {
-            @NotBlank private String url; // Loaded from BINOM_API_URL env var
-
-            @NotBlank private String key; // Loaded from BINOM_API_KEY env var
-
-            private String username; // Loaded from BINOM_USERNAME env var
-
-            private String password; // Loaded from BINOM_PASSWORD env var
-
-            @Min(1)
-            private int timeout = 30000;
-
-            @Min(1)
-            private int retryAttempts = 3;
-        }
-    }
-
-    @Data
-    public static class Youtube {
-        private Api api = new Api();
-        private Quota quota = new Quota();
-        private ClipCreation clipCreation = new ClipCreation();
-
-        @Data
-        public static class Api {
-            @NotBlank private String key; // Loaded from YOUTUBE_API_KEY env var
-
-            @Min(1)
-            private int timeout = 15000;
-
-            @Min(1)
-            private int retryAttempts = 2;
-        }
-
-        @Data
-        public static class Quota {
-            @Min(1)
-            private int dailyLimit = 10000;
-
-            @Min(1)
-            private int per100Seconds = 100;
-        }
-
-        @Data
-        public static class ClipCreation {
-            private boolean enabled = true;
-            private double coefficient = 3.0;
-
-            @Min(1)
-            private long timeout = 300000;
-        }
-    }
-
-    @Data
     public static class Cryptomus {
         private Api api = new Api();
         private Webhook webhook = new Webhook();
@@ -193,61 +126,10 @@ public class AppProperties {
     }
 
     @Data
-    public static class Selenium {
-        private Driver driver = new Driver();
-        private boolean headless = true;
-        private Timeout timeout = new Timeout();
-
-        @Min(1)
-        private int maxConcurrentSessions = 5;
-
-        private Hub hub = new Hub();
-        private Browser browser = new Browser();
-        private Retry retry = new Retry();
-
-        @Data
-        public static class Driver {
-            private String path = "/usr/local/bin/chromedriver";
-        }
-
-        @Data
-        public static class Timeout {
-            @Min(1)
-            private int pageLoad = 30;
-
-            @Min(1)
-            private int implicit = 10;
-        }
-
-        @Data
-        public static class Hub {
-            @NotBlank private String url = "http://selenium-hub:4444/wd/hub";
-
-            @Min(1)
-            private long timeout = 300000;
-
-            @Min(1)
-            private int maxSessions = 10;
-        }
-
-        @Data
-        public static class Browser {
-            private boolean headless = true;
-        }
-
-        @Data
-        public static class Retry {
-            @Min(1)
-            private int attempts = 3;
-        }
-    }
-
-    @Data
     public static class Cache {
         private Services services = new Services();
         private Users users = new Users();
         private ConversionCoefficients conversionCoefficients = new ConversionCoefficients();
-        private YoutubeStats youtubeStats = new YoutubeStats();
 
         @Data
         public static class Services {
@@ -265,12 +147,6 @@ public class AppProperties {
         public static class ConversionCoefficients {
             @Min(1)
             private int ttl = 7200;
-        }
-
-        @Data
-        public static class YoutubeStats {
-            @Min(1)
-            private int ttl = 300;
         }
     }
 
@@ -317,37 +193,6 @@ public class AppProperties {
 
             @Min(1)
             private int timeout = 300000;
-
-            private ClipCreation clipCreation = new ClipCreation();
-
-            @Data
-            public static class ClipCreation {
-                private boolean enabled = true;
-
-                @NotNull private Duration timeout = Duration.ofMinutes(5);
-
-                @Min(0)
-                private int retryAttempts = 2;
-            }
-        }
-    }
-
-    @Data
-    public static class Video {
-        private Processing processing = new Processing();
-
-        @Data
-        public static class Processing {
-            @Min(1)
-            private int maxConcurrent = 5;
-
-            @Min(1)
-            private int timeout = 600000;
-
-            @Min(1)
-            private int clipLength = 60;
-
-            private String quality = "medium";
         }
     }
 
@@ -375,8 +220,6 @@ public class AppProperties {
 
     @Data
     public static class Features {
-        private boolean youtubeProcessing = true;
-        private boolean binomIntegration = true;
         private boolean paymentProcessing = true;
         private boolean emailNotifications = true;
     }

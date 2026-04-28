@@ -1,17 +1,19 @@
 import { LegalLayout, type LegalSection } from './LegalLayout';
 
+// Bump this only when the policy text actually changes.
+const LAST_UPDATED = '2026-04-27';
+
 const sections: ReadonlyArray<LegalSection> = [
   { id: 'short', title: 'Short version' },
   { id: 'auto', title: 'Automatic refunds' },
   { id: 'manual', title: 'Manual refunds' },
-  { id: 'withdrawal', title: 'Wallet withdrawal' },
   { id: 'noncovered', title: 'Not covered' },
   { id: 'chargebacks', title: 'Chargebacks' },
 ];
 
 export function RefundPage() {
   return (
-    <LegalLayout eyebrow="Legal" title="Refund Policy" lastUpdated="2026-04-15" sections={sections}>
+    <LegalLayout eyebrow="Legal" title="Refund Policy" lastUpdated={LAST_UPDATED} sections={sections}>
       <h2 id="short">Short version</h2>
       <ul>
         <li>Pending orders → full refund, automatic, instant</li>
@@ -19,7 +21,7 @@ export function RefundPage() {
         <li>Delivery pause / circuit breaker → either resume or full refund based on admin decision (≤4h SLA)</li>
         <li>Refill window: 30 days after completion, free</li>
       </ul>
-      <p>All refunds go back to your SMMWorld wallet balance. Crypto withdrawals incur the network fee.</p>
+      <p>All refunds go back to your SMMWorld wallet balance and can be used toward future orders.</p>
 
       <h2 id="auto">Automatic refunds</h2>
       <p>The system issues these without you opening a ticket:</p>
@@ -32,9 +34,6 @@ export function RefundPage() {
 
       <h2 id="manual">Manual refunds</h2>
       <p>If something feels wrong (wrong link, target account privated mid-run), open a ticket from Help. We review and credit within 24 business hours.</p>
-
-      <h2 id="withdrawal">Wallet withdrawal</h2>
-      <p>You can withdraw your wallet balance at any time to a crypto address you control. Minimum $5. We pay the network fee from your balance.</p>
 
       <h2 id="noncovered">Not covered</h2>
       <ul>

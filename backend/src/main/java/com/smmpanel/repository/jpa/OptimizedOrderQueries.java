@@ -3,7 +3,6 @@ package com.smmpanel.repository.jpa;
 import com.smmpanel.entity.Order;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -146,31 +145,6 @@ public interface OptimizedOrderQueries {
                     + "JOIN FETCH o.service s "
                     + "WHERE o.id IN :orderIds")
     List<Order> findOrdersByIdsWithDetails(@Param("orderIds") List<Long> orderIds);
-
-    /**
-     * YOUTUBE SPECIFIC: Orders with video processing details PREVENTS N+1: Specialized for YouTube
-     * automation
-     */
-    @Query(
-            "SELECT o FROM Order o "
-                    + "JOIN FETCH o.user u "
-                    + "JOIN FETCH o.service s "
-                    + "JOIN FETCH o.videoProcessing vp "
-                    + "WHERE o.youtubeVideoId IS NOT NULL "
-                    + "AND o.status IN ('ACTIVE', 'PROCESSING') "
-                    + "ORDER BY vp.createdAt ASC")
-    List<Order> findYouTubeOrdersInProcessing();
-
-    /**
-     * YOUTUBE MONITORING: Orders with video analytics PREVENTS N+1: For YouTube progress tracking
-     */
-    @Query(
-            "SELECT o FROM Order o "
-                    + "JOIN FETCH o.user u "
-                    + "JOIN FETCH o.service s "
-                    + "JOIN FETCH o.videoProcessing vp "
-                    + "WHERE o.youtubeVideoId = :videoId")
-    Optional<Order> findOrderByYouTubeVideoId(@Param("videoId") String videoId);
 
     // FINANCIAL REPORTING QUERIES
 

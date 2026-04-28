@@ -1,0 +1,29 @@
+#!/usr/bin/env sh
+#
+# SMM Panel pre-push hook.
+#
+# Slower checks that should run before pushing — they catch the "I forgot to
+# update the consumer" / "the frontend doesn't tsc" class of bugs before CI.
+#
+# Skip with: git push --no-verify
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+# ---------------------------------------------------------------------
+# Frontend — TypeScript compile must succeed.
+# Only runs when frontend files have changed since the upstream tracking branch.
+# ---------------------------------------------------------------------
+
+UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || echo "")
+if [ -n "$UPSTREAM" ]; then
+  if git diff --name-only "$UPSTREAM"...HEAD | grep -qE '^frontend/.*\.(ts|tsx)$'; then
+    echo "pre-push: running tsc --noEmit on frontend…"
+    (cd "$REPO_ROOT/frontend" && npm run --silent type-check) || {
+      echo "pre-push: TypeScript errors must be fixed before pushing."
+      exit 1
+    }
+  fi
+fi
+
+exit 0

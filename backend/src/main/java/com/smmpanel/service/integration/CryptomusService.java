@@ -16,15 +16,15 @@ import com.smmpanel.exception.UserNotFoundException;
 import com.smmpanel.repository.jpa.BalanceDepositRepository;
 import com.smmpanel.repository.jpa.UserRepository;
 import com.smmpanel.service.balance.BalanceService;
+import com.smmpanel.service.settings.AppSettingsService;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,15 +43,13 @@ public class CryptomusService {
     private final BalanceDepositRepository depositRepository;
     private final BalanceService balanceService;
     private final ObjectMapper objectMapper;
+    private final AppSettingsService appSettingsService;
 
     @Value("${app.cryptomus.min-deposit:5.00}")
     private BigDecimal minDepositAmount;
 
     @Value("${app.cryptomus.api.payment-key}")
     private String cryptomusApiKey;
-
-    // Track processed payments to prevent duplicates
-    private final Set<String> processedPayments = ConcurrentHashMap.newKeySet();
 
     @Transactional
     public CreateDepositResponse createPayment(String username, CreateDepositRequest request) {
@@ -160,17 +158,57 @@ public class CryptomusService {
     private void updateDepositStatus(BalanceDeposit deposit, String status) {
         PaymentStatus oldStatus = deposit.getStatus();
         PaymentStatus newStatus = mapCryptomusStatus(status);
+        if (newStatus == null || newStatus == oldStatus) return;
 
-        if (oldStatus != newStatus && newStatus != null) {
-            deposit.setStatus(newStatus);
-            if (newStatus == PaymentStatus.COMPLETED && oldStatus != PaymentStatus.COMPLETED) {
-                deposit.setConfirmedAt(LocalDateTime.now());
-                // Add balance if not already added
-                balanceService.addBalance(
-                        deposit.getUser(), deposit.getAmountUsdt(), deposit, "USDT deposit");
+        if (newStatus == PaymentStatus.COMPLETED) {
+            // Atomic CAS: only one of N concurrent paths (poll, webhook, retry) flips
+            // PENDING/PROCESSING -> COMPLETED. The thread that wins is the unique caller
+            // responsible for crediting the wallet.
+            int updated =
+                    depositRepository.markCompletedIfNotAlready(
+                            deposit.getId(), LocalDateTime.now());
+            if (updated == 0) {
+                log.info(
+                        "Deposit {} already COMPLETED — poll path skipping duplicate credit",
+                        deposit.getOrderId());
+                return;
             }
-            depositRepository.save(deposit);
+            // Refresh the in-memory copy so callers see the new state.
+            deposit.setStatus(PaymentStatus.COMPLETED);
+            deposit.setConfirmedAt(LocalDateTime.now());
+
+            BigDecimal grossAmount = deposit.getAmountUsdt();
+            BigDecimal creditedAmount = applyCryptomusFeePassthrough(grossAmount);
+            balanceService.addBalance(
+                    deposit.getUser(),
+                    creditedAmount,
+                    deposit,
+                    creditedAmount.compareTo(grossAmount) < 0
+                            ? "USDT deposit (after platform fee)"
+                            : "USDT deposit");
+            return;
         }
+
+        // GUARD: never downgrade a credited/reversed deposit. If a stale Cryptomus poll comes
+        // back with `cancel` or `fail` after we already credited the wallet via `paid`, the
+        // pre-fix behavior would silently flip COMPLETED → FAILED — wallet stays credited but
+        // the audit row reads FAILED, which is a chargeback-dispute landmine. PENDING → FAILED
+        // and PROCESSING → FAILED are still allowed (legitimate negative outcomes).
+        if (oldStatus.isCreditedOrReversed()) {
+            log.warn(
+                    "Refusing to downgrade deposit {} from {} to {} (Cryptomus poll returned"
+                            + " stale state)",
+                    deposit.getOrderId(),
+                    oldStatus,
+                    newStatus);
+            return;
+        }
+
+        // Non-completion transitions don't move money, so a plain save is fine. We only run
+        // here for terminal/failure states (FAILED) or PROCESSING — ordering between concurrent
+        // updates is admin-cosmetic, not financial.
+        deposit.setStatus(newStatus);
+        depositRepository.save(deposit);
     }
 
     private PaymentStatus mapCryptomusStatus(String status) {
@@ -417,19 +455,29 @@ public class CryptomusService {
         return false;
     }
 
+    /**
+     * Process a Cryptomus webhook delivery. Cryptomus retries on any non-2xx response (and
+     * sometimes on 2xx delays), so this method MUST be idempotent: a second delivery for the same
+     * order_id+status MUST NOT credit the wallet twice.
+     *
+     * <p>Idempotency model:
+     *
+     * <ol>
+     *   <li>{@code order_id} is unique on {@code balance_deposits} → at most one row per Cryptomus
+     *       order.
+     *   <li>The PENDING→COMPLETED transition is wrapped in an atomic CAS UPDATE ({@link
+     *       BalanceDepositRepository#markCompletedIfNotAlready}). Only the unique winner proceeds
+     *       to credit the wallet. Replays / concurrent deliveries see {@code updated=0} and exit
+     *       cleanly. This replaces the previous in-memory {@code ConcurrentHashMap} hack which was
+     *       lost on restart and broken across multiple JVMs.
+     *   <li>The CAS and {@link BalanceService#addBalance} run in the same {@code @Transactional}
+     *       boundary, so a credit failure rolls back the status flip and a future retry can
+     *       legitimately succeed.
+     * </ol>
+     */
     @Transactional
     public void processWebhook(CryptomusWebhook webhook) {
         try {
-            // Check for duplicate processing (idempotency)
-            String webhookKey = webhook.getOrderId() + "_" + webhook.getStatus();
-            if (!processedPayments.add(webhookKey)) {
-                log.info(
-                        "Webhook already processed for order {} with status {}",
-                        webhook.getOrderId(),
-                        webhook.getStatus());
-                return;
-            }
-
             BalanceDeposit deposit =
                     depositRepository
                             .findByOrderId(webhook.getOrderId())
@@ -438,45 +486,76 @@ public class CryptomusService {
                                             new IllegalArgumentException(
                                                     "Deposit not found: " + webhook.getOrderId()));
 
-            if (deposit.getStatus() == PaymentStatus.COMPLETED) {
-                log.info("Deposit {} already processed", webhook.getOrderId());
-                return;
-            }
-
-            switch (webhook.getStatus()) {
+            String status = webhook.getStatus();
+            switch (status) {
                 case "paid":
                 case "paid_over":
+                    int updated =
+                            depositRepository.markCompletedIfNotAlready(
+                                    deposit.getId(), LocalDateTime.now());
+                    if (updated == 0) {
+                        log.info(
+                                "Deposit {} already COMPLETED — webhook replay skipped (no"
+                                        + " duplicate credit)",
+                                webhook.getOrderId());
+                        return; // skip the persist of webhook_data — keep the original payload
+                    }
                     deposit.setStatus(PaymentStatus.COMPLETED);
                     deposit.setConfirmedAt(LocalDateTime.now());
 
-                    // Add balance to user
+                    BigDecimal grossAmount = deposit.getAmountUsdt();
+                    BigDecimal creditedAmount = applyCryptomusFeePassthrough(grossAmount);
+
                     balanceService.addBalance(
-                            deposit.getUser(), deposit.getAmountUsdt(), deposit, "USD deposit");
+                            deposit.getUser(),
+                            creditedAmount,
+                            deposit,
+                            creditedAmount.compareTo(grossAmount) < 0
+                                    ? "USD deposit (after platform fee)"
+                                    : "USD deposit");
 
                     log.info(
-                            "Processed deposit {} for user {} amount {} USD",
+                            "Processed deposit {} for user {} gross={} credited={} USD",
                             webhook.getOrderId(),
                             deposit.getUser().getUsername(),
-                            deposit.getAmountUsdt());
+                            grossAmount,
+                            creditedAmount);
                     break;
 
                 case "fail":
                 case "cancel":
-                    deposit.setStatus(PaymentStatus.FAILED);
-                    log.info(
-                            "Deposit {} failed for user {}",
-                            webhook.getOrderId(),
-                            deposit.getUser().getUsername());
+                    // GUARD: never downgrade a credited/reversed deposit. A late fail/cancel
+                    // webhook arriving after we already paid the user (Cryptomus retry race)
+                    // must NOT flip COMPLETED → FAILED — wallet would stay credited but the
+                    // audit trail would read FAILED, which is a chargeback-dispute landmine.
+                    if (deposit.getStatus().isCreditedOrReversed()) {
+                        log.warn(
+                                "Refusing to downgrade deposit {} from {} to FAILED (late"
+                                        + " {} webhook from Cryptomus)",
+                                webhook.getOrderId(),
+                                deposit.getStatus(),
+                                status);
+                    } else if (deposit.getStatus() != PaymentStatus.FAILED) {
+                        deposit.setStatus(PaymentStatus.FAILED);
+                        log.info(
+                                "Deposit {} failed for user {}",
+                                webhook.getOrderId(),
+                                deposit.getUser().getUsername());
+                    }
                     break;
 
                 case "process":
-                    deposit.setStatus(PaymentStatus.PROCESSING);
+                    // PENDING is the only legitimate predecessor — never downgrade
+                    // COMPLETED/FAILED/CANCELLED to PROCESSING.
+                    if (deposit.getStatus() == PaymentStatus.PENDING) {
+                        deposit.setStatus(PaymentStatus.PROCESSING);
+                    }
                     break;
 
                 default:
                     log.warn(
                             "Unknown webhook status: {} for deposit {}",
-                            webhook.getStatus(),
+                            status,
                             webhook.getOrderId());
             }
 
@@ -505,12 +584,22 @@ public class CryptomusService {
         }
     }
 
-    /** Cleanup old processed payments from memory (run periodically) */
-    public void cleanupProcessedPayments() {
-        // Keep only last 10000 processed payments to prevent memory issues
-        if (processedPayments.size() > 10000) {
-            processedPayments.clear();
-            log.info("Cleared processed payments cache");
-        }
+    /**
+     * Apply the configured Cryptomus fee passthrough percentage to a gross deposit amount. A 1%
+     * setting on a $100 deposit credits $99 to the user. Defaults to 0% (no fee), which credits the
+     * full amount unchanged. Negative results are clamped to zero (defensive — settings validation
+     * already rejects negatives, but this is the money path).
+     */
+    private BigDecimal applyCryptomusFeePassthrough(BigDecimal grossAmount) {
+        if (grossAmount == null) return BigDecimal.ZERO;
+        BigDecimal feePct =
+                appSettingsService.getDecimal(
+                        AppSettingsService.KEY_CRYPTOMUS_PASSTHROUGH_PCT, BigDecimal.ZERO);
+        if (feePct.signum() <= 0) return grossAmount;
+        BigDecimal multiplier =
+                BigDecimal.ONE.subtract(
+                        feePct.divide(BigDecimal.valueOf(100), 6, RoundingMode.HALF_UP));
+        if (multiplier.signum() <= 0) return BigDecimal.ZERO;
+        return grossAmount.multiply(multiplier).setScale(2, RoundingMode.HALF_UP);
     }
 }

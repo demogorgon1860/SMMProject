@@ -109,8 +109,6 @@ app:
       ttl: ${CACHE_USERS_TTL:2700}         # 45 minutes - moderate freshness
     conversion-coefficients:
       ttl: ${CACHE_COEFFICIENTS_TTL:10800}  # 3 hours - between dev and prod
-    youtube-stats:
-      ttl: ${CACHE_YOUTUBE_TTL:450}         # 7.5 minutes - balanced updates
 
 # ===============================
 # STAGING MONITORING

@@ -5,6 +5,7 @@ import com.smmpanel.dto.instagram.InstagramResultMessage;
 import com.smmpanel.entity.Order;
 import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.repository.jpa.OrderRepository;
+import com.smmpanel.service.admin.BotWebhookEventRecorder;
 import com.smmpanel.service.balance.BalanceService;
 import com.smmpanel.service.notification.TelegramNotificationService;
 import java.math.BigDecimal;
@@ -30,6 +31,7 @@ public class InstagramResultConsumer {
     private final OrderRepository orderRepository;
     private final TelegramNotificationService telegramNotificationService;
     private final BalanceService balanceService;
+    private final BotWebhookEventRecorder botWebhookEventRecorder;
 
     @RabbitListener(queues = RabbitMQConfig.QUEUE_RESULTS)
     @Transactional
@@ -41,6 +43,14 @@ public class InstagramResultConsumer {
                 result.getStatus(),
                 result.getCompleted(),
                 result.getFailed());
+
+        // Record event for the admin Bot page (LIST + pub/sub). Best-effort — must never
+        // break result processing even on a programming bug in the recorder itself.
+        try {
+            botWebhookEventRecorder.recordRabbitResult(result);
+        } catch (Exception e) {
+            log.warn("Bot webhook event recorder threw: {}", e.getMessage());
+        }
 
         try {
             // Find order by external_id (which is our panel order ID)
@@ -65,6 +75,25 @@ public class InstagramResultConsumer {
                         order.getInstagramBotOrderId(),
                         result.getOrderId());
                 order.setInstagramBotOrderId(result.getOrderId());
+            }
+
+            // TERMINAL-STATE GUARD. If the panel already settled this order (force_complete,
+            // mark_partial, cancel — all set status to COMPLETED/PARTIAL/CANCELLED), a late
+            // RabbitMQ progress message from the bot must NOT revert it. The bot can keep
+            // emitting "processing" updates for a few seconds after we tell it to cancel; the
+            // pre-fix behavior would happily overwrite our COMPLETED with PROCESSING and the
+            // admin would see the order stuck in-flight forever.
+            if (order.getStatus() != null && order.getStatus().isTerminal()) {
+                log.info(
+                        "Ignoring bot result for order {} — already in terminal status {}"
+                                + " (incoming bot status='{}', completed={})",
+                        order.getId(),
+                        order.getStatus(),
+                        result.getStatus(),
+                        result.getCompleted());
+                // Persist any bot-ID sync from above without touching state/counters.
+                orderRepository.save(order);
+                return;
             }
 
             // Update order with result data

@@ -20,9 +20,17 @@ COPY src ./src
 COPY public ./public
 
 # Build application for production
-# Set build-time environment variables
+# Set build-time environment variables. Vite reads VITE_* at build time, not runtime —
+# they're baked into the bundle, so they MUST be passed as build args, not as docker
+# `environment:` (which is runtime-only and Vite never sees).
 ARG VITE_API_URL=/api
+ARG VITE_SENTRY_DSN=
+ARG VITE_SENTRY_ENVIRONMENT=production
+ARG VITE_SENTRY_RELEASE=
 ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
+ENV VITE_SENTRY_ENVIRONMENT=$VITE_SENTRY_ENVIRONMENT
+ENV VITE_SENTRY_RELEASE=$VITE_SENTRY_RELEASE
 
 RUN npm run build
 

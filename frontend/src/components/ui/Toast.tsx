@@ -14,7 +14,7 @@ interface ToastItem {
   kind: ToastKind;
 }
 
-type PushFn = (msg: ReactNode, kind?: ToastKind) => void;
+type PushFn = (msg: ReactNode, kind?: ToastKind, durationMs?: number) => void;
 
 const ToastCtx = createContext<PushFn | null>(null);
 
@@ -22,7 +22,7 @@ export function ToastProvider({ children, timeoutMs = 3500 }: { children: ReactN
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   const push = useCallback<PushFn>(
-    (msg, kind = 'info') => {
+    (msg, kind = 'info', durationMs) => {
       // crypto.randomUUID is universally available in evergreen browsers + Node 19+;
       // fall back to a Math.random pair only on legacy targets.
       const id =
@@ -32,7 +32,7 @@ export function ToastProvider({ children, timeoutMs = 3500 }: { children: ReactN
       setToasts((t) => [...t, { id, msg, kind }]);
       window.setTimeout(() => {
         setToasts((t) => t.filter((x) => x.id !== id));
-      }, timeoutMs);
+      }, durationMs ?? timeoutMs);
     },
     [timeoutMs],
   );

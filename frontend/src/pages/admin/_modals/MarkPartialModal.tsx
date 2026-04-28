@@ -32,10 +32,10 @@ export function MarkPartialModal({ open, order, onClose, onSuccess }: MarkPartia
   const refund = +(rate * refundQty).toFixed(4);
   const newCharge = +(order.charge - refund).toFixed(4);
   const deliveredValid = delivered >= 1 && delivered < order.quantity;
-  const reasonValid = reason.trim().length >= 10;
+  // Reason is optional. Refund > $100 still requires the type-the-id guard.
   const highValue = refund > 100;
   const guardOK = isGuardCleared(highValue, String(order.id), guard);
-  const canSubmit = deliveredValid && reasonValid && guardOK && !submitting;
+  const canSubmit = deliveredValid && guardOK && !submitting;
 
   const submit = async () => {
     if (!canSubmit) return;
@@ -144,11 +144,7 @@ export function MarkPartialModal({ open, order, onClose, onSuccess }: MarkPartia
         </div>
       )}
 
-      <Field
-        label="Reason (visible in balance audit)"
-        hint={reason.length > 0 && reason.length < 10 ? `${reason.length}/10 chars min` : undefined}
-        error={reason.length > 0 && !reasonValid}
-      >
+      <Field label="Reason (optional, visible in balance audit)">
         <Textarea
           block
           rows={3}

@@ -30,9 +30,9 @@ public class AuthService {
     private final EmailVerificationService emailVerificationService;
 
     /**
-     * Names we never let a regular user claim. Most of these collide with display fallbacks
-     * the frontend uses when {@code user.username} is empty (so a real account with that name
-     * would be impersonating "no name") or with role-implying labels.
+     * Names we never let a regular user claim. Most of these collide with display fallbacks the
+     * frontend uses when {@code user.username} is empty (so a real account with that name would be
+     * impersonating "no name") or with role-implying labels.
      */
     private static final java.util.Set<String> RESERVED_USERNAMES =
             java.util.Set.of(
@@ -78,7 +78,8 @@ public class AuthService {
         // or " " or "@@@" sailed through and showed up as account labels everywhere.
         if (!normalizedUsername.matches("^[a-z0-9._-]{3,32}$")) {
             throw new IllegalArgumentException(
-                    "Username must be 3-32 characters: lowercase letters, digits, dot, dash or underscore");
+                    "Username must be 3-32 characters: lowercase letters, digits, dot, dash or"
+                            + " underscore");
         }
         // Reject names that map onto our display fallbacks or imply privileged roles.
         if (RESERVED_USERNAMES.contains(normalizedUsername)) {
@@ -159,6 +160,14 @@ public class AuthService {
                 userRepository
                         .findByUsername(normalizedUsername)
                         .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+        // Belt-and-braces: CustomUserDetailsService already throws on soft-deleted, but a
+        // misordered filter chain or future refactor could route past it. The deletion flag is
+        // the single source of truth — never issue a token for a deleted account.
+        if (user.isSoftDeleted()) {
+            log.warn("Blocked login for soft-deleted user {}", user.getId());
+            throw new UserNotFoundException("User not found");
+        }
 
         log.debug("User found: {}, active: {}", user.getUsername(), user.isActive());
 

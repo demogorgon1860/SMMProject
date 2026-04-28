@@ -27,7 +27,6 @@ public class MessageIdempotencyService {
 
     // TTL for different message types
     private static final Duration ORDER_EVENTS_TTL = Duration.ofHours(24);
-    private static final Duration VIDEO_PROCESSING_TTL = Duration.ofHours(48);
     private static final Duration PAYMENT_CONFIRMATION_TTL = Duration.ofHours(1);
 
     /**
@@ -202,44 +201,5 @@ public class MessageIdempotencyService {
                 "Marked payment confirmation as processed: messageId={}, transactionId={}",
                 messageId,
                 transactionId);
-    }
-
-    /**
-     * Check if a video processing event has already been processed
-     *
-     * @param messageId Unique message identifier
-     * @param videoProcessingId Video processing ID
-     * @return true if message was already processed, false if it's new
-     */
-    public boolean isVideoProcessingAlreadyProcessed(String messageId, Long videoProcessingId) {
-        String key = KEY_PREFIX + messageId;
-        String existingId = redisTemplate.opsForValue().get(key);
-
-        if (existingId != null) {
-            if (videoProcessingId.toString().equals(existingId)) {
-                log.debug(
-                        "Video processing event already processed: messageId={},"
-                                + " videoProcessingId={}",
-                        messageId,
-                        videoProcessingId);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Mark a video processing event as processed
-     *
-     * @param messageId Unique message identifier
-     * @param videoProcessingId Video processing ID
-     */
-    public void markVideoProcessingAsProcessed(String messageId, Long videoProcessingId) {
-        String key = KEY_PREFIX + messageId;
-        redisTemplate.opsForValue().set(key, videoProcessingId.toString(), VIDEO_PROCESSING_TTL);
-        log.debug(
-                "Marked video processing event as processed: messageId={}, videoProcessingId={}",
-                messageId,
-                videoProcessingId);
     }
 }

@@ -29,6 +29,27 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
     List<RefreshToken> findActiveTokensByUser(
             @Param("user") User user, @Param("now") LocalDateTime now);
 
+    /**
+     * Active (non-revoked, non-expired) sessions for the Sessions tab, newest activity first. Falls
+     * back to {@code created_at} when {@code last_used_at} is null (legacy rows pre-migration).
+     */
+    @Query(
+            "SELECT rt FROM RefreshToken rt WHERE rt.user = :user AND rt.isRevoked = false AND"
+                    + " rt.expiryDate > :now"
+                    + " ORDER BY COALESCE(rt.lastUsedAt, rt.createdAt) DESC, rt.id DESC")
+    List<RefreshToken> findActiveTokensByUserOrderedByRecency(
+            @Param("user") User user, @Param("now") LocalDateTime now);
+
+    @Modifying
+    @Transactional
+    @Query(
+            "UPDATE RefreshToken rt SET rt.isRevoked = true, rt.revokedAt = :now"
+                    + " WHERE rt.user = :user AND rt.isRevoked = false AND rt.id <> :keepId")
+    int revokeAllUserTokensExcept(
+            @Param("user") User user,
+            @Param("keepId") Long keepId,
+            @Param("now") LocalDateTime now);
+
     @Modifying
     @Transactional
     @Query(

@@ -103,14 +103,15 @@ function AuthVisualRouter() {
   );
 }
 
-// Real metrics from /api/v1/stats/public + a single hardcoded "47s avg start"
-// kept by user request (the only metric that survives the audit). Other cards
-// render once the API responds; show "—" while loading rather than fake data.
+// All four cards are real metrics from /api/v1/stats/public. They render "—"
+// while loading rather than fake data. Do not add hardcoded claims here — the
+// auth shell is the first thing prospects see and any unverifiable number is a
+// liability (the previous "47s avg start" was dropped for that reason).
 function AuthVisualStats() {
   const stats = usePublicStats();
   const cards: ReadonlyArray<readonly [string, string]> = [
-    ['47s', 'avg start'],
     [fmtCompact(stats?.ordersFulfilled), 'orders delivered'],
+    [fmtCompact(stats?.ordersLast24h), 'orders today'],
     [fmtCompact(stats?.usersTotal), 'resellers'],
     [fmtCompact(stats?.serviceCount), 'services live'],
   ];

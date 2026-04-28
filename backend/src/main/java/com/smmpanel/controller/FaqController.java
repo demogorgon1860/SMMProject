@@ -64,7 +64,7 @@ public class FaqController {
                             "id", "platforms",
                             "q", "Do you offer non-Instagram services?",
                             "a",
-                                    "Not yet. TikTok, YouTube, X, Telegram and Facebook are on the"
+                                    "Not yet. TikTok, X, Telegram and Facebook are on the"
                                             + " roadmap and will come online as we build the bot"
                                             + " infrastructure for each. No firm dates — subscribe"
                                             + " to the changelog to be notified."));

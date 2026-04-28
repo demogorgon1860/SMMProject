@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   Badge,
   Button,
@@ -12,10 +12,11 @@ import {
   Textarea,
   useToast,
 } from '../../components/ui';
-import { orderAPI, serviceAPI } from '../../services/api';
+import { balanceAPI, orderAPI, serviceAPI } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
-import type { Service } from '../../types';
-import { cn, fmtInt, fmtMoney } from '../../lib/utils';
+import type { BalanceSummary, Service } from '../../types';
+import { cn, fmtInt, fmtMoney, toNum } from '../../lib/utils';
+import { unwrapList } from '../../lib/api';
 
 // =====================================================================
 // New Order — 3-column flow:
@@ -28,7 +29,6 @@ import { cn, fmtInt, fmtMoney } from '../../lib/utils';
 const CATS = [
   { id: 'ig' as const, label: 'Instagram', live: true },
   { id: 'tt' as const, label: 'TikTok', live: false, eta: 'Q3 2026' },
-  { id: 'yt' as const, label: 'YouTube', live: false, eta: 'Q3 2026' },
   { id: 'x' as const, label: 'Twitter', live: false, eta: 'Q4 2026' },
   { id: 'tg' as const, label: 'Telegram', live: false, eta: 'Q4 2026' },
 ];
@@ -36,26 +36,17 @@ const CATS = [
 const PRESETS = [100, 250, 500, 1000, 2500, 5000];
 
 export function NewOrderPage() {
-  const navigate = useNavigate();
   const toast = useToast();
+  const updateBalance = useAuthStore((s) => s.updateBalance);
   // Backend serializes BigDecimal as string; coerce so balance arithmetic
   // and `Sufficient balance` check don't silently fail when the API returns
   // "1000.00" instead of 1000.
   const rawBalance = useAuthStore((s) => s.user?.balance);
-  const balance =
-    typeof rawBalance === 'number'
-      ? Number.isFinite(rawBalance)
-        ? rawBalance
-        : 0
-      : typeof rawBalance === 'string'
-        ? Number.isFinite(Number.parseFloat(rawBalance))
-          ? Number.parseFloat(rawBalance)
-          : 0
-        : 0;
+  const balance = toNum(rawBalance);
 
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
-  const [cat, setCat] = useState<'ig' | 'tt' | 'yt' | 'x' | 'tg'>('ig');
+  const [cat, setCat] = useState<'ig' | 'tt' | 'x' | 'tg'>('ig');
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
@@ -68,13 +59,9 @@ export function NewOrderPage() {
     serviceAPI
       .list()
       .then((data: unknown) => {
-        // /v1/service/services wraps the list in PerfectPanelResponse `{ success, data: [...] }`.
-        // Accept Spring Page (`content`) and a top-level `services` field too so future envelope
-        // changes don't blank the catalog out.
-        const d = data as { data?: Service[]; content?: Service[]; services?: Service[] } | null;
-        const arr: Service[] = Array.isArray(data)
-          ? (data as Service[])
-          : d?.data ?? d?.content ?? d?.services ?? [];
+        // /v1/service/services wraps in PerfectPanelResponse `{ success, data: [...] }`; legacy
+        // paths return `{ services: [...] }` or a Spring Page. unwrapList handles all.
+        const arr = unwrapList<Service>(data, ['services']);
         const live = arr.filter((s) => s.active !== false && s.isActive !== false);
         setServices(live);
         if (live.length > 0 && selectedId == null) setSelectedId(live[0].id);
@@ -146,20 +133,64 @@ export function NewOrderPage() {
   const allValid = checks.every((c) => c.ok);
 
   const placeOrder = async () => {
-    if (!selected || !allValid) return;
+    // Hard guard against double-submit: a user double-clicking the button before React
+    // re-renders with `submitting=true` would otherwise race past the `loading` check.
+    if (!selected || !allValid || submitting) return;
     setSubmitting(true);
+    // Stable per-attempt key. Reused on a retry of the SAME submission so the backend
+    // returns the existing order (no double-charge) instead of creating a sibling.
+    const idempotencyKey =
+      (typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
     try {
-      await orderAPI.create({
-        service: selected.id,
-        link: link.trim(),
-        // Custom-Comments services derive quantity from the line count so it
-        // can never desync from the comment list.
-        quantity: effectiveQty,
-        comments: isCustom ? comments : undefined,
-      });
-      toast('Order placed.', 'success');
-      navigate('/orders');
+      const created = await orderAPI.create(
+        {
+          service: selected.id,
+          link: link.trim(),
+          // Custom-Comments services derive quantity from the line count so it
+          // can never desync from the comment list.
+          quantity: effectiveQty,
+          comments: isCustom ? comments : undefined,
+        },
+        idempotencyKey,
+      );
+
+      // Stay on /new-order and let the user place another. Toast carries
+      // the new order id + a deep-link to its drawer so the action is still
+      // discoverable. Bumped to 6s so users have time to click "View it".
+      toast(
+        <span>
+          Order #{created.id} placed.{' '}
+          <Link
+            to={`/orders/${created.id}`}
+            className="font-medium text-accent underline underline-offset-2 hover:text-accent-fg"
+          >
+            View it
+          </Link>
+        </span>,
+        'success',
+        6000,
+      );
+
+      // Reset just the inputs that are order-specific. Keep `selectedId` —
+      // resellers typically place several orders for the same service.
+      setLink('');
+      setComments('');
+      setQty(selected.min ?? selected.minOrder ?? 1000);
+
+      // Re-fetch authoritative balance from the server (charge has just been
+      // deducted). Optimistic update would drift over time when the backend
+      // applies bonuses / refunds we don't model here. Failure is non-fatal:
+      // the wallet chip still updates on the next dashboard load.
+      balanceAPI
+        .get()
+        .then((b: BalanceSummary) => updateBalance(toNum(b.balance)))
+        .catch(() => {
+          /* keep stale balance — user can still operate */
+        });
     } catch (err: unknown) {
+      // Leave the form filled so the user can retry without re-typing.
       const e = err as { response?: { data?: { message?: string } } };
       toast(e.response?.data?.message ?? 'Could not place order.', 'error');
     } finally {
@@ -278,11 +309,10 @@ export function NewOrderPage() {
                   <div className="text-[11px] text-fg-subtle">per 1,000</div>
                 </div>
               </div>
-              <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="mt-5 grid grid-cols-3 gap-3">
                 {[
                   ['Min', fmtInt(min)],
                   ['Max', fmtInt(max)],
-                  ['Avg start', '47s'],
                   ['Refill', '30 days'],
                 ].map(([k, v]) => (
                   <div key={k as string} className="rounded-md border border-border bg-bg-sunken p-3 text-center">
@@ -423,7 +453,7 @@ export function NewOrderPage() {
             size="lg"
             block
             className="mt-5"
-            disabled={!allValid}
+            disabled={!allValid || submitting}
             loading={submitting}
             onClick={placeOrder}
           >

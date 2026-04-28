@@ -27,8 +27,6 @@ public class DotEnvConfig {
     private static final Set<String> OPTIONAL_VARIABLES =
             Set.of(
                     "REDIS_PASSWORD",
-                    "BINOM_API_KEY",
-                    "YOUTUBE_API_KEY",
                     "CRYPTOMUS_API_KEY",
                     "CRYPTOMUS_API_SECRET",
                     "CRYPTOMUS_MERCHANT_ID");

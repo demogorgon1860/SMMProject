@@ -5,7 +5,7 @@ import { ThemeToggle } from '../ui/ThemeToggle';
 import { ToastProvider } from '../ui/Toast';
 import { authAPI } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
-import { cn } from '../../lib/utils';
+import { cn, toNum } from '../../lib/utils';
 
 // =====================================================================
 // AppShell — for authenticated user pages (/dashboard, /orders, etc.).
@@ -193,16 +193,7 @@ function AppTopBar({ onMenuClick }: { onMenuClick: () => void }) {
   // can arrive as either a number (legacy) or a string. Coerce here so the
   // topbar chip shows the same value as the Dashboard wallet card.
   const rawBalance = useAuthStore((s) => s.user?.balance);
-  const balance =
-    typeof rawBalance === 'number'
-      ? Number.isFinite(rawBalance)
-        ? rawBalance
-        : 0
-      : typeof rawBalance === 'string'
-        ? Number.isFinite(Number.parseFloat(rawBalance))
-          ? Number.parseFloat(rawBalance)
-          : 0
-        : 0;
+  const balance = toNum(rawBalance);
   return (
     <header className="sticky top-0 z-20 flex h-[52px] flex-none items-center gap-2 border-b border-border bg-bg-elev px-3 sm:gap-3 sm:px-5">
       {/* Hamburger — mobile only. Hidden once the sidebar is permanently visible. */}

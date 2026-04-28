@@ -1,5 +1,8 @@
 import { LegalLayout, type LegalSection } from './LegalLayout';
 
+// Bump this only when the policy text actually changes.
+const LAST_UPDATED = '2026-04-27';
+
 const sections: ReadonlyArray<LegalSection> = [
   { id: 'summary', title: 'Plain-English summary' },
   { id: 'collect', title: 'What we collect' },
@@ -14,7 +17,7 @@ const sections: ReadonlyArray<LegalSection> = [
 
 export function PrivacyPage() {
   return (
-    <LegalLayout eyebrow="Legal" title="Privacy Policy" lastUpdated="2026-04-15" sections={sections}>
+    <LegalLayout eyebrow="Legal" title="Privacy Policy" lastUpdated={LAST_UPDATED} sections={sections}>
       <h2 id="summary">Plain-English summary</h2>
       <p>We collect the minimum needed to run the service. We don't sell your data. We don't run ads. Crypto-only payments mean we don't even store card details.</p>
 

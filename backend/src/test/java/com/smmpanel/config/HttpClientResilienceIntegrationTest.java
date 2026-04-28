@@ -16,7 +16,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 @TestPropertySource(
         properties = {
             "app.cryptomus.api.url=https://test.example.com",
-            "app.binom.api.url=https://test.example.com",
             "app.currency.exchange-rate-api.url=https://test.example.com"
         })
 class HttpClientResilienceIntegrationTest {
@@ -25,25 +24,16 @@ class HttpClientResilienceIntegrationTest {
     @Qualifier("cryptomusRestTemplate") private RestTemplate cryptomusRestTemplate;
 
     @Autowired
-    @Qualifier("binomRestTemplate") private RestTemplate binomRestTemplate;
-
-    @Autowired
     @Qualifier("exchangeRateRestTemplate") private RestTemplate exchangeRateRestTemplate;
 
     @Autowired
     @Qualifier("cryptomusWebClient") private WebClient cryptomusWebClient;
 
     @Autowired
-    @Qualifier("binomWebClient") private WebClient binomWebClient;
-
-    @Autowired
     @Qualifier("exchangeRateWebClient") private WebClient exchangeRateWebClient;
 
     @Autowired
     @Qualifier("cryptomusCircuitBreaker") private CircuitBreaker cryptomusCircuitBreaker;
-
-    @Autowired
-    @Qualifier("binomCircuitBreaker") private CircuitBreaker binomCircuitBreaker;
 
     @Autowired
     @Qualifier("exchangeRateCircuitBreaker") private CircuitBreaker exchangeRateCircuitBreaker;
@@ -55,27 +45,17 @@ class HttpClientResilienceIntegrationTest {
     @Qualifier("cryptomusWriteRetry") private Retry cryptomusWriteRetry;
 
     @Autowired
-    @Qualifier("binomReadRetry") private Retry binomReadRetry;
-
-    @Autowired
-    @Qualifier("binomWriteRetry") private Retry binomWriteRetry;
-
-    @Autowired
     @Qualifier("exchangeRateRetry") private Retry exchangeRateRetry;
 
     @Test
     void testRestTemplateBeansAreConfigured() {
         assertNotNull(cryptomusRestTemplate, "Cryptomus RestTemplate should be configured");
-        assertNotNull(binomRestTemplate, "Binom RestTemplate should be configured");
         assertNotNull(exchangeRateRestTemplate, "ExchangeRate RestTemplate should be configured");
 
         // Verify trace interceptors are configured
         assertFalse(
                 cryptomusRestTemplate.getInterceptors().isEmpty(),
                 "Cryptomus RestTemplate should have trace interceptors");
-        assertFalse(
-                binomRestTemplate.getInterceptors().isEmpty(),
-                "Binom RestTemplate should have trace interceptors");
         assertFalse(
                 exchangeRateRestTemplate.getInterceptors().isEmpty(),
                 "ExchangeRate RestTemplate should have trace interceptors");
@@ -84,14 +64,12 @@ class HttpClientResilienceIntegrationTest {
     @Test
     void testWebClientBeansAreConfigured() {
         assertNotNull(cryptomusWebClient, "Cryptomus WebClient should be configured");
-        assertNotNull(binomWebClient, "Binom WebClient should be configured");
         assertNotNull(exchangeRateWebClient, "ExchangeRate WebClient should be configured");
     }
 
     @Test
     void testCircuitBreakerBeansAreConfigured() {
         assertNotNull(cryptomusCircuitBreaker, "Cryptomus CircuitBreaker should be configured");
-        assertNotNull(binomCircuitBreaker, "Binom CircuitBreaker should be configured");
         assertNotNull(
                 exchangeRateCircuitBreaker, "ExchangeRate CircuitBreaker should be configured");
 
@@ -99,10 +77,6 @@ class HttpClientResilienceIntegrationTest {
         assertEquals(
                 CircuitBreaker.State.CLOSED,
                 cryptomusCircuitBreaker.getState(),
-                "Circuit breaker should start in CLOSED state");
-        assertEquals(
-                CircuitBreaker.State.CLOSED,
-                binomCircuitBreaker.getState(),
                 "Circuit breaker should start in CLOSED state");
         assertEquals(
                 CircuitBreaker.State.CLOSED,
@@ -114,8 +88,6 @@ class HttpClientResilienceIntegrationTest {
     void testRetryBeansAreConfigured() {
         assertNotNull(cryptomusReadRetry, "Cryptomus Read Retry should be configured");
         assertNotNull(cryptomusWriteRetry, "Cryptomus Write Retry should be configured");
-        assertNotNull(binomReadRetry, "Binom Read Retry should be configured");
-        assertNotNull(binomWriteRetry, "Binom Write Retry should be configured");
         assertNotNull(exchangeRateRetry, "ExchangeRate Retry should be configured");
 
         // Verify retry configurations
@@ -126,14 +98,6 @@ class HttpClientResilienceIntegrationTest {
         assertEquals(
                 1,
                 cryptomusWriteRetry.getRetryConfig().getMaxAttempts(),
-                "Write retry should have 1 max attempt (no retry for non-idempotent operations)");
-        assertEquals(
-                5,
-                binomReadRetry.getRetryConfig().getMaxAttempts(),
-                "Read retry should have 5 max attempts");
-        assertEquals(
-                1,
-                binomWriteRetry.getRetryConfig().getMaxAttempts(),
                 "Write retry should have 1 max attempt (no retry for non-idempotent operations)");
         assertEquals(
                 5,

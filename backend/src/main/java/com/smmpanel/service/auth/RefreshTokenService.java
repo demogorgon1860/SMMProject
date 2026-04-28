@@ -42,13 +42,15 @@ public class RefreshTokenService {
             revokeOldestTokens(user, activeTokenCount - maxRefreshTokensPerUser + 1);
         }
 
+        LocalDateTime now = LocalDateTime.now();
         RefreshToken refreshToken =
                 RefreshToken.builder()
                         .token(generateRefreshToken())
                         .user(user)
-                        .expiryDate(LocalDateTime.now().plusDays(refreshTokenDurationDays))
+                        .expiryDate(now.plusDays(refreshTokenDurationDays))
                         .ipAddress(extractIpAddress(request))
                         .deviceInfo(extractDeviceInfo(request))
+                        .lastUsedAt(now)
                         .build();
 
         return refreshTokenRepository.save(refreshToken);
@@ -74,6 +76,10 @@ public class RefreshTokenService {
             }
             throw new TokenRefreshException("Refresh token has been revoked");
         }
+
+        // Touch last-used so the Sessions tab can render "active 2 min ago"
+        // — otherwise lastUsedAt would be frozen at session-creation time.
+        refreshToken.setLastUsedAt(LocalDateTime.now());
 
         return refreshToken;
     }
@@ -169,20 +175,19 @@ public class RefreshTokenService {
         return request.getRemoteAddr();
     }
 
+    /**
+     * Store the raw {@code User-Agent} (truncated to fit the {@code device_info} column) so the
+     * Sessions tab can render a real "Chrome on Windows" label rather than the previous coarse
+     * "Mobile / Tablet / Desktop" bucket — which was useless for distinguishing two devices a user
+     * actually owns.
+     */
     private String extractDeviceInfo(HttpServletRequest request) {
         String userAgent = request.getHeader("User-Agent");
-        if (userAgent == null) {
+        if (userAgent == null || userAgent.isBlank()) {
             return "Unknown";
         }
-
-        // Simple device detection
-        if (userAgent.contains("Mobile")) {
-            return "Mobile";
-        } else if (userAgent.contains("Tablet")) {
-            return "Tablet";
-        } else {
-            return "Desktop";
-        }
+        // device_info is VARCHAR(500) per the original migration.
+        return userAgent.length() > 500 ? userAgent.substring(0, 500) : userAgent;
     }
 
     public boolean isTokenValid(String token) {

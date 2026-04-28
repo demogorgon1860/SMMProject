@@ -61,6 +61,17 @@ public class AuthController {
             HttpServletRequest httpRequest,
             HttpServletResponse response) {
 
+        // Honeypot: the form has an off-screen, tab-skipped `website` input that real users
+        // never fill. Bots crawl every field and submit. Pretend success so the bot ticks
+        // "registered" and moves on, but never actually create the account.
+        if (request.getWebsite() != null && !request.getWebsite().isBlank()) {
+            log.warn(
+                    "Honeypot triggered on register from IP {} (user-agent {})",
+                    extractClientIp(httpRequest),
+                    httpRequest.getHeader("User-Agent"));
+            return ResponseEntity.ok(AuthResponse.builder().build());
+        }
+
         AuthResponse authResponse = authService.register(request);
 
         // Create refresh token with HttpOnly cookie support
@@ -144,6 +155,24 @@ public class AuthController {
             @RequestBody(required = false) RefreshTokenRequest request,
             HttpServletRequest httpRequest,
             HttpServletResponse response) {
+
+        // CSRF defense-in-depth. The refresh token lives in an HttpOnly cookie scoped with
+        // SameSite=Lax (relaxed from Strict for iOS Face ID compatibility). Lax is enough to
+        // block typical cross-origin POSTs in modern browsers, but old WebViews and
+        // browser-extension surfaces can be inconsistent. We additionally require the
+        // Authorization header — the frontend's axios interceptor always attaches it from
+        // localStorage, so legitimate refreshes always carry it; a cross-site attacker
+        // can't read localStorage and Authorization is not a CORS-simple header, so the
+        // browser pre-flights it and CORS rejects unknown origins. Token VALUE is not
+        // verified here (it may be expired — that's why we're refreshing); only its
+        // presence matters as proof the call originates from our JS.
+        String authHeader = httpRequest.getHeader(HttpHeaders.AUTHORIZATION);
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            log.warn(
+                    "Refresh blocked: missing Authorization header (likely CSRF or stale tab"
+                            + " from a previous logout)");
+            return ResponseEntity.status(401).build();
+        }
 
         // Try to get refresh token from cookie first, then from request body
         String refreshTokenValue = getRefreshTokenFromCookie(httpRequest);
@@ -332,5 +361,24 @@ public class AuthController {
             return refreshCookie.map(Cookie::getValue).orElse(null);
         }
         return null;
+    }
+
+    /**
+     * Real client IP for log breadcrumbs (honeypot, suspicious-attempt traces). Same proxy-aware
+     * rules as {@link com.smmpanel.security.RateLimitFilter}: prefer Cloudflare's verified header,
+     * then the first hop of {@code X-Forwarded-For}, then {@code X-Real-IP}, finally the raw remote
+     * address.
+     */
+    private String extractClientIp(HttpServletRequest request) {
+        String cf = request.getHeader("CF-Connecting-IP");
+        if (cf != null && !cf.isBlank()) return cf.trim();
+        String xff = request.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isBlank()) {
+            int comma = xff.indexOf(',');
+            return (comma < 0 ? xff : xff.substring(0, comma)).trim();
+        }
+        String real = request.getHeader("X-Real-IP");
+        if (real != null && !real.isBlank()) return real.trim();
+        return request.getRemoteAddr();
     }
 }

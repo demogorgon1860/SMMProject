@@ -59,7 +59,6 @@ public class ResilienceConfig {
                         .build();
 
         registry.circuitBreaker("cryptomus", externalApiConfig);
-        registry.circuitBreaker("binom", externalApiConfig);
         registry.circuitBreaker("exchangeRate", externalApiConfig);
         registry.circuitBreaker("instagramBot", externalApiConfig);
 
@@ -109,13 +108,11 @@ public class ResilienceConfig {
                         .build();
 
         registry.retry("exchangeRate", idempotentConfig);
-        registry.retry("binomRead", idempotentConfig);
         registry.retry("cryptomusRead", idempotentConfig);
         registry.retry("instagramBotRead", idempotentConfig);
 
         RetryConfig nonIdempotentConfig = RetryConfig.custom().maxAttempts(1).build();
 
-        registry.retry("binomWrite", nonIdempotentConfig);
         registry.retry("cryptomusWrite", nonIdempotentConfig);
         registry.retry("instagramBotWrite", nonIdempotentConfig);
 
@@ -129,16 +126,6 @@ public class ResilienceConfig {
                 .getEventPublisher()
                 .onStateTransition(
                         event -> log.info("Cryptomus Circuit Breaker state transition: {}", event));
-        return circuitBreaker;
-    }
-
-    @Bean
-    public CircuitBreaker binomCircuitBreaker(CircuitBreakerRegistry registry) {
-        CircuitBreaker circuitBreaker = registry.circuitBreaker("binom");
-        circuitBreaker
-                .getEventPublisher()
-                .onStateTransition(
-                        event -> log.info("Binom Circuit Breaker state transition: {}", event));
         return circuitBreaker;
     }
 
@@ -169,19 +156,6 @@ public class ResilienceConfig {
     }
 
     @Bean
-    public Retry binomReadRetry(RetryRegistry registry) {
-        Retry retry = registry.retry("binomRead");
-        retry.getEventPublisher()
-                .onRetry(
-                        event ->
-                                log.warn(
-                                        "Binom Read API retry attempt {}: {}",
-                                        event.getNumberOfRetryAttempts(),
-                                        event.getLastThrowable().getMessage()));
-        return retry;
-    }
-
-    @Bean
     public Retry cryptomusReadRetry(RetryRegistry registry) {
         Retry retry = registry.retry("cryptomusRead");
         retry.getEventPublisher()
@@ -189,19 +163,6 @@ public class ResilienceConfig {
                         event ->
                                 log.warn(
                                         "Cryptomus Read API retry attempt {}: {}",
-                                        event.getNumberOfRetryAttempts(),
-                                        event.getLastThrowable().getMessage()));
-        return retry;
-    }
-
-    @Bean
-    public Retry binomWriteRetry(RetryRegistry registry) {
-        Retry retry = registry.retry("binomWrite");
-        retry.getEventPublisher()
-                .onRetry(
-                        event ->
-                                log.warn(
-                                        "Binom Write API retry attempt {}: {}",
                                         event.getNumberOfRetryAttempts(),
                                         event.getLastThrowable().getMessage()));
         return retry;

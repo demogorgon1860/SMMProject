@@ -1,63 +1,129 @@
-import { Suspense, useEffect } from 'react';
+import { ComponentType, lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { ErrorBoundary } from 'react-error-boundary';
+import { ErrorBoundary, FallbackProps } from 'react-error-boundary';
 
+import { Sentry } from './lib/sentry';
 import { useAuthStore } from './store/authStore';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { AdminShell, AppShell, AuthShell, LandingShell, PublicShell } from './components/shells';
-import { PageStub } from './pages/_PageStub';
-import { ForgotPage, LoginPage, RegisterPage, ResetPage, VerifyEmailPage } from './pages/auth';
+
+// ---- Eager (critical-path) imports --------------------------------------
+// Lazy-loading these would cost more than it saves: they're either the first
+// paint (Landing) or the most common entry points (Login, Register, Dashboard).
+import { LoginPage /* RegisterPage — TEMP: registration closed */ } from './pages/auth';
 import { LandingPage } from './pages/public/Landing';
-import { ApiDocsPage } from './pages/public/ApiDocs';
-import { HelpPage } from './pages/public/Help';
-import { MobilePage } from './pages/public/Mobile';
 import { NotFoundPage, ServerErrorPage } from './pages/public/NotFound';
-import { PricingPage } from './pages/public/Pricing';
-import { ServicesListPage } from './pages/public/ServicesList';
-import { AmlPage } from './pages/public/legal/Aml';
-import { PrivacyPage } from './pages/public/legal/Privacy';
-import { RefundPage } from './pages/public/legal/Refund';
-import { TermsPage } from './pages/public/legal/Terms';
-import { AddFundsPage } from './pages/app/AddFunds';
 import { DashboardPage } from './pages/app/Dashboard';
+import { AddFundsPage } from './pages/app/AddFunds';
 import { NewOrderPage } from './pages/app/NewOrder';
 import { OrdersPage } from './pages/app/Orders';
 import { ProfilePage } from './pages/app/Profile';
 import { TransactionsPage } from './pages/app/Transactions';
-import { AdminBalancePage } from './pages/admin/Balance';
-import { AdminBotPage } from './pages/admin/Bot';
-import { AdminDashboardPage } from './pages/admin/Dashboard';
-import { AdminOrdersPage } from './pages/admin/Orders';
-import { AdminPaymentsPage } from './pages/admin/Payments';
-import { AdminRefillRequestsPage } from './pages/admin/RefillRequests';
-import { AdminServicesPage } from './pages/admin/Services';
-import { AdminSettingsPage } from './pages/admin/Settings';
-import { AdminSystemPage } from './pages/admin/System';
-import { AdminTelegramPage } from './pages/admin/Telegram';
-import { AdminUsersPage } from './pages/admin/Users';
 
-// =====================================================================
-// SMMWorld routing — Phase 0 wiring.
-// All real pages render PageStub for now; Phase 1 (user) and Phase 2
-// (admin) replace each stub with the actual page component. Public/auth
-// shells are already final-form so we can demo theme/accent today.
-// =====================================================================
+// ---- Lazy-loaded route helpers ------------------------------------------
+// `lazyNamed` adapts a named export to React.lazy's default-export contract.
+// `withChunkRetry` retries once after a hard reload when a chunk fetch fails
+// after a deploy (the user's cached index.html still references old hashes).
+const CHUNK_RELOAD_KEY = '__chunk_reload__';
 
-function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetErrorBoundary: () => void }) {
+function isChunkLoadError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    /Loading chunk [\d]+ failed/i.test(message) ||
+    /Failed to fetch dynamically imported module/i.test(message) ||
+    /Importing a module script failed/i.test(message)
+  );
+}
+
+function withChunkRetry<T>(loader: () => Promise<T>): () => Promise<T> {
+  return () =>
+    loader().then(
+      (value) => {
+        // Clear the reload guard on success so a *second* deploy in the same
+        // session can also auto-retry once.
+        if (typeof window !== 'undefined' && sessionStorage.getItem(CHUNK_RELOAD_KEY)) {
+          sessionStorage.removeItem(CHUNK_RELOAD_KEY);
+        }
+        return value;
+      },
+      (err: unknown) => {
+        if (
+          isChunkLoadError(err) &&
+          typeof window !== 'undefined' &&
+          !sessionStorage.getItem(CHUNK_RELOAD_KEY)
+        ) {
+          sessionStorage.setItem(CHUNK_RELOAD_KEY, '1');
+          window.location.reload();
+          return new Promise<T>(() => {}); // never resolves; page is reloading
+        }
+        throw err;
+      },
+    );
+}
+
+function lazyNamed<K extends string, M extends Record<K, ComponentType<unknown>>>(
+  loader: () => Promise<M>,
+  name: K,
+) {
+  return lazy(withChunkRetry(() => loader().then((m) => ({ default: m[name] }))));
+}
+
+// ---- Auth (rarely hit — recovery flows) ---------------------------------
+const ForgotPage = lazyNamed(() => import('./pages/auth/Forgot'), 'ForgotPage');
+const ResetPage = lazyNamed(() => import('./pages/auth/Reset'), 'ResetPage');
+const VerifyEmailPage = lazyNamed(() => import('./pages/auth/VerifyEmail'), 'VerifyEmailPage');
+
+// ---- Public (off the Landing → Login → Dashboard hot path) --------------
+const ApiDocsPage = lazyNamed(() => import('./pages/public/ApiDocs'), 'ApiDocsPage');
+const HelpPage = lazyNamed(() => import('./pages/public/Help'), 'HelpPage');
+const PricingPage = lazyNamed(() => import('./pages/public/Pricing'), 'PricingPage');
+const ServicesListPage = lazyNamed(() => import('./pages/public/ServicesList'), 'ServicesListPage');
+const AmlPage = lazyNamed(() => import('./pages/public/legal/Aml'), 'AmlPage');
+const PrivacyPage = lazyNamed(() => import('./pages/public/legal/Privacy'), 'PrivacyPage');
+const RefundPage = lazyNamed(() => import('./pages/public/legal/Refund'), 'RefundPage');
+const TermsPage = lazyNamed(() => import('./pages/public/legal/Terms'), 'TermsPage');
+
+// ---- Admin (gated by role; visitors never need this code) ---------------
+const AdminBalancePage = lazyNamed(() => import('./pages/admin/Balance'), 'AdminBalancePage');
+const AdminBotPage = lazyNamed(() => import('./pages/admin/Bot'), 'AdminBotPage');
+const AdminDashboardPage = lazyNamed(() => import('./pages/admin/Dashboard'), 'AdminDashboardPage');
+const AdminOrdersPage = lazyNamed(() => import('./pages/admin/Orders'), 'AdminOrdersPage');
+const AdminPaymentsPage = lazyNamed(() => import('./pages/admin/Payments'), 'AdminPaymentsPage');
+const AdminRefillRequestsPage = lazyNamed(
+  () => import('./pages/admin/RefillRequests'),
+  'AdminRefillRequestsPage',
+);
+const AdminServicesPage = lazyNamed(() => import('./pages/admin/Services'), 'AdminServicesPage');
+const AdminSettingsPage = lazyNamed(() => import('./pages/admin/Settings'), 'AdminSettingsPage');
+const AdminSystemPage = lazyNamed(() => import('./pages/admin/System'), 'AdminSystemPage');
+const AdminTelegramPage = lazyNamed(() => import('./pages/admin/Telegram'), 'AdminTelegramPage');
+const AdminUsersPage = lazyNamed(() => import('./pages/admin/Users'), 'AdminUsersPage');
+
+function ErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
+  const chunkError = isChunkLoadError(error);
+  const title = chunkError ? "Couldn't load this section" : 'Something went wrong';
+  const description = chunkError
+    ? 'A new version may have been deployed, or your connection dropped. Refresh to load the latest.'
+    : error instanceof Error
+      ? error.message
+      : String(error);
+  const cta = chunkError ? 'Refresh' : 'Try again';
+  const onClick = chunkError ? () => window.location.reload() : resetErrorBoundary;
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg p-6">
       <div className="w-full max-w-[420px] rounded-xl border border-border bg-bg-elev p-6 text-center shadow-pop">
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-danger-soft">
           <span className="text-[24px] text-danger">!</span>
         </div>
-        <h2 className="text-[18px] font-semibold">Something went wrong</h2>
-        <p className="mt-2 text-[13px] text-fg-muted">{error.message}</p>
+        <h2 className="text-[18px] font-semibold">{title}</h2>
+        <p className="mt-2 text-[13px] text-fg-muted">{description}</p>
         <button
-          onClick={resetErrorBoundary}
+          onClick={onClick}
           className="mt-5 inline-flex h-[36px] items-center rounded-md bg-accent px-4 text-[13px] font-semibold text-white hover:brightness-110"
         >
-          Try again
+          {cta}
         </button>
       </div>
     </div>
@@ -83,7 +149,18 @@ function App() {
 
   return (
     <ThemeProvider>
-      <ErrorBoundary FallbackComponent={ErrorFallback}>
+      <ErrorBoundary
+        FallbackComponent={ErrorFallback}
+        onError={(error, info) => {
+          // Forward to Sentry. Chunk-load errors after a deploy are noise — the user
+          // just has a stale index.html and a refresh fixes it; skip those so the
+          // Sentry quota goes to real bugs.
+          if (isChunkLoadError(error)) return;
+          Sentry.captureException(error, {
+            contexts: { react: { componentStack: info.componentStack ?? '' } },
+          });
+        }}
+      >
         <BrowserRouter>
           <Suspense fallback={<PageLoader />}>
             <Routes>
@@ -102,14 +179,14 @@ function App() {
                 <Route path="legal/privacy" element={<PrivacyPage />} />
                 <Route path="legal/refund" element={<RefundPage />} />
                 <Route path="legal/aml" element={<AmlPage />} />
-                <Route path="mobile" element={<MobilePage />} />
                 <Route path="404" element={<NotFoundPage />} />
                 <Route path="500" element={<ServerErrorPage />} />
               </Route>
 
               {/* ---------------- Auth (split-screen, visual rotates per route) ---------------- */}
               <Route path="login" element={<AuthShell visual="router"><LoginPage /></AuthShell>} />
-              <Route path="register" element={<AuthShell visual="stats"><RegisterPage /></AuthShell>} />
+              {/* TEMP: registration closed — restore by uncommenting */}
+              {/* <Route path="register" element={<AuthShell visual="stats"><RegisterPage /></AuthShell>} /> */}
               <Route path="verify-email" element={<AuthShell visual="check"><VerifyEmailPage /></AuthShell>} />
               <Route path="forgot" element={<AuthShell visual="router"><ForgotPage /></AuthShell>} />
               <Route path="reset" element={<AuthShell visual="check"><ResetPage /></AuthShell>} />

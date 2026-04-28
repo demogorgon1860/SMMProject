@@ -4,6 +4,7 @@ import { Badge, Button, Card, Icon, Input, SocialTile } from '../../components/u
 import { serviceAPI } from '../../services/api';
 import type { Service } from '../../types';
 import { fmtMoney } from '../../lib/utils';
+import { unwrapList } from '../../lib/api';
 
 // Public services catalog. Read-only, no auth required.
 // Categories: Instagram is live. Other platforms render a "soon" card.
@@ -16,7 +17,7 @@ export function ServicesListPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [cat, setCat] = useState<'ig' | 'tt' | 'yt' | 'x' | 'tg' | 'fb'>('ig');
+  const [cat, setCat] = useState<'ig' | 'tt' | 'x' | 'tg' | 'fb'>('ig');
   const [q, setQ] = useState('');
 
   useEffect(() => {
@@ -25,15 +26,10 @@ export function ServicesListPage() {
       .list()
       .then((data: unknown) => {
         if (cancelled) return;
-        // /v1/service/services wraps the list in PerfectPanelResponse `{ success, data: [...] }`.
-        // Accept Spring Page (`content`) and a top-level `services` field too so future envelope
-        // changes don't quietly empty the public catalog (which is what happened on prod —
-        // page rendered "0 services" because `.data` wasn't being read).
-        const d = data as { data?: Service[]; content?: Service[]; services?: Service[] } | null;
-        const arr: Service[] = Array.isArray(data)
-          ? (data as Service[])
-          : d?.data ?? d?.content ?? d?.services ?? [];
-        setServices(arr);
+        // /v1/service/services wraps in PerfectPanelResponse `{ success, data: [...] }`; some
+        // legacy paths return `{ services: [...] }` or a Spring Page. unwrapList handles all.
+        // (Prod once silently rendered "0 services" because `.data` wasn't being read.)
+        setServices(unwrapList<Service>(data, ['services']));
       })
       .catch(() => setErr('Could not load services right now.'))
       .finally(() => !cancelled && setLoading(false));
@@ -59,7 +55,7 @@ export function ServicesListPage() {
 
       <div className="mt-8 flex flex-wrap items-center gap-2">
         <CatChip active={cat === 'ig'} onClick={() => setCat('ig')} cat="ig" label="Instagram" live />
-        {(['tt', 'yt', 'x', 'tg', 'fb'] as const).map((c) => (
+        {(['tt', 'x', 'tg', 'fb'] as const).map((c) => (
           <CatChip key={c} active={cat === c} onClick={() => setCat(c)} cat={c} label={catLabel(c)} />
         ))}
         <div className="ml-auto w-full max-w-[260px]">
@@ -160,8 +156,8 @@ function dedupeInstagram(services: Service[]): Service[] {
   });
 }
 
-function catLabel(c: 'tt' | 'yt' | 'x' | 'tg' | 'fb'): string {
-  return { tt: 'TikTok', yt: 'YouTube', x: 'Twitter', tg: 'Telegram', fb: 'Facebook' }[c];
+function catLabel(c: 'tt' | 'x' | 'tg' | 'fb'): string {
+  return { tt: 'TikTok', x: 'Twitter', tg: 'Telegram', fb: 'Facebook' }[c];
 }
 
 function CatChip({
@@ -173,7 +169,7 @@ function CatChip({
 }: {
   active: boolean;
   onClick: () => void;
-  cat: 'ig' | 'tt' | 'yt' | 'x' | 'tg' | 'fb';
+  cat: 'ig' | 'tt' | 'x' | 'tg' | 'fb';
   label: string;
   live?: boolean;
 }) {
@@ -192,7 +188,7 @@ function CatChip({
   );
 }
 
-function SoonCard({ cat }: { cat: 'tt' | 'yt' | 'x' | 'tg' | 'fb' }) {
+function SoonCard({ cat }: { cat: 'tt' | 'x' | 'tg' | 'fb' }) {
   return (
     <Card className="flex items-center gap-6 p-12">
       <SocialTile cat={cat} size={64} mono />

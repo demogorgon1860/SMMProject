@@ -6,11 +6,12 @@ import { supportAPI } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import type { Ticket } from '../../types';
 import { cn, fmtRel } from '../../lib/utils';
+import { unwrapList } from '../../lib/api';
 
 const FAQ: ReadonlyArray<{ q: string; a: string }> = [
   {
     q: 'How long until my order starts?',
-    a: 'Median start time is 47 seconds for Instagram services. The first batch usually completes within 5 minutes; the rest dripfeeds based on the service profile.',
+    a: 'Most Instagram services start within minutes once dispatched. The first batch usually completes within 5 minutes; the rest dripfeeds based on the service profile.',
   },
   {
     q: 'What payment methods do you accept?',
@@ -114,8 +115,7 @@ function TicketsTab() {
       .tickets()
       .then((data: unknown) => {
         if (cancelled) return;
-        const arr: Ticket[] = Array.isArray(data) ? (data as Ticket[]) : (data as { content?: Ticket[] })?.content ?? [];
-        setTickets(arr);
+        setTickets(unwrapList<Ticket>(data));
       })
       .catch(() => {
         if (!cancelled) setTickets([]);
@@ -142,11 +142,13 @@ function TicketsTab() {
               Sign in
             </Button>
           </Link>
+          {/* TEMP: registration closed — restore by uncommenting
           <Link to="/register">
             <Button variant="secondary" size="sm">
               Create account
             </Button>
           </Link>
+          */}
         </div>
       </Card>
     );
@@ -219,11 +221,13 @@ function NewTicketTab() {
               Sign in
             </Button>
           </Link>
+          {/* TEMP: registration closed — restore by uncommenting
           <Link to="/register">
             <Button variant="secondary" size="sm">
               Create account
             </Button>
           </Link>
+          */}
         </div>
       </Card>
     );

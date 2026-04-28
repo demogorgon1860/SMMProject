@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useServerPagination } from '../../lib/hooks/useServerPagination';
 import {
   Badge,
   Button,
@@ -26,10 +27,12 @@ import { cn, fmtInt } from '../../lib/utils';
 import { ForceCompleteModal, MarkPartialModal } from './_modals';
 
 // Status filter chips, mirrored from STATUS_TONE colors via StatusBadge.
+// PROCESSING is intentionally NOT here — it's an internal sub-state of IN_PROGRESS that's
+// hidden from the UI. Backend coalesces IN_PROGRESS filter to match BOTH IN_PROGRESS and
+// PROCESSING orders, so picking "in_progress" here returns everything the operator expects.
 const STATUS_CHIPS: ReadonlyArray<string> = [
   'pending',
   'in_progress',
-  'processing',
   'completed',
   'partial',
   'cancelled',
@@ -40,8 +43,6 @@ const STATUS_CHIPS: ReadonlyArray<string> = [
 const PAGE_SIZE = 100;
 
 export function AdminOrdersPage() {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState<number | null>(null);
   // Single-select status — backend's GET /v2/admin/orders takes one `status` param,
   // so multi-select would either be client-side-only (and break with server pagination)
@@ -49,87 +50,54 @@ export function AdminOrdersPage() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [q, setQ] = useState('');
   const [urlQ, setUrlQ] = useState('');
-  // 1-indexed for the Pagination component; converted to 0-indexed when calling the API.
-  const [page, setPage] = useState(1);
-  const [totalElements, setTotalElements] = useState(0);
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
-  // Debounce the free-text searches so we don't refetch on every keystroke.
-  const [debouncedQ, setDebouncedQ] = useState('');
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedQ(q.trim()), 250);
-    return () => clearTimeout(t);
-  }, [q]);
+  // Stable identity for the hook's effect dependency: only changes when the actual filter
+  // string changes, so a re-render that doesn't touch the filter doesn't trigger a refetch.
+  // `urlSearch` is now a real backend param — it pages and indexes against orders.link instead
+  // of being filtered client-side on the current page (which was useless across 6k+ orders).
+  const baseParams = useMemo(() => {
+    const p: Record<string, string> = {};
+    if (statusFilter) p.status = statusFilter;
+    if (urlQ.trim()) p.urlSearch = urlQ.trim();
+    return p;
+  }, [statusFilter, urlQ]);
 
-  // Reset to page 1 whenever filters change so we don't end up on a now-out-of-range page.
-  useEffect(() => {
-    setPage(1);
-  }, [statusFilter, debouncedQ]);
+  // Bot pushes start_count and remains updates on a 15-min cycle; useServerPagination's default
+  // refresh interval already matches that cadence (silent — no spinner on background ticks).
+  const {
+    items: orders,
+    totalElements,
+    page,
+    setPage,
+    loading,
+  } = useServerPagination<Order>({
+    fetcher: adminAPI.getAllOrders,
+    baseParams,
+    pageSize: PAGE_SIZE,
+    search: q,
+    envelopeKey: 'orders',
+  });
 
-  useEffect(() => {
-    let cancelled = false;
-    const fetchPage = (showSpinner: boolean) => {
-      if (showSpinner) setLoading(true);
-      adminAPI
-        .getAllOrders({
-          page: page - 1,
-          size: PAGE_SIZE,
-          ...(statusFilter ? { status: statusFilter } : {}),
-          ...(debouncedQ ? { search: debouncedQ } : {}),
-        })
-        .then((data: unknown) => {
-          if (cancelled) return;
-          // Backend returns { orders: [...], totalPages, totalElements, currentPage, pageSize }.
-          // Spring Page convention uses `content`; Perfect-Panel envelopes use `data`. Accept all
-          // three so a refactor of the response shape doesn't blank the page silently.
-          const d = data as
-            | {
-                orders?: Order[];
-                content?: Order[];
-                data?: Order[];
-                totalElements?: number;
-                totalPages?: number;
-              }
-            | null;
-          const arr: Order[] = Array.isArray(data)
-            ? (data as Order[])
-            : d?.orders ?? d?.content ?? d?.data ?? [];
-          setOrders(arr);
-          setTotalElements(d?.totalElements ?? arr.length);
-        })
-        .catch(() => {
-          if (!cancelled && showSpinner) {
-            setOrders([]);
-            setTotalElements(0);
-          }
-        })
-        .finally(() => !cancelled && showSpinner && setLoading(false));
-    };
+  // Local optimistic overrides for drawer-driven status changes (retry/pause/cancel/refund).
+  // The hook owns the items list; we layer per-id partial patches on top of it so the UI
+  // reflects an action immediately without waiting for the next refresh tick.
+  const [overrides, setOverrides] = useState<Record<number, Partial<Order>>>({});
+  const ordersWithOverrides = useMemo(() => {
+    if (Object.keys(overrides).length === 0) return orders;
+    return orders.map((o) => (overrides[o.id] ? { ...o, ...overrides[o.id] } : o));
+  }, [orders, overrides]);
 
-    fetchPage(true);
-    // Bot pushes start_count and remains updates on a 15-min cycle. Auto-refresh
-    // on the same cadence so an open admin orders page reflects current state
-    // without operators needing to manually refresh. Background ticks don't show
-    // a spinner — the existing rows stay rendered while data is in flight.
-    const interval = window.setInterval(() => fetchPage(false), 15 * 60 * 1000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
-  }, [page, statusFilter, debouncedQ]);
-
-  // urlQ stays purely client-side: backend's `search` covers id/service/user but not URL.
-  // We narrow the rows already on the current page rather than refetching.
+  // urlQ is now pushed to the backend via baseParams.urlSearch (see above), so we just sort
+  // the server-returned rows here. The previous client-side filter was applied per-page only,
+  // so a substring match on a page that didn't contain the URL silently returned empty.
   const pageRows = useMemo(() => {
-    const sorted = [...orders].sort((a, b) => {
+    return [...ordersWithOverrides].sort((a, b) => {
       const ta = a.createdAt ? Date.parse(a.createdAt) : 0;
       const tb = b.createdAt ? Date.parse(b.createdAt) : 0;
       return tb - ta;
     });
-    if (!urlQ.trim()) return sorted;
-    const needle = urlQ.trim().toLowerCase();
-    return sorted.filter((o) => (o.link ?? '').toLowerCase().includes(needle));
-  }, [orders, urlQ]);
+  }, [ordersWithOverrides]);
 
   const allOnPageSelected = pageRows.length > 0 && pageRows.every((o) => selected.has(o.id));
   const someOnPageSelected = pageRows.some((o) => selected.has(o.id));
@@ -139,7 +107,7 @@ export function AdminOrdersPage() {
   // so coerce defensively before summing or .toFixed would blow up at runtime.
   const selectedAggregates = useMemo(() => {
     if (selected.size === 0) return null;
-    const sel = orders.filter((o) => selected.has(o.id));
+    const sel = ordersWithOverrides.filter((o) => selected.has(o.id));
     let qty = 0;
     let done = 0;
     let remains = 0;
@@ -154,7 +122,7 @@ export function AdminOrdersPage() {
       if (Number.isFinite(c)) charge += c;
     }
     return { qty, done, remains, charge };
-  }, [orders, selected]);
+  }, [ordersWithOverrides, selected]);
 
   // Group filtered rows on the current page by calendar day for the
   // day-banner rendering inside <tbody>. Stable iteration order preserved
@@ -198,10 +166,10 @@ export function AdminOrdersPage() {
   };
 
   const onAfterAction = (updated: Partial<Order> & { id: number }) => {
-    setOrders((prev) => prev.map((o) => (o.id === updated.id ? { ...o, ...updated } : o)));
+    setOverrides((prev) => ({ ...prev, [updated.id]: { ...prev[updated.id], ...updated } }));
   };
 
-  const openOrder = orders.find((o) => o.id === openId) ?? null;
+  const openOrder = ordersWithOverrides.find((o) => o.id === openId) ?? null;
 
   return (
     <>

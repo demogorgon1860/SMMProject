@@ -4,6 +4,7 @@ import com.smmpanel.config.TelegramBotProperties;
 import com.smmpanel.dto.telegram.CancelPendingDecision;
 import com.smmpanel.entity.Order;
 import com.smmpanel.entity.OrderStatus;
+import jakarta.annotation.PostConstruct;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -43,11 +44,65 @@ public class TelegramBotService {
         this.restTemplate = restTemplate;
     }
 
+    /**
+     * Loud startup banner when Telegram delivery is disabled or misconfigured. Same pattern as
+     * {@code EmailService.announceConfiguration()} (commit 874acb29) — without this the bot's
+     * circuit-breaker fires, the panel marks the order paused, and no Telegram message is sent. The
+     * admin never sees the prompt, the decision times out, and the default action applies. A single
+     * startup banner makes the misconfiguration impossible to miss in {@code docker-compose logs}.
+     */
+    @PostConstruct
+    void announceConfiguration() {
+        if (!props.isEnabled()) {
+            log.warn("============================================================");
+            log.warn("TELEGRAM NOTIFICATIONS DISABLED — set app.telegram.enabled=true");
+            log.warn("(via TELEGRAM_ENABLED) plus TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID");
+            log.warn("to enable circuit-breaker / completion alerts. Until then, all");
+            log.warn("Telegram sends are silently skipped.");
+            log.warn("============================================================");
+            return;
+        }
+        if (isMissingCredentials()) {
+            log.error("============================================================");
+            log.error("TELEGRAM ENABLED BUT BOT TOKEN OR CHAT ID IS BLANK — every");
+            log.error("notification will silently no-op. Set TELEGRAM_BOT_TOKEN and");
+            log.error("TELEGRAM_CHAT_ID in .env.docker, or set TELEGRAM_ENABLED=false");
+            log.error("to silence this warning.");
+            log.error("============================================================");
+            return;
+        }
+        log.info(
+                "Telegram notifications active (chat_id={}, cancel-timeout={}h,"
+                        + " default-action={})",
+                props.getBot().getChatId(),
+                props.getCancel().getTimeoutHours(),
+                props.getCancel().getDefaultAction());
+    }
+
+    /**
+     * True when Telegram is enabled <em>and</em> the bot token / chat id are populated. Send paths
+     * use this instead of {@code props.isEnabled()} alone so a misconfigured prod instance fails at
+     * the no-op gate rather than firing malformed HTTP calls at api.telegram.org.
+     */
+    private boolean isOperational() {
+        return props.isEnabled() && !isMissingCredentials();
+    }
+
+    /** True when {@code app.telegram.enabled=true} but the bot token or chat id is blank. */
+    private boolean isMissingCredentials() {
+        TelegramBotProperties.Bot bot = props.getBot();
+        if (bot == null) return true;
+        return bot.getToken() == null
+                || bot.getToken().isBlank()
+                || bot.getChatId() == null
+                || bot.getChatId().isBlank();
+    }
+
     // ===================== Notification methods =====================
 
     @Async("asyncExecutor")
     public void notifyNewOrder(Order order) {
-        if (!props.isEnabled()) return;
+        if (!isOperational()) return;
         String text =
                 String.format(
                         "⛏️ Новый заказ #%d\nУслуга: %s\nКоличество: %d | Цена: $%s",
@@ -60,7 +115,7 @@ public class TelegramBotService {
 
     @Async("asyncExecutor")
     public void notifyOrderCompleted(Order order, Integer completed) {
-        if (!props.isEnabled()) return;
+        if (!isOperational()) return;
         String text =
                 String.format(
                         "✅ Заказ #%d выполнен!\nУслуга: %s\nВыполнено: %d | Прибыль: $%s",
@@ -74,7 +129,7 @@ public class TelegramBotService {
 
     @Async("asyncExecutor")
     public void notifyOrderPartial(Order order, Integer completed) {
-        if (!props.isEnabled()) return;
+        if (!isOperational()) return;
         String text =
                 String.format(
                         "⚠️ Заказ #%d частично выполнен\n"
@@ -92,7 +147,7 @@ public class TelegramBotService {
 
     @Async("asyncExecutor")
     public void notifyOrderFailed(Order order, Integer completed) {
-        if (!props.isEnabled()) return;
+        if (!isOperational()) return;
         String text =
                 String.format(
                         "❌ Заказ #%d не выполнен\nУслуга: %s\nРефанд: $%s",
@@ -102,7 +157,7 @@ public class TelegramBotService {
 
     @Async("asyncExecutor")
     public void notifyOrderCancelledPending(Order order, Integer completedCount) {
-        if (!props.isEnabled()) return;
+        if (!isOperational()) return;
 
         // Guard against duplicate notifications from concurrent RabbitMQ + webhook paths.
         // Check before sending to avoid sending a Telegram message we can't track.
@@ -251,6 +306,10 @@ public class TelegramBotService {
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> post(String method, Map<String, Object> body) {
+        // Centralized "no creds → no HTTP call" gate. Protects internal callers (scheduler, update
+        // handler) that don't go through the @Async notify* methods and would otherwise fire a
+        // request at https://api.telegram.org/bot/method (token blank → 401 spam in logs).
+        if (!isOperational()) return null;
         String url = API_BASE + props.getBot().getToken() + "/" + method;
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

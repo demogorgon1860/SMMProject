@@ -9,6 +9,7 @@ import com.smmpanel.dto.response.MassOrderResponse;
 import com.smmpanel.dto.response.OrderResponse;
 import com.smmpanel.dto.response.OrderStatistics;
 import com.smmpanel.dto.response.PerfectPanelResponse;
+import com.smmpanel.service.core.IdempotencyService;
 import com.smmpanel.service.core.RateLimitService;
 import com.smmpanel.service.order.MassOrderService;
 import com.smmpanel.service.order.OrderService;
@@ -31,6 +32,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * ENHANCED Order Controller with proper validation and security
@@ -51,6 +53,8 @@ public class OrderController {
     private final OrderService orderService;
     private final RateLimitService rateLimitService;
     private final MassOrderService massOrderService;
+    private final IdempotencyService idempotencyService;
+    private final com.smmpanel.repository.jpa.UserRepository userRepository;
 
     /** Create a new order with comprehensive validation */
     @PostMapping
@@ -64,17 +68,42 @@ public class OrderController {
                 @ApiResponse(responseCode = "429", description = "Rate limit exceeded")
             })
     public ResponseEntity<PerfectPanelResponse<?>> createOrder(
-            @Valid @RequestBody CreateOrderRequest request, Principal principal) {
+            @Valid @RequestBody CreateOrderRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            Principal principal) {
 
-        // Apply rate limiting per user
+        // Apply rate limiting per user (kept OUTSIDE the idempotency wrapper so a flood of
+        // unique keys still trips the limiter — idempotency is a deduper, not a bypass).
         rateLimitService.checkRateLimit(principal.getName(), "create_order");
 
         log.info(
-                "Creating order for user: {} with service: {}",
+                "Creating order for user: {} with service: {} idempotencyKey={}",
                 principal.getName(),
-                request.getService());
+                request.getService(),
+                idempotencyKey == null ? "<none>" : "<set>");
 
-        OrderResponse order = orderService.createOrder(request, principal.getName());
+        Long userId = resolveUserId(principal.getName());
+
+        OrderResponse order;
+        try {
+            // When the client provides Idempotency-Key, the service guarantees the action runs
+            // at most once per (user, key, "create_order") within the configured TTL window.
+            // A retry with the SAME key returns the cached OrderResponse — no second debit.
+            // Without the header, this is a plain pass-through.
+            IdempotencyService.Result<OrderResponse> result =
+                    idempotencyService.executeWithKey(
+                            userId,
+                            idempotencyKey,
+                            "create_order",
+                            request,
+                            () -> orderService.createOrder(request, principal.getName()),
+                            OrderResponse.class);
+            order = result.value();
+        } catch (IdempotencyService.IdempotencyKeyMismatchException e) {
+            // Stripe returns 422 Unprocessable Entity for "key reused with different body".
+            throw new ResponseStatusException(
+                    org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage(), e);
+        }
 
         // Perfect Panel compatible response format
         PerfectPanelResponse<OrderResponse> response =
@@ -85,6 +114,17 @@ public class OrderController {
                         .build();
 
         return ResponseEntity.status(201).body(response);
+    }
+
+    private Long resolveUserId(String username) {
+        return userRepository
+                .findByUsername(username)
+                .map(com.smmpanel.entity.User::getId)
+                .orElseThrow(
+                        () ->
+                                new ResponseStatusException(
+                                        org.springframework.http.HttpStatus.UNAUTHORIZED,
+                                        "User not found"));
     }
 
     /**

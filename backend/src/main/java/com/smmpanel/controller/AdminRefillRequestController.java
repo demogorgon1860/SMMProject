@@ -35,6 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminRefillRequestController {
 
     private final RefillRequestService refillRequestService;
+    private final com.smmpanel.service.admin.AdminAuditService adminAuditService;
 
     @GetMapping
     public ResponseEntity<Map<String, Object>> list(
@@ -72,7 +73,18 @@ public class AdminRefillRequestController {
     @PostMapping("/{id}/approve")
     public ResponseEntity<?> approve(@PathVariable Long id) {
         try {
-            return ResponseEntity.ok(refillRequestService.approve(id));
+            RefillRequestResponse resp = refillRequestService.approve(id);
+            adminAuditService.record(
+                    "refill.approve",
+                    "REFILL_REQUEST",
+                    id,
+                    "Refill #" + id,
+                    "Approved refill on order #"
+                            + resp.getOrderId()
+                            + (resp.getRefillOrderId() != null
+                                    ? " → refill order #" + resp.getRefillOrderId()
+                                    : ""));
+            return ResponseEntity.ok(resp);
         } catch (ResourceNotFoundException e) {
             return ResponseEntity.notFound().build();
         } catch (IllegalStateException e) {
@@ -90,7 +102,14 @@ public class AdminRefillRequestController {
     public ResponseEntity<?> reject(
             @PathVariable Long id, @Valid @RequestBody RejectRefillRequestBody body) {
         try {
-            return ResponseEntity.ok(refillRequestService.reject(id, body.getReason()));
+            RefillRequestResponse resp = refillRequestService.reject(id, body.getReason());
+            adminAuditService.record(
+                    "refill.reject",
+                    "REFILL_REQUEST",
+                    id,
+                    "Refill #" + id,
+                    "Rejected refill on order #" + resp.getOrderId() + " · " + body.getReason());
+            return ResponseEntity.ok(resp);
         } catch (ResourceNotFoundException e) {
             return ResponseEntity.notFound().build();
         } catch (IllegalStateException e) {

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      Task 13.2 — backend polish, deposits page hot path.
+
+      The /v1/deposits and /v1/admin/deposits queries filter by user_id +
+      status and order by created_at DESC. balance_deposits has only the
+      implicit FK index on user_id, so PostgreSQL falls back to a seq
+      scan + sort on every Add Funds page load once the table grows.
+      Compounded by the Cryptomus webhook polling a user's most recent
+      pending deposit every few seconds during checkout.
+
+      Composite (user_id, status, created_at DESC) covers:
+        • per-user recent deposits list (BalanceDeposit.findAllByOrderBy…)
+        • per-user pending deposit lookups during checkout
+        • admin deposit queue with status filter
+
+      Other tables already have the indexes called out in Task 13:
+        - orders(user_id, created_at DESC)        → idx_orders_user_id
+        - orders(status, created_at DESC)         → idx_orders_status_created_at
+        - balance_transactions(user_id, created_at DESC)
+                                                  → idx_balance_transactions_user_created
+        - refresh_tokens(user_id, last_used_at DESC)
+                                                  → idx_refresh_tokens_user_last_used
+      so this changeset only fills the deposits gap.
+    -->
+
+    <changeSet id="v2026.04-task13-deposits-user-status-created-idx" author="dev">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <not>
+                <indexExists indexName="idx_balance_deposits_user_status_created"/>
+            </not>
+        </preConditions>
+        <sql>
+            CREATE INDEX idx_balance_deposits_user_status_created
+                ON balance_deposits(user_id, status, created_at DESC);
+        </sql>
+        <rollback>
+            <sql>DROP INDEX IF EXISTS idx_balance_deposits_user_status_created;</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

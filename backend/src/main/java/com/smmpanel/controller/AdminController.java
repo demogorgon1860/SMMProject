@@ -6,7 +6,7 @@ import com.smmpanel.dto.response.PerfectPanelResponse;
 import com.smmpanel.entity.User;
 import com.smmpanel.repository.jpa.UserRepository;
 import com.smmpanel.service.admin.AdminService;
-import com.smmpanel.service.order.OrderService;
+import com.smmpanel.service.admin.SystemHealthService;
 import com.smmpanel.service.refill.OrderRefillService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -26,11 +26,13 @@ import org.springframework.web.bind.annotation.*;
 public class AdminController {
 
     private final AdminService adminService;
-    private final OrderService orderService;
+    private final SystemHealthService systemHealthService;
     private final OrderRefillService orderRefillService;
     private final com.smmpanel.producer.OrderEventProducer orderEventProducer;
     private final com.smmpanel.repository.jpa.OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final com.smmpanel.service.admin.AdminAuditService adminAuditService;
+    private final com.smmpanel.repository.jpa.AdminAuditLogRepository adminAuditLogRepository;
 
     /** Resolve the operator behind the current request, or {@code null} if anonymous. */
     private User getCurrentOperatorOrNull() {
@@ -61,12 +63,18 @@ public class AdminController {
     public ResponseEntity<Map<String, Object>> getAllOrders(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String search,
+            // Explicit URL substring search. The shared `search` param tries to disambiguate
+            // (id vs. username vs. URL based on the contents); for short fragments that don't
+            // contain '/' or 'instagram' that heuristic falsely treats them as username. The
+            // dedicated param removes the ambiguity and lets the server-side index match
+            // across ALL pages instead of the broken client-side per-page filter.
+            @RequestParam(required = false) String urlSearch,
             @RequestParam(required = false) String dateFrom,
             @RequestParam(required = false) String dateTo,
             Pageable pageable) {
 
         Map<String, Object> orders =
-                adminService.getAllOrders(status, search, dateFrom, dateTo, pageable);
+                adminService.getAllOrders(status, search, urlSearch, dateFrom, dateTo, pageable);
         return ResponseEntity.ok(orders);
     }
 
@@ -87,42 +95,91 @@ public class AdminController {
     public ResponseEntity<PerfectPanelResponse> performOrderAction(
             @PathVariable Long orderId, @Valid @RequestBody OrderActionRequest request) {
 
-        switch (request.getAction().toLowerCase()) {
+        String act = request.getAction().toLowerCase();
+        String reason = request.getReason();
+        switch (act) {
             case "stop":
-                adminService.pauseOrder(orderId, request.getReason());
+                adminService.pauseOrder(orderId, reason);
+                adminAuditService.record(
+                        "order.pause",
+                        "ORDER",
+                        orderId,
+                        "Order #" + orderId,
+                        reason == null || reason.isBlank() ? "Paused order" : "Paused: " + reason);
                 break;
             case "resume":
             case "start":
                 adminService.resumeOrder(orderId);
+                adminAuditService.record(
+                        "order.resume", "ORDER", orderId, "Order #" + orderId, "Resumed order");
                 break;
             case "refill":
                 adminService.refillOrder(orderId, request.getNewQuantity());
+                adminAuditService.record(
+                        "order.refill",
+                        "ORDER",
+                        orderId,
+                        "Order #" + orderId,
+                        "Refilled with new quantity " + request.getNewQuantity());
                 break;
             case "cancel":
-                adminService.cancelOrder(orderId, request.getReason());
+                adminService.cancelOrder(orderId, reason);
+                adminAuditService.record(
+                        "order.cancel",
+                        "ORDER",
+                        orderId,
+                        "Order #" + orderId,
+                        reason == null || reason.isBlank()
+                                ? "Cancelled order"
+                                : "Cancelled: " + reason);
                 break;
             case "delete":
                 adminService.deleteOrder(orderId);
+                adminAuditService.record(
+                        "order.delete", "ORDER", orderId, "Order #" + orderId, "Deleted order");
                 break;
             case "update_start_count":
                 adminService.updateStartCount(orderId, request.getNewStartCount());
+                adminAuditService.record(
+                        "order.update_start_count",
+                        "ORDER",
+                        orderId,
+                        "Order #" + orderId,
+                        "Updated start count to " + request.getNewStartCount());
                 break;
             case "complete":
                 adminService.completeOrder(orderId);
+                adminAuditService.record(
+                        "order.complete", "ORDER", orderId, "Order #" + orderId, "Completed order");
                 break;
             case "force_complete":
-                adminService.forceCompleteOrder(
-                        orderId, request.getReason(), getCurrentOperatorOrNull());
+                adminService.forceCompleteOrder(orderId, reason, getCurrentOperatorOrNull());
+                adminAuditService.record(
+                        "order.force_complete",
+                        "ORDER",
+                        orderId,
+                        "Order #" + orderId,
+                        reason == null || reason.isBlank()
+                                ? "Force-completed order"
+                                : "Force-completed: " + reason);
                 break;
             case "partial":
                 if (request.getRemains() != null) {
-                    // Admin provided custom remains value for precise refund calculation
                     adminService.markOrderAsPartialWithRemains(
-                            orderId, request.getReason(), request.getRemains());
+                            orderId, reason, request.getRemains());
                 } else {
-                    // Use existing behavior (calculate from current state)
-                    adminService.markOrderAsPartial(orderId, request.getReason());
+                    adminService.markOrderAsPartial(orderId, reason);
                 }
+                adminAuditService.record(
+                        "order.mark_partial",
+                        "ORDER",
+                        orderId,
+                        "Order #" + orderId,
+                        "Marked partial"
+                                + (request.getRemains() != null
+                                        ? " with remains=" + request.getRemains()
+                                        : "")
+                                + (reason == null || reason.isBlank() ? "" : " · " + reason));
                 break;
             default:
                 return ResponseEntity.badRequest()
@@ -152,8 +209,8 @@ public class AdminController {
     }
 
     /**
-     * Create a refill for an order that has underdelivered views. Fetches current YouTube view
-     * count and creates a new order for the remaining quantity.
+     * Create a refill for an order that has underdelivered views. Creates a new order for the
+     * remaining quantity.
      */
     @PostMapping("/orders/{orderId}/refill")
     public ResponseEntity<RefillResponse> createRefill(@PathVariable Long orderId) {
@@ -194,31 +251,15 @@ public class AdminController {
         return ResponseEntity.ok(updated);
     }
 
-    @GetMapping("/youtube-accounts")
-    public ResponseEntity<Map<String, Object>> getYouTubeAccounts(Pageable pageable) {
-        Map<String, Object> accounts = adminService.getYouTubeAccounts(pageable);
-        return ResponseEntity.ok(accounts);
-    }
-
-    @PostMapping("/youtube-accounts/{id}/reset-daily-limit")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> resetYouTubeAccountDailyLimit(@PathVariable Long id) {
-        adminService.resetYouTubeAccountDailyLimit(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    @PutMapping("/youtube-accounts/{id}/status")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> updateYouTubeAccountStatus(
-            @PathVariable Long id, @RequestBody Map<String, String> request) {
-        adminService.updateYouTubeAccountStatus(id, request.get("status"));
-        return ResponseEntity.noContent().build();
-    }
-
+    /**
+     * Live infrastructure status strip on the admin dashboard. Probes Spring Boot, Postgres, Redis,
+     * RabbitMQ, the Instagram bot, and Cryptomus in parallel under a hard 2s per-check budget. The
+     * endpoint always returns within ~2.5s — a stuck dependency surfaces as a single {@code "down"}
+     * tile, never as a Cloudflare 504 like the previous implementation.
+     */
     @GetMapping("/system/health")
-    public ResponseEntity<Map<String, Object>> getSystemHealth() {
-        Map<String, Object> health = adminService.getSystemHealth();
-        return ResponseEntity.ok(health);
+    public ResponseEntity<List<SystemHealthComponent>> getSystemHealth() {
+        return ResponseEntity.ok(systemHealthService.probe());
     }
 
     @GetMapping("/logs/operator")
@@ -263,6 +304,15 @@ public class AdminController {
     public ResponseEntity<Void> adjustUserBalance(
             @PathVariable Long userId, @Valid @RequestBody BalanceAdjustmentRequest request) {
         adminService.adjustUserBalance(userId, request.getAmount(), request.getReason());
+        adminAuditService.recordWithAmount(
+                "user.balance_adjust",
+                "USER",
+                userId,
+                "User #" + userId,
+                request.getReason() == null || request.getReason().isBlank()
+                        ? "Manual balance adjustment"
+                        : request.getReason(),
+                request.getAmount());
         return ResponseEntity.noContent().build();
     }
 
@@ -271,69 +321,47 @@ public class AdminController {
     public ResponseEntity<Void> updateUserRole(
             @PathVariable Long userId, @RequestBody Map<String, String> request) {
         adminService.updateUserRole(userId, request.get("role"));
+        adminAuditService.record(
+                "user.role_change",
+                "USER",
+                userId,
+                "User #" + userId,
+                "Set role to " + request.get("role"));
         return ResponseEntity.noContent().build();
     }
 
-    // Test Service Endpoints for Frontend Testing
-
-    @GetMapping("/binom/test")
-    public ResponseEntity<Map<String, Object>> testBinomConnection() {
-        return ResponseEntity.ok(adminService.testBinomConnection());
-    }
-
-    @PostMapping("/binom/sync")
-    public ResponseEntity<Map<String, Object>> syncBinomCampaigns() {
-        return ResponseEntity.ok(adminService.syncBinomCampaigns());
-    }
-
-    @PostMapping("/youtube/check-views")
-    public ResponseEntity<Map<String, Object>> checkYouTubeViews(
-            @RequestBody Map<String, String> request) {
-        String videoUrl = request.get("videoUrl");
-        return ResponseEntity.ok(adminService.checkYouTubeViews(videoUrl));
-    }
-
-    @PostMapping("/youtube/test-statistics")
-    public ResponseEntity<Map<String, Object>> testYouTubeStatistics(
-            @RequestBody Map<String, String> request) {
-        String videoUrl = request.get("videoUrl");
-        return ResponseEntity.ok(adminService.testYouTubeStatistics(videoUrl));
-    }
-
-    @PostMapping("/selenium/create-clip")
-    public ResponseEntity<Map<String, Object>> createSeleniumClip(
-            @RequestBody Map<String, Object> request) {
-        String videoUrl = (String) request.get("videoUrl");
-        Integer startTime = (Integer) request.get("startTime");
-        Integer endTime = (Integer) request.get("endTime");
-        return ResponseEntity.ok(adminService.createSeleniumClip(videoUrl, startTime, endTime));
-    }
-
-    @GetMapping("/selenium/clip/{jobId}/status")
-    public ResponseEntity<Map<String, Object>> getClipStatus(@PathVariable String jobId) {
-        return ResponseEntity.ok(adminService.getClipJobStatus(jobId));
-    }
-
-    @GetMapping("/selenium/test-connection")
-    public ResponseEntity<Map<String, Object>> testSeleniumConnection(
-            @RequestParam(required = false) String testUrl) {
-        return ResponseEntity.ok(adminService.testSeleniumConnection(testUrl));
-    }
-
-    @GetMapping("/selenium/accounts")
-    public ResponseEntity<List<Map<String, Object>>> getYouTubeAccounts() {
-        return ResponseEntity.ok(adminService.getAvailableYouTubeAccounts());
-    }
-
-    @PostMapping("/trigger-processing")
-    public ResponseEntity<PerfectPanelResponse> triggerProcessing() {
-        // Manually trigger pending order processing
-        orderService.processPendingYouTubeOrders();
-        return ResponseEntity.ok(
-                PerfectPanelResponse.builder()
-                        .data(Map.of("message", "Processing triggered"))
-                        .success(true)
-                        .build());
+    /**
+     * Recent admin-action feed. Powers the "Recent admin actions" sidebar on the dashboard.
+     * Replaces the previous in-memory Zustand store which was wiped on page refresh.
+     */
+    @GetMapping("/audit-log")
+    public ResponseEntity<List<Map<String, Object>>> getAuditLog(
+            @RequestParam(defaultValue = "50") int limit) {
+        int safeLimit = Math.max(1, Math.min(limit, 200));
+        var page =
+                adminAuditLogRepository.findAllByOrderByCreatedAtDesc(
+                        org.springframework.data.domain.PageRequest.of(0, safeLimit));
+        List<Map<String, Object>> items =
+                page.getContent().stream()
+                        .map(
+                                row -> {
+                                    Map<String, Object> m = new java.util.LinkedHashMap<>();
+                                    m.put("id", row.getId());
+                                    m.put("actor", row.getAdminUsername());
+                                    m.put("action", row.getAction());
+                                    Long tid = row.getTargetId();
+                                    m.put(
+                                            "target",
+                                            row.getTargetType().toLowerCase()
+                                                    + (tid == null ? "" : ":" + tid));
+                                    m.put("targetLabel", row.getTargetLabel());
+                                    m.put("summary", row.getSummary());
+                                    if (row.getAmount() != null) m.put("amount", row.getAmount());
+                                    m.put("createdAt", row.getCreatedAt());
+                                    return m;
+                                })
+                        .toList();
+        return ResponseEntity.ok(items);
     }
 
     /**

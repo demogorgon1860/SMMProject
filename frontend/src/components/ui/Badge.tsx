@@ -77,7 +77,9 @@ export function Badge({ children, tone = 'muted', size = 'md', icon, dot, title,
 const STATUS_TONE: Record<string, { tone: BadgeTone; label?: string }> = {
   pending:     { tone: 'muted',   label: 'Pending' },
   in_progress: { tone: 'info',    label: 'In progress' },
-  processing:  { tone: 'info',    label: 'Processing' },
+  // No `processing` entry — it's coalesced to `in_progress` via DISPLAY_ALIASES below before
+  // this lookup. Adding it back would be dead code (and would mislead the next person who
+  // tries to "fix the Processing label" — the alias rewrite happens first).
   active:      { tone: 'info',    label: 'Active' },
   completed:   { tone: 'success', label: 'Completed' },
   partial:     { tone: 'warn',    label: 'Partial' },
@@ -100,7 +102,7 @@ const STATUS_TONE: Record<string, { tone: BadgeTone; label?: string }> = {
 const STATUS_MEANING: Record<string, string> = {
   pending: 'Queued, not yet dispatched to bot',
   in_progress: 'Bot is actively executing actions',
-  processing: 'Bot is counting start values / preparing',
+  // No `processing` — coalesced to `in_progress` via DISPLAY_ALIASES; see STATUS_TONE comment.
   active: 'Bot running (alias of in_progress)',
   partial: 'Stopped early, partial refund issued',
   completed: 'Fully delivered',
@@ -120,8 +122,18 @@ interface StatusBadgeProps {
   className?: string;
 }
 
+// Display-only coalescing. The DB / API still distinguishes PROCESSING (bot is counting
+// start values) from IN_PROGRESS (bot is dispatching actions), but for end-users and admin
+// operators the distinction is internal noise — both look identical in terms of "what
+// can I do with this order right now." Mapping PROCESSING → in_progress at the badge
+// chokepoint keeps the rest of the UI honest without touching every call site.
+const DISPLAY_ALIASES: Record<string, string> = {
+  processing: 'in_progress',
+};
+
 export function StatusBadge({ status, label, size = 'sm', className }: StatusBadgeProps) {
-  const key = status.toLowerCase().replace(/-/g, '_');
+  const raw = status.toLowerCase().replace(/-/g, '_');
+  const key = DISPLAY_ALIASES[raw] ?? raw;
   const config = STATUS_TONE[key] ?? { tone: 'muted' as BadgeTone, label: status };
   const tip = STATUS_MEANING[key];
   return (

@@ -428,10 +428,6 @@ public class KafkaConfig {
                 JsonSerializer.TYPE_MAPPINGS,
                 "order:com.smmpanel.entity.Order,"
                         + "orderEvent:com.smmpanel.entity.OrderEvent,"
-                        + "videoProcessing:com.smmpanel.entity.VideoProcessing,"
-                        + "videoProcessingMessage:com.smmpanel.dto.kafka.VideoProcessingMessage,"
-                        + "offerAssignment:com.smmpanel.dto.binom.OfferAssignmentRequest,"
-                        + "offerAssignmentEvent:com.smmpanel.event.OfferAssignmentEvent,"
                         + "orderCreatedEvent:com.smmpanel.event.OrderCreatedEvent,"
                         + "orderStatusChangedEvent:com.smmpanel.event.OrderStatusChangedEvent,"
                         + "notification:java.util.Map");
@@ -463,49 +459,6 @@ public class KafkaConfig {
     @Bean
     public KafkaTemplate<String, Object> defaultRetryTopicKafkaTemplate() {
         KafkaTemplate<String, Object> template = new KafkaTemplate<>(producerFactory());
-        template.setAllowNonTransactional(true);
-        return template;
-    }
-
-    @Bean
-    public ProducerFactory<String, com.smmpanel.dto.kafka.VideoProcessingMessage>
-            videoProcessingProducerFactory() {
-        Map<String, Object> configProps = new HashMap<>();
-        configProps.put(
-                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaProperties.getBootstrapServers());
-        configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-        configProps.put(ProducerConfig.ACKS_CONFIG, "all");
-        configProps.put(ProducerConfig.RETRIES_CONFIG, 3);
-        configProps.put(ProducerConfig.BATCH_SIZE_CONFIG, 16384);
-        configProps.put(ProducerConfig.LINGER_MS_CONFIG, 1);
-        configProps.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 33554432);
-        configProps.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-        configProps.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
-        configProps.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "snappy");
-        configProps.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 120000);
-        configProps.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 30000);
-
-        // Transaction configuration
-        configProps.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "smm-panel-video-tx");
-
-        // Add type information for proper deserialization
-        configProps.put(JsonSerializer.ADD_TYPE_INFO_HEADERS, true);
-        configProps.put(
-                JsonSerializer.TYPE_MAPPINGS,
-                "videoProcessingMessage:com.smmpanel.dto.kafka.VideoProcessingMessage");
-
-        DefaultKafkaProducerFactory<String, com.smmpanel.dto.kafka.VideoProcessingMessage> factory =
-                new DefaultKafkaProducerFactory<>(configProps);
-        factory.setTransactionIdPrefix("smm-panel-video-tx-");
-        return factory;
-    }
-
-    @Bean
-    public KafkaTemplate<String, com.smmpanel.dto.kafka.VideoProcessingMessage>
-            videoProcessingKafkaTemplate() {
-        KafkaTemplate<String, com.smmpanel.dto.kafka.VideoProcessingMessage> template =
-                new KafkaTemplate<>(videoProcessingProducerFactory());
         template.setAllowNonTransactional(true);
         return template;
     }
@@ -558,15 +511,11 @@ public class KafkaConfig {
         // JSON Deserializer specific configs
         configProps.put(
                 JsonDeserializer.TRUSTED_PACKAGES,
-                "com.smmpanel.entity,com.smmpanel.dto,com.smmpanel.dto.kafka,com.smmpanel.event,java.util");
+                "com.smmpanel.entity,com.smmpanel.dto,com.smmpanel.event,java.util");
         configProps.put(
                 JsonDeserializer.TYPE_MAPPINGS,
                 "order:com.smmpanel.entity.Order,"
                         + "orderEvent:com.smmpanel.entity.OrderEvent,"
-                        + "videoProcessing:com.smmpanel.entity.VideoProcessing,"
-                        + "videoProcessingMessage:com.smmpanel.dto.kafka.VideoProcessingMessage,"
-                        + "offerAssignment:com.smmpanel.dto.binom.OfferAssignmentRequest,"
-                        + "offerAssignmentEvent:com.smmpanel.event.OfferAssignmentEvent,"
                         + "orderCreatedEvent:com.smmpanel.event.OrderCreatedEvent,"
                         + "orderStatusChangedEvent:com.smmpanel.event.OrderStatusChangedEvent,"
                         + "notification:java.util.Map");

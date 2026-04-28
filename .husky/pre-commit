@@ -1,0 +1,50 @@
+#!/usr/bin/env sh
+#
+# SMM Panel pre-commit hook.
+#
+# Catches the cheap-to-find class of bugs before they hit CI:
+#  - Frontend: lint-staged runs prettier on staged files.
+#  - Backend: spotlessCheck on staged Java files keeps the formatter authoritative.
+#
+# Designed to be fast (< 5s on a typical commit). If it gets slow, devs will start
+# bypassing it with --no-verify and we lose the value entirely.
+#
+# To install:
+#   ./scripts/install-hooks.sh
+#
+# To bypass intentionally:
+#   git commit --no-verify
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+# ---------------------------------------------------------------------
+# Frontend — lint-staged (prettier on staged files)
+# ---------------------------------------------------------------------
+
+if git diff --cached --name-only --diff-filter=ACMR | grep -qE '^frontend/.*\.(ts|tsx|js|jsx|json|md|css|yaml|yml)$'; then
+  if [ ! -x "$REPO_ROOT/frontend/node_modules/.bin/lint-staged" ]; then
+    echo "pre-commit: lint-staged not installed. Run:"
+    echo "    cd frontend && npm install"
+    echo "(or commit with --no-verify to bypass.)"
+    exit 1
+  fi
+  echo "pre-commit: running lint-staged on staged frontend files…"
+  (cd "$REPO_ROOT/frontend" && npx --no-install lint-staged)
+fi
+
+# ---------------------------------------------------------------------
+# Backend — spotless on staged Java files
+# ---------------------------------------------------------------------
+
+if git diff --cached --name-only --diff-filter=ACMR | grep -qE '^backend/.*\.java$'; then
+  echo "pre-commit: running spotless check on staged Java files…"
+  (cd "$REPO_ROOT/backend" && ./gradlew --quiet spotlessCheck) || {
+    echo
+    echo "pre-commit: spotless found unformatted Java. Fix with:"
+    echo "    cd backend && ./gradlew spotlessApply"
+    exit 1
+  }
+fi
+
+exit 0

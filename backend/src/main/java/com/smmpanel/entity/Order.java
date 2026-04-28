@@ -28,7 +28,6 @@ import org.hibernate.annotations.UpdateTimestamp;
             // idx_orders_status created by Liquibase migration
             // @Index(name = "idx_orders_status", columnList = "status"),
             @Index(name = "idx_orders_created_at", columnList = "created_at"),
-            @Index(name = "idx_orders_youtube_video_id", columnList = "youtube_video_id"),
             // Composite index for frequent queries
             @Index(
                     name = "idx_orders_user_status_created",
@@ -79,25 +78,8 @@ public class Order {
     @Builder.Default
     private OrderStatus status = OrderStatus.PENDING;
 
-    @Column(name = "youtube_video_id", length = 100)
-    private String youtubeVideoId;
-
-    @Column(name = "target_views")
-    private Integer targetViews;
-
-    @Column(name = "coefficient", precision = 5, scale = 2)
-    private BigDecimal coefficient;
-
-    @Column(name = "target_country", length = 10)
-    private String targetCountry;
-
     @Column(name = "order_id", unique = true, length = 50)
     private String orderId;
-
-    // BinomCampaigns relationship removed - using dynamic campaign connections
-
-    @OneToOne(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private VideoProcessing videoProcessing;
 
     @Column(name = "processing_priority")
     @Builder.Default
@@ -144,26 +126,18 @@ public class Order {
     @Column(name = "user_order_number")
     private Integer userOrderNumber;
 
-    // ========= NEW BINOM TRACKING FIELDS =========
-    // binomCampaignId removed - using direct campaign connections via binomOfferId
-
-    @Column(name = "binom_offer_id", length = 50)
-    private String binomOfferId;
-
+    /**
+     * In-flight delivery lifecycle (Instagram bot dispatch + Telegram cancel approval). Distinct
+     * from {@link #status} which is the user/admin-facing order state.
+     */
     @Column(name = "traffic_status", length = 20)
     @Builder.Default
     private String trafficStatus = "PENDING";
 
+    /** How many of the requested actions the bot has actually delivered. */
     @Column(name = "views_delivered")
     @Builder.Default
     private Integer viewsDelivered = 0;
-
-    @Column(name = "cost_incurred", precision = 10, scale = 2)
-    @Builder.Default
-    private BigDecimal costIncurred = BigDecimal.ZERO;
-
-    @Column(name = "budget_limit", precision = 10, scale = 2)
-    private BigDecimal budgetLimit;
 
     /** Refill support - indicates if this order is a refill of another order */
     @Column(name = "is_refill", nullable = false)
@@ -241,6 +215,4 @@ public class Order {
     public String getLink() {
         return link;
     }
-
-    // setBinomCampaign method removed - using dynamic campaign connections
 }

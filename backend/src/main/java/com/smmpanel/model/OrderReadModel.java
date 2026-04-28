@@ -46,11 +46,6 @@ public class OrderReadModel implements Serializable {
 
     private BigDecimal rate;
 
-    // binomCampaignId removed - using direct campaign connection via binomOfferId
-    @Indexed private String binomOfferId;
-
-    private String youtubeVideoId;
-
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

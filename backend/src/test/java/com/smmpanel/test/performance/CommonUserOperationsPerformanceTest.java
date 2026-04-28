@@ -180,10 +180,6 @@ public class CommonUserOperationsPerformanceTest extends QueryPerformanceTestBas
                             String username = order.getUser().getUsername();
                             String serviceName = order.getService().getName();
 
-                            if (order.getVideoProcessing() != null) {
-                                order.getVideoProcessing().getStatus();
-                            }
-
                             assert username != null;
                             assert serviceName != null;
                         });

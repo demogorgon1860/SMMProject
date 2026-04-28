@@ -22,5 +22,4 @@ public class DashboardStats {
     private Integer pendingOrders;
     private Integer completedOrders;
     private Long totalUsers;
-    private Integer activeYouTubeAccounts;
 }

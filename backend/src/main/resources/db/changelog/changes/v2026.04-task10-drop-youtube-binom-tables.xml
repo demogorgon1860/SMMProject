@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+        Task 10 — Dead-code cleanup.
+
+        Panel pivoted to Instagram-only. The YouTube + Binom + video-clip pipelines are removed.
+        This migration drops the supporting tables, types, triggers, and functions, and retires
+        the legacy YouTube service rows (kept for historical FK integrity from the orders table).
+
+        IMPORTANT: We do NOT drop columns from the partitioned `orders` table
+        (youtube_video_id, target_views, target_country, coefficient, binom_offer_id, etc.).
+        Schema migrations on partitioned + populated tables are risky; the columns are
+        left in place as dead data. The Hibernate entity no longer maps fields that aren't
+        needed, but the columns persist harmlessly.
+
+        Rollbacks recreate the original schema as it was created by the changesets in
+        db.changelog-master.xml. They are best-effort: rolling back will give back empty
+        tables (no historical row data) but the schema will match.
+    -->
+
+    <!-- 1. Drop triggers that target tables we are about to drop -->
+    <changeSet id="task10-drop-triggers" author="task10">
+        <sql>
+            DROP TRIGGER IF EXISTS update_video_processing_updated_at ON video_processing;
+            DROP TRIGGER IF EXISTS update_youtube_accounts_updated_at ON youtube_accounts;
+            DROP TRIGGER IF EXISTS update_binom_campaigns_updated_at ON binom_campaigns;
+            DROP TRIGGER IF EXISTS update_fixed_campaigns_updated_at ON fixed_binom_campaigns;
+            DROP TRIGGER IF EXISTS update_traffic_sources_updated_at ON traffic_sources;
+        </sql>
+        <rollback>
+            <sql>
+                CREATE TRIGGER update_video_processing_updated_at BEFORE UPDATE ON video_processing
+                    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+                CREATE TRIGGER update_youtube_accounts_updated_at BEFORE UPDATE ON youtube_accounts
+                    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+                CREATE TRIGGER update_binom_campaigns_updated_at BEFORE UPDATE ON binom_campaigns
+                    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+                CREATE TRIGGER update_fixed_campaigns_updated_at BEFORE UPDATE ON fixed_binom_campaigns
+                    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+                CREATE TRIGGER update_traffic_sources_updated_at BEFORE UPDATE ON traffic_sources
+                    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+            </sql>
+        </rollback>
+    </changeSet>
+
+    <!-- 2. Drop reset_daily_limits function (referenced YouTube clip counts and traffic clicks) -->
+    <changeSet id="task10-drop-reset-daily-limits-fn" author="task10">
+        <sql>DROP FUNCTION IF EXISTS reset_daily_limits();</sql>
+        <rollback>
+            <sql splitStatements="false">
+                CREATE OR REPLACE FUNCTION reset_daily_limits() RETURNS void AS $$
+                BEGIN
+                    UPDATE youtube_accounts
+                    SET daily_clips_count = 0, last_clip_date = CURRENT_DATE
+                    WHERE last_clip_date &lt; CURRENT_DATE;
+
+                    UPDATE traffic_sources
+                    SET clicks_used_today = 0, last_reset_date = CURRENT_DATE
+                    WHERE last_reset_date &lt; CURRENT_DATE;
+                END;
+                $$ LANGUAGE plpgsql;
+            </sql>
+        </rollback>
+    </changeSet>
+
+    <!-- 3. Drop dependent tables first. CASCADE clears any orphan FKs we may have missed. -->
+
+    <!-- view_stats has FK -> video_processing -->
+    <changeSet id="task10-drop-view-stats" author="task10">
+        <sql>DROP TABLE IF EXISTS view_stats CASCADE;</sql>
+        <rollback>
+            <createTable tableName="view_stats">
+                <column name="id" type="BIGSERIAL">
+                    <constraints primaryKey="true" nullable="false"/>
+                </column>
+                <column name="order_id" type="BIGINT">
+                    <constraints nullable="false"/>
+                </column>
+                <column name="order_created_at" type="TIMESTAMP WITH TIME ZONE">
+                    <constraints nullable="false"/>
+                </column>
+                <column name="video_processing_id" type="BIGINT"/>
+                <column name="current_views" type="INTEGER" defaultValueNumeric="0"/>
+                <column name="target_views" type="INTEGER">
+                    <constraints nullable="false"/>
+                </column>
+                <column name="views_velocity" type="DECIMAL(10,2)"/>
+                <column name="last_checked" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+                <column name="check_interval" type="INTEGER" defaultValueNumeric="1800"/>
+                <column name="check_count" type="INTEGER" defaultValueNumeric="0"/>
+                <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+            </createTable>
+        </rollback>
+    </changeSet>
+
+    <!-- binom_campaigns has FK -> traffic_sources, fixed_binom_campaigns, orders -->
+    <changeSet id="task10-drop-binom-campaigns" author="task10">
+        <sql>DROP TABLE IF EXISTS binom_campaigns CASCADE;</sql>
+        <rollback>
+            <createTable tableName="binom_campaigns">
+                <column name="id" type="BIGSERIAL">
+                    <constraints primaryKey="true" nullable="false"/>
+                </column>
+                <column name="order_id" type="BIGINT">
+                    <constraints nullable="false"/>
+                </column>
+                <column name="order_created_at" type="TIMESTAMP WITH TIME ZONE">
+                    <constraints nullable="false"/>
+                </column>
+                <column name="campaign_id" type="VARCHAR(100)">
+                    <constraints nullable="false" unique="true"/>
+                </column>
+                <column name="offer_id" type="VARCHAR(100)"/>
+                <column name="target_url" type="VARCHAR(500)">
+                    <constraints nullable="false"/>
+                </column>
+                <column name="traffic_source_id" type="BIGINT"/>
+                <column name="fixed_campaign_id" type="BIGINT"/>
+                <column name="coefficient" type="DECIMAL(4,2)">
+                    <constraints nullable="false"/>
+                </column>
+                <column name="clicks_required" type="INTEGER">
+                    <constraints nullable="false"/>
+                </column>
+                <column name="clicks_delivered" type="INTEGER" defaultValueNumeric="0"/>
+                <column name="views_generated" type="INTEGER" defaultValueNumeric="0"/>
+                <column name="status" type="VARCHAR(50)" defaultValue="ACTIVE"/>
+                <column name="cost_per_click" type="DECIMAL(8,6)"/>
+                <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+                <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+            </createTable>
+        </rollback>
+    </changeSet>
+
+    <!-- fixed_binom_campaigns has FK -> traffic_sources -->
+    <changeSet id="task10-drop-fixed-binom-campaigns" author="task10">
+        <sql>DROP TABLE IF EXISTS fixed_binom_campaigns CASCADE;</sql>
+        <rollback>
+            <createTable tableName="fixed_binom_campaigns">
+                <column name="id" type="BIGSERIAL">
+                    <constraints primaryKey="true" nullable="false"/>
+                </column>
+                <column name="campaign_id" type="VARCHAR(100)">
+                    <constraints nullable="false" unique="true"/>
+                </column>
+                <column name="campaign_name" type="VARCHAR(255)">
+                    <constraints nullable="false"/>
+                </column>
+                <column name="traffic_source_id" type="BIGINT"/>
+                <column name="description" type="TEXT"/>
+                <column name="active" type="BOOLEAN" defaultValueBoolean="true"/>
+                <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+                <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+            </createTable>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="task10-drop-traffic-sources" author="task10">
+        <sql>DROP TABLE IF EXISTS traffic_sources CASCADE;</sql>
+        <rollback>
+            <createTable tableName="traffic_sources">
+                <column name="id" type="BIGSERIAL">
+                    <constraints primaryKey="true" nullable="false"/>
+                </column>
+                <column name="name" type="VARCHAR(255)">
+                    <constraints nullable="false"/>
+                </column>
+                <column name="source_id" type="VARCHAR(100)">
+                    <constraints nullable="false" unique="true"/>
+                </column>
+                <column name="weight" type="INTEGER" defaultValueNumeric="1"/>
+                <column name="daily_limit" type="INTEGER"/>
+                <column name="clicks_used_today" type="INTEGER" defaultValueNumeric="0"/>
+                <column name="last_reset_date" type="DATE" defaultValueComputed="CURRENT_DATE"/>
+                <column name="geo_targeting" type="VARCHAR(255)"/>
+                <column name="active" type="BOOLEAN" defaultValueBoolean="true"/>
+                <column name="performance_score" type="DECIMAL(5,2)" defaultValueNumeric="100.00"/>
+                <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+                <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+            </createTable>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="task10-drop-video-processing" author="task10">
+        <sql>DROP TABLE IF EXISTS video_processing CASCADE;</sql>
+        <rollback>
+            <createTable tableName="video_processing">
+                <column name="id" type="BIGSERIAL">
+                    <constraints primaryKey="true" nullable="false"/>
+                </column>
+                <column name="order_id" type="BIGINT">
+                    <constraints nullable="false"/>
+                </column>
+                <column name="order_created_at" type="TIMESTAMP WITH TIME ZONE">
+                    <constraints nullable="false"/>
+                </column>
+                <column name="original_url" type="VARCHAR(500)">
+                    <constraints nullable="false"/>
+                </column>
+                <column name="video_type" type="VARCHAR(20)"/>
+                <column name="clip_created" type="BOOLEAN" defaultValueBoolean="false"/>
+                <column name="clip_url" type="VARCHAR(500)"/>
+                <column name="youtube_account_id" type="BIGINT"/>
+                <column name="processing_status" type="VARCHAR(50)" defaultValue="PENDING"/>
+                <column name="processing_attempts" type="INTEGER" defaultValueNumeric="0"/>
+                <column name="error_message" type="TEXT"/>
+                <column name="metadata" type="JSONB"/>
+                <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+                <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+            </createTable>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="task10-drop-youtube-accounts" author="task10">
+        <sql>DROP TABLE IF EXISTS youtube_accounts CASCADE;</sql>
+        <rollback>
+            <createTable tableName="youtube_accounts">
+                <column name="id" type="BIGSERIAL">
+                    <constraints primaryKey="true" nullable="false"/>
+                </column>
+                <column name="username" type="VARCHAR(255)">
+                    <constraints nullable="false"/>
+                </column>
+                <column name="email" type="VARCHAR(255)">
+                    <constraints nullable="false"/>
+                </column>
+                <column name="status" type="VARCHAR(20)" defaultValue="ACTIVE"/>
+                <column name="daily_clips_count" type="INTEGER" defaultValueNumeric="0"/>
+                <column name="last_clip_date" type="DATE"/>
+                <column name="daily_limit" type="INTEGER" defaultValueNumeric="50"/>
+                <column name="total_clips_created" type="INTEGER" defaultValueNumeric="0"/>
+                <column name="last_error" type="TEXT"/>
+                <column name="last_error_at" type="TIMESTAMP WITH TIME ZONE"/>
+                <column name="proxy_config" type="JSONB"/>
+                <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+                <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
+            </createTable>
+        </rollback>
+    </changeSet>
+
+    <!-- conversion_coefficients table is intentionally kept. The with_clip/without_clip math
+         is YouTube-specific and effectively dead, but the entity + repository + admin endpoints
+         still reference it. Dropping the table requires a wider Java cleanup that is out of
+         scope for this task. -->
+
+    <!-- 4. Drop the PostgreSQL ENUM types now that no table references them.
+         video_type was already converted to VARCHAR by v2025.01-convert-enums-to-varchar.xml,
+         but the type itself was kept for backward compat. youtube_account_status likewise. -->
+    <changeSet id="task10-drop-enum-types" author="task10">
+        <sql>
+            DROP TYPE IF EXISTS youtube_account_status;
+            DROP TYPE IF EXISTS video_type;
+        </sql>
+        <rollback>
+            <sql>
+                CREATE TYPE youtube_account_status AS ENUM ('ACTIVE', 'BLOCKED', 'SUSPENDED', 'RATE_LIMITED');
+                CREATE TYPE video_type AS ENUM ('STANDARD', 'SHORTS', 'LIVE');
+            </sql>
+        </rollback>
+    </changeSet>
+
+    <!-- 5. Drop the youtube_video_id index from `orders`. The column itself stays (don't touch
+         partitioned tables); only the now-unused index is dropped. -->
+    <changeSet id="task10-drop-orders-youtube-index" author="task10">
+        <sql>DROP INDEX IF EXISTS idx_orders_youtube_video_id;</sql>
+        <rollback>
+            <sql>
+                CREATE INDEX IF NOT EXISTS idx_orders_youtube_video_id ON orders(youtube_video_id)
+                    WHERE youtube_video_id IS NOT NULL;
+            </sql>
+        </rollback>
+    </changeSet>
+
+    <!-- 6. Retire the seeded YouTube service rows.
+         Don't DELETE — historical orders FK to services(id) and there's no ON DELETE CASCADE.
+         Just mark them inactive and rename so the admin UI hides them and any /services API
+         call returning active=true rows naturally excludes them. -->
+    <changeSet id="task10-retire-youtube-services" author="task10">
+        <sql>
+            UPDATE services
+               SET active = false,
+                   name = '(retired) ' || name,
+                   category = 'DEPRECATED'
+             WHERE id IN (1, 2, 3)
+               AND category = 'YouTube';
+        </sql>
+        <rollback>
+            <sql>
+                UPDATE services
+                   SET active = true,
+                       name = REPLACE(name, '(retired) ', ''),
+                       category = 'YouTube'
+                 WHERE id IN (1, 2, 3)
+                   AND category = 'DEPRECATED';
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

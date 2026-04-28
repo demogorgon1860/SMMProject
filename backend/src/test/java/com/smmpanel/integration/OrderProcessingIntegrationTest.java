@@ -101,11 +101,6 @@ public class OrderProcessingIntegrationTest {
                         || updatedOrder.getStatus() == OrderStatus.ACTIVE,
                 "Order should be processing or active, was: " + updatedOrder.getStatus());
 
-        // Step 5: Verify YouTube video ID extraction
-        if (updatedOrder.getLink().contains("youtube")) {
-            assertNotNull(updatedOrder.getYoutubeVideoId(), "YouTube video ID should be extracted");
-        }
-
         // Step 6: Verify start count is set
         assertNotNull(updatedOrder.getStartCount(), "Start count should be set");
         assertTrue(updatedOrder.getStartCount() >= 0, "Start count should be non-negative");

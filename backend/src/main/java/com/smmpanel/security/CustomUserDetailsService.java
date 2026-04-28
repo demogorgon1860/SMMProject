@@ -28,6 +28,14 @@ public class CustomUserDetailsService implements UserDetailsService {
                                         new UsernameNotFoundException(
                                                 "User not found: " + normalizedUsername));
 
+        // Soft-deleted accounts must look like "user not found" to every auth path. Returning
+        // a disabled UserDetails would leak the account's prior existence (different error
+        // message vs. a never-registered username) and could confuse downstream filters that
+        // treat 'disabled' as a recoverable state.
+        if (user.isSoftDeleted()) {
+            throw new UsernameNotFoundException("User not found: " + normalizedUsername);
+        }
+
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getUsername())
                 .password(user.getPasswordHash())

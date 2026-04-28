@@ -44,8 +44,7 @@ public class TestDataBuilder {
                 .charge(new BigDecimal("1.50"))
                 .status(OrderStatus.PENDING)
                 .startCount(0)
-                .remains(1000)
-                .coefficient(new BigDecimal("4.0"));
+                .remains(1000);
     }
 
     /** Build a YouTube order with clip creation */
@@ -58,8 +57,7 @@ public class TestDataBuilder {
                 .charge(new BigDecimal("1.50"))
                 .status(OrderStatus.PENDING)
                 .startCount(0)
-                .remains(1000)
-                .coefficient(new BigDecimal("3.0")); // Clip creation coefficient
+                .remains(1000);
     }
 
     /** Build an admin user */
@@ -114,7 +112,6 @@ public class TestDataBuilder {
                 .charge(charge)
                 .status(OrderStatus.PENDING)
                 .startCount(0)
-                .remains(quantity)
-                .coefficient(new BigDecimal("4.0"));
+                .remains(quantity);
     }
 }

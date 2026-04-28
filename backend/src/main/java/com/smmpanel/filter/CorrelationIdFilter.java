@@ -19,6 +19,8 @@ public class CorrelationIdFilter extends HttpFilter {
 
     public static final String CORRELATION_ID_HEADER = "X-Correlation-Id";
     public static final String CORRELATION_ID_MDC_KEY = "correlationId";
+    public static final String REQUEST_URI_MDC_KEY = "requestUri";
+    public static final String REQUEST_METHOD_MDC_KEY = "requestMethod";
 
     @Override
     protected void doFilter(
@@ -28,10 +30,14 @@ public class CorrelationIdFilter extends HttpFilter {
         try {
             String correlationId = getCorrelationIdFromHeader(request);
             MDC.put(CORRELATION_ID_MDC_KEY, correlationId);
+            MDC.put(REQUEST_URI_MDC_KEY, request.getRequestURI());
+            MDC.put(REQUEST_METHOD_MDC_KEY, request.getMethod());
             response.setHeader(CORRELATION_ID_HEADER, correlationId);
             filterChain.doFilter(request, response);
         } finally {
             MDC.remove(CORRELATION_ID_MDC_KEY);
+            MDC.remove(REQUEST_URI_MDC_KEY);
+            MDC.remove(REQUEST_METHOD_MDC_KEY);
         }
     }
 

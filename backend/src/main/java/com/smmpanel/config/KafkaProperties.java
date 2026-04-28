@@ -53,9 +53,6 @@ public class KafkaProperties {
             private int maxInFlightRequestsPerConnection = 5;
             private String springJsonTypeMapping =
                     "order:com.smmpanel.entity.Order,"
-                            + "videoProcessing:com.smmpanel.entity.VideoProcessing,"
-                            + "offerAssignment:com.smmpanel.dto.binom.OfferAssignmentRequest,"
-                            + "offerAssignmentEvent:com.smmpanel.event.OfferAssignmentEvent,"
                             + "notification:java.util.Map,"
                             + "orderStateUpdate:java.util.Map";
         }
@@ -104,9 +101,6 @@ public class KafkaProperties {
                     "com.smmpanel.entity,com.smmpanel.dto,com.smmpanel.event,java.util";
             private String springJsonTypeMapping =
                     "order:com.smmpanel.entity.Order,"
-                            + "videoProcessing:com.smmpanel.entity.VideoProcessing,"
-                            + "offerAssignment:com.smmpanel.dto.binom.OfferAssignmentRequest,"
-                            + "offerAssignmentEvent:com.smmpanel.event.OfferAssignmentEvent,"
                             + "notification:java.util.Map,"
                             + "orderStateUpdate:java.util.Map";
             private boolean springJsonUseTypeHeaders = false;

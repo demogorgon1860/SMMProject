@@ -36,37 +36,27 @@ public class EmailService {
 
     /**
      * Loud startup banner when email is disabled or misconfigured. The previous behavior was a
-     * single {@code log.warn} buried inside the per-send {@code shouldSend()} guard — easy to
-     * miss in {@code docker-compose logs} until a customer reported "registered, never got the
-     * code". This logs once on Spring boot so the operator can see the configuration mistake
-     * immediately on deploy.
+     * single {@code log.warn} buried inside the per-send {@code shouldSend()} guard — easy to miss
+     * in {@code docker-compose logs} until a customer reported "registered, never got the code".
+     * This logs once on Spring boot so the operator can see the configuration mistake immediately
+     * on deploy.
      */
     @jakarta.annotation.PostConstruct
     void announceConfiguration() {
         if (!enabled) {
-            log.warn(
-                    "============================================================");
-            log.warn(
-                    "EMAIL DELIVERY DISABLED — set EMAIL_ENABLED=true and");
-            log.warn(
-                    "RESEND_API_KEY=re_... to send verification / reset / welcome");
-            log.warn(
-                    "emails. Until then, all transactional mail is logged and dropped.");
-            log.warn(
-                    "============================================================");
+            log.warn("============================================================");
+            log.warn("EMAIL DELIVERY DISABLED — set EMAIL_ENABLED=true and");
+            log.warn("RESEND_API_KEY=re_... to send verification / reset / welcome");
+            log.warn("emails. Until then, all transactional mail is logged and dropped.");
+            log.warn("============================================================");
             return;
         }
         if (!resendClient.isConfigured()) {
-            log.error(
-                    "============================================================");
-            log.error(
-                    "EMAIL DELIVERY ENABLED BUT RESEND_API_KEY IS BLANK — every");
-            log.error(
-                    "transactional send will silently no-op. Set RESEND_API_KEY in");
-            log.error(
-                    ".env.docker, or set EMAIL_ENABLED=false to silence this warning.");
-            log.error(
-                    "============================================================");
+            log.error("============================================================");
+            log.error("EMAIL DELIVERY ENABLED BUT RESEND_API_KEY IS BLANK — every");
+            log.error("transactional send will silently no-op. Set RESEND_API_KEY in");
+            log.error(".env.docker, or set EMAIL_ENABLED=false to silence this warning.");
+            log.error("============================================================");
             return;
         }
         log.info(
@@ -124,6 +114,36 @@ public class EmailService {
                                 + " this email.",
                         username, resetUrl);
         sendQuietly(toEmail, subject, html, text);
+    }
+
+    /**
+     * GDPR account-deletion confirmation. Sent best-effort after the soft-delete commits — failure
+     * to deliver MUST NOT block deletion (the user has already been erased from the live system).
+     * Async so the request thread doesn't pay the Resend round-trip.
+     */
+    @Async("asyncExecutor")
+    public void sendAccountDeletionConfirmation(String toEmail, String username) {
+        if (!shouldSend(toEmail)) {
+            log.info("Email disabled: would send account-deletion confirmation to {}", toEmail);
+            return;
+        }
+        String subject = "Your SMMWorld account is scheduled for deletion";
+        String text =
+                String.format(
+                        "Hi %s,%n%n"
+                                + "We received a request to delete your SMMWorld account. Your"
+                                + " personal data will be permanently removed in 30 days.%n%n"
+                                + "If you did NOT make this request, contact us immediately at"
+                                + " compliance@smmworld.vip — we can restore the account inside the"
+                                + " 30-day grace window.%n%n"
+                                + "Order history is retained for 7 years per AML rules, but it will"
+                                + " no longer be linked to your identity.%n%n"
+                                + "— SMMWorld",
+                        username);
+        // No HTML template here — keep the message austere and unmistakable. A flashy template
+        // would feel wrong for a destructive confirmation, and the plain text renders the same
+        // in every client.
+        sendQuietly(toEmail, subject, null, text);
     }
 
     /** One-shot welcome email after a successful verification. */

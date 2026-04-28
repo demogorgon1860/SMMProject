@@ -17,6 +17,8 @@ public interface SupportTicketRepository extends JpaRepository<SupportTicket, Lo
 
     Optional<SupportTicket> findByIdAndUserId(Long id, Long userId);
 
+    long countByUserId(Long userId);
+
     @Query(
             "SELECT t FROM SupportTicket t WHERE (:status IS NULL OR t.status = :status) ORDER BY"
                     + " t.updatedAt DESC")

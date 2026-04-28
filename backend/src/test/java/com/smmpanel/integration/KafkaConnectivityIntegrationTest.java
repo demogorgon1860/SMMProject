@@ -4,9 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.smmpanel.entity.Order;
 import com.smmpanel.entity.OrderStatus;
-import com.smmpanel.event.OfferAssignmentEvent;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -51,11 +49,9 @@ public class KafkaConnectivityIntegrationTest {
 
     private final CountDownLatch orderLatch = new CountDownLatch(1);
     private final CountDownLatch notificationLatch = new CountDownLatch(1);
-    private final CountDownLatch offerAssignmentLatch = new CountDownLatch(1);
 
     private volatile Long receivedOrderId;
     private volatile String receivedNotification;
-    private volatile OfferAssignmentEvent receivedOfferEvent;
 
     @Test
     public void testKafkaConnection() throws Exception {
@@ -124,37 +120,6 @@ public class KafkaConnectivityIntegrationTest {
     }
 
     @Test
-    public void testOfferAssignmentEventPublishAndConsume() throws Exception {
-        log.info("Testing offer assignment event publish and consume...");
-
-        OfferAssignmentEvent event = new OfferAssignmentEvent();
-        event.setEventId(UUID.randomUUID().toString());
-        event.setOrderId(123L);
-        event.setOfferName("Test Offer");
-        event.setTargetUrl("https://example.com/offer");
-        event.setDescription("Test offer assignment");
-        event.setGeoTargeting("US");
-        event.setSource("TEST");
-        event.setTimestamp(LocalDateTime.now());
-
-        CompletableFuture<SendResult<String, Object>> future =
-                kafkaTemplate.send(
-                        "smm.offer-assignment", String.valueOf(event.getOrderId()), event);
-
-        SendResult<String, Object> result = future.get(10, TimeUnit.SECONDS);
-        assertNotNull(result, "Should receive send result");
-        log.info("Successfully published offer assignment event for order: {}", event.getOrderId());
-
-        boolean received = offerAssignmentLatch.await(10, TimeUnit.SECONDS);
-        assertTrue(received, "Should receive offer assignment message");
-        assertNotNull(receivedOfferEvent, "Received offer event should not be null");
-        assertEquals(event.getOrderId(), receivedOfferEvent.getOrderId(), "Order IDs should match");
-        log.info(
-                "Successfully consumed offer assignment event for order: {}",
-                receivedOfferEvent.getOrderId());
-    }
-
-    @Test
     public void testKafkaTransactionalProducer() throws Exception {
         log.info("Testing Kafka transactional producer...");
 
@@ -187,14 +152,5 @@ public class KafkaConnectivityIntegrationTest {
         log.info("Received notification event: {}", record.value());
         receivedNotification = record.value().toString();
         notificationLatch.countDown();
-    }
-
-    @KafkaListener(
-            topics = "smm.offer-assignment",
-            containerFactory = "kafkaListenerContainerFactory")
-    public void handleOfferAssignmentEvent(ConsumerRecord<String, OfferAssignmentEvent> record) {
-        log.info("Received offer assignment event: key={}, value={}", record.key(), record.value());
-        receivedOfferEvent = record.value();
-        offerAssignmentLatch.countDown();
     }
 }

@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      Task 09: persisted application settings.
+
+      Backs the /admin/settings page. Replaces the page's component-level
+      useState defaults (which never made it past the browser) with a real
+      key/value store that drives runtime behavior:
+
+        - platform.fee.min_order_charge          → reject orders below threshold
+        - platform.fee.markup_percent            → multiplier on /v1/services rate
+        - platform.fee.cryptomus_passthrough_pct → deducted from credited amount
+        - rate.orders_per_minute_per_user        → RateLimitService bucket size
+        - rate.api_per_minute_per_user           → RateLimitService bucket size
+        - rate.max_concurrent_orders_per_user    → enforced in createOrder
+        - maintenance.enabled                    → MaintenanceFilter returns 503
+
+      Schema:
+        - key (PK, VARCHAR 100): dotted namespace.identifier
+        - value (TEXT, NOT NULL): stringified value (parsed by valueType)
+        - value_type ('STRING'|'NUMBER'|'BOOLEAN'): drives parsing + UI rendering
+        - updated_at, updated_by_id: audit trail (full history → operator_logs)
+    -->
+    <changeSet id="v2026.04-app-settings-create-table" author="dev">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <not><tableExists tableName="app_settings"/></not>
+        </preConditions>
+        <createTable tableName="app_settings">
+            <column name="key" type="VARCHAR(100)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="value" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="value_type" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(500)"/>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_by_id" type="BIGINT">
+                <constraints foreignKeyName="fk_app_settings_updated_by" references="users(id)"/>
+            </column>
+        </createTable>
+        <sql>
+            ALTER TABLE app_settings
+                ADD CONSTRAINT chk_app_settings_value_type
+                CHECK (value_type IN ('STRING', 'NUMBER', 'BOOLEAN'));
+        </sql>
+        <rollback>
+            <dropTable tableName="app_settings"/>
+        </rollback>
+    </changeSet>
+
+    <!--
+      Seed defaults so the page renders meaningful values on first load
+      and enforcement code has something to read from day one. Fees match
+      the previous hardcoded UI defaults; rate limits match the existing
+      application.yml fallback values so the migration is behaviorally
+      neutral until an admin actually changes something.
+    -->
+    <changeSet id="v2026.04-app-settings-seed-defaults" author="dev">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <sqlCheck expectedResult="0">SELECT COUNT(*) FROM app_settings</sqlCheck>
+        </preConditions>
+        <insert tableName="app_settings">
+            <column name="key" value="platform.fee.min_order_charge"/>
+            <column name="value" value="0.05"/>
+            <column name="value_type" value="NUMBER"/>
+            <column name="description" value="Minimum charge in USD; orders below this are rejected"/>
+        </insert>
+        <insert tableName="app_settings">
+            <column name="key" value="platform.fee.markup_percent"/>
+            <column name="value" value="0"/>
+            <column name="value_type" value="NUMBER"/>
+            <column name="description" value="Markup % applied on top of the stored service rate"/>
+        </insert>
+        <insert tableName="app_settings">
+            <column name="key" value="platform.fee.cryptomus_passthrough_pct"/>
+            <column name="value" value="0"/>
+            <column name="value_type" value="NUMBER"/>
+            <column name="description" value="Cryptomus fee % deducted from credited deposit amount"/>
+        </insert>
+        <insert tableName="app_settings">
+            <column name="key" value="rate.orders_per_minute_per_user"/>
+            <column name="value" value="10"/>
+            <column name="value_type" value="NUMBER"/>
+            <column name="description" value="Max order-creation calls per minute per user"/>
+        </insert>
+        <insert tableName="app_settings">
+            <column name="key" value="rate.api_per_minute_per_user"/>
+            <column name="value" value="60"/>
+            <column name="value_type" value="NUMBER"/>
+            <column name="description" value="Max API requests per minute per user"/>
+        </insert>
+        <insert tableName="app_settings">
+            <column name="key" value="rate.max_concurrent_orders_per_user"/>
+            <column name="value" value="0"/>
+            <column name="value_type" value="NUMBER"/>
+            <column name="description" value="Max in-flight orders per user (0 = unlimited)"/>
+        </insert>
+        <insert tableName="app_settings">
+            <column name="key" value="maintenance.enabled"/>
+            <column name="value" value="false"/>
+            <column name="value_type" value="BOOLEAN"/>
+            <column name="description" value="When true, /api/v1/* returns 503 except for admin-only paths"/>
+        </insert>
+        <rollback>
+            <delete tableName="app_settings"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

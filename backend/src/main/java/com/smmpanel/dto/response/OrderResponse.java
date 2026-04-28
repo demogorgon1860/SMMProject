@@ -26,9 +26,6 @@ public class OrderResponse {
     private Integer startCount;
     private Integer remains;
     private String charge;
-    private String youtubeVideoId;
-    private Integer targetViews;
-    private String targetCountry;
     private String orderId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -55,9 +52,6 @@ public class OrderResponse {
                 .startCount(order.getStartCount())
                 .remains(order.getRemains())
                 .charge(order.getCharge().toString())
-                .youtubeVideoId(order.getYoutubeVideoId())
-                .targetViews(order.getTargetViews())
-                .targetCountry(order.getTargetCountry())
                 .orderId(order.getOrderId())
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
@@ -81,9 +75,6 @@ public class OrderResponse {
                 .startCount(order.getStartCount())
                 .remains(order.getRemains())
                 .charge(order.getCharge().toString())
-                .youtubeVideoId(order.getYoutubeVideoId())
-                .targetViews(order.getTargetViews())
-                .targetCountry(order.getTargetCountry())
                 .orderId(order.getOrderId())
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())

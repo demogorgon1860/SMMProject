@@ -99,4 +99,17 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
             "UPDATE User u SET u.welcomeCreditGrantedAt = :now"
                     + " WHERE u.id = :userId AND u.welcomeCreditGrantedAt IS NULL")
     int markWelcomeCreditGranted(@Param("userId") Long userId, @Param("now") LocalDateTime now);
+
+    /**
+     * Soft-deleted users whose grace window has elapsed — fed to the daily hard-delete cron in
+     * {@code AccountDeletionScheduler}. Returns at most {@code limit} rows so a long-running purge
+     * can't lock a giant batch in one transaction.
+     */
+    @Query(
+            value =
+                    "SELECT * FROM users WHERE deleted_at IS NOT NULL AND deleted_at < :cutoff "
+                            + "ORDER BY deleted_at ASC LIMIT :limit",
+            nativeQuery = true)
+    List<User> findSoftDeletedBefore(
+            @Param("cutoff") LocalDateTime cutoff, @Param("limit") int limit);
 }

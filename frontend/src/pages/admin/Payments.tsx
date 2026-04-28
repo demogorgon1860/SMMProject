@@ -15,6 +15,8 @@ import {
   useToast,
 } from '../../components/ui';
 import { adminAPI } from '../../services/api';
+import { toNum } from '../../lib/utils';
+import { unwrapList } from '../../lib/api';
 
 /**
  * Mirrors the actual /v2/admin/deposits payload (DepositResponse on the backend).
@@ -39,15 +41,6 @@ interface AdminPayment {
   expiresAt?: string | null;
 }
 
-function toNum(v: unknown): number {
-  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
-  if (typeof v === 'string') {
-    const n = Number.parseFloat(v);
-    return Number.isFinite(n) ? n : 0;
-  }
-  return 0;
-}
-
 const PAGE_SIZE = 25;
 
 export function AdminPaymentsPage() {
@@ -65,14 +58,9 @@ export function AdminPaymentsPage() {
       .getAllDeposits(undefined, 0, 200)
       .then((data: unknown) => {
         if (cancelled) return;
-        // /v2/admin/deposits returns { totalPages, pageSize, currentPage, deposits: [...] }.
-        // Accept deposits/content/data envelopes so a future refactor doesn't silently blank
-        // the page (which is what was happening before — admins saw "0 total" with real data).
-        const env = data as { deposits?: unknown[]; content?: unknown[]; data?: unknown[] } | null;
-        const arr = Array.isArray(data)
-          ? (data as unknown[])
-          : env?.deposits ?? env?.content ?? env?.data ?? [];
-        setPayments(arr as AdminPayment[]);
+        // /v2/admin/deposits returns { totalPages, pageSize, currentPage, deposits: [...] };
+        // Spring Page (`content`) and PerfectPanelResponse (`data`) shapes also accepted by unwrapList.
+        setPayments(unwrapList<AdminPayment>(data, ['deposits']));
       })
       .finally(() => !cancelled && setLoading(false));
     return () => {

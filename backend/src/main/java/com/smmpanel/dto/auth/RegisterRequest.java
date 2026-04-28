@@ -26,4 +26,11 @@ public class RegisterRequest {
     @NotBlank(message = "Password is required")
     @Size(min = 8, message = "Password must be at least 8 characters")
     private String password;
+
+    /**
+     * Honeypot. Hidden visually + tab-skipped on the real form, so a human user never types here;
+     * bots fill every field they see and trip the trap. The controller drops any request where this
+     * is non-blank with a fake "success" so the bot moves on.
+     */
+    private String website;
 }

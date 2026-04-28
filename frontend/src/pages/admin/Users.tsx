@@ -19,7 +19,8 @@ import {
 } from '../../components/ui';
 import { adminAPI } from '../../services/api';
 import type { User } from '../../types';
-import { fmtInt } from '../../lib/utils';
+import { fmtInt, toNum } from '../../lib/utils';
+import { unwrapList } from '../../lib/api';
 import { AdjustBalanceModal } from './_modals';
 
 // Mirrors UserAdminDto on the backend. Note `status` ("active" | "suspended") and
@@ -43,15 +44,6 @@ function isUserActive(u: AdminUser): boolean {
   return Boolean((u as unknown as { active?: boolean }).active);
 }
 
-function toNum(v: unknown): number {
-  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
-  if (typeof v === 'string') {
-    const n = Number.parseFloat(v);
-    return Number.isFinite(n) ? n : 0;
-  }
-  return 0;
-}
-
 const PAGE_SIZE = 25;
 
 export function AdminUsersPage() {
@@ -70,14 +62,9 @@ export function AdminUsersPage() {
       .getUsers(0, 200)
       .then((data: unknown) => {
         if (cancelled) return;
-        // AdminController.getUsers returns { users: [...], totalPages, totalElements, ... }.
-        // Accept Spring Page (`content`) and the wrapped (`data`) shape too so the page
-        // survives future envelope changes.
-        const d = data as { users?: AdminUser[]; content?: AdminUser[]; data?: AdminUser[] } | null;
-        const arr: AdminUser[] = Array.isArray(data)
-          ? (data as AdminUser[])
-          : d?.users ?? d?.content ?? d?.data ?? [];
-        setUsers(arr);
+        // AdminController.getUsers returns { users: [...], totalPages, totalElements, ... };
+        // unwrapList also handles Spring Page (`content`) and PerfectPanelResponse (`data`).
+        setUsers(unwrapList<AdminUser>(data, ['users']));
       })
       .finally(() => !cancelled && setLoading(false));
     return () => {
@@ -90,12 +77,7 @@ export function AdminUsersPage() {
       const active = isUserActive(u);
       if (statusFilter === 'active' && !active) return false;
       if (statusFilter === 'suspended' && active) return false;
-      const balanceNum =
-        typeof u.balance === 'number'
-          ? u.balance
-          : typeof u.balance === 'string'
-            ? Number.parseFloat(u.balance) || 0
-            : 0;
+      const balanceNum = toNum(u.balance);
       if (balanceFilter === 'has' && balanceNum <= 0) return false;
       if (balanceFilter === 'zero' && balanceNum > 0) return false;
       if (q.trim()) {
@@ -415,13 +397,9 @@ function Stat({ k, v }: { k: string; v: React.ReactNode }) {
   );
 }
 
-function UserActionsTab({ user, onAdjust }: { user: AdminUser; onAdjust: () => void }) {
-  const toast = useToast();
+function UserActionsTab({ user: _user, onAdjust }: { user: AdminUser; onAdjust: () => void }) {
   const cards: Array<{ icon: 'wallet' | 'shield' | 'lock' | 'user'; title: string; body: string; variant: 'primary' | 'secondary' | 'danger'; onClick: () => void }> = [
     { icon: 'wallet', title: 'Adjust balance', body: 'Credit or debit user wallet. Logged in audit.', variant: 'primary', onClick: onAdjust },
-    { icon: 'lock', title: 'Reset password', body: 'Sends password reset email to user.', variant: 'secondary', onClick: () => toast('Reset email sent.', 'success') },
-    { icon: 'shield', title: isUserActive(user) ? 'Suspend' : 'Unsuspend', body: 'Freezes the account; orders pause.', variant: 'danger', onClick: () => toast('Action saved.', 'success') },
-    { icon: 'user', title: 'Impersonate', body: 'Sign in as this user (read-only marker visible).', variant: 'secondary', onClick: () => toast('Impersonation: Phase 3.', 'info') },
   ];
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

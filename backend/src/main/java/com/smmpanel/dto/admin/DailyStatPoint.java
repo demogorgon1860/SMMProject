@@ -8,8 +8,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * One day's worth of order activity for the dashboard charts. Fields are absent (zero) on days
- * with no orders so the frontend can render a contiguous N-day series without re-bucketing on the
+ * One day's worth of order activity for the dashboard charts. Fields are absent (zero) on days with
+ * no orders so the frontend can render a contiguous N-day series without re-bucketing on the
  * client.
  */
 @Data

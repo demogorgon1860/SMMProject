@@ -27,6 +27,8 @@ public interface RefillRequestRepository extends JpaRepository<RefillRequest, Lo
     /** User's own request history (newest first). */
     List<RefillRequest> findByUserIdOrderByCreatedAtDesc(Long userId);
 
+    long countByUserId(Long userId);
+
     /**
      * Admin queue, optionally filtered by status. {@code null} returns everything (used by the "all
      * decisions" tab).

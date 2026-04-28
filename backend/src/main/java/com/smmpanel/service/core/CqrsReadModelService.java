@@ -250,9 +250,6 @@ public class CqrsReadModelService {
                         .remains(order.getRemains())
                         .charge(order.getCharge())
                         .rate(service.getPricePer1000())
-                        // binomCampaignId removed - using direct campaign connection
-                        .binomOfferId(order.getBinomOfferId())
-                        .youtubeVideoId(order.getYoutubeVideoId())
                         .createdAt(order.getCreatedAt())
                         .updatedAt(order.getUpdatedAt())
                         .build();

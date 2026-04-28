@@ -124,11 +124,6 @@ public class ControllerQueryOptimizationTest {
         String username = fetchedOrder.getUser().getUsername();
         String serviceName = fetchedOrder.getService().getName();
 
-        // Access collections if they exist
-        if (fetchedOrder.getVideoProcessing() != null) {
-            fetchedOrder.getVideoProcessing().getStatus();
-        }
-
         long finalQueryCount = statistics.getQueryExecutionCount();
 
         // Then: Verify single query was used

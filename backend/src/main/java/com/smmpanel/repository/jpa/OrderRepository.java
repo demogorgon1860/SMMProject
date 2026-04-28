@@ -41,6 +41,20 @@ public interface OrderRepository
             @Param("user") User user, @Param("status") OrderStatus status, Pageable pageable);
 
     /**
+     * Find orders by user and a set of statuses (for filter coalescing). Used by the user-facing
+     * Orders page when the "In progress" filter must match BOTH {@code IN_PROGRESS} and {@code
+     * PROCESSING} (we hide PROCESSING from the UI; an order in PROCESSING must still appear when
+     * the operator clicks "In progress").
+     */
+    @Query(
+            "SELECT o FROM Order o JOIN FETCH o.user JOIN FETCH o.service "
+                    + "WHERE o.user = :user AND o.status IN :statuses")
+    Page<Order> findByUserAndStatusIn(
+            @Param("user") User user,
+            @Param("statuses") java.util.Collection<OrderStatus> statuses,
+            Pageable pageable);
+
+    /**
      * Find single order by ID and user with related entities PREVENTS N+1: Fetches user and service
      * in single query
      */
@@ -165,10 +179,10 @@ public interface OrderRepository
     List<Object[]> getDailyRevenue(@Param("startDate") LocalDateTime startDate);
 
     /**
-     * Per-day breakdown for the admin dashboard charts. Returns one row per
-     * (day, status) tuple so the frontend can render stacked bars (completed /
-     * partial / cancelled) and a profit line without inventing data via Math.sin.
-     * Cheaper than fetching every order: a single GROUP BY on indexed (created_at, status).
+     * Per-day breakdown for the admin dashboard charts. Returns one row per (day, status) tuple so
+     * the frontend can render stacked bars (completed / partial / cancelled) and a profit line
+     * without inventing data via Math.sin. Cheaper than fetching every order: a single GROUP BY on
+     * indexed (created_at, status).
      */
     @Query(
             "SELECT DATE(o.createdAt) as date, o.status as status,"
@@ -179,9 +193,8 @@ public interface OrderRepository
     List<Object[]> getDailyOrderBreakdown(@Param("startDate") LocalDateTime startDate);
 
     /**
-     * Per-day stats for a single user (the wallet-card sparkline + dashboard
-     * KPI deltas on /dashboard). Same shape as getDailyOrderBreakdown but
-     * scoped to one userId.
+     * Per-day stats for a single user (the wallet-card sparkline + dashboard KPI deltas on
+     * /dashboard). Same shape as getDailyOrderBreakdown but scoped to one userId.
      */
     @Query(
             "SELECT DATE(o.createdAt) as date, o.status as status,"
@@ -269,6 +282,17 @@ public interface OrderRepository
     Long countByUser_Username(String username);
 
     Long countByUser_UsernameAndStatus(String username, OrderStatus status);
+
+    @Query(
+            "SELECT MIN(o.createdAt), MAX(o.createdAt) FROM Order o WHERE o.user.username ="
+                    + " :username")
+    Object[] firstAndLastOrderAtForUsername(@Param("username") String username);
+
+    @Query(
+            "SELECT COALESCE(SUM(o.charge), 0) FROM Order o WHERE o.user.username = :username AND"
+                    + " o.status IN :statuses")
+    BigDecimal sumChargeByUsernameAndStatuses(
+            @Param("username") String username, @Param("statuses") List<OrderStatus> statuses);
 
     @Query("SELECT COALESCE(SUM(o.charge), 0) FROM Order o WHERE o.user.username = :username")
     BigDecimal sumChargeByUser_Username(@Param("username") String username);
@@ -396,20 +420,6 @@ public interface OrderRepository
                     + "(o.retryCount >= o.maxRetries AND o.status = 'HOLDING') "
                     + "ORDER BY o.updatedAt DESC")
     Page<Order> findOrdersForManualReview(Pageable pageable);
-
-    // Removed findByStatusInAndBinomCampaignIdNotNull - using binomOfferId instead
-
-    /**
-     * Find orders by status with Binom offer ID set - for direct campaign connection OPTIMIZED:
-     * JOIN FETCH video_processing to prevent N+1 queries in BinomSyncScheduler Schema analysis
-     * showed 767,674 sequential scans before index - now uses JOIN for efficiency
-     */
-    @Query(
-            "SELECT DISTINCT o FROM Order o "
-                    + "LEFT JOIN FETCH o.videoProcessing vp "
-                    + "WHERE o.status IN :statuses "
-                    + "AND o.binomOfferId IS NOT NULL")
-    List<Order> findByStatusInAndBinomOfferIdNotNull(@Param("statuses") List<OrderStatus> statuses);
 
     /**
      * OPTIMIZED QUERY WITH INDEX HINT: Find orders using status index Forces use of
@@ -545,6 +555,37 @@ public interface OrderRepository
             @Param("searchLink") String searchLink,
             Pageable pageable);
 
+    /**
+     * Admin search variant that accepts a SET of statuses instead of a single one. Powers the "In
+     * progress" filter chip which (per the UI hide of PROCESSING) must match orders in either
+     * {@code IN_PROGRESS} or {@code PROCESSING}.
+     */
+    @Query(
+            value =
+                    "SELECT o FROM Order o JOIN FETCH o.user u JOIN FETCH o.service s WHERE"
+                        + " (:statuses IS NULL OR o.status IN :statuses) AND (CAST(:fromDate AS"
+                        + " string) IS NULL OR o.createdAt >= :fromDate) AND (CAST(:toDate AS"
+                        + " string) IS NULL OR o.createdAt <= :toDate) AND (:searchId IS NULL OR"
+                        + " o.id = :searchId) AND (:searchUsername IS NULL OR LOWER(u.username)"
+                        + " LIKE :searchUsername) AND (:searchLink IS NULL OR LOWER(o.link) LIKE"
+                        + " :searchLink)",
+            countQuery =
+                    "SELECT COUNT(o) FROM Order o JOIN o.user u WHERE (:statuses IS NULL OR"
+                        + " o.status IN :statuses) AND (CAST(:fromDate AS string) IS NULL OR"
+                        + " o.createdAt >= :fromDate) AND (CAST(:toDate AS string) IS NULL OR"
+                        + " o.createdAt <= :toDate) AND (:searchId IS NULL OR o.id = :searchId) AND"
+                        + " (:searchUsername IS NULL OR LOWER(o.user.username) LIKE"
+                        + " :searchUsername) AND (:searchLink IS NULL OR LOWER(o.link) LIKE"
+                        + " :searchLink)")
+    Page<Order> adminSearchInStatuses(
+            @Param("statuses") java.util.Collection<OrderStatus> statuses,
+            @Param("fromDate") LocalDateTime fromDate,
+            @Param("toDate") LocalDateTime toDate,
+            @Param("searchId") Long searchId,
+            @Param("searchUsername") String searchUsername,
+            @Param("searchLink") String searchLink,
+            Pageable pageable);
+
     // ==================== REFILL OPERATIONS ====================
 
     /**
@@ -576,4 +617,12 @@ public interface OrderRepository
      */
     @Query("SELECT COALESCE(MAX(o.userOrderNumber), 0) FROM Order o WHERE o.user.id = :userId")
     Integer findMaxUserOrderNumberByUserId(@Param("userId") Long userId);
+
+    /**
+     * Count of this user's orders that are still "in flight" — used as a hard guard before account
+     * deletion. The user has to cancel or wait for these to finish before erasure can proceed.
+     */
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.user.id = :userId AND o.status IN :statuses")
+    long countByUserIdAndStatusIn(
+            @Param("userId") Long userId, @Param("statuses") List<OrderStatus> statuses);
 }

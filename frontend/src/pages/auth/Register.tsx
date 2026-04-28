@@ -30,6 +30,10 @@ export function RegisterPage() {
   const [showPwd, setShowPwd] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Honeypot. Hidden from real users (off-screen, tab-skipped, autocomplete off); naive bots
+  // fill every visible-by-DOM field and trip it. Backend AuthController.register quietly drops
+  // any registration where this is non-blank — bot sees a 200 and moves on.
+  const [website, setWebsite] = useState('');
 
   const strength = useMemo(() => passwordScore(password), [password]);
   const valid =
@@ -46,7 +50,7 @@ export function RegisterPage() {
       return;
     }
     try {
-      await register(username.trim(), email.trim(), password);
+      await register(username.trim(), email.trim(), password, website);
       const trimmed = email.trim();
       // Stash so /verify-email survives a page refresh — router state alone is
       // wiped by F5, leaving the verify form with no way to resend the code.
@@ -78,6 +82,23 @@ export function RegisterPage() {
       </p>
 
       <form className="mt-8" onSubmit={submit} noValidate>
+        {/* Honeypot — hidden from real users (off-screen + tab-skipped + autocomplete off).
+            Bots crawl every input and submit; the backend silently drops requests with this
+            field set. Do NOT replace `display:none`-only with hidden=true: some bots skip
+            display:none fields, defeating the trap. */}
+        <div aria-hidden="true" style={{ position: 'absolute', left: '-9999px', top: 'auto', width: 1, height: 1, overflow: 'hidden' }}>
+          <label htmlFor="website">Website (leave blank)</label>
+          <input
+            id="website"
+            type="text"
+            name="website"
+            tabIndex={-1}
+            autoComplete="off"
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+          />
+        </div>
+
         <Field label="Username" hint="3+ characters, letters/digits/_">
           <Input
             block

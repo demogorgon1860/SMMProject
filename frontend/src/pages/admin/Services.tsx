@@ -18,6 +18,7 @@ import {
 import { serviceAPI } from '../../services/api';
 import type { Service } from '../../types';
 import { cn, fmtInt, fmtMoney } from '../../lib/utils';
+import { unwrapList } from '../../lib/api';
 
 export function AdminServicesPage() {
   const [services, setServices] = useState<Service[]>([]);
@@ -34,12 +35,9 @@ export function AdminServicesPage() {
       .list()
       .then((data: unknown) => {
         if (cancelled) return;
-        // /api/v1/service/services returns { success: true, data: [...] } (PerfectPanelResponse).
-        // Accept Spring Page (`content`), admin-controller (`orders`-style with key `services`),
-        // and the wrapped `data` shape so the page survives future envelope changes.
-        const d = data as { data?: Service[]; content?: Service[]; services?: Service[] } | null;
-        const arr: Service[] = Array.isArray(data) ? (data as Service[]) : d?.data ?? d?.content ?? d?.services ?? [];
-        setServices(arr);
+        // /api/v1/service/services returns { success: true, data: [...] } (PerfectPanelResponse);
+        // some admin paths return { services: [...] } or a Spring Page. unwrapList covers all.
+        setServices(unwrapList<Service>(data, ['services']));
       })
       .finally(() => !cancelled && setLoading(false));
     return () => {

@@ -83,6 +83,7 @@ function PublicNav({ variant }: { variant: 'light' | 'dark' }) {
             >
               Sign in
             </Link>
+            {/* TEMP: registration closed — restore by uncommenting
             <Link
               to="/register"
               className="inline-flex h-[34px] items-center gap-1 rounded-md bg-accent px-3 text-[13px] font-semibold text-white hover:brightness-110"
@@ -90,6 +91,7 @@ function PublicNav({ variant }: { variant: 'light' | 'dark' }) {
               Get started
               <Icon name="arrow-right" size={13} />
             </Link>
+            */}
           </>
         )}
       </div>

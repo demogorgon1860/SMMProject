@@ -34,11 +34,17 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
+        // Stable chunk names so lazy admin/public chunks are recognizable in
+        // the dist/assets/ output (e.g. admin-Dashboard-XXXXXX.js).
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash][extname]',
+        // Group React + router into a stable vendor chunk shared across all
+        // routes. Page modules are intentionally NOT grouped here so
+        // React.lazy() produces one chunk per route — visitors only download
+        // the code they navigate to.
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
-          charts: ['recharts'],
-          forms: ['react-hook-form', '@hookform/resolvers', 'zod'],
-          ui: ['framer-motion', 'lucide-react', 'react-hot-toast'],
         },
       },
     },

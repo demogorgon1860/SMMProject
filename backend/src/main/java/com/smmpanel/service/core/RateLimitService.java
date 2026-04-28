@@ -2,6 +2,7 @@ package com.smmpanel.service.core;
 
 import com.smmpanel.entity.User;
 import com.smmpanel.exception.RateLimitExceededException;
+import com.smmpanel.service.settings.AppSettingsService;
 import com.smmpanel.service.user.UserService;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
@@ -9,9 +10,7 @@ import io.github.bucket4j.BucketConfiguration;
 import io.github.bucket4j.redis.lettuce.cas.LettuceBasedProxyManager;
 import io.lettuce.core.RedisClient;
 import java.time.Duration;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,21 +32,19 @@ public class RateLimitService {
 
     private final RedisClient redisClient;
     private final LettuceBasedProxyManager<byte[]> lettuceBasedProxyManager;
+    private final AppSettingsService appSettingsService;
 
     @Autowired @Lazy // Add this to break circular dependency
     private UserService userService;
 
-    // Cache bucket configurations to avoid recreation
-    private final Map<String, BucketConfiguration> configCache = new ConcurrentHashMap<>();
-
-    @Value("${app.rate-limit.orders.per-minute:10}")
-    private int ordersPerMinute;
+    // Bucket configurations are NOT cached — they read from AppSettingsService each time so a
+    // change at /admin/settings takes effect on the next request (within the 60s settings cache
+    // TTL). Bucket4j buckets themselves still live in Redis keyed by user/operation, so the
+    // existing token state is preserved across config changes; only the *capacity*/*refill*
+    // values change.
 
     @Value("${app.rate-limit.orders.per-hour:100}")
     private int ordersPerHour;
-
-    @Value("${app.rate-limit.api.per-minute:60}")
-    private int apiCallsPerMinute;
 
     @Value("${app.rate-limit.api.per-hour:1000}")
     private int apiCallsPerHour;
@@ -55,8 +52,27 @@ public class RateLimitService {
     @Value("${app.rate-limit.auth.per-minute:5}")
     private int authAttemptsPerMinute;
 
+    /**
+     * Per-IP registration limit. Registration is the highest-value abuse vector (auto-creates
+     * accounts that may carry welcome credit + use the panel's outbound email), so it gets a much
+     * stricter bucket than login. Default 3/hour matches typical anti-bot heuristics; admin can
+     * relax via {@code REGISTER_RATE_LIMIT_PER_HOUR} on prod.
+     */
+    @Value("${app.rate-limit.register.per-hour:3}")
+    private int registrationsPerHour;
+
     @Value("${app.rate-limit.enabled:true}")
     private boolean rateLimitEnabled;
+
+    /** Per-minute order rate limit, settings-driven with property fallback. */
+    private int ordersPerMinute() {
+        return appSettingsService.getInt(AppSettingsService.KEY_ORDERS_PER_MINUTE, 10);
+    }
+
+    /** Per-minute API rate limit, settings-driven with property fallback. */
+    private int apiCallsPerMinute() {
+        return appSettingsService.getInt(AppSettingsService.KEY_API_PER_MINUTE, 60);
+    }
 
     /** Check rate limit for a specific operation */
     public void checkRateLimit(String userId, String operation) {
@@ -77,8 +93,8 @@ public class RateLimitService {
             log.debug("Non-numeric userId {}, applying rate limits", userId);
         }
 
-        String bucketKey = generateBucketKey(userId, operation);
         BucketConfiguration config = getConfigurationForOperation(operation);
+        String bucketKey = generateBucketKey(userId, operation, config);
 
         Bucket bucket =
                 lettuceBasedProxyManager.builder().build(bucketKey.getBytes(), () -> config);
@@ -113,8 +129,8 @@ public class RateLimitService {
             log.debug("Non-numeric userId {}, applying rate limits", userId);
         }
 
-        String bucketKey = generateBucketKey(userId, operation);
         BucketConfiguration config = getConfigurationForOperation(operation);
+        String bucketKey = generateBucketKey(userId, operation, config);
 
         Bucket bucket =
                 lettuceBasedProxyManager.builder().build(bucketKey.getBytes(), () -> config);
@@ -139,8 +155,8 @@ public class RateLimitService {
             return RateLimitStatus.unlimited();
         }
 
-        String bucketKey = generateBucketKey(userId, operation);
         BucketConfiguration config = getConfigurationForOperation(operation);
+        String bucketKey = generateBucketKey(userId, operation, config);
 
         Bucket bucket =
                 lettuceBasedProxyManager.builder().build(bucketKey.getBytes(), () -> config);
@@ -158,7 +174,8 @@ public class RateLimitService {
 
     /** Reset rate limit for a user (admin operation) */
     public void resetRateLimit(String userId, String operation) {
-        String bucketKey = generateBucketKey(userId, operation);
+        BucketConfiguration config = getConfigurationForOperation(operation);
+        String bucketKey = generateBucketKey(userId, operation, config);
 
         // Remove the bucket to reset it
         try {
@@ -175,43 +192,52 @@ public class RateLimitService {
 
     // Private helper methods
 
-    private String generateBucketKey(String userId, String operation) {
-        return String.format("rate_limit:%s:%s", operation, userId);
+    /**
+     * Bucket4j stores the bucket's configuration in Redis on first access; later calls with a
+     * different config object are ignored. To make settings-driven limits propagate without waiting
+     * for a manual reset, we embed the per-minute capacity in the bucket key — when the setting
+     * changes, the next request resolves to a new key and a fresh bucket. The old bucket's tokens
+     * are abandoned (acceptable: settings changes are admin actions, rare).
+     */
+    private String generateBucketKey(String userId, String operation, BucketConfiguration config) {
+        long minuteCapacity =
+                config.getBandwidths().length > 0 ? config.getBandwidths()[0].getCapacity() : 0L;
+        return String.format("rate_limit:%s:v%d:%s", operation, minuteCapacity, userId);
     }
 
     private BucketConfiguration getConfigurationForOperation(String operation) {
-        return configCache.computeIfAbsent(operation, this::createConfigurationForOperation);
-    }
-
-    private BucketConfiguration createConfigurationForOperation(String operation) {
         return switch (operation.toLowerCase()) {
-            case "create_order" ->
-                    BucketConfiguration.builder()
-                            .addLimit(
-                                    Bandwidth.builder()
-                                            .capacity(ordersPerMinute)
-                                            .refillGreedy(ordersPerMinute, Duration.ofMinutes(1))
-                                            .build())
-                            .addLimit(
-                                    Bandwidth.builder()
-                                            .capacity(ordersPerHour)
-                                            .refillGreedy(ordersPerHour, Duration.ofHours(1))
-                                            .build())
-                            .build();
+            case "create_order" -> {
+                int perMin = Math.max(1, ordersPerMinute());
+                yield BucketConfiguration.builder()
+                        .addLimit(
+                                Bandwidth.builder()
+                                        .capacity(perMin)
+                                        .refillGreedy(perMin, Duration.ofMinutes(1))
+                                        .build())
+                        .addLimit(
+                                Bandwidth.builder()
+                                        .capacity(ordersPerHour)
+                                        .refillGreedy(ordersPerHour, Duration.ofHours(1))
+                                        .build())
+                        .build();
+            }
 
-            case "api_call" ->
-                    BucketConfiguration.builder()
-                            .addLimit(
-                                    Bandwidth.builder()
-                                            .capacity(apiCallsPerMinute)
-                                            .refillGreedy(apiCallsPerMinute, Duration.ofMinutes(1))
-                                            .build())
-                            .addLimit(
-                                    Bandwidth.builder()
-                                            .capacity(apiCallsPerHour)
-                                            .refillGreedy(apiCallsPerHour, Duration.ofHours(1))
-                                            .build())
-                            .build();
+            case "api_call" -> {
+                int perMin = Math.max(1, apiCallsPerMinute());
+                yield BucketConfiguration.builder()
+                        .addLimit(
+                                Bandwidth.builder()
+                                        .capacity(perMin)
+                                        .refillGreedy(perMin, Duration.ofMinutes(1))
+                                        .build())
+                        .addLimit(
+                                Bandwidth.builder()
+                                        .capacity(apiCallsPerHour)
+                                        .refillGreedy(apiCallsPerHour, Duration.ofHours(1))
+                                        .build())
+                        .build();
+            }
 
             case "auth_attempt", "login" ->
                     BucketConfiguration.builder()
@@ -228,6 +254,20 @@ public class RateLimitService {
                                                     authAttemptsPerMinute * 5, Duration.ofHours(1))
                                             .build())
                             .build();
+
+            case "register" -> {
+                // Single per-hour bucket. No per-minute layer — 3 attempts in an hour is the
+                // operative limit and a tighter per-minute one wouldn't change the security
+                // posture (a botnet sending one register per minute still hits 3/hour quickly).
+                int perHour = Math.max(1, registrationsPerHour);
+                yield BucketConfiguration.builder()
+                        .addLimit(
+                                Bandwidth.builder()
+                                        .capacity(perHour)
+                                        .refillGreedy(perHour, Duration.ofHours(1))
+                                        .build())
+                        .build();
+            }
 
             case "password_reset" ->
                     BucketConfiguration.builder()

@@ -271,6 +271,21 @@ public class RedisConfig implements CachingConfigurer {
         return template;
     }
 
+    /**
+     * Redis pub/sub container — required for the admin Bot page's live webhook tail (see {@code
+     * BotWebhookSseBroadcaster}). Spring Boot does not auto-configure this when only {@code
+     * spring-boot-starter-data-redis} is on the classpath, so we declare it explicitly. Reuses the
+     * same {@link RedisConnectionFactory} as the templates.
+     */
+    @Bean
+    public org.springframework.data.redis.listener.RedisMessageListenerContainer
+            redisMessageListenerContainer(RedisConnectionFactory connectionFactory) {
+        org.springframework.data.redis.listener.RedisMessageListenerContainer container =
+                new org.springframework.data.redis.listener.RedisMessageListenerContainer();
+        container.setConnectionFactory(connectionFactory);
+        return container;
+    }
+
     /** Cache Manager with comprehensive cache configurations */
     @Bean
     @Primary
@@ -325,33 +340,29 @@ public class RedisConfig implements CachingConfigurer {
         cacheConfigurations.put("balance", defaultConfig.entryTtl(Duration.ofMinutes(5)));
         cacheConfigurations.put("user-balances", defaultConfig.entryTtl(Duration.ofMinutes(5)));
 
-        // YouTube-related caches
-        cacheConfigurations.put("youtube-views", defaultConfig.entryTtl(Duration.ofMinutes(5)));
-        cacheConfigurations.put("youtube-stats", defaultConfig.entryTtl(Duration.ofMinutes(5)));
-        cacheConfigurations.put("youtube-accounts", defaultConfig.entryTtl(Duration.ofMinutes(15)));
-
-        // Order and campaign caches
-        cacheConfigurations.put("start_count", defaultConfig.entryTtl(Duration.ofDays(30)));
-        cacheConfigurations.put("assignedCampaigns", defaultConfig.entryTtl(Duration.ofHours(2)));
-
-        // Binom-related caches with cached API approach
-        cacheConfigurations.put("binomCampaigns", defaultConfig.entryTtl(Duration.ofMinutes(5)));
-        cacheConfigurations.put("binomOffers", defaultConfig.entryTtl(Duration.ofMinutes(5)));
-        cacheConfigurations.put("binomStats", defaultConfig.entryTtl(Duration.ofMinutes(1)));
-        cacheConfigurations.put("binomLandings", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+        // Profile → Account "Lifetime stats" tile. Eventual consistency is fine here — orders
+        // typically aren't placed in tight bursts, and a 60s lag on the stats card is invisible
+        // next to the cost of cache-evicting on every order/refund/refill in the system.
         cacheConfigurations.put(
-                "binomTrafficSources", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+                "user-lifetime-stats", defaultConfig.entryTtl(Duration.ofSeconds(60)));
 
-        // YouTube clip URLs for Binom offers
-        cacheConfigurations.put("clipUrls", defaultConfig.entryTtl(Duration.ofDays(7)));
-        cacheConfigurations.put("clipUrlsByOffer", defaultConfig.entryTtl(Duration.ofDays(7)));
-        cacheConfigurations.put("clipUrlQueue", defaultConfig.entryTtl(Duration.ofDays(7)));
+        // /admin/settings — short TTL so updates propagate across instances quickly even if
+        // a cache evict missed a node, but long enough that the rate-limit / min-charge /
+        // maintenance hot paths don't hit Postgres on every request.
+        cacheConfigurations.put("app-settings", defaultConfig.entryTtl(Duration.ofSeconds(60)));
 
-        // Legacy cache names for backward compatibility
-        cacheConfigurations.put("binom-campaigns", defaultConfig.entryTtl(Duration.ofMinutes(30)));
-        cacheConfigurations.put("binom-offers", defaultConfig.entryTtl(Duration.ofHours(1)));
-        cacheConfigurations.put("binom-statistics", defaultConfig.entryTtl(Duration.ofMinutes(5)));
-        cacheConfigurations.put("binom-landing-pages", defaultConfig.entryTtl(Duration.ofHours(2)));
+        // Admin Dashboard KPI tile (/v2/admin/dashboard). The page auto-refreshes every 10s,
+        // so without caching every admin tab fans out into ~10 count/sum queries against the
+        // partitioned orders table per visit. 30s TTL keeps the visible numbers fresh enough
+        // that "I just ran a refund and the count didn't move" feels like a non-issue while
+        // collapsing concurrent admin loads to one DB round-trip per half-minute.
+        cacheConfigurations.put("dashboard-stats", defaultConfig.entryTtl(Duration.ofSeconds(30)));
+
+        // Admin Dashboard daily charts (/v2/admin/stats/daily?days=N). Same auto-refresh
+        // dynamic. Keyed by `days` so the 7-day and 30-day views don't share an entry. 30s
+        // matches dashboard-stats above so the two tiles drift together rather than
+        // independently.
+        cacheConfigurations.put("daily-stats", defaultConfig.entryTtl(Duration.ofSeconds(30)));
 
         log.info(
                 "Initializing Redis Cache Manager with {} cache configurations",

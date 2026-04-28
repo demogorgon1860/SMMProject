@@ -64,6 +64,13 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         if (StringUtils.isNotBlank(apiKey)) {
             try {
                 authenticateWithApiKey(request, apiKey);
+            } catch (ApiKeyPausedException e) {
+                // 403 (not 401) — the key is valid; the *owner* has disabled it. Returning 401
+                // would tell an integration "rotate your key" when the actual remedy is "ask
+                // the account owner to resume".
+                log.info("Rejecting request to {} — owner paused API key", request.getRequestURI());
+                response.sendError(HttpServletResponse.SC_FORBIDDEN, "API key paused by owner");
+                return;
             } catch (Exception e) {
                 log.error("API key authentication failed for request: {}", request.getRequestURI());
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication failed");
@@ -72,6 +79,15 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Sentinel for the controller-style 403 path; intentionally not a {@link SecurityException}.
+     */
+    private static final class ApiKeyPausedException extends RuntimeException {
+        ApiKeyPausedException(String msg) {
+            super(msg);
+        }
     }
 
     private void authenticateWithApiKey(HttpServletRequest request, String apiKey) {
@@ -103,6 +119,30 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             stopWatch.stop();
 
             if (authenticatedUser != null) {
+                // Soft-deleted accounts: the anonymizer clears api_key_hash, but defend in depth
+                // — if anything ever short-circuits the clear, the deletion flag must still
+                // hard-block authentication.
+                if (authenticatedUser.isSoftDeleted()) {
+                    log.warn(
+                            "API key request from soft-deleted user {} — rejecting",
+                            authenticatedUser.getId());
+                    throw new SecurityException("Account no longer exists");
+                }
+
+                // Self-service pause: the user flipped api_key_paused_at from Profile → Danger
+                // Zone. The web app (Bearer JWT) is unaffected, but every X-API-Key request
+                // must come back as a hard 403. We deliberately reject after authentication
+                // succeeds so the response distinguishes "valid key but paused" from "wrong
+                // key" — the user paused on purpose, they should see why their requests fail.
+                if (authenticatedUser.getApiKeyPausedAt() != null) {
+                    log.info(
+                            "API key for user {} is paused since {} — rejecting request to {}",
+                            authenticatedUser.getUsername(),
+                            authenticatedUser.getApiKeyPausedAt(),
+                            request.getRequestURI());
+                    throw new ApiKeyPausedException("API key is paused by the owner");
+                }
+
                 List<SimpleGrantedAuthority> authorities =
                         List.of(
                                 new SimpleGrantedAuthority(
@@ -140,6 +180,12 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                         stopWatch.getLastTaskTimeMillis());
                 throw new SecurityException("Invalid API key");
             }
+        } catch (ApiKeyPausedException e) {
+            // Rethrow as-is so the outer filter catch maps it to 403 (not 401). Without this
+            // explicit rethrow the generic catch below would swallow it as
+            // "Authentication failed" and return 401 — which would mislead an integration into
+            // rotating a perfectly valid key.
+            throw e;
         } catch (DataAccessException e) {
             log.error(
                     "Database connection error during API key authentication: {}", e.getMessage());

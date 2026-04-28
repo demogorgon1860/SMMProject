@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Logback configuration for SMM Panel.
+
+  Two console encodings, profile-switched:
+
+    * dev / default / stage  → Spring Boot's pretty text console (easy to read locally)
+    * prod / production      → Logstash JSON encoder (every line is one JSON object,
+                               grep-able + ready to ship to Loki / Grafana / ELK)
+
+  In addition to the console + rolling file appender, we add:
+
+    REDIS  →  com.smmpanel.monitoring.LogbackRedisAppender
+
+  REDIS pushes every event to a Redis LIST + pub/sub channel that powers the
+  /admin/system Logs and Errors tabs. The appender buffers internally and never
+  blocks the request thread — see its Javadoc.
+
+  Wrapping in ASYNC keeps the offer() into our internal queue off the request
+  thread even when Logback's filter chain is contended.
+
+  LOG_FILE resolution mirrors Spring Boot base.xml: env LOG_FILE > LOG_PATH +
+  default name > java.io.tmpdir/spring.log.  application.yml's
+  `logging.file.name` is honored too because Spring Boot maps it to LOG_FILE
+  before we read it here.
+-->
+<configuration scan="false">
+
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <property name="LOG_FILE"
+              value="${LOG_FILE:-${LOG_PATH:-${LOG_TEMP:-${java.io.tmpdir:-/tmp}}}/spring.log}"/>
+
+    <!-- ============================================================
+         CONSOLE appender — pretty for dev, JSON for prod.
+         Both branches MUST register an appender named "CONSOLE" so the
+         <root> ref below resolves regardless of active profile.
+         ============================================================ -->
+
+    <springProfile name="!prod &amp; !production">
+        <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+    </springProfile>
+
+    <springProfile name="prod, production">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <!-- MDC keys propagated by CorrelationIdFilter / per-request enrichers.
+                     Each appears as a top-level field in the JSON object. -->
+                <includeMdcKeyName>correlationId</includeMdcKeyName>
+                <includeMdcKeyName>userId</includeMdcKeyName>
+                <includeMdcKeyName>username</includeMdcKeyName>
+                <includeMdcKeyName>requestUri</includeMdcKeyName>
+                <includeMdcKeyName>requestMethod</includeMdcKeyName>
+                <includeMdcKeyName>orderId</includeMdcKeyName>
+                <customFields>{"app":"smm-panel"}</customFields>
+                <fieldNames>
+                    <timestamp>@timestamp</timestamp>
+                    <message>message</message>
+                    <thread>thread</thread>
+                    <logger>logger</logger>
+                    <level>level</level>
+                    <levelValue>[ignore]</levelValue>
+                </fieldNames>
+            </encoder>
+        </appender>
+    </springProfile>
+
+    <include resource="org/springframework/boot/logging/logback/file-appender.xml"/>
+
+    <!-- Custom appender — internal drain thread + bounded buffer + Spring-injected sink. -->
+    <appender name="REDIS" class="com.smmpanel.monitoring.LogbackRedisAppender"/>
+
+    <!-- ASYNC wrapper. neverBlock=true so a backed-up appender never stalls a logging caller;
+         events are dropped at the AsyncAppender boundary instead. -->
+    <appender name="REDIS_ASYNC" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="REDIS"/>
+        <queueSize>2048</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <neverBlock>true</neverBlock>
+        <includeCallerData>false</includeCallerData>
+    </appender>
+
+    <!-- Pin Logback's own status logger to CONSOLE only — addError() from inside REDIS must
+         never feed back through REDIS_ASYNC and re-fail. -->
+    <logger name="ch.qos.logback" level="WARN" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- App-level loggers. Spring Boot's `logging.level.*` properties are still applied on top
+         of this via LevelChangePropagator-equivalent logic Boot installs. -->
+    <springProperty scope="context" name="LOG_LEVEL_APP"
+                    source="logging.level.com.smmpanel" defaultValue="DEBUG"/>
+    <logger name="com.smmpanel" level="${LOG_LEVEL_APP}"/>
+
+    <springProperty scope="context" name="LOG_LEVEL_ROOT"
+                    source="logging.level.root" defaultValue="INFO"/>
+    <root level="${LOG_LEVEL_ROOT}">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="REDIS_ASYNC"/>
+    </root>
+
+</configuration>

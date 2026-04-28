@@ -138,6 +138,24 @@ public class User implements UserDetails {
     @Builder.Default
     private Boolean apiKeyActive = false;
 
+    /**
+     * Non-null while the user has paused their API key from Profile → Danger Zone. The {@code
+     * ApiKeyAuthenticationFilter} treats a paused key as not-authenticated and returns 403. Web-app
+     * sessions (Bearer JWT) are unaffected.
+     */
+    @Column(name = "api_key_paused_at")
+    private LocalDateTime apiKeyPausedAt;
+
+    /**
+     * GDPR soft-delete marker. Non-null = the owner asked to delete the account; identity columns
+     * (email, username, password_hash, api_key_*) have already been anonymized by {@code
+     * AccountDeletionService}. The row is hard-deleted by a daily cron 30 days after this
+     * timestamp. Authentication paths (login, JWT, API key) MUST treat any user with {@code
+     * deletedAt != null} as if the account no longer exists.
+     */
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
     @Column(name = "total_spent", precision = 12, scale = 2)
     @Builder.Default
     private BigDecimal totalSpent = BigDecimal.ZERO;
@@ -233,7 +251,15 @@ public class User implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return isActive && emailVerified;
+        // Soft-deleted accounts are treated as if they don't exist — no auth path may
+        // succeed for a row whose owner has invoked the GDPR deletion flow, even during
+        // the 30-day grace window before hard-delete.
+        return isActive && emailVerified && deletedAt == null;
+    }
+
+    /** True while the account is in the 30-day soft-delete grace window. */
+    public boolean isSoftDeleted() {
+        return deletedAt != null;
     }
 
     // Business logic methods

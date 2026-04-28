@@ -2,7 +2,9 @@ package com.smmpanel.service.notification;
 
 import com.smmpanel.entity.Order;
 import com.smmpanel.entity.User;
+import com.smmpanel.entity.UserNotificationPrefs;
 import com.smmpanel.repository.jpa.OrderRepository;
+import com.smmpanel.repository.jpa.UserNotificationPrefsRepository;
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -29,6 +31,7 @@ public class NotificationService {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final OrderRepository orderRepository;
     private final WebSocketNotificationService webSocketNotificationService;
+    private final UserNotificationPrefsRepository notificationPrefsRepository;
 
     @Value("${app.mail.from:noreply@smmpanel.com}")
     private String fromEmail;
@@ -66,7 +69,12 @@ public class NotificationService {
         try {
             String subject = "Order Completed - #" + order.getId();
             String message = buildOrderCompletedMessage(order);
-            sendEmailNotification(order.getUser(), subject, message);
+            // Gate on the per-user toggle from Profile → Notifications. The Kafka event still
+            // fires regardless: it powers internal dashboards / WebSocket pushes, which are
+            // not user-facing email and shouldn't honor an email-only preference.
+            if (wantsEmail(order.getUser(), "orderCompleted")) {
+                sendEmailNotification(order.getUser(), subject, message);
+            }
             sendKafkaNotification("order.completed", order.getId(), buildNotificationData(order));
         } catch (Exception e) {
             log.error(
@@ -114,7 +122,9 @@ public class NotificationService {
         try {
             String subject = "Order Cancelled - #" + order.getId();
             String message = buildOrderCancelledMessage(order, reason);
-            sendEmailNotification(order.getUser(), subject, message);
+            if (wantsEmail(order.getUser(), "orderCancelled")) {
+                sendEmailNotification(order.getUser(), subject, message);
+            }
 
             Map<String, Object> data = buildNotificationData(order);
             data.put("reason", reason);
@@ -167,6 +177,36 @@ public class NotificationService {
             sendKafkaNotification("push.notification", 0L, pushData);
         } catch (Exception e) {
             log.error("Failed to send push notification: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Returns true when the user wants emails for {@code prefKey}. Defaults to {@code true} when
+     * the user has no prefs row yet (transactional emails are opt-in by default — see {@link
+     * UserNotificationPrefs#defaults()}). Pref keys correspond exactly to the toggles surfaced in
+     * the Profile → Notifications page: {@code orderCompleted}, {@code orderPartial}, {@code
+     * orderCancelled}, {@code deposit}, {@code weekly}, {@code promo}.
+     *
+     * <p>Lookup is best-effort: any exception (DB hiccup, Lombok-induced NPE) falls through to
+     * {@code true} rather than silently dropping a transactional email. The user's preference is a
+     * UX nicety; not delivering a paid-for-confirmation due to a prefs-table glitch would be a
+     * worse failure mode.
+     */
+    private boolean wantsEmail(User user, String prefKey) {
+        if (user == null || user.getId() == null) return true;
+        try {
+            return notificationPrefsRepository
+                    .findById(user.getId())
+                    .map(UserNotificationPrefs::getPrefs)
+                    .map(p -> p.getOrDefault(prefKey, Boolean.TRUE))
+                    .orElse(Boolean.TRUE);
+        } catch (Exception e) {
+            log.warn(
+                    "Could not load notification prefs for user {} (key={}): {}",
+                    user.getId(),
+                    prefKey,
+                    e.toString());
+            return true;
         }
     }
 
@@ -442,7 +482,9 @@ public class NotificationService {
         try {
             String subject = "Payment Confirmed - Transaction #" + transactionId;
             String message = buildPaymentConfirmationMessage(transactionId, amount, currency);
-            sendEmailNotification(user, subject, message);
+            if (wantsEmail(user, "deposit")) {
+                sendEmailNotification(user, subject, message);
+            }
 
             Map<String, Object> data = new HashMap<>();
             data.put("userId", user.getId());
@@ -535,10 +577,31 @@ public class NotificationService {
                             message,
                             "completedQuantity",
                             completedQuantity));
+
+            // Honor the "Order partial" toggle on Profile → Notifications. The toggle stored
+            // a value but no email path consumed it before — this wires it up so flipping it
+            // off actually suppresses the email.
+            if (wantsEmail(order.getUser(), "orderPartial")) {
+                String subject = "Order Partially Completed - #" + order.getId();
+                String body = buildOrderPartialMessage(order, completedQuantity);
+                sendEmailNotification(order.getUser(), subject, body);
+            }
             log.info("Sent partial completion notification for order: {}", orderId);
         } catch (Exception e) {
             log.error("Failed to send partial completion notification", e);
         }
+    }
+
+    private String buildOrderPartialMessage(Order order, Integer completed) {
+        return String.format(
+                "Your order #%d has been partially completed.%n%n"
+                        + "Service: %s%nLink: %s%nQuantity ordered: %d%nDelivered: %d%n%n"
+                        + "The undelivered portion has been refunded to your wallet.",
+                order.getId(),
+                order.getService().getName(),
+                order.getLink(),
+                order.getQuantity(),
+                completed != null ? completed : 0);
     }
 
     public void sendOrderCompleteNotification(Long orderId) {

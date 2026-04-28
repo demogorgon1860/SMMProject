@@ -1,7 +1,6 @@
 package com.smmpanel.config;
 
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.ApplicationArguments;
@@ -15,16 +14,20 @@ import org.springframework.web.client.RestTemplate;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class TelegramWebhookRegistrar implements ApplicationRunner {
 
     private static final String SET_WEBHOOK_URL = "https://api.telegram.org/bot%s/setWebhook";
     private static final String WEBHOOK_PATH = "/api/telegram/webhook";
 
     private final TelegramBotProperties props;
-
-    @Qualifier("telegramRestTemplate")
     private final RestTemplate restTemplate;
+
+    public TelegramWebhookRegistrar(
+            TelegramBotProperties props,
+            @Qualifier("telegramRestTemplate") RestTemplate restTemplate) {
+        this.props = props;
+        this.restTemplate = restTemplate;
+    }
 
     @Override
     public void run(ApplicationArguments args) {

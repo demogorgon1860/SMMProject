@@ -44,6 +44,7 @@ public class AdminService {
     private final InstagramBotClient instagramBotClient;
     private final DailyProfitService dailyProfitService;
     private final TelegramNotificationService telegramNotificationService;
+    private final com.smmpanel.service.integration.InstagramService instagramService;
 
     @Transactional(readOnly = true)
     @Cacheable("dashboard-stats")
@@ -720,6 +721,22 @@ public class AdminService {
         log.info("Paused order {} with reason: {}", orderId, reason);
     }
 
+    /**
+     * Two callers, both wired through the frontend's "Retry" button (action=start /
+     * action=resume on POST /v2/admin/orders/{id}/actions):
+     *
+     * <ul>
+     *   <li><b>PAUSED</b> — bot was paused (admin or circuit-breaker); flip back to ACTIVE
+     *       so the existing dispatch resumes from where it stopped.
+     *   <li><b>PENDING</b> — order was created but never picked up by the bot fleet (or
+     *       the dispatch silently failed). Re-dispatch via {@link InstagramService}; if a
+     *       stale {@code instagramBotOrderId} exists, cancel it on the bot side first to
+     *       avoid double-execution.
+     * </ul>
+     *
+     * Any other status throws — admin should pick the right action (cancel / mark-partial
+     * / force-complete) for terminal or in-progress orders.
+     */
     @Transactional
     public void resumeOrder(Long orderId) {
         Order order =
@@ -728,17 +745,51 @@ public class AdminService {
                         .orElseThrow(
                                 () -> new IllegalArgumentException("Order not found: " + orderId));
 
-        // Only resume PAUSED orders
-        // PENDING orders are processed automatically
-        if (order.getStatus() != OrderStatus.PAUSED) {
-            throw new IllegalStateException(
-                    "Order must be PAUSED to resume. Current status: " + order.getStatus());
+        OrderStatus status = order.getStatus();
+
+        if (status == OrderStatus.PAUSED) {
+            order.setStatus(OrderStatus.ACTIVE);
+            orderRepository.save(order);
+            log.info("Resumed PAUSED order {}", orderId);
+            return;
         }
 
-        order.setStatus(OrderStatus.ACTIVE);
-        orderRepository.save(order);
+        if (status == OrderStatus.PENDING) {
+            // Stale botOrderId: order was once dispatched but never made progress.
+            // Cancel the bot-side record (best-effort, ignore failures) before
+            // re-dispatching so we don't duplicate work on the bot fleet.
+            String existingBotId = order.getInstagramBotOrderId();
+            if (existingBotId != null && !existingBotId.isBlank()) {
+                try {
+                    instagramBotClient.cancelOrderFast(existingBotId);
+                } catch (Exception e) {
+                    log.warn(
+                            "Stale bot-cancel for order {} failed (continuing with"
+                                    + " re-dispatch): {}",
+                            orderId,
+                            e.getMessage());
+                }
+                order.setInstagramBotOrderId(null);
+            }
 
-        log.info("Resumed order {}", orderId);
+            com.smmpanel.dto.instagram.InstagramOrderResponse resp =
+                    instagramService.createInstagramOrder(order);
+            if (resp == null || !resp.isSuccess()) {
+                String msg =
+                        resp == null ? "no response from Instagram service" : resp.getError();
+                throw new IllegalStateException(
+                        "Re-dispatch to bot fleet failed: " + msg);
+            }
+
+            log.info(
+                    "Re-dispatched PENDING order {} to bot fleet (botOrderId={})",
+                    orderId,
+                    resp.getId());
+            return;
+        }
+
+        throw new IllegalStateException(
+                "Order must be PAUSED or PENDING to resume / retry. Current status: " + status);
     }
 
     /**

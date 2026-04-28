@@ -168,12 +168,12 @@ export function AdminDashboardPage() {
         {/* KPI strip */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
           <KPICard
-            label="Today's profit"
+            label="Last 24h revenue"
             value={<Money value={stats.todayProfit} size="md" />}
             delta={stats.profitDelta}
           />
           <KPICard
-            label="Today's orders"
+            label="Last 24h orders"
             value={<span className="font-mono text-[18px] font-bold tabular-nums">{fmtInt(stats.todayOrders)}</span>}
             delta={stats.ordersDelta}
           />

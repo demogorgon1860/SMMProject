@@ -164,6 +164,28 @@ public interface OrderRepository
     @Query("SELECT SUM(o.charge) FROM Order o WHERE o.createdAt >= :date")
     Double sumRevenueAfter(@Param("date") LocalDateTime date);
 
+    /**
+     * Fulfilled-only revenue: SUM(charge) over orders that actually completed (or partially
+     * completed). Excludes CANCELLED, FAILED, REFUND and in-flight statuses. PARTIAL orders
+     * already have their {@code charge} shrunk to the delivered fraction by {@code
+     * OrderService.markPartialCompletion}, so summing it here yields net profit without a
+     * separate refund subtraction. Powers the admin dashboard "last 24h / 7d / 30d" cards —
+     * the unfiltered {@link #sumRevenueAfter(LocalDateTime)} above includes pending/cancelled
+     * orders and overstates earnings.
+     */
+    @Query(
+            "SELECT COALESCE(SUM(o.charge), 0) FROM Order o WHERE o.createdAt >= :date AND"
+                    + " o.status IN (com.smmpanel.entity.OrderStatus.COMPLETED,"
+                    + " com.smmpanel.entity.OrderStatus.PARTIAL)")
+    Double sumFulfilledRevenueAfter(@Param("date") LocalDateTime date);
+
+    /** Same idea as {@link #sumFulfilledRevenueAfter} but counting orders. */
+    @Query(
+            "SELECT COUNT(o) FROM Order o WHERE o.createdAt >= :date AND"
+                    + " o.status IN (com.smmpanel.entity.OrderStatus.COMPLETED,"
+                    + " com.smmpanel.entity.OrderStatus.PARTIAL)")
+    Long countFulfilledOrdersAfter(@Param("date") LocalDateTime date);
+
     @Query("SELECT COUNT(o) FROM Order o WHERE o.status = :status AND o.createdAt >= :date")
     Long countByStatusAndCreatedAtAfter(
             @Param("status") OrderStatus status, @Param("date") LocalDateTime date);

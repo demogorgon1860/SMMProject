@@ -52,15 +52,20 @@ public class AdminService {
         LocalDateTime last7Days = LocalDateTime.now().minusDays(7);
         LocalDateTime last30Days = LocalDateTime.now().minusDays(30);
 
+        // Dashboard counts and revenue use the *fulfilled* variant — only COMPLETED + PARTIAL —
+        // so cancelled / refunded / in-flight orders don't inflate the cards. PARTIAL.charge is
+        // already shrunk to the delivered fraction by markPartialCompletion, so SUM is net profit.
         return DashboardStats.builder()
                 .totalOrders(orderRepository.count())
-                .ordersLast24h(orderRepository.countOrdersCreatedAfter(last24Hours))
-                .ordersLast7Days(orderRepository.countOrdersCreatedAfter(last7Days))
-                .ordersLast30Days(orderRepository.countOrdersCreatedAfter(last30Days))
-                .totalRevenue(orderRepository.sumRevenueAfter(LocalDateTime.now().minusYears(1)))
-                .revenueLast24h(orderRepository.sumRevenueAfter(last24Hours))
-                .revenueLast7Days(orderRepository.sumRevenueAfter(last7Days))
-                .revenueLast30Days(orderRepository.sumRevenueAfter(last30Days))
+                .ordersLast24h(orderRepository.countFulfilledOrdersAfter(last24Hours))
+                .ordersLast7Days(orderRepository.countFulfilledOrdersAfter(last7Days))
+                .ordersLast30Days(orderRepository.countFulfilledOrdersAfter(last30Days))
+                .totalRevenue(
+                        orderRepository.sumFulfilledRevenueAfter(
+                                LocalDateTime.now().minusYears(1)))
+                .revenueLast24h(orderRepository.sumFulfilledRevenueAfter(last24Hours))
+                .revenueLast7Days(orderRepository.sumFulfilledRevenueAfter(last7Days))
+                .revenueLast30Days(orderRepository.sumFulfilledRevenueAfter(last30Days))
                 .activeOrders(
                         (int)
                                 orderRepository.countByStatusIn(

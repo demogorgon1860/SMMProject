@@ -28,12 +28,17 @@ import { fmtMoney, fmtRel, toNum } from '../../lib/utils';
 
 // Tab `value` is the *frontend bucket* — multiple backend TransactionType values
 // can share a tab (e.g. ORDER_PAYMENT and CHARGE both render under "Orders").
+//
+// "Adjustments" was intentionally dropped: ADJUSTMENT / BONUS / COMMISSION /
+// PENALTY / TRANSFER_OUT are unused by the current product (admin top-ups land as
+// DEPOSIT via BalanceService.addBalance, no referral/penalty features wired). If
+// any of those flows go live later, restore the tab and the matching TAB_TO_TYPES
+// entry — bucketOf already maps the row-level icons.
 const TYPE_TABS = [
   { value: 'all', label: 'All' },
   { value: 'deposit', label: 'Deposits' },
   { value: 'order', label: 'Orders' },
   { value: 'refund', label: 'Refunds' },
-  { value: 'adjust', label: 'Adjustments' },
 ] as const;
 
 // Reverse of `bucketOf`: a tab → the set of backend TransactionType enum names that
@@ -46,7 +51,6 @@ const TAB_TO_TYPES: Record<string, string[] | null> = {
   deposit: ['DEPOSIT', 'TRANSFER_IN'],
   order: ['ORDER_PAYMENT'],
   refund: ['REFUND', 'REFILL'],
-  adjust: ['ADJUSTMENT', 'BONUS', 'COMMISSION', 'PENALTY', 'TRANSFER_OUT'],
 };
 
 /**
@@ -164,24 +168,17 @@ export function TransactionsPage() {
   const stats = useMemo(() => {
     // Sums for the stat cards. Prefer the backend lifetime `summary` (GROUP BY over
     // the user's full history) — falls back to summing the last-200 page if the
-    // summary endpoint is unavailable.
+    // summary endpoint is unavailable. Only Deposited / Spent / Refunded are
+    // displayed; the Adjustments tab + card were dropped (see TYPE_TABS comment).
     let dep = 0;
     let charge = 0;
     let refund = 0;
-    let adjust = 0;
     if (summary) {
-      // Bucket map matches `bucketOf` on row-level: DEPOSIT/TRANSFER_IN → deposits,
-      // ORDER_PAYMENT (negative in DB) → spent, REFUND/REFILL → refunded,
-      // ADJUSTMENT/BONUS/COMMISSION/PENALTY/TRANSFER_OUT → adjustments.
+      // Bucket keys match `bucketOf`: DEPOSIT/TRANSFER_IN → deposits,
+      // ORDER_PAYMENT (negative in DB) → spent, REFUND/REFILL → refunded.
       dep = toNum(summary.DEPOSIT) + toNum(summary.TRANSFER_IN);
       charge = -toNum(summary.ORDER_PAYMENT); // stored signed-negative; show positive
       refund = toNum(summary.REFUND) + toNum(summary.REFILL);
-      adjust =
-        toNum(summary.ADJUSTMENT) +
-        toNum(summary.BONUS) +
-        toNum(summary.COMMISSION) +
-        toNum(summary.PENALTY) +
-        toNum(summary.TRANSFER_OUT);
     } else {
       for (const t of txs) {
         const amt = Number(t.amount) || 0;
@@ -194,9 +191,6 @@ export function TransactionsPage() {
             break;
           case 'refund':
             refund += amt;
-            break;
-          case 'adjust':
-            adjust += amt;
             break;
           default:
             break;
@@ -213,7 +207,7 @@ export function TransactionsPage() {
     }
     let acc = 0;
     const flow = buckets.map((v) => (acc += v));
-    return { dep, charge, refund, adjust, flow };
+    return { dep, charge, refund, flow };
   }, [txs, summary]);
 
   const filtered = useMemo(() => {

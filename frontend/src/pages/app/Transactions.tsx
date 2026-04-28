@@ -10,6 +10,7 @@ import {
   Input,
   Money,
   Sparkline,
+  DateRangePicker,
   StatusBadge,
   Tabs,
   TimeCell,
@@ -102,13 +103,17 @@ export function TransactionsPage() {
   const [tabLoading, setTabLoading] = useState(false);
   const [tab, setTab] = useState<string>('all');
   const [q, setQ] = useState('');
+  // Date range filter — `undefined` on both means "All time" (no narrowing).
+  const [dateFrom, setDateFrom] = useState<string | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<string | undefined>(undefined);
 
-  // Initial: load last-200 (for the 30-day flow chart and the All tab table) +
-  // balance + lifetime summary (drives the stat cards).
+  // Initial / range-scoped: load last-200 transactions (range-narrowed when set)
+  // + balance + lifetime summary (drives the stat cards — always lifetime, the
+  // range filter narrows the table only). Re-runs when the user changes range.
   useEffect(() => {
     let cancelled = false;
     Promise.allSettled([
-      balanceAPI.transactions(0, 200),
+      balanceAPI.transactions(0, 200, undefined, dateFrom, dateTo),
       balanceAPI.get(),
       balanceAPI.transactionSummary(),
     ]).then(([t, b, s]) => {
@@ -128,16 +133,17 @@ export function TransactionsPage() {
       if (s.status === 'fulfilled') {
         setSummary(s.value as Record<string, string>);
       }
-      // Note: if summary fails, stats fall back to summing over txs (last-200) —
-      // imperfect for active users but better than blanks.
+      // Note: if summary fails, stats fall back to summing over txs — imperfect
+      // for active users but better than blanks.
       setLoading(false);
     });
     return () => {
       cancelled = true;
     };
-  }, [updateBalance]);
+  }, [updateBalance, dateFrom, dateTo]);
 
-  // Tab-scoped: load type-filtered list for the active non-'all' tab.
+  // Tab-scoped: load type-filtered list for the active non-'all' tab. Combines
+  // with the date range when one is set.
   useEffect(() => {
     const types = TAB_TO_TYPES[tab];
     if (!types) {
@@ -147,7 +153,7 @@ export function TransactionsPage() {
     let cancelled = false;
     setTabLoading(true);
     balanceAPI
-      .transactions(0, 200, types)
+      .transactions(0, 200, types, dateFrom, dateTo)
       .then((v) => {
         if (cancelled) return;
         const arr: BalanceTransaction[] = Array.isArray(v)
@@ -164,7 +170,7 @@ export function TransactionsPage() {
     return () => {
       cancelled = true;
     };
-  }, [tab]);
+  }, [tab, dateFrom, dateTo]);
 
   const stats = useMemo(() => {
     // Sums for the stat cards. Prefer the backend lifetime `summary` (GROUP BY over
@@ -274,7 +280,15 @@ export function TransactionsPage() {
           <div className="flex-1 min-w-[240px]">
             <Tabs value={tab} onChange={setTab} tabs={TYPE_TABS} />
           </div>
-          <div className="ml-auto py-2 pr-4">
+          <div className="ml-auto flex items-center gap-2 py-2 pr-4">
+            <DateRangePicker
+              from={dateFrom}
+              to={dateTo}
+              onChange={(f, t) => {
+                setDateFrom(f);
+                setDateTo(t);
+              }}
+            />
             <Input
               icon="search"
               placeholder="Search reason / id / order"

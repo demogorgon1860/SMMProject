@@ -12,6 +12,7 @@ import {
   Icon,
   IDCell,
   Input,
+  DateRangePicker,
   Money,
   PageHeader,
   Pagination,
@@ -51,6 +52,10 @@ export function AdminOrdersPage() {
   const [q, setQ] = useState('');
   const [urlQ, setUrlQ] = useState('');
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  // Date range — `undefined` on both means "All time". Sent to the backend as
+  // dateFrom/dateTo (YYYY-MM-DD), interpreted as inclusive calendar days.
+  const [dateFrom, setDateFrom] = useState<string | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<string | undefined>(undefined);
 
   // Stable identity for the hook's effect dependency: only changes when the actual filter
   // string changes, so a re-render that doesn't touch the filter doesn't trigger a refetch.
@@ -60,8 +65,12 @@ export function AdminOrdersPage() {
     const p: Record<string, string> = {};
     if (statusFilter) p.status = statusFilter;
     if (urlQ.trim()) p.urlSearch = urlQ.trim();
+    if (dateFrom && dateTo) {
+      p.dateFrom = dateFrom;
+      p.dateTo = dateTo;
+    }
     return p;
-  }, [statusFilter, urlQ]);
+  }, [statusFilter, urlQ, dateFrom, dateTo]);
 
   // Bot pushes start_count and remains updates on a 15-min cycle; useServerPagination's default
   // refresh interval already matches that cadence (silent — no spinner on background ticks).
@@ -203,7 +212,15 @@ export function AdminOrdersPage() {
               onChange={(e) => setUrlQ(e.target.value)}
               containerClassName="min-w-[200px]"
             />
-            {(statusFilter || q || urlQ) && (
+            <DateRangePicker
+              from={dateFrom}
+              to={dateTo}
+              onChange={(f, t) => {
+                setDateFrom(f);
+                setDateTo(t);
+              }}
+            />
+            {(statusFilter || q || urlQ || dateFrom || dateTo) && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -211,6 +228,8 @@ export function AdminOrdersPage() {
                   setStatusFilter('');
                   setQ('');
                   setUrlQ('');
+                  setDateFrom(undefined);
+                  setDateTo(undefined);
                 }}
               >
                 Clear

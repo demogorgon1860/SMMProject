@@ -26,6 +26,17 @@ public interface BalanceTransactionRepository extends JpaRepository<BalanceTrans
     Page<BalanceTransaction> findByUserIdAndTransactionTypeInOrderByCreatedAtDesc(
             Long userId, java.util.Collection<TransactionType> types, Pageable pageable);
 
+    Page<BalanceTransaction> findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(
+            Long userId, LocalDateTime from, LocalDateTime to, Pageable pageable);
+
+    Page<BalanceTransaction>
+            findByUserIdAndTransactionTypeInAndCreatedAtBetweenOrderByCreatedAtDesc(
+                    Long userId,
+                    java.util.Collection<TransactionType> types,
+                    LocalDateTime from,
+                    LocalDateTime to,
+                    Pageable pageable);
+
     /**
      * Lifetime SUM(amount) GROUP BY transaction_type for one user. Powers the Transactions
      * page stat cards (Deposited / Spent / Refunded). Computing these client-side from a

@@ -178,10 +178,17 @@ export const balanceAPI = {
   // (DEPOSIT,ORDER_PAYMENT,REFUND,REFILL,ADJUSTMENT,…). Active users have thousands
   // of ORDER_PAYMENT rows; without a filter the first page drowns DEPOSIT/REFUND
   // entries. The Transactions page passes the bucket→types map per active tab.
-  transactions: (page = 0, size = 50, types?: string[]) =>
+  // `from`/`to` are inclusive YYYY-MM-DD calendar dates (backend interprets `to`
+  // as exclusive end-of-day). Both must be present for the range filter to apply.
+  transactions: (page = 0, size = 50, types?: string[], from?: string, to?: string) =>
     api
       .get('/v1/balance/transactions', {
-        params: { page, size, ...(types && types.length ? { type: types.join(',') } : {}) },
+        params: {
+          page,
+          size,
+          ...(types && types.length ? { type: types.join(',') } : {}),
+          ...(from && to ? { from, to } : {}),
+        },
       })
       .then((r) => r.data),
 

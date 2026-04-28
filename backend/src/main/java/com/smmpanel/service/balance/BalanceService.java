@@ -765,28 +765,48 @@ public class BalanceService {
     }
 
     /**
-     * Filtered variant — returns transactions matching one of the given types. Active users can
-     * have thousands of ORDER_PAYMENT rows; without a type filter the first page (size 200) drowns
-     * out the rare DEPOSIT / REFUND entries the user wants to see in the dedicated tab. The Tabs
-     * filter on the frontend Transactions page now sends {@code ?type=DEPOSIT,REFILL} (or whatever
-     * the bucket maps to), so the matching rows appear regardless of how recent they are.
+     * Filtered variant — returns transactions matching the given types and/or date range.
      *
-     * <p>{@code null} {@code types} falls through to the unfiltered query (caller didn't specify a
-     * filter — "All" tab). The controller is responsible for never passing an empty collection
-     * here: an explicit-but-empty filter should return an empty page, not all transactions.
+     * <p>Either filter is optional: {@code types == null} means "any type", {@code (from, to)}
+     * must be provided together (both non-null) to apply a date range — passing only one is
+     * ignored (controller responsibility). Active users can have thousands of ORDER_PAYMENT
+     * rows; without a type filter the first page would drown rare DEPOSIT / REFUND entries.
+     * Dedicated derived queries per combination keep the JPQL trivial and let Postgres pick
+     * the (user_id, created_at DESC) index naturally.
+     *
+     * <p>The controller is responsible for never passing an empty {@code types} collection:
+     * an explicit-but-empty filter should return an empty page, not all transactions.
      */
     @Transactional(readOnly = true)
     public Page<TransactionHistoryResponse> getTransactionHistory(
             Long userId,
             java.util.Collection<com.smmpanel.entity.TransactionType> types,
+            java.time.LocalDateTime from,
+            java.time.LocalDateTime to,
             Pageable pageable) {
-        Page<BalanceTransaction> transactions =
-                (types == null || types.isEmpty())
-                        ? transactionRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable)
-                        : transactionRepository
-                                .findByUserIdAndTransactionTypeInOrderByCreatedAtDesc(
-                                        userId, types, pageable);
-        return transactions.map(this::mapToTransactionResponse);
+        boolean hasTypes = types != null && !types.isEmpty();
+        boolean hasRange = from != null && to != null;
+
+        Page<BalanceTransaction> raw;
+        if (hasTypes && hasRange) {
+            raw =
+                    transactionRepository
+                            .findByUserIdAndTransactionTypeInAndCreatedAtBetweenOrderByCreatedAtDesc(
+                                    userId, types, from, to, pageable);
+        } else if (hasTypes) {
+            raw =
+                    transactionRepository
+                            .findByUserIdAndTransactionTypeInOrderByCreatedAtDesc(
+                                    userId, types, pageable);
+        } else if (hasRange) {
+            raw =
+                    transactionRepository
+                            .findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(
+                                    userId, from, to, pageable);
+        } else {
+            raw = transactionRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+        }
+        return raw.map(this::mapToTransactionResponse);
     }
 
     /**

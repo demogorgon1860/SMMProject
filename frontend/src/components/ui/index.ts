@@ -36,6 +36,7 @@ export { Modal, ConfirmModal } from './Modal';
 export { Drawer } from './Drawer';
 export { Tabs } from './Tabs';
 export type { TabItem } from './Tabs';
+export { DateRangePicker } from './DateRangePicker';
 export { ToastProvider, useToast } from './Toast';
 export type { ToastKind } from './Toast';
 

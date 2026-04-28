@@ -87,7 +87,10 @@ public class BalanceController {
                             + " narrows to those types so the dedicated frontend tabs (Deposits,"
                             + " Refunds, etc.) don't get drowned by ORDER_PAYMENT rows.")
     public ResponseEntity<Page<TransactionHistoryResponse>> getTransactionHistory(
-            @RequestParam(value = "type", required = false) String type, Pageable pageable) {
+            @RequestParam(value = "type", required = false) String type,
+            @RequestParam(value = "from", required = false) String fromIso,
+            @RequestParam(value = "to", required = false) String toIso,
+            Pageable pageable) {
         User user = getCurrentUser();
 
         java.util.List<com.smmpanel.entity.TransactionType> types = null;
@@ -115,8 +118,24 @@ public class BalanceController {
             types = parsed;
         }
 
+        // Date range — both endpoints must be provided to apply. ?from=2026-04-01&to=2026-04-28
+        // is interpreted as [2026-04-01 00:00, 2026-04-29 00:00) so the to-date is inclusive.
+        // A single endpoint is silently ignored (frontend never sends one without the other).
+        java.time.LocalDateTime fromDt = null;
+        java.time.LocalDateTime toDt = null;
+        if (fromIso != null && !fromIso.isBlank() && toIso != null && !toIso.isBlank()) {
+            try {
+                fromDt = java.time.LocalDate.parse(fromIso.trim()).atStartOfDay();
+                toDt = java.time.LocalDate.parse(toIso.trim()).plusDays(1).atStartOfDay();
+            } catch (java.time.format.DateTimeParseException ignored) {
+                // bad date format → ignore the range filter rather than 400
+                fromDt = null;
+                toDt = null;
+            }
+        }
+
         Page<TransactionHistoryResponse> transactions =
-                balanceService.getTransactionHistory(user.getId(), types, pageable);
+                balanceService.getTransactionHistory(user.getId(), types, fromDt, toDt, pageable);
         return ResponseEntity.ok(transactions);
     }
 

@@ -28,7 +28,6 @@ public interface OptimizedOrderQueries {
             "SELECT DISTINCT o FROM Order o "
                     + "JOIN FETCH o.user u "
                     + "JOIN FETCH o.service s "
-                    + "LEFT JOIN FETCH o.videoProcessing vp "
                     + "WHERE o.createdAt >= :since "
                     + "ORDER BY o.createdAt DESC")
     List<Order> findRecentOrdersForDashboard(
@@ -41,7 +40,6 @@ public interface OptimizedOrderQueries {
     @Query(
             "SELECT o FROM Order o "
                     + "JOIN FETCH o.service s "
-                    + "LEFT JOIN FETCH o.videoProcessing vp "
                     + "WHERE o.user.username = :username "
                     + "ORDER BY o.createdAt DESC")
     List<Order> findRecentOrdersForUser(@Param("username") String username, Pageable pageable);
@@ -64,7 +62,6 @@ public interface OptimizedOrderQueries {
             "SELECT o FROM Order o "
                     + "JOIN FETCH o.user u "
                     + "JOIN FETCH o.service s "
-                    + "LEFT JOIN FETCH o.videoProcessing vp "
                     + "WHERE o.status IN ('ACTIVE', 'PROCESSING') "
                     + "AND o.updatedAt <= :staleThreshold")
     List<Order> findStaleActiveOrders(@Param("staleThreshold") LocalDateTime staleThreshold);
@@ -79,7 +76,6 @@ public interface OptimizedOrderQueries {
             "SELECT o FROM Order o "
                     + "JOIN FETCH o.user u "
                     + "JOIN FETCH o.service s "
-                    + "LEFT JOIN FETCH o.videoProcessing vp "
                     + "WHERE s.id = :serviceId "
                     + "AND o.createdAt >= :since "
                     + "ORDER BY o.createdAt DESC")
@@ -109,7 +105,6 @@ public interface OptimizedOrderQueries {
             "SELECT o FROM Order o "
                     + "JOIN FETCH o.user u "
                     + "JOIN FETCH o.service s "
-                    + "LEFT JOIN FETCH o.videoProcessing vp "
                     + "WHERE u.id = :userId "
                     + "AND o.createdAt BETWEEN :startDate AND :endDate "
                     + "ORDER BY o.createdAt DESC")
@@ -183,7 +178,6 @@ public interface OptimizedOrderQueries {
             "SELECT o FROM Order o "
                     + "JOIN FETCH o.user u "
                     + "JOIN FETCH o.service s "
-                    + "LEFT JOIN FETCH o.videoProcessing vp "
                     + "WHERE o.status = 'PROCESSING' "
                     + "AND o.updatedAt < :slowThreshold "
                     + "ORDER BY o.updatedAt ASC")
@@ -197,7 +191,6 @@ public interface OptimizedOrderQueries {
             "SELECT o FROM Order o "
                     + "JOIN FETCH o.user u "
                     + "JOIN FETCH o.service s "
-                    + "LEFT JOIN FETCH o.videoProcessing vp "
                     + "WHERE o.status = 'COMPLETED' "
                     + "AND o.updatedAt >= :since "
                     + "ORDER BY o.updatedAt DESC")
@@ -207,8 +200,7 @@ public interface OptimizedOrderQueries {
 /**
  * QUERY OPTIMIZATION PATTERNS USED:
  *
- * <p>1. JOIN FETCH for required relationships (user, service) 2. LEFT JOIN FETCH for optional
- * relationships (videoProcessing, binomCampaigns) 3. DISTINCT when fetching collections to avoid
+ * <p>1. JOIN FETCH for required relationships (user, service) 2. DISTINCT when fetching collections to avoid
  * cartesian products 4. Proper ordering for predictable results 5. Parameterized queries for
  * security and performance 6. Specialized indexes support (see entity definitions)
  *

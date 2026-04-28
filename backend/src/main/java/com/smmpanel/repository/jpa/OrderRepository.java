@@ -92,13 +92,12 @@ public interface OrderRepository
 
     /**
      * SPECIALIZED QUERY: Find orders with full details by user ID PREVENTS N+1: Single query with
-     * all related entities INCLUDES: user, service, videoProcessing, binomCampaigns
+     * all related entities INCLUDES: user, service
      */
     @Query(
             "SELECT DISTINCT o FROM Order o "
                     + "JOIN FETCH o.user u "
                     + "JOIN FETCH o.service s "
-                    + "LEFT JOIN FETCH o.videoProcessing vp "
                     + "WHERE u.id = :userId "
                     + "ORDER BY o.createdAt DESC")
     List<Order> findOrdersWithDetailsByUserId(@Param("userId") Long userId);
@@ -112,7 +111,6 @@ public interface OrderRepository
                     "SELECT DISTINCT o FROM Order o "
                             + "JOIN FETCH o.user u "
                             + "JOIN FETCH o.service s "
-                            + "LEFT JOIN FETCH o.videoProcessing vp "
                             + "WHERE u.id = :userId "
                             + "ORDER BY o.createdAt DESC",
             countQuery = "SELECT COUNT(o) FROM Order o WHERE o.user.id = :userId")
@@ -126,7 +124,6 @@ public interface OrderRepository
             "SELECT o FROM Order o "
                     + "JOIN FETCH o.user u "
                     + "JOIN FETCH o.service s "
-                    + "LEFT JOIN FETCH o.videoProcessing vp "
                     + "WHERE o.id = :id")
     Optional<Order> findByIdWithAllDetails(@Param("id") Long id);
 
@@ -138,7 +135,6 @@ public interface OrderRepository
             "SELECT o FROM Order o "
                     + "JOIN FETCH o.user u "
                     + "JOIN FETCH o.service s "
-                    + "LEFT JOIN FETCH o.videoProcessing vp "
                     + "WHERE o.status IN ('ACTIVE', 'PROCESSING') "
                     + "ORDER BY o.processingPriority DESC, o.createdAt ASC")
     List<Order> findActiveOrdersWithDetails();

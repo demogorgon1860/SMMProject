@@ -82,12 +82,41 @@ public class BalanceController {
     @GetMapping("/transactions")
     @Operation(
             summary = "Get transaction history",
-            description = "Returns paginated transaction history")
+            description =
+                    "Returns paginated transaction history. Optional ?type=DEPOSIT,REFUND filter"
+                            + " narrows to those types so the dedicated frontend tabs (Deposits,"
+                            + " Refunds, etc.) don't get drowned by ORDER_PAYMENT rows.")
     public ResponseEntity<Page<TransactionHistoryResponse>> getTransactionHistory(
-            Pageable pageable) {
+            @RequestParam(value = "type", required = false) String type, Pageable pageable) {
         User user = getCurrentUser();
+
+        java.util.List<com.smmpanel.entity.TransactionType> types = null;
+        if (type != null && !type.isBlank()) {
+            // Caller explicitly asked for a filter — parse what they sent, but if the
+            // entire list ends up empty (every value was unrecognized), return an empty
+            // page rather than silently falling through to "All". The latter would be a
+            // surprise: ?type=GARBAGE returning 200 unrelated rows is worse than 0.
+            java.util.List<com.smmpanel.entity.TransactionType> parsed =
+                    new java.util.ArrayList<>();
+            for (String raw : type.split(",")) {
+                String trimmed = raw.trim();
+                if (trimmed.isEmpty()) continue;
+                try {
+                    parsed.add(
+                            com.smmpanel.entity.TransactionType.valueOf(
+                                    trimmed.toUpperCase(java.util.Locale.ROOT)));
+                } catch (IllegalArgumentException ignored) {
+                    // skip unknown — combined with the empty check below this is safe
+                }
+            }
+            if (parsed.isEmpty()) {
+                return ResponseEntity.ok(Page.empty(pageable));
+            }
+            types = parsed;
+        }
+
         Page<TransactionHistoryResponse> transactions =
-                balanceService.getTransactionHistory(user.getId(), pageable);
+                balanceService.getTransactionHistory(user.getId(), types, pageable);
         return ResponseEntity.ok(transactions);
     }
 

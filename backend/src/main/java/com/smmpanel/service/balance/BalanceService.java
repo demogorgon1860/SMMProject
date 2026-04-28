@@ -764,6 +764,31 @@ public class BalanceService {
         return transactions.map(this::mapToTransactionResponse);
     }
 
+    /**
+     * Filtered variant — returns transactions matching one of the given types. Active users can
+     * have thousands of ORDER_PAYMENT rows; without a type filter the first page (size 200) drowns
+     * out the rare DEPOSIT / REFUND entries the user wants to see in the dedicated tab. The Tabs
+     * filter on the frontend Transactions page now sends {@code ?type=DEPOSIT,REFILL} (or whatever
+     * the bucket maps to), so the matching rows appear regardless of how recent they are.
+     *
+     * <p>{@code null} {@code types} falls through to the unfiltered query (caller didn't specify a
+     * filter — "All" tab). The controller is responsible for never passing an empty collection
+     * here: an explicit-but-empty filter should return an empty page, not all transactions.
+     */
+    @Transactional(readOnly = true)
+    public Page<TransactionHistoryResponse> getTransactionHistory(
+            Long userId,
+            java.util.Collection<com.smmpanel.entity.TransactionType> types,
+            Pageable pageable) {
+        Page<BalanceTransaction> transactions =
+                (types == null || types.isEmpty())
+                        ? transactionRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable)
+                        : transactionRepository
+                                .findByUserIdAndTransactionTypeInOrderByCreatedAtDesc(
+                                        userId, types, pageable);
+        return transactions.map(this::mapToTransactionResponse);
+    }
+
     /** Get recent transactions as DTOs for API response */
     public List<TransactionHistoryResponse> getRecentTransactions(Long userId, int limit) {
         Pageable pageable = PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "createdAt"));

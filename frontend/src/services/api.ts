@@ -174,8 +174,16 @@ export const serviceAPI = {
 export const balanceAPI = {
   get: () => api.get('/v1/balance').then((r) => r.data),
 
-  transactions: (page = 0, size = 50) =>
-    api.get('/v1/balance/transactions', { params: { page, size } }).then((r) => r.data),
+  // `types` is the optional CSV of TransactionType enum names
+  // (DEPOSIT,ORDER_PAYMENT,REFUND,REFILL,ADJUSTMENT,…). Active users have thousands
+  // of ORDER_PAYMENT rows; without a filter the first page drowns DEPOSIT/REFUND
+  // entries. The Transactions page passes the bucket→types map per active tab.
+  transactions: (page = 0, size = 50, types?: string[]) =>
+    api
+      .get('/v1/balance/transactions', {
+        params: { page, size, ...(types && types.length ? { type: types.join(',') } : {}) },
+      })
+      .then((r) => r.data),
 
   recentTransactions: () => api.get('/v1/balance/transactions/recent').then((r) => r.data),
 };

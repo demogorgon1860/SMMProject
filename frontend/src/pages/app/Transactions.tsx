@@ -36,6 +36,19 @@ const TYPE_TABS = [
   { value: 'adjust', label: 'Adjustments' },
 ] as const;
 
+// Reverse of `bucketOf`: a tab → the set of backend TransactionType enum names that
+// fall into it. Sent as `?type=DEPOSIT,TRANSFER_IN` query param so the backend can
+// filter at the SQL layer. Without this, an active user with thousands of
+// ORDER_PAYMENT rows would never see their old DEPOSIT entries — they fall outside
+// the first 200-row page on which the local-filter version relied.
+const TAB_TO_TYPES: Record<string, string[] | null> = {
+  all: null,
+  deposit: ['DEPOSIT', 'TRANSFER_IN'],
+  order: ['ORDER_PAYMENT'],
+  refund: ['REFUND', 'REFILL'],
+  adjust: ['ADJUSTMENT', 'BONUS', 'COMMISSION', 'PENALTY', 'TRANSFER_OUT'],
+};
+
 /**
  * Map the raw backend type onto a frontend bucket. ORDER_PAYMENT (a real per-order charge)
  * was previously falling into the MANUAL_ADJUST default and rendering as "Adjustment", which
@@ -68,12 +81,21 @@ function bucketOf(type: string | undefined): 'deposit' | 'order' | 'refund' | 'a
 
 export function TransactionsPage() {
   const updateBalance = useAuthStore((s) => s.updateBalance);
+  // `txs` powers the stat strip aggregates (Deposited / Spent / Refunded) and the
+  // 30-day flow chart — always loaded as the unfiltered last-200 page regardless
+  // of which tab is active.
   const [txs, setTxs] = useState<BalanceTransaction[]>([]);
+  // `tabTxs` is the type-filtered list backing the table when a non-'all' tab is
+  // active. We hit the API with the matching ?type= so even if the user has
+  // thousands of ORDER_PAYMENT rows, their few DEPOSIT entries appear.
+  const [tabTxs, setTabTxs] = useState<BalanceTransaction[]>([]);
   const [balance, setBalance] = useState<BalanceSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tabLoading, setTabLoading] = useState(false);
   const [tab, setTab] = useState<string>('all');
   const [q, setQ] = useState('');
 
+  // Initial: load full last-200 (for stats) + balance.
   useEffect(() => {
     let cancelled = false;
     Promise.allSettled([balanceAPI.transactions(0, 200), balanceAPI.get()]).then(([t, b]) => {
@@ -96,6 +118,35 @@ export function TransactionsPage() {
       cancelled = true;
     };
   }, [updateBalance]);
+
+  // Tab-scoped: load type-filtered list for the active non-'all' tab.
+  useEffect(() => {
+    const types = TAB_TO_TYPES[tab];
+    if (!types) {
+      setTabTxs([]);
+      return;
+    }
+    let cancelled = false;
+    setTabLoading(true);
+    balanceAPI
+      .transactions(0, 200, types)
+      .then((v) => {
+        if (cancelled) return;
+        const arr: BalanceTransaction[] = Array.isArray(v)
+          ? (v as BalanceTransaction[])
+          : (v as { content?: BalanceTransaction[] })?.content ?? [];
+        setTabTxs(arr);
+      })
+      .catch(() => {
+        if (!cancelled) setTabTxs([]);
+      })
+      .finally(() => {
+        if (!cancelled) setTabLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab]);
 
   const stats = useMemo(() => {
     // Sum by frontend bucket so both the new (ORDER_PAYMENT/ADJUSTMENT) and legacy
@@ -137,8 +188,11 @@ export function TransactionsPage() {
   }, [txs]);
 
   const filtered = useMemo(() => {
-    return txs.filter((t) => {
-      if (tab !== 'all' && bucketOf(t.type) !== tab) return false;
+    // 'all' tab — show the unfiltered last-200 (`txs`); other tabs show the
+    // type-scoped fetch (`tabTxs`) which guarantees old DEPOSIT/REFUND entries
+    // appear even for users with thousands of ORDER_PAYMENT rows.
+    const source = tab === 'all' ? txs : tabTxs;
+    return source.filter((t) => {
       if (q.trim()) {
         const needle = q.trim().toLowerCase();
         if (
@@ -152,7 +206,7 @@ export function TransactionsPage() {
       }
       return true;
     });
-  }, [txs, tab, q]);
+  }, [txs, tabTxs, tab, q]);
 
   return (
     <div className="container-app py-8">
@@ -207,7 +261,7 @@ export function TransactionsPage() {
           </div>
         </div>
 
-        {loading ? (
+        {loading || tabLoading ? (
           <div className="p-12 text-center text-[13px] text-fg-subtle">Loading…</div>
         ) : filtered.length === 0 ? (
           <Empty

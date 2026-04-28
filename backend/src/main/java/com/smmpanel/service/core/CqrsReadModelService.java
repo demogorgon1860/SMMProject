@@ -93,10 +93,18 @@ public class CqrsReadModelService {
         return readModel;
     }
 
-    @Async("asyncExecutor")
-    @KafkaListener(
-            topics = {"smm.order.processing", "smm.order.state.updates"},
-            groupId = "cqrs-read-model-group")
+    /**
+     * Disabled: this listener tried to bind Kafka messages directly to the JPA-managed
+     * {@link OrderEvent} entity (with {@code @Id}, {@code @JdbcTypeCode(SqlTypes.JSON)}
+     * Maps, and Lombok-generated constructors). Spring Kafka's deserializer can't
+     * reconstruct that shape, so every pending message in {@code smm.order.processing}
+     * raised "Listener method could not be invoked" and retried forever — thousands of
+     * Redis lookups per minute, log spam, no actual work done. The primary read path
+     * goes through {@code Order} directly and doesn't need this CQRS layer to function.
+     *
+     * <p>To restore: introduce a plain {@code OrderEventMessage} DTO (no JPA, no Lombok
+     * builders) as the listener parameter and translate to {@link OrderEvent} inside.
+     */
     public void handleOrderEvent(OrderEvent event) {
         try {
             log.debug("Updating read model for order event: {}", event.getEventId());

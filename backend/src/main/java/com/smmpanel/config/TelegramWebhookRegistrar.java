@@ -3,6 +3,7 @@ package com.smmpanel.config;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.http.HttpEntity;
@@ -21,6 +22,8 @@ public class TelegramWebhookRegistrar implements ApplicationRunner {
     private static final String WEBHOOK_PATH = "/api/telegram/webhook";
 
     private final TelegramBotProperties props;
+
+    @Qualifier("telegramRestTemplate")
     private final RestTemplate restTemplate;
 
     @Override

@@ -611,13 +611,6 @@ public class OrderService {
     }
 
     /**
-     * Cancel order with ownership verification and automatic refund. Used by user-facing endpoints.
-     *
-     * @param orderId the order ID
-     * @param username the username of the requesting user (for ownership check)
-     */
-    @Transactional
-    /**
      * User-initiated cancel of one of their own orders. Three things have to happen, in order:
      *
      * <ol>
@@ -637,6 +630,9 @@ public class OrderService {
      *       InstagramService#processFullRefund} which already handle the BigDecimal rounding,
      *       balance update, and charge mutation atomically with this transaction.
      * </ol>
+     *
+     * @param orderId the order ID
+     * @param username the username of the requesting user (for ownership check)
      */
     @Transactional
     public void cancelOrder(Long orderId, String username) {

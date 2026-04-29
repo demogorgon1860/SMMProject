@@ -327,8 +327,12 @@ function OrderDetailDrawer({ order, onClose, onAfterAction }: DetailProps) {
   if (!order) return null;
 
   const pct = order.quantity > 0 ? Math.min(1, (order.completed ?? 0) / order.quantity) : 0;
-  const cancelable = ['PENDING', 'IN_PROGRESS', 'PROCESSING', 'ACTIVE'].includes(order.status?.toUpperCase() ?? '');
-  const refillable = ['COMPLETED', 'PARTIAL'].includes(order.status?.toUpperCase() ?? '');
+  // Normalize spaces to underscores: backend serializes as Perfect Panel labels
+  // ("In progress", "Pending"), so a naive .toUpperCase() against enum-style
+  // constants ("IN_PROGRESS") never matches and the action buttons stay hidden.
+  const normalizedStatus = (order.status ?? '').toUpperCase().replace(/\s+/g, '_');
+  const cancelable = ['PENDING', 'IN_PROGRESS', 'PROCESSING', 'ACTIVE'].includes(normalizedStatus);
+  const refillable = ['COMPLETED', 'PARTIAL'].includes(normalizedStatus);
   const refillPending = refillReq?.status === 'PENDING';
   const refillApproved = refillReq?.status === 'APPROVED';
   const refillRejected = refillReq?.status === 'REJECTED';

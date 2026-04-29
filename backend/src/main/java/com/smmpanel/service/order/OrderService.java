@@ -679,7 +679,17 @@ public class OrderService {
         int delivered = order.getViewsDelivered() != null ? order.getViewsDelivered() : 0;
         int quantity = order.getQuantity() != null ? order.getQuantity() : 0;
 
-        if (delivered > 0 && delivered < quantity) {
+        // Race guard: bot may have already finished delivery but the webhook hasn't reached
+        // us yet (status still IN_PROGRESS in our DB). A full refund here would be free
+        // service — the user got everything and gets every cent back. Refuse and let the
+        // webhook drive the natural COMPLETED transition.
+        if (quantity > 0 && delivered >= quantity) {
+            throw new OrderValidationException(
+                    "Order has already been fully delivered — wait for the system to mark"
+                            + " it completed");
+        }
+
+        if (delivered > 0) {
             // (3a) Partial — keep the delivered fraction, refund the rest.
             instagramService.processPartialRefund(
                     order, delivered, "Order cancelled by user (partial)");
@@ -687,7 +697,7 @@ public class OrderService {
             order.setStatus(OrderStatus.PARTIAL);
             order.setTrafficStatus("PARTIAL_BY_USER");
         } else {
-            // (3b) Full — nothing delivered (or already at/over quantity, defensive).
+            // (3b) Full — nothing delivered yet.
             instagramService.processFullRefund(order, "Order cancelled by user");
             order.setRemains(quantity);
             order.setStatus(OrderStatus.CANCELLED);

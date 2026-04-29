@@ -45,6 +45,7 @@ public class AdminService {
     private final DailyProfitService dailyProfitService;
     private final TelegramNotificationService telegramNotificationService;
     private final com.smmpanel.service.integration.InstagramService instagramService;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
     @Cacheable("dashboard-stats")
@@ -1353,14 +1354,30 @@ public class AdminService {
             String targetType,
             Long targetId,
             Map<String, Object> details) {
-        OperatorLog log = new OperatorLog();
-        log.setOperator(operator);
-        log.setAction(action.toUpperCase());
-        log.setTargetType(targetType);
-        log.setTargetId(targetId);
-        log.setDetails(details.toString()); // In real implementation, use JSON serialization
+        OperatorLog entry = new OperatorLog();
+        entry.setOperator(operator);
+        entry.setAction(action.toUpperCase());
+        entry.setTargetType(targetType);
+        entry.setTargetId(targetId);
 
-        operatorLogRepository.save(log);
+        // operator_logs.details is Postgres JSONB — Map.toString() produces "{k=v}" which is
+        // NOT valid JSON, so the INSERT failed with "invalid input syntax for type json".
+        // Serialize through Jackson so the column gets a real JSON document.
+        String json;
+        try {
+            json = objectMapper.writeValueAsString(details == null ? Map.of() : details);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            log.warn(
+                    "Failed to serialize operator-log details for action {} on {}#{}: {}",
+                    action,
+                    targetType,
+                    targetId,
+                    e.getMessage());
+            json = "{}";
+        }
+        entry.setDetails(json);
+
+        operatorLogRepository.save(entry);
     }
 
     /**

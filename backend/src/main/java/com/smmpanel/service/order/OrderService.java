@@ -62,6 +62,7 @@ public class OrderService {
     private final CqrsReadModelService cqrsReadModelService;
     private final ApiKeyService apiKeyService;
     private final InstagramService instagramService;
+    private final com.smmpanel.client.InstagramBotClient instagramBotClient;
     private final org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
     private final OrderStateManager orderStateManager;
     private final NotificationService notificationService;
@@ -616,35 +617,84 @@ public class OrderService {
      * @param username the username of the requesting user (for ownership check)
      */
     @Transactional
+    /**
+     * User-initiated cancel of one of their own orders. Three things have to happen, in order:
+     *
+     * <ol>
+     *   <li><b>Ownership + status guard</b> — own orders only, and only while still cancellable
+     *       (PENDING / ACTIVE / IN_PROGRESS / PROCESSING). The frontend Cancel button is shown
+     *       under exactly the same set, so the backend rejection is unreachable in normal UX —
+     *       the check stays as a defense-in-depth boundary.
+     *   <li><b>Tell the bot to stop</b> — best-effort {@code cancelOrderFast}. Without this, a
+     *       user could click Cancel on an ACTIVE/PROCESSING order, get a refund, and let the
+     *       bot finish delivery for free. Failure here is logged and swallowed: the panel is
+     *       the source of truth, and the webhook handlers (InstagramService /
+     *       InstagramResultConsumer) skip late-arriving callbacks once the order is already
+     *       in a terminal state.
+     *   <li><b>Refund</b> — full when nothing was delivered (status → CANCELLED), pro-rata
+     *       partial when {@code views_delivered > 0} (status → PARTIAL). The math lives in
+     *       {@link InstagramService#processPartialRefund} / {@link
+     *       InstagramService#processFullRefund} which already handle the BigDecimal rounding,
+     *       balance update, and charge mutation atomically with this transaction.
+     * </ol>
+     */
+    @Transactional
     public void cancelOrder(Long orderId, String username) {
-        Order order = orderRepository.findById(orderId).orElseThrow();
+        Order order =
+                orderRepository
+                        .findById(orderId)
+                        .orElseThrow(
+                                () ->
+                                        new OrderValidationException(
+                                                "Order not found: " + orderId));
 
-        // Ownership check: users can only cancel their own orders
         if (!order.getUser().getUsername().equals(username)) {
             throw new OrderValidationException("You can only cancel your own orders");
         }
 
-        // Status check: only PENDING orders can be cancelled by users
-        if (order.getStatus() != OrderStatus.PENDING
-                && order.getStatus() != OrderStatus.ACTIVE
-                && order.getStatus() != OrderStatus.PROCESSING) {
+        OrderStatus status = order.getStatus();
+        if (status != OrderStatus.PENDING
+                && status != OrderStatus.ACTIVE
+                && status != OrderStatus.IN_PROGRESS
+                && status != OrderStatus.PROCESSING) {
             throw new OrderValidationException(
-                    "Order cannot be cancelled in current status: " + order.getStatus());
+                    "Order cannot be cancelled in current status: " + status);
         }
 
-        // CRITICAL: Set remains to full quantity (nothing delivered, full refund expected)
-        order.setRemains(order.getQuantity());
-        order.setStatus(OrderStatus.CANCELLED);
-        order.setOperatorNotes(username);
-
-        // Process refund
-        BigDecimal refundAmount = order.getCharge() != null ? order.getCharge() : BigDecimal.ZERO;
-        if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
-            balanceService.refund(order.getUser(), refundAmount, order, "Order cancelled by user");
+        // (2) Best-effort: tell the bot fleet to stop dispatching. Skip if the order never
+        // reached the bot (no botOrderId yet) or if cancel-signal fails — panel state still
+        // converges via terminal-state guards on the webhook side.
+        String botOrderId = order.getInstagramBotOrderId();
+        if (botOrderId != null && !botOrderId.isBlank()) {
+            try {
+                instagramBotClient.cancelOrderFast(botOrderId);
+            } catch (Exception e) {
+                log.warn(
+                        "Bot cancel for order {} failed (continuing with refund): {}",
+                        orderId,
+                        e.getMessage());
+            }
         }
 
-        // CRITICAL: Set charge to 0 after refund (cancelled = nothing paid)
-        order.setCharge(BigDecimal.ZERO);
+        int delivered = order.getViewsDelivered() != null ? order.getViewsDelivered() : 0;
+        int quantity = order.getQuantity() != null ? order.getQuantity() : 0;
+
+        if (delivered > 0 && delivered < quantity) {
+            // (3a) Partial — keep the delivered fraction, refund the rest.
+            instagramService.processPartialRefund(
+                    order, delivered, "Order cancelled by user (partial)");
+            order.setRemains(quantity - delivered);
+            order.setStatus(OrderStatus.PARTIAL);
+            order.setTrafficStatus("PARTIAL_BY_USER");
+        } else {
+            // (3b) Full — nothing delivered (or already at/over quantity, defensive).
+            instagramService.processFullRefund(order, "Order cancelled by user");
+            order.setRemains(quantity);
+            order.setStatus(OrderStatus.CANCELLED);
+            order.setTrafficStatus("CANCELLED_BY_USER");
+        }
+
+        order.setOperatorNotes("user-cancel:" + username);
         orderRepository.save(order);
     }
 

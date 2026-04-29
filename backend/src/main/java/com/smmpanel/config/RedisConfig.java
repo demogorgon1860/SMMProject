@@ -407,6 +407,31 @@ public class RedisConfig implements CachingConfigurer {
                     cache.getName(),
                     key,
                     exception.getMessage());
+
+            // Self-heal: most GET failures we see in prod are deserialization errors caused
+            // by a stale entry whose Java type changed across deploys (e.g., DailyStatPoint
+            // got new fields and the cached JSON has type info pointing at the old shape).
+            // Without eviction, every subsequent GET hits the same poisoned bytes, the same
+            // exception is logged, and the entry only goes away when its TTL expires —
+            // hence 5+ duplicate errors for one key over an hour. Evicting here makes the
+            // next read a clean miss → @Cacheable repopulates with current-shape JSON.
+            //
+            // Wrapped in try/catch so a Redis-down scenario (which is the *other* reason
+            // GET fails) doesn't surface a second exception from a doomed evict call.
+            try {
+                cache.evict(key);
+                log.info(
+                        "Evicted poisoned cache entry to recover - cache: {}, key: {}",
+                        cache.getName(),
+                        key);
+            } catch (Exception evictEx) {
+                log.warn(
+                        "Self-heal evict failed (Redis unavailable?) - cache: {}, key: {}, "
+                                + "error: {}",
+                        cache.getName(),
+                        key,
+                        evictEx.getMessage());
+            }
         }
 
         @Override

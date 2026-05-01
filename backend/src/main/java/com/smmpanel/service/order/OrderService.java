@@ -657,19 +657,30 @@ public class OrderService {
                     "Order cannot be cancelled in current status: " + status);
         }
 
-        // (2) Best-effort: tell the bot fleet to stop dispatching. Skip if the order never
-        // reached the bot (no botOrderId yet) or if cancel-signal fails — panel state still
-        // converges via terminal-state guards on the webhook side.
-        String botOrderId = order.getInstagramBotOrderId();
+        // (2) Best-effort: tell the bot fleet to stop dispatching. Deferred until AFTER our
+        // refund + status-change has committed — same reason as AdminService.stopBotForOrder
+        // (see commit e421c64c). Running the bot signal inline would let the bot's response
+        // webhook race the panel-side save: bot replies "cancelled, completed=N",
+        // InstagramResultConsumer commits its own update, our @Version then mismatches →
+        // StaleStateException → rollback → user sees "An unexpected error", refund silently
+        // reverts, but the bot has already forgotten the order ⇒ zombie. Deferring guarantees
+        // the webhook arrives after we've committed CANCELLED/PARTIAL, and the consumer's
+        // terminal-state guard skips it.
+        final String botOrderId = order.getInstagramBotOrderId();
         if (botOrderId != null && !botOrderId.isBlank()) {
-            try {
-                instagramBotClient.cancelOrderFast(botOrderId);
-            } catch (Exception e) {
-                log.warn(
-                        "Bot cancel for order {} failed (continuing with refund): {}",
-                        orderId,
-                        e.getMessage());
-            }
+            com.smmpanel.util.AfterCommitRunner.runAfterCommit(
+                    () -> {
+                        try {
+                            instagramBotClient.cancelOrderFast(botOrderId);
+                        } catch (Exception e) {
+                            log.warn(
+                                    "User-cancel: bot cancel for order {} failed (refund"
+                                            + " already issued, panel state already committed):"
+                                            + " {}",
+                                    orderId,
+                                    e.getMessage());
+                        }
+                    });
         }
 
         int delivered = order.getViewsDelivered() != null ? order.getViewsDelivered() : 0;

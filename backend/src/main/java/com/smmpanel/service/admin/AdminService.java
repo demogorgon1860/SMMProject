@@ -477,24 +477,36 @@ public class AdminService {
         if (order == null) return;
         String botOrderId = order.getInstagramBotOrderId();
         if (botOrderId == null || botOrderId.isBlank()) return;
-        try {
-            boolean ok = instagramBotClient.cancelOrderFast(botOrderId);
-            if (!ok) {
-                log.info(
-                        "{}: bot rejected cancel for order {} (bot_order_id={}) — likely already"
-                                + " finished",
-                        panelAction,
-                        order.getId(),
-                        botOrderId);
-            }
-        } catch (Exception e) {
-            log.warn(
-                    "{}: bot cancel call failed for order {} (bot_order_id={}): {}",
-                    panelAction,
-                    order.getId(),
-                    botOrderId,
-                    e.getMessage());
-        }
+        final Long orderId = order.getId();
+
+        // Defer the bot signal until our DB transition commits. Running it inline lets the
+        // bot's response webhook race the panel-side save: bot replies "cancelled,
+        // completed=N", InstagramResultConsumer commits its own update, our @Version then
+        // mismatches → StaleStateException → rollback → panel state lost. This was the prod
+        // failure mode admin saw on order #8086. Deferring guarantees the webhook (if any)
+        // arrives after we've already committed a terminal status, and the consumer's
+        // terminal-state guard skips it.
+        com.smmpanel.util.AfterCommitRunner.runAfterCommit(
+                () -> {
+                    try {
+                        boolean ok = instagramBotClient.cancelOrderFast(botOrderId);
+                        if (!ok) {
+                            log.info(
+                                    "{}: bot rejected cancel for order {} (bot_order_id={}) —"
+                                            + " likely already finished",
+                                    panelAction,
+                                    orderId,
+                                    botOrderId);
+                        }
+                    } catch (Exception e) {
+                        log.warn(
+                                "{}: bot cancel call failed for order {} (bot_order_id={}): {}",
+                                panelAction,
+                                orderId,
+                                botOrderId,
+                                e.getMessage());
+                    }
+                });
     }
 
     /**

@@ -677,16 +677,23 @@ public class AdminService {
         orderRepository.save(order);
 
         // 3. Record profit + Telegram only on the first transition into COMPLETED. Multiple
-        // force-completes shouldn't double-count daily profit.
+        // force-completes shouldn't double-count daily profit. Both side-effects are deferred
+        // until AFTER COMMIT — Redis HINCRBY is non-transactional, so an inline call followed
+        // by rollback would leak phantom profit into the daily counter (this was the source of
+        // the May 2 over-count: $244.51 in Redis vs $154.21 in DB).
         if (!alreadyCompleted) {
-            try {
-                dailyProfitService.recordProfit(order.getCharge(), OrderStatus.COMPLETED);
-            } catch (Exception e) {
-                log.warn(
-                        "force_complete: profit recording failed for order {}: {}",
-                        orderId,
-                        e.getMessage());
-            }
+            final BigDecimal profitAmount = order.getCharge();
+            com.smmpanel.util.AfterCommitRunner.runAfterCommit(
+                    () -> {
+                        try {
+                            dailyProfitService.recordProfit(profitAmount, OrderStatus.COMPLETED);
+                        } catch (Exception e) {
+                            log.warn(
+                                    "force_complete: profit recording failed for order {}: {}",
+                                    orderId,
+                                    e.getMessage());
+                        }
+                    });
             try {
                 telegramNotificationService.notifyOrderCompleted(order, completedCount);
             } catch (Exception e) {

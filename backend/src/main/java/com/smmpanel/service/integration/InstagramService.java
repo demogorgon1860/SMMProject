@@ -9,7 +9,9 @@ import com.smmpanel.repository.jpa.OrderRepository;
 import com.smmpanel.service.admin.BotWebhookEventRecorder;
 import com.smmpanel.service.balance.BalanceService;
 import com.smmpanel.service.instagram.InstagramRabbitPublisher;
+import com.smmpanel.service.notification.DailyProfitService;
 import com.smmpanel.service.notification.TelegramNotificationService;
+import com.smmpanel.util.AfterCommitRunner;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Map;
@@ -36,6 +38,7 @@ public class InstagramService {
     private final InstagramRabbitPublisher rabbitPublisher;
     private final BalanceService balanceService;
     private final BotWebhookEventRecorder botWebhookEventRecorder;
+    private final DailyProfitService dailyProfitService;
 
     @Value("${app.instagram.use-rabbitmq:true}")
     private boolean useRabbitMQ;
@@ -367,6 +370,12 @@ public class InstagramService {
         String cacheKey = INSTAGRAM_BOT_ORDER_ID_PREFIX + order.getId();
         redisTemplate.delete(cacheKey);
 
+        // Record daily profit AFTER COMMIT — Redis HINCRBY isn't transactional, so an inline
+        // call followed by rollback would leak phantom profit into the daily counter. The
+        // charge captured here is post-refund (processPartialRefund mutates it for PARTIAL),
+        // so it always represents the kept portion.
+        recordProfitAfterCommit(order);
+
         // Send Telegram notification
         telegramNotificationService.notifyOrderCompleted(order, actualDelivered);
     }
@@ -434,12 +443,44 @@ public class InstagramService {
         String cacheKey = INSTAGRAM_BOT_ORDER_ID_PREFIX + order.getId();
         redisTemplate.delete(cacheKey);
 
+        // Record daily profit AFTER COMMIT — only PARTIAL contributes profit (CANCELLED is a
+        // full refund; we already zeroed out the charge in processFullRefund). See
+        // recordProfitAfterCommit for the rationale on deferral.
+        if (order.getStatus() == OrderStatus.PARTIAL) {
+            recordProfitAfterCommit(order);
+        }
+
         // Send Telegram notification
         if (order.getStatus() == OrderStatus.PARTIAL) {
             telegramNotificationService.notifyOrderPartial(order, completed);
         } else {
             telegramNotificationService.notifyOrderFailed(order, completed);
         }
+    }
+
+    /**
+     * Defer a {@link DailyProfitService#recordProfit} call until the surrounding transaction
+     * commits. Captures the charge value (and status) at call time so the lambda doesn't depend
+     * on the entity remaining attached after the persistence context closes. No-op for
+     * non-profit-bearing statuses.
+     */
+    private void recordProfitAfterCommit(Order order) {
+        OrderStatus status = order.getStatus();
+        if (status != OrderStatus.COMPLETED && status != OrderStatus.PARTIAL) return;
+        final BigDecimal amount = order.getCharge();
+        final Long orderId = order.getId();
+        AfterCommitRunner.runAfterCommit(
+                () -> {
+                    try {
+                        dailyProfitService.recordProfit(amount, status);
+                    } catch (Exception e) {
+                        log.warn(
+                                "Profit recording failed for order {} (status={}): {}",
+                                orderId,
+                                status,
+                                e.getMessage());
+                    }
+                });
     }
 
     /**

@@ -3,7 +3,6 @@ package com.smmpanel.service.notification;
 import com.smmpanel.config.TelegramBotProperties;
 import com.smmpanel.dto.telegram.CancelPendingDecision;
 import com.smmpanel.entity.Order;
-import com.smmpanel.entity.OrderStatus;
 import jakarta.annotation.PostConstruct;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -30,17 +29,14 @@ public class TelegramBotService {
 
     private final TelegramBotProperties props;
     private final CancelDecisionService cancelDecisionService;
-    private final DailyProfitService dailyProfitService;
     private final RestTemplate restTemplate;
 
     public TelegramBotService(
             TelegramBotProperties props,
             CancelDecisionService cancelDecisionService,
-            DailyProfitService dailyProfitService,
             @Qualifier("telegramRestTemplate") RestTemplate restTemplate) {
         this.props = props;
         this.cancelDecisionService = cancelDecisionService;
-        this.dailyProfitService = dailyProfitService;
         this.restTemplate = restTemplate;
     }
 
@@ -124,7 +120,6 @@ public class TelegramBotService {
                         completed != null ? completed : order.getQuantity(),
                         order.getCharge().toPlainString());
         sendMessage(text);
-        dailyProfitService.recordProfit(order.getCharge(), OrderStatus.COMPLETED);
     }
 
     @Async("asyncExecutor")
@@ -142,7 +137,6 @@ public class TelegramBotService {
                         completed != null ? completed : 0,
                         order.getCharge().toPlainString());
         sendMessage(text);
-        dailyProfitService.recordProfit(order.getCharge(), OrderStatus.PARTIAL);
     }
 
     @Async("asyncExecutor")

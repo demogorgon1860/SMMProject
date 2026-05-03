@@ -7,7 +7,9 @@ import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.repository.jpa.OrderRepository;
 import com.smmpanel.service.admin.BotWebhookEventRecorder;
 import com.smmpanel.service.balance.BalanceService;
+import com.smmpanel.service.notification.DailyProfitService;
 import com.smmpanel.service.notification.TelegramNotificationService;
+import com.smmpanel.util.AfterCommitRunner;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
@@ -32,6 +34,7 @@ public class InstagramResultConsumer {
     private final TelegramNotificationService telegramNotificationService;
     private final BalanceService balanceService;
     private final BotWebhookEventRecorder botWebhookEventRecorder;
+    private final DailyProfitService dailyProfitService;
 
     @RabbitListener(queues = RabbitMQConfig.QUEUE_RESULTS)
     @Transactional
@@ -107,6 +110,14 @@ public class InstagramResultConsumer {
                     order.getStatus(),
                     order.getRemains());
 
+            // Record daily profit AFTER COMMIT for terminal-bearing statuses (COMPLETED +
+            // PARTIAL only — CANCELLED is a full refund, no profit). Deferral is essential:
+            // Redis HINCRBY isn't transactional, so an inline call followed by rollback would
+            // leak phantom profit. The charge captured at this point is post-refund
+            // (processPartialRefund / processFullRefund mutate it earlier in the flow), so it
+            // always represents the kept portion.
+            recordProfitAfterCommit(order);
+
             // Send Telegram notification for terminal states
             if (order.getStatus() == OrderStatus.COMPLETED) {
                 telegramNotificationService.notifyOrderCompleted(order, result.getCompleted());
@@ -129,6 +140,30 @@ public class InstagramResultConsumer {
                     e);
             // Don't rethrow - we don't want to requeue the message
         }
+    }
+
+    /**
+     * Defer a {@link DailyProfitService#recordProfit} call until the surrounding RabbitMQ
+     * listener transaction commits. No-op for non-profit-bearing statuses. Captures charge and
+     * status at call time so the lambda doesn't depend on the entity remaining attached.
+     */
+    private void recordProfitAfterCommit(Order order) {
+        OrderStatus status = order.getStatus();
+        if (status != OrderStatus.COMPLETED && status != OrderStatus.PARTIAL) return;
+        final BigDecimal amount = order.getCharge();
+        final Long orderId = order.getId();
+        AfterCommitRunner.runAfterCommit(
+                () -> {
+                    try {
+                        dailyProfitService.recordProfit(amount, status);
+                    } catch (Exception e) {
+                        log.warn(
+                                "Profit recording failed for order {} (status={}): {}",
+                                orderId,
+                                status,
+                                e.getMessage());
+                    }
+                });
     }
 
     private void updateOrderFromResult(Order order, InstagramResultMessage result) {

@@ -802,4 +802,7 @@
     <!-- Task 16.10: Persistent admin audit log (replaces in-memory Zustand useAdminActions) -->
     <include file="db/changelog/changes/v2026.04-add-admin-audit-log.xml"/>
 
+    <!-- Fast-path API key auth: deterministic lookup hash to replace O(N) per-user-salt scan -->
+    <include file="db/changelog/changes/v2026.05-add-api-key-lookup-hash.xml"/>
+
 </databaseChangeLog>

@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -94,29 +95,71 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         StopWatch stopWatch = new StopWatch("API Key Authentication");
 
         try {
-            stopWatch.start("Database Lookup");
-            // Since we use per-user salts, we need to fetch all active users and validate
-            // This is a temporary fix - in production, consider storing a separate lookup hash
-            List<User> activeUsersWithApiKeys =
-                    userRepository.findAllByIsActiveTrue().stream()
-                            .filter(u -> u.getApiKeyHash() != null && u.getApiKeySalt() != null)
-                            .toList();
+            // Fast path — deterministic global-salt lookup hash → at most one candidate row,
+            // resolved by an indexed SELECT. The legacy "iterate every active user and SHA-512
+            // against each per-user salt" scan is kept below as a fallback for users whose row
+            // predates the api_key_lookup_hash column (NULL on day 1; eagerly populated on next
+            // rotate, lazily backfilled on first successful auth).
+            stopWatch.start("Lookup-hash resolve");
+            String lookupHash = apiKeyService.hashApiKeyForLookup(apiKey);
+            Optional<User> fastMatch =
+                    userRepository.findByApiKeyLookupHashAndIsActiveTrue(lookupHash);
             stopWatch.stop();
 
-            stopWatch.start("API Key Validation");
             User authenticatedUser = null;
 
-            for (User user : activeUsersWithApiKeys) {
-                // Create rate limiting identifier
-                String clientIdentifier = createClientIdentifier(request, user.getApiKeyHash());
-
-                // Check if this API key matches this user
-                if (validateApiKeyWithRateLimit(apiKey, user, clientIdentifier)) {
-                    authenticatedUser = user;
-                    break;
+            if (fastMatch.isPresent()) {
+                stopWatch.start("Per-user verify (fast path)");
+                User candidate = fastMatch.get();
+                // Defence in depth: still re-verify against the per-user salt. A non-null
+                // lookup hash is supposed to be unique to one user, but never authenticate
+                // solely on that — a stale row left after manual DB surgery, or the
+                // (astronomically unlikely) hash collision, would otherwise let a wrong key
+                // through. The cost of a single SHA-512 here is negligible.
+                String clientIdentifier =
+                        createClientIdentifier(request, candidate.getApiKeyHash());
+                if (candidate.getApiKeyHash() != null
+                        && candidate.getApiKeySalt() != null
+                        && apiKeyService.verifyApiKeyOnly(
+                                apiKey,
+                                candidate.getApiKeyHash(),
+                                candidate.getApiKeySalt(),
+                                clientIdentifier)) {
+                    authenticatedUser = candidate;
                 }
+                stopWatch.stop();
             }
-            stopWatch.stop();
+
+            if (authenticatedUser == null) {
+                // Legacy fallback — scan only rows whose lookup hash is still null. After a
+                // user takes this path once we backfill their lookup hash below, so the very
+                // next request from that user resolves via the fast path and never reaches
+                // here again. Filtering on lookup_hash IS NULL keeps the scan from re-checking
+                // users we've already migrated.
+                stopWatch.start("Legacy scan");
+                List<User> legacyCandidates =
+                        userRepository.findAllByIsActiveTrue().stream()
+                                .filter(
+                                        u ->
+                                                u.getApiKeyHash() != null
+                                                        && u.getApiKeySalt() != null
+                                                        && u.getApiKeyLookupHash() == null)
+                                .toList();
+
+                for (User user : legacyCandidates) {
+                    String clientIdentifier =
+                            createClientIdentifier(request, user.getApiKeyHash());
+                    if (validateApiKeyWithRateLimit(apiKey, user, clientIdentifier)) {
+                        authenticatedUser = user;
+                        // One-shot migration: subsequent requests from this user take the
+                        // fast path. Best-effort — a backfill failure must NOT prevent the
+                        // current request from authenticating.
+                        apiKeyService.backfillLookupHashIfMissing(user.getId(), lookupHash);
+                        break;
+                    }
+                }
+                stopWatch.stop();
+            }
 
             if (authenticatedUser != null) {
                 // Soft-deleted accounts: the anonymizer clears api_key_hash, but defend in depth

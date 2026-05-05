@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="v2026.05-add-api-key-lookup-hash" author="dev">
+        <comment>
+            Add a deterministic global-salt lookup hash for API keys so the auth filter can
+            resolve the owning user with a single indexed SELECT instead of iterating every
+            active user and hashing against each one's per-user salt.
+
+            The legacy O(N) scan (a) scales linearly with active-user count, (b) spams the
+            authentication rate limiter with false-positive "failed attempt" records on every
+            non-matching user's identifier on every request — eventually locking out
+            unrelated identifiers in Redis. Both go away once this column is populated and
+            the filter is wired through the new path.
+
+            Existing users get NULL on day 1 and stay on the legacy path until they next
+            rotate (eager fill via ApiKeyService.generateApiKey) or a successful auth
+            triggers the lazy backfill in ApiKeyAuthenticationFilter — whichever comes first.
+        </comment>
+        <addColumn tableName="users">
+            <column name="api_key_lookup_hash" type="VARCHAR(128)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        <sql>
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_users_api_key_lookup_hash
+            ON users (api_key_lookup_hash)
+            WHERE api_key_lookup_hash IS NOT NULL;
+        </sql>
+        <rollback>
+            <sql>DROP INDEX IF EXISTS idx_users_api_key_lookup_hash;</sql>
+            <dropColumn tableName="users" columnName="api_key_lookup_hash"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

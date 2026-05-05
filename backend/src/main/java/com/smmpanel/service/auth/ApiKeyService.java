@@ -60,9 +60,15 @@ public class ApiKeyService {
             // Create preview (first 4 + last 4 characters) for display
             String preview = apiKeyGenerator.maskApiKey(apiKey);
 
+            // Deterministic global-salt hash — populates the indexed fast-path column read
+            // by ApiKeyAuthenticationFilter. Always written together with apiKeyHash so the
+            // two columns can never disagree on which key the user owns.
+            String lookupHash = hashApiKeyForLookup(apiKey);
+
             // Update user with new API key details
             user.setApiKeyHash(hashedKey);
             user.setApiKeySalt(salt);
+            user.setApiKeyLookupHash(lookupHash);
             user.setApiKeyPreview(preview);
             user.setApiKeyActive(true);
             user.setApiKeyLastRotated(LocalDateTime.now());
@@ -74,6 +80,34 @@ public class ApiKeyService {
         } catch (Exception e) {
             log.error("Failed to generate API key for user: {}", user.getUsername(), e);
             throw new ApiException("Failed to generate API key", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Lazy backfill of {@code api_key_lookup_hash} for users whose key predates the column.
+     * Called by {@link com.smmpanel.security.ApiKeyAuthenticationFilter} on a successful
+     * legacy-path authentication so the very next request from that user takes the fast
+     * path. Idempotent — does nothing if another concurrent request already filled the
+     * column. Failures are swallowed (logged only) so a transient DB hiccup never breaks
+     * the request that successfully authenticated.
+     */
+    @Transactional
+    public void backfillLookupHashIfMissing(Long userId, String lookupHash) {
+        try {
+            userRepository
+                    .findById(userId)
+                    .filter(u -> u.getApiKeyLookupHash() == null)
+                    .ifPresent(
+                            u -> {
+                                u.setApiKeyLookupHash(lookupHash);
+                                userRepository.save(u);
+                                log.info(
+                                        "Backfilled api_key_lookup_hash for user {}",
+                                        u.getUsername());
+                            });
+        } catch (Exception e) {
+            log.warn(
+                    "Lookup-hash backfill failed for user id {}: {}", userId, e.getMessage());
         }
     }
 

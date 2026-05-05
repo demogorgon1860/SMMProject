@@ -147,6 +147,24 @@ public class User implements UserDetails {
     private LocalDateTime apiKeyPausedAt;
 
     /**
+     * Deterministic global-salt SHA-512 of the user's API key (hex, 128 chars). Computed via
+     * {@code ApiKeyService.hashApiKeyForLookup} every time the key is generated or rotated.
+     * Indexed (unique, partial WHERE NOT NULL) so the auth filter can resolve the owning user
+     * with one SELECT instead of iterating every active user and hashing against each one's
+     * per-user salt — which scales linearly and floods the rate-limiter with phantom failures.
+     *
+     * <p>Stays in lockstep with {@link #apiKeyHash}: both columns are written in the same
+     * {@code @Transactional} method, so a non-null lookup hash always points to the row whose
+     * per-user-salted hash the candidate key would verify against. A second per-user-salt
+     * verify still runs after the lookup as defence in depth (collision / stale row).
+     *
+     * <p>Null on rows that predate this column — those still authenticate via the legacy
+     * scan and get this column lazily backfilled on the first successful auth.
+     */
+    @Column(name = "api_key_lookup_hash", length = 128)
+    private String apiKeyLookupHash;
+
+    /**
      * GDPR soft-delete marker. Non-null = the owner asked to delete the account; identity columns
      * (email, username, password_hash, api_key_*) have already been anonymized by {@code
      * AccountDeletionService}. The row is hard-deleted by a daily cron 30 days after this

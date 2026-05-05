@@ -297,9 +297,9 @@ function SecurityTab() {
   const rotate = async () => {
     setKeyLoading(true);
     try {
-      const r = (await apiKeyAPI.rotate()) as { newApiKey?: string };
-      if (r.newApiKey) {
-        setApiKey(r.newApiKey);
+      const r = (await apiKeyAPI.rotate()) as { apiKey?: string };
+      if (r.apiKey) {
+        setApiKey(r.apiKey);
         setShowKey(true);
         toast('Key rotated. The old one is revoked.', 'success');
       }

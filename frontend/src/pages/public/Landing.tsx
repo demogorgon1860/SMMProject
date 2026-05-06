@@ -318,9 +318,11 @@ function Categories() {
               <span>·</span>
               <span>30-day refill</span>
             </div>
+            {/* TEMP: services catalog hidden — restore with the Services nav link
             <Link to="/services-list" className="mt-5 inline-flex items-center gap-1 text-[13px] font-medium text-accent-2 hover:underline">
               View all <Icon name="arrow-right" size={13} />
             </Link>
+            */}
           </div>
           {soon.map((s) => (
             <div key={s.cat} className="rounded-xl border border-white/10 bg-white/[0.02] p-5">
@@ -617,9 +619,11 @@ function CategoriesLight() {
             <span>·</span>
             <span>30-day refill</span>
           </div>
+          {/* TEMP: services catalog hidden — restore with the Services nav link
           <Link to="/services-list" className="mt-5 inline-flex items-center gap-1 text-[13px] font-medium text-accent hover:underline">
             View all <Icon name="arrow-right" size={13} />
           </Link>
+          */}
         </Card>
         {soon.map((s) => (
           <Card key={s.cat} className="p-5">

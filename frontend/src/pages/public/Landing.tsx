@@ -66,11 +66,13 @@ function Hero() {
               </Button>
             </Link>
             */}
+            {/* TEMP: services catalog hidden — restore with the Services nav link
             <Link to="/services-list">
               <Button variant="outline-dark" size="xl">
                 Browse services
               </Button>
             </Link>
+            */}
             <span className="ml-2 text-[13px] text-white/50">
               Free $5 credit · no card · pay only with crypto
             </span>
@@ -485,11 +487,13 @@ function LandingLight() {
                   </Button>
                 </Link>
                 */}
+                {/* TEMP: services catalog hidden — restore with the Services nav link
                 <Link to="/services-list">
                   <Button variant="secondary" size="xl">
                     Browse services
                   </Button>
                 </Link>
+                */}
                 <span className="ml-2 text-[13px] text-fg-subtle">
                   Free $5 credit · no card · pay only with crypto
                 </span>

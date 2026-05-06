@@ -38,11 +38,13 @@ export function PricingPage() {
           predictable cost — so you can quote your own customers without doing margin math.
         </p>
         <div className="mt-8 flex justify-center gap-3">
+          {/* TEMP: services catalog hidden — restore with the Services nav link
           <Link to="/services-list">
             <Button variant="primary" size="xl" iconRight="arrow-right">
               See the catalog
             </Button>
           </Link>
+          */}
           <Link to="/docs">
             <Button variant="secondary" size="xl">
               API docs

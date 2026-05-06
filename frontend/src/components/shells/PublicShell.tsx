@@ -52,7 +52,7 @@ function PublicNav({ variant }: { variant: 'light' | 'dark' }) {
         </Link>
         <nav className="hidden items-center gap-5 md:flex">
           {[
-            { to: '/services-list', label: 'Services' },
+            // { to: '/services-list', label: 'Services' },
             { to: '/pricing', label: 'Pricing' },
             { to: '/docs', label: 'API' },
             { to: '/help', label: 'Help' },

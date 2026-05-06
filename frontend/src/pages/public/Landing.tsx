@@ -76,7 +76,7 @@ function Hero() {
             </span>
           </div>
         </div>
-        <TopServicesCard tone="dark" />
+        {/* <TopServicesCard tone="dark" /> */}
       </div>
     </section>
   );
@@ -495,7 +495,7 @@ function LandingLight() {
                 </span>
               </div>
             </div>
-            <TopServicesCard tone="light" />
+            {/* <TopServicesCard tone="light" /> */}
           </div>
         </div>
       </section>

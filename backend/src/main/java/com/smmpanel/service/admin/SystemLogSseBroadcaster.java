@@ -13,6 +13,7 @@ import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.http.MediaType;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -102,6 +103,28 @@ public class SystemLogSseBroadcaster implements MessageListener {
         for (SseEmitter emitter : emitters) {
             try {
                 emitter.send(SseEmitter.event().name("log").data(json, MediaType.APPLICATION_JSON));
+            } catch (Exception e) {
+                emitters.remove(emitter);
+                try {
+                    emitter.complete();
+                } catch (Exception ignored) {
+                    // already closed
+                }
+            }
+        }
+    }
+
+    /**
+     * Periodic SSE comment so idle log-tail connections don't get closed by intermediaries.
+     * Mirrors {@link BotWebhookSseBroadcaster#heartbeat()} — same Cloudflare HTTP/3 idle-kill
+     * problem, same solution: one comment frame every 25s keeps the path warm.
+     */
+    @Scheduled(fixedDelay = 25_000L, initialDelay = 25_000L)
+    public void heartbeat() {
+        if (emitters.isEmpty()) return;
+        for (SseEmitter emitter : emitters) {
+            try {
+                emitter.send(SseEmitter.event().comment("keepalive"));
             } catch (Exception e) {
                 emitters.remove(emitter);
                 try {

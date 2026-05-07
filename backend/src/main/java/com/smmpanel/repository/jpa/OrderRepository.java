@@ -103,6 +103,25 @@ public interface OrderRepository
     List<Order> findOrdersWithDetailsByUserId(@Param("userId") Long userId);
 
     /**
+     * Batch lookup for the Perfect Panel {@code action=statuses} endpoint. Resellers poll this
+     * with 25–50 order IDs every few seconds; the previous implementation loaded ALL of the
+     * user's historical orders (could be thousands) and filtered in memory, which dominated
+     * the endpoint's latency and turned a fast batch read into an O(allUserOrders) scan.
+     *
+     * <p>This query restricts the row set to {@code id IN (:ids) AND user = :userId} at the SQL
+     * level, with JOIN FETCH on user and service so the response mapper reads both lazy
+     * associations without follow-up queries. Authorization is enforced inline (filter by
+     * user_id) so a malicious caller can't probe other users' order IDs.
+     */
+    @Query(
+            "SELECT o FROM Order o "
+                    + "JOIN FETCH o.user u "
+                    + "JOIN FETCH o.service s "
+                    + "WHERE o.id IN :ids AND u.id = :userId")
+    List<Order> findByIdInAndUserId(
+            @Param("ids") java.util.Collection<Long> ids, @Param("userId") Long userId);
+
+    /**
      * SPECIALIZED QUERY: Find orders with details by user ID with pagination PREVENTS N+1: Single
      * query with all related entities
      */

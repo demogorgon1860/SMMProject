@@ -10,6 +10,8 @@ import com.smmpanel.security.JwtService;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -17,6 +19,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Slf4j
 @Service
@@ -185,8 +188,20 @@ public class AuthService {
 
     public UserDto getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String username = auth.getName();
 
+        // /api/v*/auth/** is currently permitAll() in SecurityConfig — anonymous requests reach
+        // this method with either a null Authentication or AnonymousAuthenticationToken (name
+        // "anonymousUser"). Without this guard the previous behaviour was an NPE / a lookup
+        // for a user named "anonymousUser" → UserNotFoundException → blanket 500. Returning
+        // 401 here matches the contract any client expects for "tell me about the current
+        // user" and lets the frontend's silent .catch handlers stop logging server errors.
+        if (auth == null
+                || !auth.isAuthenticated()
+                || auth instanceof AnonymousAuthenticationToken) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not authenticated");
+        }
+
+        String username = auth.getName();
         User user =
                 userRepository
                         .findByUsername(username)

@@ -25,6 +25,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -68,12 +69,19 @@ public class SystemHealthService {
     private static final Duration HTTP_PROBE_TIMEOUT = Duration.ofMillis(1_500);
 
     /**
-     * Cache TTL on the assembled response. The dashboard auto-refreshes every 10s and may be open
-     * in many tabs at once; without this each tab triggers six real probes against PG, Redis,
-     * RabbitMQ, the bot, and Cryptomus. A short TTL absorbs that fan-out while still giving admins
-     * fresh data well within their 10s refresh cadence.
+     * Soft cache TTL: snapshots older than this trigger a background refresh, but the stale
+     * value is still returned to the caller immediately. Combined with {@link #HARD_CACHE_TTL_MS}
+     * this gives stale-while-revalidate semantics — the admin dashboard responds in &lt;5 ms
+     * after the first warm-up while never showing data older than {@code HARD_CACHE_TTL_MS}.
      */
-    private static final long CACHE_TTL_MS = 2_000L;
+    private static final long CACHE_TTL_MS = 5_000L;
+
+    /**
+     * Hard cache TTL: snapshots older than this are treated as missing and the call blocks for a
+     * fresh probe. Backstop for the case where a background refresh stalled — we'd rather make
+     * the operator wait 2 s than show them health data from a minute ago.
+     */
+    private static final long HARD_CACHE_TTL_MS = 30_000L;
 
     private final DataSource dataSource;
     private final RedisConnectionFactory redisConnectionFactory;
@@ -91,6 +99,14 @@ public class SystemHealthService {
             HttpClient.newBuilder().connectTimeout(HTTP_PROBE_TIMEOUT).build();
 
     private final AtomicReference<CachedSnapshot> cache = new AtomicReference<>();
+
+    /**
+     * Single-flight guard for background refreshes. Prevents the case where N concurrent
+     * dashboard tabs all see the cache go stale at the same moment and each kick off their
+     * own {@code runAllChecks} run — that would defeat the cache and fan out 6 probes per
+     * tab against PG/Redis/RabbitMQ/Bot/Cryptomus.
+     */
+    private final AtomicBoolean refreshInFlight = new AtomicBoolean(false);
 
     public SystemHealthService(
             DataSource dataSource,
@@ -111,21 +127,60 @@ public class SystemHealthService {
     }
 
     /**
-     * Returns the latest snapshot, computing a fresh one if the cache has expired. Order matches
-     * the tile grid the frontend renders.
+     * Returns the latest snapshot using stale-while-revalidate semantics:
+     *
+     * <ul>
+     *   <li>fresh cache (&lt;{@link #CACHE_TTL_MS}) → return immediately.
+     *   <li>stale cache (between {@code CACHE_TTL_MS} and {@link #HARD_CACHE_TTL_MS}) → return
+     *       the stale snapshot immediately AND kick off a background refresh.
+     *   <li>missing or hard-expired cache → block on a real probe (≤2 s budget).
+     * </ul>
+     *
+     * After the first warm-up this means the endpoint responds in &lt;5 ms regardless of how
+     * slow the underlying probes are. Order matches the tile grid the frontend renders.
      */
     public List<SystemHealthComponent> probe() {
-        CachedSnapshot current = cache.get();
         long now = System.currentTimeMillis();
-        if (current != null && now - current.timestamp() < CACHE_TTL_MS) {
-            return current.components();
+        CachedSnapshot current = cache.get();
+
+        if (current != null) {
+            long age = now - current.timestamp();
+            if (age < CACHE_TTL_MS) {
+                return current.components(); // fast path: serve from cache
+            }
+            if (age < HARD_CACHE_TTL_MS) {
+                triggerBackgroundRefresh();
+                return current.components(); // stale-while-revalidate
+            }
         }
+
+        // No cache yet, or it's too old to serve. Block on a real probe.
         List<SystemHealthComponent> fresh = runAllChecks();
-        // compareAndSet with the snapshot we observed prevents two concurrent refreshes from
-        // overwriting each other in unpredictable order. If we lose the race the other thread's
-        // snapshot is at least as fresh as ours, so we don't bother retrying.
-        cache.compareAndSet(current, new CachedSnapshot(fresh, now));
+        cache.compareAndSet(current, new CachedSnapshot(fresh, System.currentTimeMillis()));
         return fresh;
+    }
+
+    /**
+     * Kick off a single non-blocking refresh. The atomic guard ensures only one is in flight
+     * at a time even when many dashboard tabs hit the endpoint simultaneously. Failures are
+     * swallowed (logged only) so a transient probe error never poisons the cached snapshot —
+     * the next caller will see the previous good values until a refresh succeeds.
+     */
+    private void triggerBackgroundRefresh() {
+        if (!refreshInFlight.compareAndSet(false, true)) {
+            return;
+        }
+        executor.execute(
+                () -> {
+                    try {
+                        List<SystemHealthComponent> fresh = runAllChecks();
+                        cache.set(new CachedSnapshot(fresh, System.currentTimeMillis()));
+                    } catch (Exception e) {
+                        log.warn("Background system-health refresh failed: {}", e.toString());
+                    } finally {
+                        refreshInFlight.set(false);
+                    }
+                });
     }
 
     private List<SystemHealthComponent> runAllChecks() {

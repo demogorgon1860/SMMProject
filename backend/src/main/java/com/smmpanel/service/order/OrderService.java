@@ -27,6 +27,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -1530,21 +1531,26 @@ public class OrderService {
     }
 
     public Map<Long, OrderResponse> getOrdersBatchOptimized(List<Long> orderIds, String username) {
+        if (orderIds == null || orderIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
         User user =
                 userRepository
                         .findByUsername(username)
                         .orElseThrow(() -> new OrderValidationException("User not found"));
 
-        // Use existing method to get orders by user then filter by IDs
-        List<Order> allUserOrders = orderRepository.findOrdersWithDetailsByUserId(user.getId());
-        Map<Long, OrderResponse> result = new HashMap<>();
-
-        for (Order order : allUserOrders) {
-            if (orderIds.contains(order.getId())) {
-                result.put(order.getId(), mapToOrderResponse(order));
-            }
+        // SQL-side filter on (id IN :ids AND user_id = :userId) with JOIN FETCH for user and
+        // service. The previous implementation pulled every order this user had ever placed —
+        // thousands of rows for active resellers — and filtered the candidate IDs in memory.
+        // That dominated the response time of the Perfect Panel statuses endpoint, which
+        // resellers poll every few seconds with batches of 25–50 IDs. The new query reads
+        // exactly the rows the caller asked for; authorization stays inside the WHERE clause
+        // so a malicious caller can't probe other users' order IDs.
+        List<Order> orders = orderRepository.findByIdInAndUserId(orderIds, user.getId());
+        Map<Long, OrderResponse> result = new HashMap<>(orders.size());
+        for (Order order : orders) {
+            result.put(order.getId(), mapToOrderResponse(order));
         }
-
         return result;
     }
 

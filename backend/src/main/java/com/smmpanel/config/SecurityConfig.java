@@ -75,9 +75,29 @@ public class SecurityConfig {
                                         .requestMatchers(HttpMethod.OPTIONS, "/**")
                                         .permitAll()
                                         .requestMatchers(
-                                                // Authentication endpoints (singular - actions)
-                                                "/api/v*/auth/**",
-                                                "/api/auth/**",
+                                                // Authentication endpoints — explicitly listed
+                                                // instead of /auth/** so {@code /me}, /profile,
+                                                // /logout, /logout-all are NOT publicly
+                                                // reachable. The previous wildcard let anonymous
+                                                // requests reach AuthService.getCurrentUser(),
+                                                // which then surfaced as a generic 500 (no auth
+                                                // context to read a username from). Anything
+                                                // identity-bearing must require a JWT, anything
+                                                // that BOOTSTRAPS or RESETS a JWT can be public.
+                                                "/api/v*/auth/login",
+                                                "/api/v*/auth/register",
+                                                "/api/v*/auth/refresh",
+                                                "/api/v*/auth/forgot-password",
+                                                "/api/v*/auth/reset-password",
+                                                "/api/v*/auth/verify-email",
+                                                "/api/v*/auth/resend-verification",
+                                                "/api/auth/login",
+                                                "/api/auth/register",
+                                                "/api/auth/refresh",
+                                                "/api/auth/forgot-password",
+                                                "/api/auth/reset-password",
+                                                "/api/auth/verify-email",
+                                                "/api/auth/resend-verification",
 
                                                 // Service endpoints (both singular and plural
                                                 // patterns)

@@ -12,6 +12,7 @@ import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.http.MediaType;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -104,6 +105,31 @@ public class BotWebhookSseBroadcaster implements MessageListener {
             try {
                 emitter.send(
                         SseEmitter.event().name("webhook").data(json, MediaType.APPLICATION_JSON));
+            } catch (Exception e) {
+                emitters.remove(emitter);
+                try {
+                    emitter.complete();
+                } catch (Exception ignored) {
+                    // already closed
+                }
+            }
+        }
+    }
+
+    /**
+     * Periodic SSE comment so idle connections don't get closed by intermediaries while we wait
+     * on the next bot webhook. Cloudflare's free-tier plan kills HTTP/3 connections that have
+     * been quiet for ~100s, surfacing in the browser as {@code ERR_QUIC_PROTOCOL_ERROR} and
+     * triggering the frontend's reconnect loop — which on a busy admin page meant a fresh
+     * stream every couple of minutes per open tab. A 25s comment keeps the path warm without
+     * adding meaningful traffic (only a {@code ":\n\n"} byte sequence per emitter per tick).
+     */
+    @Scheduled(fixedDelay = 25_000L, initialDelay = 25_000L)
+    public void heartbeat() {
+        if (emitters.isEmpty()) return;
+        for (SseEmitter emitter : emitters) {
+            try {
+                emitter.send(SseEmitter.event().comment("keepalive"));
             } catch (Exception e) {
                 emitters.remove(emitter);
                 try {

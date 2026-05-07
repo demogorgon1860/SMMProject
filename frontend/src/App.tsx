@@ -10,16 +10,12 @@ import { AdminShell, AppShell, AuthShell, LandingShell, PublicShell } from './co
 
 // ---- Eager (critical-path) imports --------------------------------------
 // Lazy-loading these would cost more than it saves: they're either the first
-// paint (Landing) or the most common entry points (Login, Register, Dashboard).
+// paint (Landing) or the immediate post-login destination (Dashboard).
+// Login is small enough that the extra round-trip isn't worth a separate chunk.
 import { LoginPage /* RegisterPage — TEMP: registration closed */ } from './pages/auth';
 import { LandingPage } from './pages/public/Landing';
 import { NotFoundPage, ServerErrorPage } from './pages/public/NotFound';
 import { DashboardPage } from './pages/app/Dashboard';
-import { AddFundsPage } from './pages/app/AddFunds';
-import { NewOrderPage } from './pages/app/NewOrder';
-import { OrdersPage } from './pages/app/Orders';
-import { ProfilePage } from './pages/app/Profile';
-import { TransactionsPage } from './pages/app/Transactions';
 
 // ---- Lazy-loaded route helpers ------------------------------------------
 // `lazyNamed` adapts a named export to React.lazy's default-export contract.
@@ -83,6 +79,17 @@ const AmlPage = lazyNamed(() => import('./pages/public/legal/Aml'), 'AmlPage');
 const PrivacyPage = lazyNamed(() => import('./pages/public/legal/Privacy'), 'PrivacyPage');
 const RefundPage = lazyNamed(() => import('./pages/public/legal/Refund'), 'RefundPage');
 const TermsPage = lazyNamed(() => import('./pages/public/legal/Terms'), 'TermsPage');
+
+// ---- User-app secondary screens -----------------------------------------
+// Dashboard is eager (first thing after login). Everything else is one click
+// away and benefits from a separate chunk so the initial bundle doesn't carry
+// AddFunds + NewOrder + Orders + Profile + Transactions for visitors who
+// might never log in.
+const AddFundsPage = lazyNamed(() => import('./pages/app/AddFunds'), 'AddFundsPage');
+const NewOrderPage = lazyNamed(() => import('./pages/app/NewOrder'), 'NewOrderPage');
+const OrdersPage = lazyNamed(() => import('./pages/app/Orders'), 'OrdersPage');
+const ProfilePage = lazyNamed(() => import('./pages/app/Profile'), 'ProfilePage');
+const TransactionsPage = lazyNamed(() => import('./pages/app/Transactions'), 'TransactionsPage');
 
 // ---- Admin (gated by role; visitors never need this code) ---------------
 const AdminBalancePage = lazyNamed(() => import('./pages/admin/Balance'), 'AdminBalancePage');

@@ -11,6 +11,7 @@ import {
   StatusBadge,
   useToast,
 } from '../../components/ui';
+import { useVisibilityAwarePoll } from '../../hooks/usePolling';
 import { adminAPI, type BotInstanceStatus, type BotWebhookEvent } from '../../services/api';
 import { cn, fmtDateTime, fmtInt } from '../../lib/utils';
 
@@ -63,11 +64,11 @@ export function AdminBotPage() {
     }
   }, []);
 
-  useEffect(() => {
-    refresh();
-    const t = setInterval(refresh, 10_000);
-    return () => clearInterval(t);
-  }, [refresh]);
+  // Bot status is light but Live data — 30s feels current to operators and
+  // cuts the request rate by 3× compared to the old 10s interval. Combined
+  // with the visibility pause (no polling while the tab is in the background)
+  // this brings a forgotten admin tab from ~6 RPM down to 0.
+  useVisibilityAwarePoll(refresh, 30_000);
 
   const withBusy = async (id: string, fn: () => Promise<unknown>, msg: string) => {
     setBusy((b) => ({ ...b, [id]: true }));
@@ -350,6 +351,30 @@ function WebhookTail() {
         if (!aborted) setEvents([]);
       });
 
+    // Exponential backoff with jitter on reconnect. Without this a flaky
+    // intermediary (Cloudflare HTTP/3 idle-kills the stream as
+    // ERR_QUIC_PROTOCOL_ERROR every ~100s) put the page in a hot reconnect
+    // loop — three or four /webhooks/stream connects per minute per open
+    // admin tab, on top of the polling load. The backend now sends a 25s
+    // SSE comment heartbeat so this should be rare in practice; the backoff
+    // is the second line of defence so a misbehaving network doesn't pummel
+    // the API. Resets to baseline after a clean stream-end (SseEmitter
+    // timeout / server complete).
+    let reconnectAttempt = 0;
+    const scheduleReconnect = (cleanShutdown: boolean) => {
+      if (aborted) return;
+      setStreamState('error');
+      if (cleanShutdown) reconnectAttempt = 0;
+      const base = cleanShutdown ? 1_000 : 2_000;
+      const maxDelay = 30_000;
+      const delay = Math.min(maxDelay, base * Math.pow(2, reconnectAttempt));
+      const jitter = Math.random() * Math.min(delay, 1_000);
+      reconnectAttempt = Math.min(reconnectAttempt + 1, 8);
+      setTimeout(() => {
+        if (!aborted) subscribe();
+      }, delay + jitter);
+    };
+
     const subscribe = async () => {
       const token = localStorage.getItem('token');
       abortController = new AbortController();
@@ -360,8 +385,8 @@ function WebhookTail() {
             : { Accept: 'text/event-stream' },
           signal: abortController.signal,
         });
-        // Auth-related failures: bail out instead of looping every 5s. The next
-        // axios call will pick up the 401 and bounce the user to /login; we
+        // Auth-related failures: bail out instead of looping. The next axios
+        // call will pick up the 401 and bounce the user to /login; we
         // shouldn't shadow that with a hot reconnect storm.
         if (resp.status === 401 || resp.status === 403) {
           setStreamState('error');
@@ -371,6 +396,7 @@ function WebhookTail() {
           throw new Error(`HTTP ${resp.status}`);
         }
         setStreamState('connected');
+        reconnectAttempt = 0; // got a successful connection, reset backoff
 
         const reader = resp.body.getReader();
         const decoder = new TextDecoder();
@@ -404,23 +430,9 @@ function WebhookTail() {
             }
           }
         }
-        // Stream ended cleanly (server SseEmitter timeout / completion). Reconnect
-        // shortly so the live tail keeps working without a manual page refresh —
-        // servlet containers default to a 30s async timeout, so this can fire often.
-        if (!aborted) {
-          setStreamState('error');
-          setTimeout(() => {
-            if (!aborted) subscribe();
-          }, 1_000);
-        }
+        scheduleReconnect(true); // server closed cleanly → fast reconnect
       } catch (e) {
-        if (!aborted) {
-          setStreamState('error');
-          // Reconnect after a short delay (SSE is lossy by design — this is fine)
-          setTimeout(() => {
-            if (!aborted) subscribe();
-          }, 5_000);
-        }
+        scheduleReconnect(false); // network/protocol error → backoff
       }
     };
 
@@ -507,34 +519,27 @@ function QueueSnapshot({ id }: { id: string }) {
   const [rows, setRows] = useState<Array<Record<string, unknown>> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    const load = () => {
-      adminAPI
-        .botQueue(id, { limit: 10 })
-        .then((data) => {
-          if (cancelled) return;
-          // Sort by createdAt desc when available; otherwise leave bot order.
-          const sorted = [...data].sort((a, b) => {
-            const ta = parseTs(a.created_at);
-            const tb = parseTs(b.created_at);
-            return tb - ta;
-          });
-          setRows(sorted.slice(0, 10));
-          setError(null);
-        })
-        .catch((e) => {
-          if (cancelled) return;
-          setError(e instanceof Error ? e.message : 'request failed');
+  // Per-instance queue snapshot. Renders once per bot instance (×2 in prod).
+  // 60s is plenty — operators use this to spot stuck queues, not to watch
+  // throughput in real time. Full live tail is the SSE webhook stream below.
+  const load = useCallback(() => {
+    adminAPI
+      .botQueue(id, { limit: 10 })
+      .then((data) => {
+        // Sort by createdAt desc when available; otherwise leave bot order.
+        const sorted = [...data].sort((a, b) => {
+          const ta = parseTs(a.created_at);
+          const tb = parseTs(b.created_at);
+          return tb - ta;
         });
-    };
-    load();
-    const t = setInterval(load, 15_000);
-    return () => {
-      cancelled = true;
-      clearInterval(t);
-    };
+        setRows(sorted.slice(0, 10));
+        setError(null);
+      })
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : 'request failed');
+      });
   }, [id]);
+  useVisibilityAwarePoll(load, 60_000);
 
   return (
     <Section title={`${id} — queue snapshot`} subtitle="Last 10 orders on this instance">

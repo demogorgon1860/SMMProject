@@ -2,6 +2,120 @@ import { useEffect, useState } from 'react';
 import { publicAPI } from '../services/api';
 
 // =====================================================================
+// Internal: shared-singleton subscriber for endpoints that several
+// components on the same page consume.
+//
+// Without this each consumer mounts its own useEffect → its own setInterval
+// → its own fetch. On the public landing usePublicStats() is used by the
+// hero badge, the categories section AND the auth-page side panel; before
+// this rewrite each caller produced an independent /stats/public + /stats/
+// recent-orders request, so a single page load fired each endpoint twice
+// AND polled them in parallel forever.
+//
+// We keep the existing hook signatures unchanged (the components don't
+// know any of this exists) and route them through a tiny pub/sub instead.
+// One fetch per endpoint per polling tick, regardless of how many
+// components subscribe. Pauses fetches while the tab is hidden so
+// background tabs stop hitting the API.
+// =====================================================================
+type Listener<T> = (value: T) => void;
+
+interface Singleton<T> {
+  value: T;
+  listeners: Set<Listener<T>>;
+  timer: number | null;
+  inFlight: boolean;
+  visibilityHandler: (() => void) | null;
+}
+
+function createSingleton<T>(
+  fetcher: () => Promise<T>,
+  parser: (raw: unknown) => T,
+  initial: T,
+  intervalMs: number,
+): { subscribe: (l: Listener<T>) => () => void } {
+  const state: Singleton<T> = {
+    value: initial,
+    listeners: new Set(),
+    timer: null,
+    inFlight: false,
+    visibilityHandler: null,
+  };
+
+  const fetchOnce = () => {
+    if (state.inFlight) return; // prevent overlapping requests if backend is slow
+    if (typeof document !== 'undefined' && document.hidden) return; // skip while tab hidden
+    state.inFlight = true;
+    fetcher()
+      .then((data) => {
+        state.value = parser(data);
+        state.listeners.forEach((l) => l(state.value));
+      })
+      .catch(() => {
+        state.value = initial;
+        state.listeners.forEach((l) => l(state.value));
+      })
+      .finally(() => {
+        state.inFlight = false;
+      });
+  };
+
+  const startPolling = () => {
+    if (state.timer != null) return;
+    state.timer = window.setInterval(fetchOnce, intervalMs);
+  };
+
+  const stopPolling = () => {
+    if (state.timer != null) {
+      clearInterval(state.timer);
+      state.timer = null;
+    }
+  };
+
+  const onVisibilityChange = () => {
+    if (document.hidden) {
+      stopPolling();
+    } else {
+      // Catch up on the data we missed while hidden, then resume the timer.
+      fetchOnce();
+      startPolling();
+    }
+  };
+
+  return {
+    subscribe(listener) {
+      state.listeners.add(listener);
+      // First subscriber → kick off the fetch + interval and wire the visibility
+      // pause. Subsequent subscribers piggy-back on the existing timer.
+      if (state.listeners.size === 1) {
+        fetchOnce();
+        startPolling();
+        if (typeof document !== 'undefined') {
+          state.visibilityHandler = onVisibilityChange;
+          document.addEventListener('visibilitychange', state.visibilityHandler);
+        }
+      } else {
+        // Hand the new subscriber whatever value we already have so it doesn't
+        // have to wait for the next tick to render.
+        listener(state.value);
+      }
+      return () => {
+        state.listeners.delete(listener);
+        // Last subscriber gone → tear everything down so the page stops fetching
+        // when nothing on screen needs the data anymore.
+        if (state.listeners.size === 0) {
+          stopPolling();
+          if (state.visibilityHandler && typeof document !== 'undefined') {
+            document.removeEventListener('visibilitychange', state.visibilityHandler);
+            state.visibilityHandler = null;
+          }
+        }
+      };
+    },
+  };
+}
+
+// =====================================================================
 // Shared hooks for the public, unauthenticated stats endpoints.
 // All data sourced from real DB aggregates server-side and cached for
 // 10–60 seconds in Redis. NO synthetic fallbacks — if the request fails
@@ -30,32 +144,21 @@ export interface PublicStats {
   minPricePer1k: string | null;
 }
 
+const recentOrdersStore = createSingleton<RecentOrder[] | null>(
+  () => publicAPI.recentOrders(),
+  (raw) => (Array.isArray(raw) ? (raw as RecentOrder[]) : []),
+  null,
+  30_000,
+);
+
 /**
  * Recent orders for landing tickers and the auth-page side panel.
  * Auto-refreshes every 30s. Returns null while the first request is in flight,
- * `[]` on failure / empty result.
+ * `[]` on failure / empty result. All consumers share a single fetch.
  */
 export function useRecentOrders(): RecentOrder[] | null {
   const [orders, setOrders] = useState<RecentOrder[] | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    const fetchIt = () => {
-      publicAPI
-        .recentOrders()
-        .then((data) => {
-          if (!cancelled) setOrders(Array.isArray(data) ? data : []);
-        })
-        .catch(() => {
-          if (!cancelled) setOrders([]);
-        });
-    };
-    fetchIt();
-    const interval = window.setInterval(fetchIt, 30_000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, []);
+  useEffect(() => recentOrdersStore.subscribe(setOrders), []);
   return orders;
 }
 
@@ -80,34 +183,23 @@ function isPublicStats(x: unknown): x is PublicStats {
   );
 }
 
+const publicStatsStore = createSingleton<PublicStats | null>(
+  () => publicAPI.stats(),
+  (raw) => (isPublicStats(raw) ? raw : null),
+  null,
+  60_000,
+);
+
 /**
  * Aggregate public stats. Auto-refreshes every 60s (matches server cache TTL).
  * Returns null while the first request is in flight, null on failure too,
  * AND null when the backend returns an unexpected shape — caller hides
- * cards rather than rendering zeros or crashing.
+ * cards rather than rendering zeros or crashing. All consumers share a
+ * single fetch (see {@code createSingleton}).
  */
 export function usePublicStats(): PublicStats | null {
   const [stats, setStats] = useState<PublicStats | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    const fetchIt = () => {
-      publicAPI
-        .stats()
-        .then((data) => {
-          if (cancelled) return;
-          setStats(isPublicStats(data) ? data : null);
-        })
-        .catch(() => {
-          if (!cancelled) setStats(null);
-        });
-    };
-    fetchIt();
-    const interval = window.setInterval(fetchIt, 60_000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, []);
+  useEffect(() => publicStatsStore.subscribe(setStats), []);
   return stats;
 }
 

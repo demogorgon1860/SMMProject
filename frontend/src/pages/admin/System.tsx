@@ -12,6 +12,7 @@ import {
   Tabs,
   useToast,
 } from '../../components/ui';
+import { useVisibilityAwarePoll } from '../../hooks/usePolling';
 import {
   adminAPI,
   type CacheStats,
@@ -50,24 +51,13 @@ export function AdminSystemPage() {
 
   // Refresh the badge independently of the active tab so the count stays current
   // even while the user is on Logs / Queues / Cache.
-  useEffect(() => {
-    let cancelled = false;
-    const load = () =>
-      adminAPI
-        .systemErrorsCount(24)
-        .then((r) => {
-          if (!cancelled) setErrorCount(r.count);
-        })
-        .catch(() => {
-          if (!cancelled) setErrorCount(null);
-        });
-    load();
-    const t = setInterval(load, 30_000);
-    return () => {
-      cancelled = true;
-      clearInterval(t);
-    };
+  const loadErrorCount = useCallback(() => {
+    adminAPI
+      .systemErrorsCount(24)
+      .then((r) => setErrorCount(r.count))
+      .catch(() => setErrorCount(null));
   }, []);
+  useVisibilityAwarePoll(loadErrorCount, 30_000);
 
   return (
     <>
@@ -360,11 +350,9 @@ function ErrorsTab() {
       });
   }, [sinceHours]);
 
-  useEffect(() => {
-    load();
-    const t = setInterval(load, 15_000);
-    return () => clearInterval(t);
-  }, [load]);
+  // 30s instead of 15s — operators don't need errors more frequently than that
+  // and visibility-aware polling stops the request stream when the tab is hidden.
+  useVisibilityAwarePoll(load, 30_000);
 
   return (
     <Section
@@ -523,11 +511,11 @@ function QueuesTab() {
       });
   }, []);
 
-  useEffect(() => {
-    load();
-    const t = setInterval(load, 5_000);
-    return () => clearInterval(t);
-  }, [load]);
+  // RabbitMQ queue counters: 15s instead of 5s — depths only matter at the
+  // "is this stuck for minutes?" granularity, not at every-frame freshness.
+  // The old 5s interval generated 12 RPM per open tab on a metric we read
+  // from RabbitMQ's management API (~80ms/call) for nothing.
+  useVisibilityAwarePoll(load, 15_000);
 
   const onPurge = async () => {
     if (!purgeTarget) return;
@@ -710,11 +698,9 @@ function CacheTab() {
       });
   }, []);
 
-  useEffect(() => {
-    load();
-    const t = setInterval(load, 5_000);
-    return () => clearInterval(t);
-  }, [load]);
+  // Redis ops/sec sparkline: 10s — gives a smooth-enough chart without DDoS-ing
+  // INFO + DBSIZE on every Redis instance. Old 5s interval was too aggressive.
+  useVisibilityAwarePoll(load, 10_000);
 
   const onFlush = async () => {
     if (flushConfirm !== 'FLUSH') return;

@@ -326,7 +326,10 @@ public class ClientApiController {
             // OPTIMIZED: Uses optimized service method
             OrderResponse order = orderService.getOrderOptimized(orderId, user.getUsername());
 
-            // CRITICAL: Perfect Panel status response format
+            // CRITICAL: Perfect Panel status response format. We deposit and bill in USDT
+            // (stablecoin, 1:1 to USD), but reseller aggregator dashboards reject non-fiat
+            // currency codes — they bucket panels by USD/EUR/etc. for profit/cost reporting.
+            // Reporting USD here matches that contract without changing any numeric value.
             return ResponseEntity.ok(
                     Map.of(
                             "charge",
@@ -338,8 +341,7 @@ public class ClientApiController {
                             "remains",
                             order.getRemains() != null ? order.getRemains() : 0,
                             "currency",
-                            "USDT" // All prices in USDT
-                            ));
+                            "USD"));
 
         } catch (Exception e) {
             log.error("Failed to get order status: {}", e.getMessage());
@@ -394,8 +396,9 @@ public class ClientApiController {
         try {
             BigDecimal balance = user.getBalance();
 
-            // CRITICAL: Perfect Panel balance response format
-            return ResponseEntity.ok(Map.of("balance", balance.toString(), "currency", "USDT"));
+            // CRITICAL: Perfect Panel balance response format. See handleOrderStatus for why
+            // we report USD here even though the underlying ledger is USDT (1:1 stablecoin).
+            return ResponseEntity.ok(Map.of("balance", balance.toString(), "currency", "USD"));
 
         } catch (Exception e) {
             log.error("Failed to get balance: {}", e.getMessage());
@@ -430,6 +433,7 @@ public class ClientApiController {
                     OrderResponse order = orderMap.get(orderId);
 
                     if (order != null) {
+                        // Same USD-not-USDT rationale as handleOrderStatus.
                         results.put(
                                 idStr,
                                 Map.of(
@@ -442,7 +446,7 @@ public class ClientApiController {
                                         "remains",
                                         order.getRemains() != null ? order.getRemains() : 0,
                                         "currency",
-                                        "USDT"));
+                                        "USD"));
                     } else {
                         results.put(idStr, Map.of("error", "Order not found"));
                     }

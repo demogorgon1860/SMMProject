@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+        Instagram MIX GEO — cheap tier backed by non-warmed accounts (no profile photos,
+        low age) from a mixed-geo profile pool.
+
+        Routing: published to a dedicated queue `instagram.orders.mix_geo` via routing key
+        `MIX_GEO` (see RabbitMQConfig). The bot side will need a matching consumer + an
+        AdsPower group for the MIX GEO pool — those changes live in the bot repo and are
+        out of scope for this migration.
+
+        IDs are auto-generated to avoid clashing with the IDENTITY sequence on services.id.
+    -->
+
+    <changeSet id="v2026.05-add-instagram-mix-geo-followers" author="instagram-mix-geo">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM services WHERE category = 'INSTAGRAM_MIX_GEO_FOLLOWERS'
+            </sqlCheck>
+        </preConditions>
+        <insert tableName="services">
+            <column name="name" value="Instagram MIX GEO Followers"/>
+            <column name="category" value="INSTAGRAM_MIX_GEO_FOLLOWERS"/>
+            <column name="min_order" valueNumeric="10"/>
+            <column name="max_order" valueNumeric="300"/>
+            <column name="price_per_1000" valueNumeric="0.15"/>
+            <column name="geo_targeting" value="MIX_GEO"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="description" value="Cheap Instagram followers from non-warmed mixed-geo accounts (no profile photo, low age). Lowest-tier delivery."/>
+        </insert>
+        <rollback>
+            <sql>DELETE FROM services WHERE category = 'INSTAGRAM_MIX_GEO_FOLLOWERS';</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="v2026.05-add-instagram-mix-geo-likes" author="instagram-mix-geo">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*) FROM services WHERE category = 'INSTAGRAM_MIX_GEO_LIKES'
+            </sqlCheck>
+        </preConditions>
+        <insert tableName="services">
+            <column name="name" value="Instagram MIX GEO Likes"/>
+            <column name="category" value="INSTAGRAM_MIX_GEO_LIKES"/>
+            <column name="min_order" valueNumeric="10"/>
+            <column name="max_order" valueNumeric="300"/>
+            <column name="price_per_1000" valueNumeric="0.10"/>
+            <column name="geo_targeting" value="MIX_GEO"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="description" value="Cheap Instagram likes from non-warmed mixed-geo accounts (no profile photo, low age). Lowest-tier delivery."/>
+        </insert>
+        <rollback>
+            <sql>DELETE FROM services WHERE category = 'INSTAGRAM_MIX_GEO_LIKES';</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

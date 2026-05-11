@@ -805,4 +805,7 @@
     <!-- Fast-path API key auth: deterministic lookup hash to replace O(N) per-user-salt scan -->
     <include file="db/changelog/changes/v2026.05-add-api-key-lookup-hash.xml"/>
 
+    <!-- Instagram MIX GEO tier: cheap followers + likes from non-warmed mixed-geo profile pool -->
+    <include file="db/changelog/changes/v2026.05-add-instagram-mix-geo.xml"/>
+
 </databaseChangeLog>

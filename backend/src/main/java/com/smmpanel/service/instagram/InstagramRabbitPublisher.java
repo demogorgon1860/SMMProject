@@ -12,9 +12,13 @@ import org.springframework.stereotype.Component;
 /**
  * Publishes Instagram orders to RabbitMQ for geo-based routing.
  *
- * <p>Orders are routed to the DE queue based on service geo_targeting: - DE (German) →
- * instagram.orders.de queue → Bot server - ENG (USA/Europe) → instagram.orders.de queue → same Bot
- * server
+ * <p>Routing matrix (service.geo_targeting → routing key → queue):
+ *
+ * <ul>
+ *   <li>DE → DE → instagram.orders.de
+ *   <li>ENG → DE → instagram.orders.de (shared with German pool)
+ *   <li>MIX_GEO → MIX_GEO → instagram.orders.mix_geo (cheap non-warmed pool)
+ * </ul>
  */
 @Slf4j
 @Component
@@ -90,12 +94,19 @@ public class InstagramRabbitPublisher {
         return geo.toUpperCase();
     }
 
-    /** Determines routing key from service geo_targeting. ENG routes to same DE bot server. */
+    /**
+     * Determines routing key from service geo_targeting. ENG routes to the same DE bot server;
+     * MIX_GEO has its own dedicated queue.
+     */
     private String determineGeoTargeting(Service service) {
         String geo = resolveGeoTargeting(service);
         // ENG (USA/Europe) uses the same bot server as DE
         if (geo.equalsIgnoreCase("ENG")) {
             return "DE";
+        }
+        // MIX_GEO has its own queue served by the cheap non-warmed account pool
+        if (geo.equalsIgnoreCase("MIX_GEO")) {
+            return "MIX_GEO";
         }
         return geo;
     }
@@ -107,8 +118,8 @@ public class InstagramRabbitPublisher {
         }
 
         return switch (category.toUpperCase()) {
-            case "INSTAGRAM_LIKES" -> "like";
-            case "INSTAGRAM_FOLLOWERS" -> "follow";
+            case "INSTAGRAM_LIKES", "INSTAGRAM_MIX_GEO_LIKES" -> "like";
+            case "INSTAGRAM_FOLLOWERS", "INSTAGRAM_MIX_GEO_FOLLOWERS" -> "follow";
             case "INSTAGRAM_COMMENTS" -> "comment";
             case "INSTAGRAM_LIKES_FOLLOWERS" -> "like_follow";
             case "INSTAGRAM_LIKES_COMMENTS" -> "like_comment";

@@ -14,9 +14,10 @@ import org.springframework.context.annotation.Configuration;
 /**
  * RabbitMQ configuration for Instagram bot routing.
  *
- * <p>Architecture: - Panel publishes orders to instagram.direct exchange with routing key DE - Bot
- * server consumes from instagram.orders.de queue (handles both DE and ENG services) - Bot publishes
- * results to instagram.results queue - Failed orders go to instagram.dead via dead letter exchange
+ * <p>Architecture: - Panel publishes orders to instagram.direct exchange with routing key DE
+ * (German + ENG) or MIX_GEO (cheap non-warmed pool) - Bot server consumes from
+ * instagram.orders.de or instagram.orders.mix_geo queues - Bot publishes results to
+ * instagram.results queue - Failed orders go to instagram.dead via dead letter exchange
  */
 @Configuration
 public class RabbitMQConfig {
@@ -27,11 +28,13 @@ public class RabbitMQConfig {
 
     // Queue names
     public static final String QUEUE_ORDERS_DE = "instagram.orders.de";
+    public static final String QUEUE_ORDERS_MIX_GEO = "instagram.orders.mix_geo";
     public static final String QUEUE_RESULTS = "instagram.results";
     public static final String QUEUE_DEAD = "instagram.dead";
 
     // Routing keys
     public static final String ROUTING_KEY_DE = "DE";
+    public static final String ROUTING_KEY_MIX_GEO = "MIX_GEO";
 
     // ==================== Exchanges ====================
 
@@ -56,6 +59,14 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue instagramOrdersMixGeo() {
+        return QueueBuilder.durable(QUEUE_ORDERS_MIX_GEO)
+                .withArgument("x-dead-letter-exchange", INSTAGRAM_DLX)
+                .withArgument("x-message-ttl", 86400000) // 24 hours TTL
+                .build();
+    }
+
+    @Bean
     public Queue instagramResults() {
         return QueueBuilder.durable(QUEUE_RESULTS).build();
     }
@@ -72,6 +83,13 @@ public class RabbitMQConfig {
     @Bean
     public Binding bindingDE(Queue instagramOrdersDE, DirectExchange instagramExchange) {
         return BindingBuilder.bind(instagramOrdersDE).to(instagramExchange).with(ROUTING_KEY_DE);
+    }
+
+    @Bean
+    public Binding bindingMixGeo(Queue instagramOrdersMixGeo, DirectExchange instagramExchange) {
+        return BindingBuilder.bind(instagramOrdersMixGeo)
+                .to(instagramExchange)
+                .with(ROUTING_KEY_MIX_GEO);
     }
 
     @Bean

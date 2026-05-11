@@ -26,11 +26,12 @@ public enum InstagramOrderType {
         }
 
         return switch (category.toUpperCase()) {
-            case "INSTAGRAM_LIKES", "INSTAGRAM LIKES" -> LIKE;
+            case "INSTAGRAM_LIKES", "INSTAGRAM LIKES", "INSTAGRAM_MIX_GEO_LIKES" -> LIKE;
             case "INSTAGRAM_FOLLOWS",
                             "INSTAGRAM FOLLOWS",
                             "INSTAGRAM_FOLLOWERS",
-                            "INSTAGRAM FOLLOWERS" ->
+                            "INSTAGRAM FOLLOWERS",
+                            "INSTAGRAM_MIX_GEO_FOLLOWERS" ->
                     FOLLOW;
             case "INSTAGRAM_COMMENTS", "INSTAGRAM COMMENTS" -> COMMENT;
             case "INSTAGRAM_LIKE_FOLLOW", "INSTAGRAM LIKE+FOLLOW" -> LIKE_FOLLOW;

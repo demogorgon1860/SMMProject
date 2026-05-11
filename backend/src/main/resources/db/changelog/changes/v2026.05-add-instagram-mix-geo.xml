@@ -14,7 +14,9 @@
         AdsPower group for the MIX GEO pool — those changes live in the bot repo and are
         out of scope for this migration.
 
-        IDs are auto-generated to avoid clashing with the IDENTITY sequence on services.id.
+        IDs are explicit: services.id is BIGINT NOT NULL with no sequence/SERIAL on prod
+        (despite the JPA @GeneratedValue annotation). 50 and 51 are the next free slots
+        after the existing 1..49.
     -->
 
     <changeSet id="v2026.05-add-instagram-mix-geo-followers" author="instagram-mix-geo">
@@ -24,6 +26,7 @@
             </sqlCheck>
         </preConditions>
         <insert tableName="services">
+            <column name="id" valueNumeric="50"/>
             <column name="name" value="Instagram MIX GEO Followers"/>
             <column name="category" value="INSTAGRAM_MIX_GEO_FOLLOWERS"/>
             <column name="min_order" valueNumeric="10"/>
@@ -45,6 +48,7 @@
             </sqlCheck>
         </preConditions>
         <insert tableName="services">
+            <column name="id" valueNumeric="51"/>
             <column name="name" value="Instagram MIX GEO Likes"/>
             <column name="category" value="INSTAGRAM_MIX_GEO_LIKES"/>
             <column name="min_order" valueNumeric="10"/>

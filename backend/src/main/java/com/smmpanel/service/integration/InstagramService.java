@@ -158,6 +158,16 @@ public class InstagramService {
         // Determine profile group from service geo-targeting
         String profileGroup = determineProfileGroup(service);
 
+        // Mirror the gender-prefix injection from the active RabbitMQ path so the legacy HTTP
+        // fallback doesn't silently fall back to the mixed pool. Re-uses the same parsing /
+        // prefix-building logic (see InstagramRabbitPublisher for the protocol rationale).
+        String gender =
+                com.smmpanel.service.instagram.InstagramRabbitPublisher
+                        .parseGenderFromServiceName(service.getName());
+        String commentText =
+                com.smmpanel.service.instagram.InstagramRabbitPublisher
+                        .buildCommentTextWithGender(order.getCustomComments(), gender);
+
         // Build request
         InstagramOrderRequest request =
                 InstagramOrderRequest.builder()
@@ -166,7 +176,7 @@ public class InstagramService {
                         .count(order.getQuantity())
                         .externalId(String.valueOf(order.getId()))
                         .callbackUrl(botClient.getCallbackUrl())
-                        .commentText(order.getCustomComments())
+                        .commentText(commentText)
                         .priority(
                                 order.getProcessingPriority() != null
                                         ? order.getProcessingPriority()

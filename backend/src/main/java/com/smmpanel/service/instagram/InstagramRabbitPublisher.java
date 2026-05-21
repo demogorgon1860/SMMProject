@@ -68,18 +68,77 @@ public class InstagramRabbitPublisher {
     /** Builds the order message from panel order and service. */
     private InstagramOrderMessage buildOrderMessage(Order order, Service service) {
         String geoTargeting = resolveGeoTargeting(service);
+        String gender = parseGenderFromServiceName(service.getName());
+        String commentText = buildCommentTextWithGender(order.getCustomComments(), gender);
         return InstagramOrderMessage.builder()
                 .externalId(String.valueOf(order.getId()))
                 .type(mapServiceCategoryToType(service.getCategory()))
                 .targetUrl(order.getLink())
                 .count(order.getQuantity())
-                .commentText(order.getCustomComments())
+                .commentText(commentText)
                 // No callbackUrl - results come back via instagram.results queue
                 .priority(order.getProcessingPriority() != null ? order.getProcessingPriority() : 0)
-                .geoTargeting(geoTargeting) // Bot uses this for gender/geo profile group selection
+                .geoTargeting(geoTargeting) // Bot uses this for geo profile group selection
                 .minActionDelaySeconds(service.getMinActionDelaySeconds())
                 .maxActionDelaySeconds(service.getMaxActionDelaySeconds())
                 .build();
+    }
+
+    /**
+     * Parse the gender targeting marker from the service name. Service names follow the
+     * pattern {@code "Instagram <Action> [<Gender>] [<Geo>]"} where {@code <Gender>} is one of
+     * {@code Mix Gender}, {@code Male}, {@code MALE}, {@code Female}, {@code FEMALE}. Returns
+     * {@code null} when no gender marker is present (Mix Gender or non-gendered service) — the
+     * caller treats null as "no gender preference" and leaves commentText untouched, which
+     * lets the bot fall back to its default mixed-pool distribution.
+     *
+     * <p>Order of checks matters: "FEMALE" must be tested first, otherwise the substring
+     * check for "MALE" would match inside "FEMALE" and route female services to the male
+     * pool. Case-insensitive on the full service name.
+     */
+    public static String parseGenderFromServiceName(String serviceName) {
+        if (serviceName == null) return null;
+        String upper = serviceName.toUpperCase();
+        if (upper.contains("[FEMALE]")) return "FEMALE";
+        if (upper.contains("[MALE]")) return "MALE";
+        return null;
+    }
+
+    /**
+     * Encode the gender preference into commentText using the {@code GENDER:MALE\n} /
+     * {@code GENDER:FEMALE\n} prefix that the Instagram bot's {@code parseCommentText}
+     * recognises. The bot strips the prefix before treating the rest of the field as the
+     * actual comment payload, so:
+     *
+     * <ul>
+     *   <li>Custom Comments services: user-provided text is preserved verbatim after the
+     *       prefix.
+     *   <li>Likes / Followers (no commentText): the message is just the prefix line; the
+     *       bot uses the gender for profile-pool selection and ignores the empty payload
+     *       since the action type doesn't need text.
+     *   <li>Mix Gender services: no prefix is added so the bot keeps its default mixed
+     *       distribution.
+     * </ul>
+     *
+     * <p>Without this the bot received {@code gender=} (empty) on every order — verified
+     * by customer report on order 15260 (Custom Comments [MALE]) where female accounts
+     * posted the comments because the bot defaulted to the mixed pool.
+     */
+    public static String buildCommentTextWithGender(String customComments, String gender) {
+        if (gender == null) {
+            return customComments;
+        }
+        // Defensive: if some upstream path already injected a prefix, don't stack another.
+        if (customComments != null
+                && (customComments.startsWith("GENDER:MALE\n")
+                        || customComments.startsWith("GENDER:FEMALE\n"))) {
+            return customComments;
+        }
+        String prefix = "GENDER:" + gender + "\n";
+        if (customComments == null || customComments.isEmpty()) {
+            return prefix;
+        }
+        return prefix + customComments;
     }
 
     /**

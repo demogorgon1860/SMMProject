@@ -26,8 +26,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Service for creating and managing order refills. Handles underdelivered orders by creating new
- * orders for the remaining quantity.
+ * Service for creating and managing order refills.
+ *
+ * <p>Two refill modes, both gated by admin approval:
+ *
+ * <ul>
+ *   <li>{@code PARTIAL} → top up only the under-delivered amount ({@code quantity - delivered}).
+ *   <li>{@code COMPLETED} → replace the full original quantity. The panel has no background
+ *       re-poll of post metrics after completion, so we can't independently detect drops; admin
+ *       approval IS the drop-claim gate.
+ * </ul>
+ *
+ * <p>{@code IN_PROGRESS} orders are not eligible — refilling while the bot is still running the
+ * original would duplicate remaining work. Admin must wait for terminal status.
+ *
+ * <p>Guardrails: max 5 refills per order, max 1.5x of original quantity per refill, 60-second
+ * idempotency window against double-click, pessimistic lock on the original order, separate
+ * partial-unique index on the user-facing {@code RefillRequest} table.
  */
 @Slf4j
 @Service
@@ -54,36 +69,36 @@ public class OrderRefillService {
         validateRefillLimit(orderId);
         validateOrderEligibility(originalOrder);
 
-        // Use the order's tracked delivered quantity (from webhook progress).
+        // Refill quantity:
+        //   - COMPLETED: replace the full original quantity. We don't have a background
+        //     re-poll of post metrics after completion, so the panel can't independently
+        //     "detect" drops — admin's approval IS the gate. They're trusting the customer's
+        //     "I lost my followers" report and refunding the full delivery.
+        //   - PARTIAL: top up only what the bot under-delivered (quantity - delivered).
+        //
+        // (IN_PROGRESS is rejected upstream in {@link #isEligibleForRefill} so callers
+        // never reach this branch with a still-running order.)
+        //
+        // The {@link #MAX_REFILL_QUANTITY_MULTIPLIER} cap (1.5x of original quantity) below
+        // is the hard guardrail; neither branch ever exceeds 1.0x by construction.
         Integer deliveredViews = calculateDeliveredViews(originalOrder);
-        Integer underdelivered =
-                Math.max(0, originalOrder.getQuantity() - deliveredViews);
-
-        // Drop-aware shortfall — for fully-delivered orders the metric counts (likes /
-        // followers / comments) on the post can drop below the expected total
-        // (start + quantity) days after delivery. Refill must compensate for that too,
-        // not just for under-delivery. Returns null when the bot didn't track any metric
-        // counts for this service (legacy / non-Instagram), in which case we fall back
-        // to the under-delivered number.
-        Integer shortfall = calculateMetricShortfall(originalOrder);
-
-        Integer refillQuantity =
-                shortfall != null ? Math.max(shortfall, underdelivered) : underdelivered;
+        int refillQuantity =
+                originalOrder.getStatus() == OrderStatus.COMPLETED
+                        ? originalOrder.getQuantity()
+                        : Math.max(0, originalOrder.getQuantity() - deliveredViews);
 
         log.info(
-                "[REFILL] Order {} - Original: {}, Delivered: {}, MetricShortfall: {},"
-                        + " RefillQty: {}",
+                "[REFILL] Order {} - Status: {}, Original: {}, Delivered: {}, RefillQty: {}",
                 orderId,
+                originalOrder.getStatus(),
                 originalOrder.getQuantity(),
                 deliveredViews,
-                shortfall,
                 refillQuantity);
 
         if (refillQuantity <= 0) {
             throw new ApiException(
                     String.format(
-                            "Order %d — nothing to refill. Delivered: %d/%d, current metric"
-                                    + " count matches expected total (no drop detected).",
+                            "Order %d — nothing to refill (delivered %d/%d).",
                             orderId, deliveredViews, originalOrder.getQuantity()),
                     HttpStatus.BAD_REQUEST);
         }
@@ -224,9 +239,12 @@ public class OrderRefillService {
     }
 
     private boolean isEligibleForRefill(OrderStatus status) {
-        return status == OrderStatus.COMPLETED
-                || status == OrderStatus.IN_PROGRESS
-                || status == OrderStatus.PARTIAL;
+        // Only finalised states can be refilled. IN_PROGRESS is intentionally excluded —
+        // approving a refill while the bot is still working on the original would
+        // duplicate the remaining work (a second refill order goes out for the same target
+        // URL alongside the still-running original). Admin should wait for the order to
+        // settle into COMPLETED or PARTIAL before granting a refill.
+        return status == OrderStatus.COMPLETED || status == OrderStatus.PARTIAL;
     }
 
     /**
@@ -242,47 +260,6 @@ public class OrderRefillService {
             return order.getStatus() == OrderStatus.COMPLETED ? quantity : 0;
         }
         return Math.max(0, quantity - remains);
-    }
-
-    /**
-     * Drop-aware refill need based on bot-tracked metric counts. For a service that
-     * delivers <i>likes</i>: expected total post-delivery is {@code startLikeCount +
-     * quantity}; if {@code currentLikeCount} (re-measured by the bot) has fallen below
-     * that, the difference is the refill we owe the user. Same logic for followers and
-     * comments. Returns the largest shortfall across whichever metric pair was actually
-     * tracked (start + current both observed non-zero), or {@code null} when no metric
-     * was tracked — caller falls back to the simple under-delivery count.
-     *
-     * <p>This is what answers "I lost views/followers after the order completed —
-     * refill those drops" rather than only "the bot underdelivered originally".
-     */
-    private Integer calculateMetricShortfall(Order order) {
-        Integer qty = order.getQuantity();
-        if (qty == null || qty <= 0) return null;
-
-        Integer best = null;
-        // Likes
-        Integer sl = order.getStartLikeCount();
-        Integer cl = order.getCurrentLikeCount();
-        if (sl != null && cl != null && (sl > 0 || cl > 0)) {
-            int s = Math.max(0, (sl + qty) - cl);
-            best = (best == null) ? s : Math.max(best, s);
-        }
-        // Followers
-        Integer sf = order.getStartFollowerCount();
-        Integer cf = order.getCurrentFollowerCount();
-        if (sf != null && cf != null && (sf > 0 || cf > 0)) {
-            int s = Math.max(0, (sf + qty) - cf);
-            best = (best == null) ? s : Math.max(best, s);
-        }
-        // Comments
-        Integer sc = order.getStartCommentCount();
-        Integer cc = order.getCurrentCommentCount();
-        if (sc != null && cc != null && (sc > 0 || cc > 0)) {
-            int s = Math.max(0, (sc + qty) - cc);
-            best = (best == null) ? s : Math.max(best, s);
-        }
-        return best;
     }
 
     private Integer getNextRefillNumber(Long orderId) {

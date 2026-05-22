@@ -1406,14 +1406,25 @@ public class OrderService {
                                     "userOrderNumber"));
         }
 
-        // "Refill" tab on /orders — filter by is_refill = true regardless of status/search.
-        // Refill rows have no charge and can be in any operational state (PENDING while the
-        // bot picks them up, then IN_PROGRESS, finally COMPLETED/PARTIAL); collapsing them
-        // into a single "show me my make-up deliveries" tab matches what the customer asked
-        // for. Branches off early so the existing status + search logic below stays untouched.
+        // "Refill" tab on /orders — filter by is_refill = true. Status is intentionally
+        // ignored (refill rows traverse PENDING → IN_PROGRESS → COMPLETED/PARTIAL over their
+        // lifetime; the bucket is "all my refills") but search must still apply — without it
+        // the operator types a non-matching id/link and the page silently shows every refill
+        // instead of the "No orders match" empty state. Parses the search term the same way
+        // the regular branch below does (numeric → exact id, otherwise → link substring).
         if (refillOnly) {
+            Long refillSearchId = null;
+            String refillSearchLink = null;
+            if (search != null && !search.isEmpty()) {
+                String term = search.trim().toLowerCase();
+                try {
+                    refillSearchId = Long.parseLong(term);
+                } catch (NumberFormatException ignored) {
+                    refillSearchLink = "%" + term + "%";
+                }
+            }
             return orderRepository
-                    .findByUserAndIsRefillTrue(user, pageable)
+                    .searchUserAndIsRefillTrue(user, refillSearchId, refillSearchLink, pageable)
                     .map(this::mapToOrderResponse);
         }
 

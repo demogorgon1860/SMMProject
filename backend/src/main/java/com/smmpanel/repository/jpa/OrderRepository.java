@@ -31,19 +31,62 @@ public interface OrderRepository
     Page<Order> findByUser(User user, Pageable pageable);
 
     /**
-     * Refill-only filter for the user-facing {@code /orders} "Refill" tab. Returns every order
-     * the user owns that was created as a refill (regardless of whether it's still running or
-     * already completed) so customers can see make-up deliveries in one bucket. Mirrors the
-     * style of {@link #findByUser} (Spring-data derived query, {@code @EntityGraph} to JOIN
-     * FETCH user/service in one round-trip — same N+1 protection as every other listing path
-     * in this repository).
+     * Refill-only listing for the user-facing {@code /orders} "Refill" tab, with optional
+     * search-by-id / search-by-link filters baked into the same query — when the operator
+     * types into the search bar on the Refill tab the count + page must honour it (otherwise
+     * "No orders match" never shows and pagination lies). Same shape as
+     * {@link #adminSearchInStatuses}: every search filter is null-tolerant, JOIN FETCH on
+     * user/service keeps the list page N+1-free.
      */
-    @EntityGraph(attributePaths = {"user", "service"})
-    Page<Order> findByUserAndIsRefillTrue(User user, Pageable pageable);
+    @Query(
+            value =
+                    "SELECT o FROM Order o JOIN FETCH o.user u JOIN FETCH o.service s "
+                            + "WHERE o.user = :user AND o.isRefill = true "
+                            + "AND (:searchId IS NULL OR o.id = :searchId) "
+                            + "AND (:searchLink IS NULL OR LOWER(o.link) LIKE :searchLink)",
+            countQuery =
+                    "SELECT COUNT(o) FROM Order o "
+                            + "WHERE o.user = :user AND o.isRefill = true "
+                            + "AND (:searchId IS NULL OR o.id = :searchId) "
+                            + "AND (:searchLink IS NULL OR LOWER(o.link) LIKE :searchLink)")
+    Page<Order> searchUserAndIsRefillTrue(
+            @Param("user") User user,
+            @Param("searchId") Long searchId,
+            @Param("searchLink") String searchLink,
+            Pageable pageable);
 
-    /** Admin variant of {@link #findByUserAndIsRefillTrue} — all refill orders across users. */
-    @EntityGraph(attributePaths = {"user", "service"})
-    Page<Order> findAllByIsRefillTrue(Pageable pageable);
+    /**
+     * Admin "Refill" bucket — same shape as {@link #adminSearchInStatuses} but pinned to
+     * {@code is_refill = true}. Status is intentionally not a filter (the operator's bucket
+     * choice is "refill", and refill rows go through PENDING → IN_PROGRESS → COMPLETED/PARTIAL
+     * over their lifetime). Date range + id + username + link work as the operator expects.
+     */
+    @Query(
+            value =
+                    "SELECT o FROM Order o JOIN FETCH o.user u JOIN FETCH o.service s "
+                            + "WHERE o.isRefill = true "
+                            + "AND (CAST(:fromDate AS string) IS NULL OR o.createdAt >= :fromDate)"
+                            + " AND (CAST(:toDate AS string) IS NULL OR o.createdAt <= :toDate) "
+                            + "AND (:searchId IS NULL OR o.id = :searchId) "
+                            + "AND (:searchUsername IS NULL OR LOWER(u.username) LIKE"
+                            + " :searchUsername) "
+                            + "AND (:searchLink IS NULL OR LOWER(o.link) LIKE :searchLink)",
+            countQuery =
+                    "SELECT COUNT(o) FROM Order o JOIN o.user u "
+                            + "WHERE o.isRefill = true "
+                            + "AND (CAST(:fromDate AS string) IS NULL OR o.createdAt >= :fromDate)"
+                            + " AND (CAST(:toDate AS string) IS NULL OR o.createdAt <= :toDate) "
+                            + "AND (:searchId IS NULL OR o.id = :searchId) "
+                            + "AND (:searchUsername IS NULL OR LOWER(u.username) LIKE"
+                            + " :searchUsername) "
+                            + "AND (:searchLink IS NULL OR LOWER(o.link) LIKE :searchLink)")
+    Page<Order> adminSearchRefillOnly(
+            @Param("fromDate") LocalDateTime fromDate,
+            @Param("toDate") LocalDateTime toDate,
+            @Param("searchId") Long searchId,
+            @Param("searchUsername") String searchUsername,
+            @Param("searchLink") String searchLink,
+            Pageable pageable);
 
     /**
      * Find orders by user and status with related entities PREVENTS N+1: Fetches user and service

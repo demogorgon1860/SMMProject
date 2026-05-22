@@ -265,26 +265,6 @@ public class AdminService {
                             Sort.by(Sort.Direction.DESC, "id"));
         }
 
-        // Admin "Refill" tab — early branch, mirrors what user-side getUserOrders does.
-        // Ignores status/search/date filters intentionally: the operator picked the bucket;
-        // one tab shows every refill row regardless of where it is in its lifecycle. Uses
-        // the same EntityGraph-backed Spring-data finder as the user path so we get JOIN
-        // FETCH on user + service for free without authoring another @Query.
-        if (refillOnly) {
-            Page<Order> refillPage = orderRepository.findAllByIsRefillTrue(pageable);
-            List<AdminOrderDto> refillDtos =
-                    refillPage.getContent().stream()
-                            .map(this::mapToAdminOrderDto)
-                            .collect(Collectors.toList());
-            Map<String, Object> refillResponse = new HashMap<>();
-            refillResponse.put("orders", refillDtos);
-            refillResponse.put("totalPages", refillPage.getTotalPages());
-            refillResponse.put("totalElements", refillPage.getTotalElements());
-            refillResponse.put("currentPage", refillPage.getNumber());
-            refillResponse.put("pageSize", refillPage.getSize());
-            return refillResponse;
-        }
-
         // Accept the status filter case-insensitively and tolerate either underscored
         // ("IN_PROGRESS") or human-spelled ("in progress") input. An unrecognized value
         // resolves to null, which the rest of the method treats as "no filter" rather
@@ -328,6 +308,33 @@ public class AdminService {
         // doesn't contain "instagram", but it's clearly a URL fragment.
         if (urlSearch != null && !urlSearch.isBlank()) {
             searchLink = "%" + urlSearch.trim().toLowerCase() + "%";
+        }
+
+        // Admin "Refill" chip — same parsed filters (date / id / username / link) apply
+        // inside the refill bucket, status is the only one ignored (refill rows traverse
+        // multiple statuses over their lifetime; the chip means "show every refill row").
+        // Without honouring search/date here the operator would type a non-matching query
+        // on Refill and still see the full list instead of "No orders match".
+        if (refillOnly) {
+            Page<Order> refillPage =
+                    orderRepository.adminSearchRefillOnly(
+                            fromDateTime,
+                            toDateTime,
+                            searchId,
+                            searchUsername,
+                            searchLink,
+                            pageable);
+            List<AdminOrderDto> refillDtos =
+                    refillPage.getContent().stream()
+                            .map(this::mapToAdminOrderDto)
+                            .collect(Collectors.toList());
+            Map<String, Object> refillResponse = new HashMap<>();
+            refillResponse.put("orders", refillDtos);
+            refillResponse.put("totalPages", refillPage.getTotalPages());
+            refillResponse.put("totalElements", refillPage.getTotalElements());
+            refillResponse.put("currentPage", refillPage.getNumber());
+            refillResponse.put("pageSize", refillPage.getSize());
+            return refillResponse;
         }
 
         // Filter coalescing: PROCESSING is hidden from the UI and rendered as IN_PROGRESS,

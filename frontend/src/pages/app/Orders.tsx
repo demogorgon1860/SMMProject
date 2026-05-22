@@ -54,6 +54,10 @@ const STATUS_TABS = [
   { value: 'completed', label: 'Completed' },
   { value: 'partial', label: 'Partial' },
   { value: 'cancelled', label: 'Cancelled' },
+  // Not a real OrderStatus — backed by the is_refill flag instead. Treated as a separate
+  // tab so customers can see make-up deliveries (PENDING/IN_PROGRESS/COMPLETED refills) in
+  // one bucket. baseParams below routes this value through `refill=true` instead of `status`.
+  { value: 'refill', label: 'Refill' },
 ] as const;
 
 const PAGE_SIZE = 100;
@@ -67,11 +71,14 @@ export function OrdersPage() {
   const [q, setQ] = useState('');
 
   // Stable identity for the hook's effect dependency: only changes when `tab` actually changes,
-  // so a re-render that doesn't touch the filter doesn't trigger a refetch.
-  const baseParams = useMemo(
-    () => (tab !== 'all' ? { status: tab.toUpperCase() } : {}),
-    [tab],
-  );
+  // so a re-render that doesn't touch the filter doesn't trigger a refetch. The "refill" tab
+  // isn't backed by a status — it's the is_refill flag — so it routes through a separate
+  // query param instead of the status one.
+  const baseParams = useMemo(() => {
+    if (tab === 'all') return {};
+    if (tab === 'refill') return { refill: true };
+    return { status: tab.toUpperCase() };
+  }, [tab]);
 
   // Backend caps `size` at 100 (@Max(100) on OrderController#getUserOrders).
   // Server-pagination so the user can reach every order they own.

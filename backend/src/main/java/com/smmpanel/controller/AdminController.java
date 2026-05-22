@@ -71,10 +71,14 @@ public class AdminController {
             @RequestParam(required = false) String urlSearch,
             @RequestParam(required = false) String dateFrom,
             @RequestParam(required = false) String dateTo,
+            // When true, return only refill orders (is_refill = true). Overrides status /
+            // search / date filters — the operator's bucket choice wins.
+            @RequestParam(required = false, defaultValue = "false") boolean refill,
             Pageable pageable) {
 
         Map<String, Object> orders =
-                adminService.getAllOrders(status, search, urlSearch, dateFrom, dateTo, pageable);
+                adminService.getAllOrders(
+                        status, search, urlSearch, dateFrom, dateTo, refill, pageable);
         return ResponseEntity.ok(orders);
     }
 

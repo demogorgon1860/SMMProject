@@ -1385,6 +1385,11 @@ public class OrderService {
 
     public Page<OrderResponse> getUserOrders(
             String username, String status, String search, Pageable pageable) {
+        return getUserOrders(username, status, search, false, pageable);
+    }
+
+    public Page<OrderResponse> getUserOrders(
+            String username, String status, String search, boolean refillOnly, Pageable pageable) {
         User user =
                 userRepository
                         .findByUsername(username)
@@ -1399,6 +1404,17 @@ public class OrderService {
                             org.springframework.data.domain.Sort.by(
                                     org.springframework.data.domain.Sort.Direction.DESC,
                                     "userOrderNumber"));
+        }
+
+        // "Refill" tab on /orders — filter by is_refill = true regardless of status/search.
+        // Refill rows have no charge and can be in any operational state (PENDING while the
+        // bot picks them up, then IN_PROGRESS, finally COMPLETED/PARTIAL); collapsing them
+        // into a single "show me my make-up deliveries" tab matches what the customer asked
+        // for. Branches off early so the existing status + search logic below stays untouched.
+        if (refillOnly) {
+            return orderRepository
+                    .findByUserAndIsRefillTrue(user, pageable)
+                    .map(this::mapToOrderResponse);
         }
 
         // Resolve the requested status once. mapFromPerfectPanelStatus returns null for blank /

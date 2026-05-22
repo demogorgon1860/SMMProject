@@ -39,6 +39,10 @@ const STATUS_CHIPS: ReadonlyArray<string> = [
   'cancelled',
   'paused',
   'error',
+  // Not an OrderStatus — backed by the is_refill flag. baseParams below routes this chip
+  // through `refill=true` instead of `status=...` so the operator gets every make-up
+  // delivery in one bucket regardless of its current lifecycle state.
+  'refill',
 ];
 
 const PAGE_SIZE = 100;
@@ -63,7 +67,13 @@ export function AdminOrdersPage() {
   // of being filtered client-side on the current page (which was useless across 6k+ orders).
   const baseParams = useMemo(() => {
     const p: Record<string, string> = {};
-    if (statusFilter) p.status = statusFilter;
+    if (statusFilter === 'refill') {
+      // Refill isn't a status — route through the is_refill flag instead. Backend ignores
+      // status/search/date when refill=true so the operator gets every make-up delivery.
+      p.refill = 'true';
+    } else if (statusFilter) {
+      p.status = statusFilter;
+    }
     if (urlQ.trim()) p.urlSearch = urlQ.trim();
     if (dateFrom && dateTo) {
       p.dateFrom = dateFrom;

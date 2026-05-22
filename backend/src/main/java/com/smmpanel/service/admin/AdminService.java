@@ -218,7 +218,18 @@ public class AdminService {
     @Transactional(readOnly = true)
     public Map<String, Object> getAllOrders(
             String status, String search, String dateFrom, String dateTo, Pageable pageable) {
-        return getAllOrders(status, search, null, dateFrom, dateTo, pageable);
+        return getAllOrders(status, search, null, dateFrom, dateTo, false, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> getAllOrders(
+            String status,
+            String search,
+            String urlSearch,
+            String dateFrom,
+            String dateTo,
+            Pageable pageable) {
+        return getAllOrders(status, search, urlSearch, dateFrom, dateTo, false, pageable);
     }
 
     /**
@@ -242,6 +253,7 @@ public class AdminService {
             String urlSearch,
             String dateFrom,
             String dateTo,
+            boolean refillOnly,
             Pageable pageable) {
 
         // Default sort by ID descending if no sort specified
@@ -251,6 +263,26 @@ public class AdminService {
                             pageable.getPageNumber(),
                             pageable.getPageSize(),
                             Sort.by(Sort.Direction.DESC, "id"));
+        }
+
+        // Admin "Refill" tab — early branch, mirrors what user-side getUserOrders does.
+        // Ignores status/search/date filters intentionally: the operator picked the bucket;
+        // one tab shows every refill row regardless of where it is in its lifecycle. Uses
+        // the same EntityGraph-backed Spring-data finder as the user path so we get JOIN
+        // FETCH on user + service for free without authoring another @Query.
+        if (refillOnly) {
+            Page<Order> refillPage = orderRepository.findAllByIsRefillTrue(pageable);
+            List<AdminOrderDto> refillDtos =
+                    refillPage.getContent().stream()
+                            .map(this::mapToAdminOrderDto)
+                            .collect(Collectors.toList());
+            Map<String, Object> refillResponse = new HashMap<>();
+            refillResponse.put("orders", refillDtos);
+            refillResponse.put("totalPages", refillPage.getTotalPages());
+            refillResponse.put("totalElements", refillPage.getTotalElements());
+            refillResponse.put("currentPage", refillPage.getNumber());
+            refillResponse.put("pageSize", refillPage.getSize());
+            return refillResponse;
         }
 
         // Accept the status filter case-insensitively and tolerate either underscored

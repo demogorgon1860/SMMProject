@@ -31,6 +31,21 @@ public interface OrderRepository
     Page<Order> findByUser(User user, Pageable pageable);
 
     /**
+     * Refill-only filter for the user-facing {@code /orders} "Refill" tab. Returns every order
+     * the user owns that was created as a refill (regardless of whether it's still running or
+     * already completed) so customers can see make-up deliveries in one bucket. Mirrors the
+     * style of {@link #findByUser} (Spring-data derived query, {@code @EntityGraph} to JOIN
+     * FETCH user/service in one round-trip — same N+1 protection as every other listing path
+     * in this repository).
+     */
+    @EntityGraph(attributePaths = {"user", "service"})
+    Page<Order> findByUserAndIsRefillTrue(User user, Pageable pageable);
+
+    /** Admin variant of {@link #findByUserAndIsRefillTrue} — all refill orders across users. */
+    @EntityGraph(attributePaths = {"user", "service"})
+    Page<Order> findAllByIsRefillTrue(Pageable pageable);
+
+    /**
      * Find orders by user and status with related entities PREVENTS N+1: Fetches user and service
      * in single query
      */

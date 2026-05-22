@@ -169,6 +169,9 @@ public class OrderController {
             @Parameter(description = "Search by order ID, link, or service name")
                     @RequestParam(required = false)
                     String search,
+            @Parameter(description = "When true, return only refill orders (is_refill = true)")
+                    @RequestParam(required = false, defaultValue = "false")
+                    boolean refill,
             Principal principal) {
 
         Sort.Direction sortDirection = Sort.Direction.fromString(direction);
@@ -176,7 +179,8 @@ public class OrderController {
 
         // OPTIMIZED: Uses optimized service method that prevents N+1 queries
         Page<OrderResponse> orders =
-                orderService.getUserOrdersOptimized(principal.getName(), status, search, pageable);
+                orderService.getUserOrders(
+                        principal.getName(), status, search, refill, pageable);
 
         PerfectPanelResponse<Page<OrderResponse>> response =
                 PerfectPanelResponse.<Page<OrderResponse>>builder()

@@ -137,7 +137,7 @@ export const orderAPI = {
       )
       .then((r) => r.data.data),
 
-  list: (params: { status?: string; search?: string; from?: string; to?: string; page?: number; size?: number } = {}) =>
+  list: (params: { status?: string; search?: string; from?: string; to?: string; page?: number; size?: number; refill?: boolean } = {}) =>
     api.get('/v1/orders', { params: { page: 0, size: 50, ...params } }).then((r) => r.data),
 
   get: (id: number) => api.get(`/v1/orders/${id}`).then((r) => r.data),

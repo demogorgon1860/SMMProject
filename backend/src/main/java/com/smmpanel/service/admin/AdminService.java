@@ -1428,6 +1428,8 @@ public class AdminService {
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
                 .orderName(orderName)
+                .isRefill(Boolean.TRUE.equals(order.getIsRefill()))
+                .refillParentId(order.getRefillParentId())
                 .build();
     }
 

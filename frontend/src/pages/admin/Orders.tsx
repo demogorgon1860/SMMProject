@@ -425,7 +425,22 @@ function DayGroup({
               />
             </td>
             <td>
-              <IDCell id={o.id} />
+              <span className="inline-flex items-center gap-1.5">
+                <IDCell id={o.id} />
+                {o.isRefill && (
+                  <Badge
+                    tone="info"
+                    size="sm"
+                    title={
+                      o.refillParentId != null
+                        ? `Refill of order #${o.refillParentId}`
+                        : 'Refill of an earlier order'
+                    }
+                  >
+                    Refill
+                  </Badge>
+                )}
+              </span>
             </td>
             <td className="font-mono text-[12px] text-fg-muted">#{o.userId}</td>
             <td className="text-[13px]">{o.service?.name ?? o.serviceName ?? '—'}</td>
@@ -519,6 +534,19 @@ function OrderAdminDrawer({ order, onClose, onAfterAction }: DrawerProps) {
             <Badge tone="muted" size="sm">ORDER</Badge>
             <span className="font-mono">#{order.id}</span>
             <StatusBadge status={order.status} />
+            {order.isRefill && (
+              <Badge
+                tone="info"
+                size="sm"
+                title={
+                  order.refillParentId != null
+                    ? `Refill of order #${order.refillParentId}`
+                    : 'Refill of an earlier order'
+                }
+              >
+                Refill
+              </Badge>
+            )}
           </span>
         }
         subtitle={

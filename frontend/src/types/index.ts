@@ -83,6 +83,10 @@ export interface Order {
   errorMessage?: string;
   createdAt: string;
   updatedAt?: string;
+  /** True when this order was created as a refill for an earlier completed/partial order. */
+  isRefill?: boolean;
+  /** Admin-only: id of the original order this refill was issued for. */
+  refillParentId?: number | null;
 }
 
 // ----- Services -----------------------------------------------------

@@ -183,7 +183,14 @@ export function OrdersPage() {
                     onClick={() => navigate(`/orders/${o.id}`)}
                   >
                     <td onClick={(e) => e.stopPropagation()}>
-                      <IDCell id={o.id} />
+                      <span className="inline-flex items-center gap-1.5">
+                        <IDCell id={o.id} />
+                        {o.isRefill && (
+                          <Badge tone="info" size="sm" title="Refill of an earlier order">
+                            Refill
+                          </Badge>
+                        )}
+                      </span>
                     </td>
                     <td>
                       <div className="flex items-center gap-2">
@@ -397,6 +404,11 @@ function OrderDetailDrawer({ order, onClose, onAfterAction }: DetailProps) {
           </Badge>
           <span className="font-mono">#{order.id}</span>
           <StatusBadge status={order.status} />
+          {order.isRefill && (
+            <Badge tone="info" size="sm" title="Refill of an earlier order">
+              Refill
+            </Badge>
+          )}
         </span>
       }
       subtitle={

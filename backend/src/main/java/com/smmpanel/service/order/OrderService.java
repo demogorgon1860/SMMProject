@@ -970,6 +970,7 @@ public class OrderService {
                 .charge(calculateEffectiveCharge(order).toString())
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
+                .isRefill(Boolean.TRUE.equals(order.getIsRefill()))
                 .build();
     }
 
@@ -1303,6 +1304,15 @@ public class OrderService {
         order.setStatus(OrderStatus.PENDING);
         order.setProcessingPriority(0);
         order.setCustomComments(request.getCustomComments());
+
+        // Per-user sequential number. The other createOrder overload sets this (line ~245)
+        // but only inside the dead {@code createOrderWithApiKey} method — every real entry
+        // path (panel UI POST /v1/orders and Perfect Panel /api/v2?action=add) lands here,
+        // so without this assignment {@code user_order_number} stays NULL and the order
+        // sorts to the bottom of the user's /orders list (NULLS LAST under DESC). That's
+        // why customer rows were "invisible" on page 1.
+        Integer maxUserOrderNumber = orderRepository.findMaxUserOrderNumberByUserId(user.getId());
+        order.setUserOrderNumber(maxUserOrderNumber + 1);
 
         // Auto-set customComments for emoji comment services (Perfect Panel API compatibility)
         Long serviceId = service.getId();

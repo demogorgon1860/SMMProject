@@ -30,6 +30,13 @@ public class OrderResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    /**
+     * True when this order is a refill issued for an earlier completed/partial order. The UI
+     * renders a small "Refill" badge next to the order so the customer can tell the row apart
+     * from a fresh paid order — same row layout, just a tag. Backed by {@code Order.isRefill}.
+     */
+    private Boolean isRefill;
+
     // Nested DTOs to avoid lazy loading
     private UserSummaryResponse user;
     private ServiceSummaryResponse serviceDetails;
@@ -55,6 +62,7 @@ public class OrderResponse {
                 .orderId(order.getOrderId())
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
+                .isRefill(Boolean.TRUE.equals(order.getIsRefill()))
                 .user(UserSummaryResponse.fromEntity(order.getUser()))
                 .serviceDetails(ServiceSummaryResponse.fromEntity(order.getService()))
                 .build();
@@ -78,6 +86,7 @@ public class OrderResponse {
                 .orderId(order.getOrderId())
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
+                .isRefill(Boolean.TRUE.equals(order.getIsRefill()))
                 .build();
     }
 

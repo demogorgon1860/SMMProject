@@ -270,6 +270,14 @@ public class OrderRefillService {
     }
 
     private Order createRefillOrder(Order original, Integer refillQuantity, Integer refillNumber) {
+        // Refill = a new user-visible order. Without a userOrderNumber it would sort to the
+        // very end of the user's /orders list (NULL → NULLS LAST under DESC) and stay invisible
+        // on the first page even though the row exists. Assigning the next sequential number
+        // (same pattern as OrderService.createOrder) puts the refill at the top, exactly as
+        // the operator and the customer expect.
+        Integer nextUserOrderNumber =
+                orderRepository.findMaxUserOrderNumberByUserId(original.getUser().getId()) + 1;
+
         Order refillOrder =
                 Order.builder()
                         .user(original.getUser())
@@ -280,6 +288,7 @@ public class OrderRefillService {
                         .startCount(0)
                         .remains(refillQuantity)
                         .status(OrderStatus.PENDING)
+                        .userOrderNumber(nextUserOrderNumber)
                         .isRefill(true)
                         .refillParentId(original.getId())
                         .build();

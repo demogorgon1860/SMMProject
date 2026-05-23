@@ -55,6 +55,32 @@ public interface OrderRepository
             @Param("searchLink") String searchLink,
             Pageable pageable);
 
+    // ============================================================================
+    // TEMP RECOVERY (remove after 2026-06-30): dual-lookup for orders created
+    // during the bug window 2026-05-22 22:06 UTC → hotfix-deploy. During that
+    // window action=add returned user_order_number instead of DB id (commit
+    // bd996ee0 aliased the field, commit 3b65b196 reverted). The 114 affected
+    // resellers' orders are stored client-side with user_order_number values
+    // that primary-key lookup mis-resolves to ancient unrelated rows. These
+    // finders let the service layer try a user_order_number match (restricted
+    // to the bug window via the created_at cutoff so we don't accidentally
+    // hijack pre-bug DB id queries that happen to fall in the same numeric
+    // range) before the normal findById fallback. After all 114 affected
+    // orders have aged into terminal status and the reseller stops polling
+    // them (~1 week), this block becomes dead code — step 1 returns empty
+    // for every query — and the two methods + the service-layer wiring
+    // should be deleted together.
+    // ============================================================================
+    @EntityGraph(attributePaths = {"user", "service"})
+    Optional<Order> findByUserAndUserOrderNumberAndCreatedAtAfter(
+            User user, Integer userOrderNumber, LocalDateTime createdAtAfter);
+
+    @EntityGraph(attributePaths = {"user", "service"})
+    List<Order> findByUserIdAndUserOrderNumberInAndCreatedAtAfter(
+            Long userId,
+            java.util.Collection<Integer> userOrderNumbers,
+            LocalDateTime createdAtAfter);
+
     /**
      * Admin "Refill" bucket — same shape as {@link #adminSearchInStatuses} but pinned to
      * {@code is_refill = true}. Status is intentionally not a filter (the operator's bucket

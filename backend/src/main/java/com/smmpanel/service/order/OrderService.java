@@ -956,10 +956,15 @@ public class OrderService {
 
     private OrderResponse mapToOrderResponse(Order order) {
         return OrderResponse.builder()
-                .id(
-                        order.getUserOrderNumber() != null
-                                ? order.getUserOrderNumber().longValue()
-                                : order.getId())
+                // ALWAYS the DB id — the field is the canonical identifier the API contract
+                // is built around (action=status, action=statuses, action=refill all look up
+                // by it). A previous version of this mapper aliased userOrderNumber here as
+                // a "nicer" display number; that was latent for years (the column was almost
+                // always NULL) until a backfill populated it for every row, at which point
+                // resellers started getting back small numbers like "1" from action=add and
+                // then querying action=status&order=1 — which silently resolved to whoever's
+                // DB id 1 was, returning a totally different order's data. Never alias the id.
+                .id(order.getId())
                 .service(order.getService().getId().intValue())
                 .serviceName(order.getService().getName())
                 .link(order.getLink())

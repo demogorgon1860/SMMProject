@@ -47,10 +47,10 @@ public class OrderResponse {
      */
     public static OrderResponse fromEntityWithFetchedRelations(Order order) {
         return OrderResponse.builder()
-                .id(
-                        order.getUserOrderNumber() != null
-                                ? order.getUserOrderNumber().longValue()
-                                : order.getId())
+                // ALWAYS the DB id — see comment on OrderService.mapToOrderResponse. Aliasing
+                // userOrderNumber here broke the Perfect Panel /api/v2 contract for resellers
+                // who track orders by the value we return from action=add.
+                .id(order.getId())
                 .service(order.getService().getId().intValue())
                 .serviceName(order.getService().getName())
                 .status(order.getStatus().name())
@@ -71,10 +71,8 @@ public class OrderResponse {
     /** OPTIMIZED: Create minimal response for listing views Avoids accessing any relationships */
     public static OrderResponse fromEntityMinimal(Order order, String serviceName) {
         return OrderResponse.builder()
-                .id(
-                        order.getUserOrderNumber() != null
-                                ? order.getUserOrderNumber().longValue()
-                                : order.getId())
+                // ALWAYS the DB id — see comment on OrderService.mapToOrderResponse.
+                .id(order.getId())
                 .service(order.getService() != null ? order.getService().getId().intValue() : null)
                 .serviceName(serviceName)
                 .status(order.getStatus().name())

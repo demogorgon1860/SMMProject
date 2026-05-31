@@ -27,14 +27,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -113,25 +109,6 @@ public class OrderService {
     // Redis namespace constants
     private static final String REDIS_ORDER_PROGRESS = "order:progress:";
     private static final int REDIS_PROGRESS_TTL_HOURS = 24;
-
-    // ============================================================================
-    // TEMP RECOVERY (remove after 2026-06-30): cutoff timestamp for the bug
-    // window during which action=add returned user_order_number instead of
-    // DB id (commit bd996ee0 aliased the field, commit 3b65b196 reverted).
-    // Orders created AFTER this cutoff are eligible to be resolved via
-    // user_order_number in the dual-lookup branches of {@link #getOrder}
-    // and {@link #getOrdersBatchOptimized(List, String)}. Orders created
-    // BEFORE are resolved by primary key as before — their user_order_number
-    // was assigned later by the backfill SQL and was never returned to any
-    // API client, so matching them would only cause false positives.
-    //
-    // Set ~6 minutes before the earliest known bug-window order created_at
-    // (2026-05-22 22:06:16 UTC). After 2026-06-30 the 114 affected orders
-    // will all be long past terminal status, no client polls them anymore,
-    // and the entire recovery block can be deleted.
-    // ============================================================================
-    private static final LocalDateTime BUG_WINDOW_USER_ORDER_NUMBER_CUTOFF =
-            LocalDateTime.parse("2026-05-22T22:00:00");
 
     /** CRITICAL: Create order with API key (Perfect Panel compatibility) */
     @Transactional(
@@ -1397,24 +1374,6 @@ public class OrderService {
                 userRepository
                         .findByUsername(username)
                         .orElseThrow(() -> new OrderValidationException("User not found"));
-
-        // TEMP RECOVERY (remove after 2026-06-30): step 1 — for the 114 bug-window
-        // orders the reseller's aggregator has stored as user_order_number, resolve
-        // by that field FIRST and only within the bug window. Once those orders
-        // age into terminal status and stop being polled, this branch silently
-        // returns empty and we fall through to the normal primary-key lookup.
-        // See BUG_WINDOW_USER_ORDER_NUMBER_CUTOFF and OrderRepository for context.
-        if (orderId != null && orderId > 0 && orderId <= Integer.MAX_VALUE) {
-            Optional<Order> bugWindowMatch =
-                    orderRepository.findByUserAndUserOrderNumberAndCreatedAtAfter(
-                            user,
-                            orderId.intValue(),
-                            BUG_WINDOW_USER_ORDER_NUMBER_CUTOFF);
-            if (bugWindowMatch.isPresent()) {
-                return mapToOrderResponse(bugWindowMatch.get());
-            }
-        }
-
         // Get order and verify ownership
         // Uses findByIdWithDetails to eagerly load Service (prevents LazyInitializationException)
         Order order =
@@ -1622,57 +1581,17 @@ public class OrderService {
                         .findByUsername(username)
                         .orElseThrow(() -> new OrderValidationException("User not found"));
 
-        Map<Long, OrderResponse> result = new HashMap<>(orderIds.size());
-
-        // TEMP RECOVERY (remove after 2026-06-30): step 1 — batch user_order_number
-        // lookup for the 114 bug-window orders. Mirrors the single-order branch in
-        // {@link #getOrder(Long, String)}: only IDs that fit in Integer range and
-        // resolve to an order created after the cutoff are matched here; everything
-        // else falls through to the normal primary-key batch query below. The result
-        // is keyed by the caller's requested ID (which is the user_order_number) so
-        // resellers polling action=statuses get their expected order back under the
-        // expected key. See BUG_WINDOW_USER_ORDER_NUMBER_CUTOFF and OrderRepository
-        // for context.
-        List<Integer> candidateUserOrderNumbers = new ArrayList<>();
-        for (Long id : orderIds) {
-            if (id != null && id > 0 && id <= Integer.MAX_VALUE) {
-                candidateUserOrderNumbers.add(id.intValue());
-            }
-        }
-        Set<Long> resolvedRequestedIds = new HashSet<>();
-        if (!candidateUserOrderNumbers.isEmpty()) {
-            List<Order> bugWindowMatches =
-                    orderRepository.findByUserIdAndUserOrderNumberInAndCreatedAtAfter(
-                            user.getId(),
-                            candidateUserOrderNumbers,
-                            BUG_WINDOW_USER_ORDER_NUMBER_CUTOFF);
-            for (Order order : bugWindowMatches) {
-                Long requestedId = order.getUserOrderNumber().longValue();
-                result.put(requestedId, mapToOrderResponse(order));
-                resolvedRequestedIds.add(requestedId);
-            }
-        }
-
-        // Step 2 — normal primary-key batch lookup for any IDs not already resolved
-        // via the recovery branch above. SQL-side filter on (id IN :ids AND user_id
-        // = :userId) with JOIN FETCH for user and service. The previous implementation
-        // pulled every order this user had ever placed — thousands of rows for active
-        // resellers — and filtered the candidate IDs in memory. That dominated the
-        // response time of the Perfect Panel statuses endpoint, which resellers poll
-        // every few seconds with batches of 25–50 IDs. The new query reads exactly
-        // the rows the caller asked for; authorization stays inside the WHERE clause
+        // SQL-side filter on (id IN :ids AND user_id = :userId) with JOIN FETCH for user and
+        // service. The previous implementation pulled every order this user had ever placed —
+        // thousands of rows for active resellers — and filtered the candidate IDs in memory.
+        // That dominated the response time of the Perfect Panel statuses endpoint, which
+        // resellers poll every few seconds with batches of 25–50 IDs. The new query reads
+        // exactly the rows the caller asked for; authorization stays inside the WHERE clause
         // so a malicious caller can't probe other users' order IDs.
-        List<Long> remainingIds = new ArrayList<>(orderIds.size());
-        for (Long id : orderIds) {
-            if (id != null && !resolvedRequestedIds.contains(id)) {
-                remainingIds.add(id);
-            }
-        }
-        if (!remainingIds.isEmpty()) {
-            List<Order> orders = orderRepository.findByIdInAndUserId(remainingIds, user.getId());
-            for (Order order : orders) {
-                result.put(order.getId(), mapToOrderResponse(order));
-            }
+        List<Order> orders = orderRepository.findByIdInAndUserId(orderIds, user.getId());
+        Map<Long, OrderResponse> result = new HashMap<>(orders.size());
+        for (Order order : orders) {
+            result.put(order.getId(), mapToOrderResponse(order));
         }
         return result;
     }

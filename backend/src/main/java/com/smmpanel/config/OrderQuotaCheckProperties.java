@@ -15,5 +15,5 @@ public class OrderQuotaCheckProperties {
     private boolean enabled = true;
 
     @Min(1)
-    private int windowDays = 30;
+    private int windowDays = 90;
 }

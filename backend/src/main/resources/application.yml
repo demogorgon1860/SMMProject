@@ -527,7 +527,10 @@ app:
       timeout: 300000
     quota-check:
       enabled: true
-      window-days: 30
+      # Rolling window for the per-URL (action+gender) cumulative cap. 90 days: a profile's
+      # delivered followers/likes are effectively permanent, so a short window let old consumed
+      # age out and the cap "reset", admitting repeat orders the bot could no longer deliver.
+      window-days: 90
   balance:
     minimum-deposit: 1.00
     maximum-deposit: 10000.00

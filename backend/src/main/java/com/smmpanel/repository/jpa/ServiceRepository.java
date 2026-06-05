@@ -23,6 +23,21 @@ public interface ServiceRepository extends JpaRepository<Service, Long> {
                     + " '%')")
     Page<Service> searchActiveServices(@Param("searchTerm") String searchTerm, Pageable pageable);
 
+    /**
+     * Ids of the active services that form one quota group with the given base name. The base name
+     * is a service name with its trailing {@code [geo]} bracket stripped (e.g. {@code "Instagram
+     * Followers [Mix Gender]"}), so this matches every geo variant ({@code [USA/Europe]}, {@code
+     * [Germany]}) AND both copies in the duplicated id-space (1-25 / 26-50). Used by {@code
+     * OrderService.enforceUrlQuota} to aggregate the per-link cap across the services that share the
+     * bot's account pool for the same action+gender. The {@code = :base} arm covers names that have
+     * no geo bracket to strip (e.g. {@code "Instagram MIX GEO Followers"}), which then form a group
+     * of their own.
+     */
+    @Query(
+            "SELECT s.id FROM Service s WHERE s.active = true AND (s.name = :base OR s.name LIKE"
+                    + " CONCAT(:base, ' [%'))")
+    List<Long> findActiveQuotaGroupServiceIds(@Param("base") String base);
+
     boolean existsByName(String name);
 
     Optional<Service> findById(Long id);

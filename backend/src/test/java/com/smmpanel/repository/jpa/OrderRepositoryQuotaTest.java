@@ -26,10 +26,10 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
- * Tests for {@link OrderRepository#sumConsumedQuantityByServiceAndLink} — the per-URL quota
+ * Tests for {@link OrderRepository#sumConsumedQuantityByServiceIdsAndLink} — the per-URL quota
  * aggregate used to block orders that would exceed the bot's profile-pool capacity for a single
- * Instagram URL. Covers the SUM(CASE WHEN ...) branching, status filter, time-window cutoff, and
- * per-(service, link) isolation.
+ * Instagram URL. Covers the SUM(CASE WHEN ...) branching, status filter, time-window cutoff,
+ * per-link isolation, and aggregation across a quota group's service ids.
  *
  * <p>Uses {@link DataJpaTest} (JPA slice) against a real PostgreSQL container — H2 cannot reproduce
  * the schema because entities use PG-specific features ({@code JSONB}, custom enum types via {@code
@@ -200,7 +200,7 @@ class OrderRepositoryQuotaTest {
     @Test
     @DisplayName("Orders older than the cutoff are excluded")
     void sum_excludesOrdersBeforeCutoff() {
-        // 50-day-old order — outside the 30-day window
+        // 120-day-old order — outside the 90-day window (sumNow uses a 90-day cutoff)
         save(
                 order(
                         serviceLikes,
@@ -208,7 +208,7 @@ class OrderRepositoryQuotaTest {
                         100,
                         0,
                         OrderStatus.COMPLETED,
-                        LocalDateTime.now().minusDays(50)));
+                        LocalDateTime.now().minusDays(120)));
         // Recent order — inside the window
         save(
                 order(
@@ -223,12 +223,31 @@ class OrderRepositoryQuotaTest {
     }
 
     @Test
-    @DisplayName("Other services on the same URL do not contribute to the sum")
+    @DisplayName("Service ids outside the queried group do not contribute to the sum")
     void sum_isPerServiceId() {
         save(order(serviceLikes, LINK_A, 100, 100, OrderStatus.PENDING, LocalDateTime.now()));
         save(order(serviceFollows, LINK_A, 200, 200, OrderStatus.PENDING, LocalDateTime.now()));
 
         assertEquals(100L, sumNow(serviceLikes, LINK_A));
+    }
+
+    @Test
+    @DisplayName("All service ids in the quota group on the same URL are summed together")
+    void sum_aggregatesAcrossServiceIdsInGroup() {
+        // Mirrors the real grouping: orders placed on one link through several sibling services
+        // (geo/duplicate variants of the same action+gender) must be counted as one.
+        save(order(serviceLikes, LINK_A, 100, 0, OrderStatus.COMPLETED, LocalDateTime.now()));
+        save(order(serviceFollows, LINK_A, 200, 50, OrderStatus.PARTIAL, LocalDateTime.now()));
+
+        long sum =
+                orderRepository.sumConsumedQuantityByServiceIdsAndLink(
+                        List.of(serviceLikes.getId(), serviceFollows.getId()),
+                        LINK_A,
+                        COUNTING_STATUSES,
+                        LocalDateTime.now().minusDays(90));
+
+        // 100 (completed) + 150 (partial delivered = 200 - 50)
+        assertEquals(250L, sum);
     }
 
     @Test
@@ -263,13 +282,17 @@ class OrderRepositoryQuotaTest {
     void acquireQuotaLock_succeeds() {
         // Smoke test — the lock is released automatically on transaction end. No assertion on
         // value because pg_advisory_xact_lock returns void; we only care that no exception is
-        // thrown and the JPQL/native binding wiring works end-to-end against PG.
-        orderRepository.acquireQuotaLock(serviceLikes.getId(), LINK_A);
+        // thrown and the native binding wiring (hashtext of group key + link) works end-to-end
+        // against PG.
+        orderRepository.acquireQuotaLock("Instagram Likes [Mix Gender]", LINK_A);
     }
 
     private long sumNow(Service service, String link) {
-        return orderRepository.sumConsumedQuantityByServiceAndLink(
-                service.getId(), link, COUNTING_STATUSES, LocalDateTime.now().minusDays(30));
+        return orderRepository.sumConsumedQuantityByServiceIdsAndLink(
+                List.of(service.getId()),
+                link,
+                COUNTING_STATUSES,
+                LocalDateTime.now().minusDays(90));
     }
 
     private Order order(

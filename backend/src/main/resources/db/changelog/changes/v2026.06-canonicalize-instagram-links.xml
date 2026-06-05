@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="v2026.06-canonicalize-instagram-links" author="dev">
+        <comment>
+            One-time backfill: rewrite existing orders.link to the canonical form now produced by
+            OrderService.normalizeInstagramUrl, so historical rows share a per-URL quota key with
+            new orders. Mirrors the normalizer's transforms for existing data: strip query/fragment;
+            force https + collapse instagram.com / m.instagram.com to www.instagram.com; rewrite
+            /reel(s)/ to /p/; truncate mobile share tokens to the 11-char shortcode; lowercase the
+            profile handle (usernames are case-insensitive) while leaving the case-SENSITIVE content
+            shortcodes intact; append a trailing slash. Each step is guarded so re-running is a
+            no-op. The earlier per-URL quota (idx_orders_quota_check) split the same target across
+            these variants, letting repeat orders pile onto one link until the bot ran out of fresh
+            accounts and returned PARTIAL/CANCELLED.
+        </comment>
+        <sql>
+            -- 0) Trim surrounding whitespace (the normalizer trims before anything else; some
+            --    historical links were stored with leading spaces/tabs/newlines). Uses a regex so
+            --    it strips all whitespace classes, matching Java's String.trim(), not just spaces.
+            UPDATE orders SET link = regexp_replace(link, '^\s+|\s+$', '', 'g')
+            WHERE link ~ '^\s' OR link ~ '\s$';
+
+            -- 1) Strip query string and fragment (the normalizer drops both)
+            UPDATE orders
+            SET link = regexp_replace(link, '[?#].*$', '')
+            WHERE link ~* 'instagram\.com' AND link ~ '[?#]';
+
+            -- 2) Force https and canonicalize host to www.instagram.com (covers http://,
+            --    instagram.com and m.instagram.com; case-insensitive on the host)
+            UPDATE orders
+            SET link = regexp_replace(link, '^https?://(www\.|m\.)?instagram\.com',
+                                      'https://www.instagram.com', 'i')
+            WHERE link ~* '^https?://(www\.|m\.)?instagram\.com'
+              AND link !~ '^https://www\.instagram\.com';
+
+            -- 2b) Strip a leading @ from the profile path (the normalizer drops it:
+            --     instagram.com/@handle -> instagram.com/handle)
+            UPDATE orders
+            SET link = regexp_replace(link, '^(https://www\.instagram\.com)/@', '\1/')
+            WHERE link ~ '^https://www\.instagram\.com/@';
+
+            -- 3) Rewrite /reel/ and /reels/ to /p/ (Instagram serves the same content)
+            UPDATE orders
+            SET link = regexp_replace(link, '/reels?/', '/p/', 'gi')
+            WHERE link ~* '^https://www\.instagram\.com/reels?/';
+
+            -- 4) Truncate mobile share tokens: /p/&lt;11-char shortcode&gt;&lt;token&gt; -> /p/&lt;shortcode&gt;/
+            UPDATE orders
+            SET link = regexp_replace(
+                           link, '(/p/)([A-Za-z0-9_-]{11})[A-Za-z0-9_-]+/?$', '\1\2/', 'i')
+            WHERE link ~* '^https://www\.instagram\.com/p/[A-Za-z0-9_-]{12,}';
+
+            -- 5) Lowercase the profile handle (single-segment profile URLs only; content
+            --    shortcodes have two+ segments and reserved keywords are excluded). The rebuild
+            --    also appends the trailing slash for profiles.
+            UPDATE orders
+            SET link = 'https://www.instagram.com/'
+                       || lower(substring(link from '^https://www\.instagram\.com/([^/]+)/?$'))
+                       || '/'
+            WHERE link ~ '^https://www\.instagram\.com/[^/]+/?$'
+              AND lower(substring(link from '^https://www\.instagram\.com/([^/]+)/?$'))
+                  NOT IN ('p','reel','reels','tv','stories','explore','s','tagged')
+              AND link &lt;&gt; 'https://www.instagram.com/'
+                          || lower(substring(link from '^https://www\.instagram\.com/([^/]+)/?$'))
+                          || '/';
+
+            -- 6) Ensure a trailing slash on every Instagram URL — the normalizer appends one to
+            --    all links, including content URLs (/p/…), whose shortcode case is left intact.
+            --    Without this, /p/ABC and /p/ABC/ would remain separate quota keys.
+            UPDATE orders
+            SET link = link || '/'
+            WHERE link ~ '^https://www\.instagram\.com/' AND link !~ '/$';
+        </sql>
+        <rollback>
+            <!-- Not reversible: lowercasing the handle and collapsing the host are lossy, the
+                 original casing/host of each row is not recorded. No-op rollback. -->
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

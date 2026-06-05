@@ -245,8 +245,7 @@ public class OrderService {
             order.setUserOrderNumber(maxUserOrderNumber + 1);
 
             // Per-URL quota check — prevents bypass via multiple orders on the same link
-            enforceUrlQuota(
-                    service.getId(), order.getLink(), effectiveQuantity, service.getMaxOrder());
+            enforceUrlQuota(service, order.getLink(), effectiveQuantity);
 
             order = orderRepository.save(order);
 
@@ -880,38 +879,73 @@ public class OrderService {
     }
 
     /**
-     * Reject the order if the cumulative consumed quantity on this {@code (serviceId, link)} within
-     * the configured time window plus the new {@code quantity} would exceed the service's {@code
-     * maxOrder}. Acquires a transaction-scoped advisory lock first to serialize concurrent
-     * createOrder calls on the same URL+service, preventing read-skew between two parallel
-     * requests. Throws before {@code orderRepository.save(...)} so a rejected order is never
-     * persisted and no balance is debited.
+     * Reject the order if the cumulative consumed quantity for this service's <em>quota group</em>
+     * on {@code normalizedLink} within the configured window, plus the new {@code quantity}, would
+     * exceed the service's {@code maxOrder}.
+     *
+     * <p>The quota group is "action+gender" — the service name with its trailing {@code [geo]}
+     * bracket stripped (see {@link #quotaGroupKey}). All geo variants and both copies in the
+     * duplicated id-space (1-25 / 26-50) share the bot's account pool for that action+gender, so
+     * they are summed together; counting a single service id let resellers pile repeat orders onto
+     * one link through sibling services until the bot ran out of fresh accounts and returned
+     * PARTIAL. Genders stay in separate groups: their account pools are disjoint and their caps
+     * differ (male 140 / female 300 / mix 500), and the cap is uniform within a group so {@code
+     * service.getMaxOrder()} is well defined.
+     *
+     * <p>Acquires a transaction-scoped advisory lock on (group, link) first to serialize concurrent
+     * createOrder calls on the same link within the group, preventing read-skew between two
+     * parallel requests. Throws before {@code orderRepository.save(...)} so a rejected order is
+     * never persisted and no balance is debited.
      */
     private void enforceUrlQuota(
-            Long serviceId, String normalizedLink, int quantity, int maxOrder) {
+            com.smmpanel.entity.Service service, String normalizedLink, int quantity) {
         if (!quotaCheckProperties.isEnabled()) {
             return;
         }
 
-        orderRepository.acquireQuotaLock(serviceId, normalizedLink);
+        String groupKey = quotaGroupKey(service.getName());
+        List<Long> groupServiceIds = serviceRepository.findActiveQuotaGroupServiceIds(groupKey);
+        if (groupServiceIds.isEmpty()) {
+            // Defensive: the ordered service is active, so the resolver should always return at
+            // least its id. If a name shape we didn't anticipate yields no match, fall back to
+            // this service alone so the cap is still enforced rather than silently skipped.
+            groupServiceIds = List.of(service.getId());
+        }
+
+        orderRepository.acquireQuotaLock(groupKey, normalizedLink);
 
         LocalDateTime cutoff = LocalDateTime.now().minusDays(quotaCheckProperties.getWindowDays());
         long consumed =
-                orderRepository.sumConsumedQuantityByServiceAndLink(
-                        serviceId, normalizedLink, QUOTA_COUNTING_STATUSES, cutoff);
+                orderRepository.sumConsumedQuantityByServiceIdsAndLink(
+                        groupServiceIds, normalizedLink, QUOTA_COUNTING_STATUSES, cutoff);
 
-        if (consumed + (long) quantity > maxOrder) {
+        if (consumed + (long) quantity > service.getMaxOrder()) {
             throw new OrderQuotaExceededException(
                     String.format(
-                            "URL quota exceeded for service %d on %s: %d already consumed in"
-                                    + " last %d days, requested %d, service max %d",
-                            serviceId,
+                            "URL quota exceeded for \"%s\" on %s: %d already consumed in last %d"
+                                    + " days, requested %d, group max %d",
+                            groupKey,
                             normalizedLink,
                             consumed,
                             quotaCheckProperties.getWindowDays(),
                             quantity,
-                            maxOrder));
+                            service.getMaxOrder()));
         }
+    }
+
+    /**
+     * Quota group key for a service name: the name with a trailing {@code [geo]} bracket removed,
+     * e.g. {@code "Instagram Followers [Mix Gender] [USA/Europe]"} → {@code "Instagram Followers
+     * [Mix Gender]"}. Collapses geo variants and the duplicated id-space into one action+gender
+     * group. Names without a trailing bracket (e.g. {@code "Instagram MIX GEO Followers"}) are
+     * returned unchanged and form their own group. Must stay in sync with the LIKE pattern in
+     * {@link com.smmpanel.repository.jpa.ServiceRepository#findActiveQuotaGroupServiceIds}.
+     */
+    static String quotaGroupKey(String serviceName) {
+        if (serviceName == null) {
+            return "";
+        }
+        return serviceName.replaceFirst("\\s*\\[[^\\]]*\\]\\s*$", "").trim();
     }
 
     private BigDecimal calculateRefund(Order order) {
@@ -1115,6 +1149,16 @@ public class OrderService {
             java.util.regex.Pattern.compile("(?i)(/p/)([A-Za-z0-9_-]{11})[A-Za-z0-9_-]+/?$");
 
     /**
+     * First-path-segment keywords that are NOT usernames. When the first segment after the host is
+     * one of these, the URL points at content (a post, reel, tv, story, …) whose shortcode is
+     * case-SENSITIVE base64 and must be left untouched. Any other first segment is a profile
+     * handle, which is case-INSENSITIVE on Instagram and gets lowercased in {@link
+     * #normalizeInstagramUrl} so the per-URL quota treats Chrimbu and chrimbu as one target.
+     */
+    private static final java.util.Set<String> RESERVED_PATH_SEGMENTS =
+            java.util.Set.of("p", "reel", "reels", "tv", "stories", "explore", "s", "tagged");
+
+    /**
      * Normalize Instagram URL. Non-Instagram URLs are returned unchanged.
      *
      * <ul>
@@ -1125,7 +1169,10 @@ public class OrderService {
      *   <li>Ensure trailing slash
      * </ul>
      */
-    private String normalizeInstagramUrl(String url) {
+    // Package-private static (no instance state — only static patterns and the static logger) so
+    // the canonicalization that the per-URL quota and the v2026.06 link backfill both depend on can
+    // be unit-tested directly. The SQL backfill must stay in sync with this method.
+    static String normalizeInstagramUrl(String url) {
         if (url == null || url.isEmpty()) {
             return url;
         }
@@ -1166,6 +1213,14 @@ public class OrderService {
             url = domainMatcher.group(1).toLowerCase() + domainMatcher.group(2);
         }
 
+        // Canonicalize the Instagram host to www.instagram.com. The bare-handle branch above
+        // already emits www.instagram.com, but full URLs entered as instagram.com/... or
+        // m.instagram.com/... otherwise stayed on a different host — storing the same profile
+        // under two hosts, which split the per-URL quota into separate buckets. Case-insensitive
+        // (?i) so a pathless mixed-case host like https://M.instagram.com is also collapsed,
+        // matching the SQL backfill's case-insensitive host rewrite.
+        url = url.replaceFirst("(?i)^https://(www\\.|m\\.)?instagram\\.com", "https://www.instagram.com");
+
         // Strip query parameters — Instagram never needs them for content access
         int queryIndex = url.indexOf('?');
         if (queryIndex != -1) {
@@ -1192,6 +1247,23 @@ public class OrderService {
         java.util.regex.Matcher postMatcher = SHORTCODE_TOKEN_PATTERN.matcher(url);
         if (postMatcher.find()) {
             url = url.substring(0, postMatcher.start()) + "/p/" + postMatcher.group(2) + "/";
+        }
+
+        // Lowercase the profile handle. Instagram usernames are case-insensitive, so
+        // instagram.com/Chrimbu and instagram.com/chrimbu are the same profile and must collapse
+        // to one quota key. Only fires when the first path segment is a username — content URLs
+        // (/p/, /tv/, …) carry a case-SENSITIVE shortcode and are left untouched. /reel(s)/ were
+        // already rewritten to /p/ above.
+        java.util.regex.Matcher handleMatcher =
+                java.util.regex.Pattern.compile("^(https://www\\.instagram\\.com)/([^/]+)(/.*)?$")
+                        .matcher(url);
+        if (handleMatcher.matches()
+                && !RESERVED_PATH_SEGMENTS.contains(handleMatcher.group(2).toLowerCase())) {
+            url =
+                    handleMatcher.group(1)
+                            + "/"
+                            + handleMatcher.group(2).toLowerCase()
+                            + (handleMatcher.group(3) == null ? "" : handleMatcher.group(3));
         }
 
         // Ensure trailing slash
@@ -1333,7 +1405,7 @@ public class OrderService {
         order.setUpdatedAt(LocalDateTime.now());
 
         // Per-URL quota check — prevents bypass via multiple orders on the same link
-        enforceUrlQuota(service.getId(), order.getLink(), effectiveQuantity, service.getMaxOrder());
+        enforceUrlQuota(service, order.getLink(), effectiveQuantity);
 
         order = orderRepository.save(order);
 

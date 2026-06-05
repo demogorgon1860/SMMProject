@@ -332,38 +332,50 @@ public interface OrderRepository
             @Param("createdAt") LocalDateTime createdAt);
 
     /**
-     * Sum of "consumed" quantity per (service, link) within a time window. Used for the per-URL
-     * quota check on order creation. For COMPLETED/PARTIAL orders we count what was actually
-     * delivered ({@code quantity - remains}); for active orders the slot is reserved, so we count
-     * the full {@code quantity}. Caller passes the list of statuses to consider — terminal statuses
-     * (CANCELLED/FAILED/ERROR/REFILL/SUSPENDED) must be excluded so freed slots are not counted.
+     * Sum of "consumed" quantity for a <em>quota group</em> (a set of service ids) on a link within
+     * a time window. Used for the per-URL quota check on order creation. For COMPLETED/PARTIAL
+     * orders we count what was actually delivered ({@code quantity - remains}); for active orders
+     * the slot is reserved, so we count the full {@code quantity}. Caller passes the list of
+     * statuses to consider — terminal statuses (CANCELLED/FAILED/ERROR/REFILL/SUSPENDED) must be
+     * excluded so freed slots are not counted.
+     *
+     * <p>The service ids are the siblings sharing the same action+gender (geo variants and the
+     * duplicate id-space 1-25 / 26-50 collapse into one group) — see {@code
+     * OrderService.enforceUrlQuota}. The bot's account pool for an action+gender is shared across
+     * those services, so ordering the same target through any of them competes for the same
+     * accounts; counting them separately let resellers bypass the cap and pile repeat orders onto a
+     * link until the bot ran out of fresh accounts and returned PARTIAL.
      */
     @Query(
             "SELECT COALESCE(SUM(CASE WHEN o.status IN (com.smmpanel.entity.OrderStatus.COMPLETED,"
                     + " com.smmpanel.entity.OrderStatus.PARTIAL) THEN o.quantity -"
                     + " COALESCE(o.remains, 0) ELSE o.quantity END), 0) FROM Order o WHERE"
-                    + " o.service.id = :serviceId AND o.link = :link AND o.status IN :statuses AND"
+                    + " o.service.id IN :serviceIds AND o.link = :link AND o.status IN :statuses AND"
                     + " o.createdAt >= :cutoff")
-    Long sumConsumedQuantityByServiceAndLink(
-            @Param("serviceId") Long serviceId,
+    Long sumConsumedQuantityByServiceIdsAndLink(
+            @Param("serviceIds") java.util.Collection<Long> serviceIds,
             @Param("link") String link,
             @Param("statuses") List<OrderStatus> statuses,
             @Param("cutoff") LocalDateTime cutoff);
 
     /**
-     * Acquire a transaction-scoped PostgreSQL advisory lock on (serviceId, link). Released
+     * Acquire a transaction-scoped PostgreSQL advisory lock on (quota group, link). Released
      * automatically on commit or rollback. Serializes concurrent createOrder calls on the same
-     * URL+service so the quota aggregate cannot be read-skewed across simultaneous requests.
+     * link within the same quota group so the aggregate cannot be read-skewed across simultaneous
+     * requests. The lock key is the group key (action+gender), NOT the service id — two orders on
+     * the same link through different geo/duplicate services of the same group must take the same
+     * lock, otherwise they could both read a stale consumed value and jointly overshoot the cap.
      *
-     * <p>Returns {@code Object} (not a typed value) because {@code pg_advisory_xact_lock} returns
-     * SQL {@code void}, which Hibernate hands back as a {@link org.postgresql.util.PGobject} —
-     * trying to cast that to {@code Integer} throws {@link ClassCastException}. We discard the
-     * result; the lock is acquired by side effect.
+     * <p>{@code hashtext} returns {@code int}, matching the two-int form of {@code
+     * pg_advisory_xact_lock}. Returns {@code Object} (not a typed value) because the function
+     * returns SQL {@code void}, which Hibernate hands back as a {@link
+     * org.postgresql.util.PGobject} — casting that to {@code Integer} throws {@link
+     * ClassCastException}. We discard the result; the lock is acquired by side effect.
      */
     @Query(
-            value = "SELECT pg_advisory_xact_lock(hashtext(:link), CAST(:serviceId AS int))",
+            value = "SELECT pg_advisory_xact_lock(hashtext(:link), hashtext(:groupKey))",
             nativeQuery = true)
-    Object acquireQuotaLock(@Param("serviceId") Long serviceId, @Param("link") String link);
+    Object acquireQuotaLock(@Param("groupKey") String groupKey, @Param("link") String link);
 
     @Query("SELECT o FROM Order o WHERE o.user.id = :userId AND o.createdAt > :createdAt")
     List<Order> findByUserIdAndCreatedAtAfter(

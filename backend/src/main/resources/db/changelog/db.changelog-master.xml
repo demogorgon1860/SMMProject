@@ -808,4 +808,8 @@
     <!-- Instagram MIX GEO tier: cheap followers + likes from non-warmed mixed-geo profile pool -->
     <include file="db/changelog/changes/v2026.05-add-instagram-mix-geo.xml"/>
 
+    <!-- Canonicalize existing orders.link (host www + lowercase profile handle) so historical
+         rows share a per-URL quota key with new orders -->
+    <include file="db/changelog/changes/v2026.06-canonicalize-instagram-links.xml"/>
+
 </databaseChangeLog>

@@ -624,6 +624,20 @@ app:
       default-action: ${TELEGRAM_CANCEL_DEFAULT_ACTION:proceed}
     profit:
       redis-ttl-days: ${TELEGRAM_PROFIT_REDIS_TTL_DAYS:8}
+    # "System Health" group — separate chat for infra alerts (bot-down + worst-error
+    # profiles). Same bot token; the bot must be added to this group. Blank chat-id =>
+    # health alerts disabled (no fallback to the main order chat). Set
+    # TELEGRAM_SYSTEM_HEALTH_CHAT_ID in .env.docker on prod.
+    health:
+      enabled: ${TELEGRAM_SYSTEM_HEALTH_ENABLED:true}
+      chat-id: ${TELEGRAM_SYSTEM_HEALTH_CHAT_ID:}
+      check-interval-ms: ${TELEGRAM_HEALTH_CHECK_INTERVAL_MS:60000}
+      down-threshold: ${TELEGRAM_HEALTH_DOWN_THRESHOLD:2}
+      profiles:
+        report-cron: ${TELEGRAM_HEALTH_PROFILES_CRON:0 0 9 * * *}
+        window-hours: ${TELEGRAM_HEALTH_PROFILES_WINDOW_HOURS:24}
+        min-errors: ${TELEGRAM_HEALTH_PROFILES_MIN_ERRORS:5}
+        top-n: ${TELEGRAM_HEALTH_PROFILES_TOP_N:10}
 
   # ===============================
   # INSTAGRAM BOT CONFIGURATION

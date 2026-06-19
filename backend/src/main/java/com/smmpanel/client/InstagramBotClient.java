@@ -727,6 +727,67 @@ public class InstagramBotClient {
     }
 
     /**
+     * Fleet-wide per-profile error leaderboard for the System Health digest. Queries every bot
+     * instance's {@code GET /api/profiles/errors} (each may own a separate Postgres), MERGES
+     * results by AdsPower profile id (summing counts), then re-sorts by total error count and caps
+     * at {@code topN}. Concatenating per-instance top-N lists would be wrong if scaled — a profile
+     * that ranks #6 on two bots could be #1 overall — so the merge happens before the final top-N.
+     * Never throws; an unreachable instance is logged and skipped.
+     */
+    public List<ProfileErrorStat> getProfileErrorStats(int windowHours, int minErrors, int topN) {
+        Map<String, ProfileErrorStat> merged = new LinkedHashMap<>();
+        for (String instance : botInstances) {
+            for (ProfileErrorStat st :
+                    fetchProfileErrorStats(instance, windowHours, minErrors, topN)) {
+                if (st.getProfileAdsPowerId() == null) continue;
+                merged.merge(st.getProfileAdsPowerId(), st, ProfileErrorStat::combine);
+            }
+        }
+        return merged.values().stream()
+                .sorted(Comparator.comparingInt(ProfileErrorStat::errorCount).reversed())
+                .limit(Math.max(0, topN))
+                .toList();
+    }
+
+    /**
+     * Fetch one bot instance's profile error leaderboard. Uses the standard (10s) template — this
+     * is a non-interactive analytics call, not a Telegram-callback hot path, so the 3s fast budget
+     * is too tight. Returns an empty list on any failure.
+     */
+    @SuppressWarnings("unchecked")
+    private List<ProfileErrorStat> fetchProfileErrorStats(
+            String instance, int windowHours, int minErrors, int topN) {
+        try {
+            String url =
+                    String.format(
+                            "%s/api/profiles/errors?window_hours=%d&min_errors=%d&limit=%d",
+                            instance, windowHours, minErrors, topN);
+            ResponseEntity<Map> resp = restTemplate.getForEntity(url, Map.class);
+            if (!resp.getStatusCode().is2xxSuccessful() || resp.getBody() == null) {
+                return List.of();
+            }
+            Object profilesObj = resp.getBody().get("profiles");
+            if (!(profilesObj instanceof List)) return List.of();
+            List<Map<String, Object>> rows = (List<Map<String, Object>>) profilesObj;
+            List<ProfileErrorStat> out = new ArrayList<>(rows.size());
+            for (Map<String, Object> row : rows) {
+                out.add(
+                        ProfileErrorStat.builder()
+                                .profileAdsPowerId(asString(row.get("profile_adspower_id")))
+                                .failed(asInt(row.get("failed")))
+                                .profileFailed(asInt(row.get("profile_failed")))
+                                .totalActions(asInt(row.get("total_actions")))
+                                .lastAt(asString(row.get("last_at")))
+                                .build());
+            }
+            return out;
+        } catch (Exception e) {
+            log.warn("getProfileErrorStats({}) failed: {}", instance, e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
      * Proxies to the bot's POST /api/orders/workers using the fast template (3s). Returns the raw
      * bot response body so the caller can show what the bot acknowledged.
      */

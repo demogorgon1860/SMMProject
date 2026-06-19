@@ -253,6 +253,44 @@ public class TelegramBotService {
         sendMessage(text);
     }
 
+    // ===================== System Health channel (separate group) =====================
+
+    /**
+     * True when System Health alerts can be delivered: Telegram is enabled, the health channel is
+     * enabled, the bot token is present, and a System Health chat id is configured. Deliberately
+     * does NOT depend on {@link #isMissingCredentials()} (the MAIN order chat-id) — health alerts
+     * go to a different audience and must still fire even if the main chat is misconfigured.
+     */
+    public boolean isHealthChannelOperational() {
+        TelegramBotProperties.Bot bot = props.getBot();
+        TelegramBotProperties.Health health = props.getHealth();
+        return props.isEnabled()
+                && health != null
+                && health.isEnabled()
+                && bot != null
+                && bot.getToken() != null
+                && !bot.getToken().isBlank()
+                && health.getChatId() != null
+                && !health.getChatId().isBlank();
+    }
+
+    /**
+     * Send a plain-text message to the System Health group. No-ops silently when the health channel
+     * is not operational. Reuses the same Telegram RestTemplate; errors are logged only, never
+     * propagated (callers run inside scheduler threads and must not be aborted by a failed send).
+     */
+    public void sendToHealthChat(String text) {
+        if (!isHealthChannelOperational()) return;
+        try {
+            Map<String, Object> body = new HashMap<>();
+            body.put("chat_id", props.getHealth().getChatId());
+            body.put("text", text);
+            postRaw("sendMessage", body);
+        } catch (Exception e) {
+            log.error("Failed to send System Health Telegram message: {}", e.getMessage());
+        }
+    }
+
     // ===================== Internal helpers =====================
 
     private void sendMessage(String text) {
@@ -305,6 +343,24 @@ public class TelegramBotService {
         // request at https://api.telegram.org/bot/method (token blank → 401 spam in logs).
         if (!isOperational()) return null;
         String url = API_BASE + props.getBot().getToken() + "/" + method;
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+        return restTemplate.postForObject(url, request, Map.class);
+    }
+
+    /**
+     * Like {@link #post} but gated ONLY on Telegram being enabled + a token being present — NOT on
+     * the main chat-id. The caller supplies {@code chat_id} in {@code body}. Used by the System
+     * Health path so a blank main chat-id doesn't suppress infra alerts (different chat, different
+     * failure mode). Reuses the same {@code telegramRestTemplate}.
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> postRaw(String method, Map<String, Object> body) {
+        if (!props.isEnabled()) return null;
+        TelegramBotProperties.Bot bot = props.getBot();
+        if (bot == null || bot.getToken() == null || bot.getToken().isBlank()) return null;
+        String url = API_BASE + bot.getToken() + "/" + method;
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);

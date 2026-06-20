@@ -44,6 +44,7 @@ public class SystemHealthMonitor {
     private static final String FIELD_DOWN_SINCE = "down_since";
     private static final String STATE_UP = "UP";
     private static final String STATE_DOWN = "DOWN";
+    private static final String DOCKER_HOST_ALIAS = "host.docker.internal";
 
     private static final DateTimeFormatter TS =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.systemDefault());
@@ -140,7 +141,7 @@ public class SystemHealthMonitor {
         String text =
                 String.format(
                         "🔴 БОТ НЕДОСТУПЕН%nИнстанс: %s%nПричина: %s%nВремя: %s",
-                        st.getBaseUrl(), reason, TS.format(Instant.now()));
+                        displayUrl(st.getBaseUrl()), reason, TS.format(Instant.now()));
         telegramBotService.sendToHealthChat(text);
         log.warn("System Health: bot instance {} is DOWN ({})", st.getBaseUrl(), reason);
     }
@@ -149,7 +150,7 @@ public class SystemHealthMonitor {
         String text =
                 String.format(
                         "🟢 Бот восстановлен%nИнстанс: %s%nБыл недоступен: %s",
-                        st.getBaseUrl(), humanizeDowntime(downSinceIso));
+                        displayUrl(st.getBaseUrl()), humanizeDowntime(downSinceIso));
         telegramBotService.sendToHealthChat(text);
         log.info("System Health: bot instance {} recovered", st.getBaseUrl());
     }
@@ -178,6 +179,19 @@ public class SystemHealthMonitor {
 
     private int downThreshold() {
         return Math.max(1, props.getHealth().getDownThreshold());
+    }
+
+    /**
+     * Alert-text only: swap the docker alias {@code host.docker.internal} for the configured
+     * display host (e.g. the server's public IP) so notifications show a meaningful address. The
+     * connection path and the Redis state key still use the raw {@code baseUrl}.
+     */
+    private String displayUrl(String baseUrl) {
+        String dh = props.getHealth().getDisplayHost();
+        if (baseUrl != null && dh != null && !dh.isBlank()) {
+            return baseUrl.replace(DOCKER_HOST_ALIAS, dh);
+        }
+        return baseUrl;
     }
 
     /** Stable, Redis-key-safe slug for a bot URL (strips scheme, non-alphanumerics → '_'). */

@@ -633,6 +633,9 @@ app:
       chat-id: ${TELEGRAM_SYSTEM_HEALTH_CHAT_ID:}
       check-interval-ms: ${TELEGRAM_HEALTH_CHECK_INTERVAL_MS:60000}
       down-threshold: ${TELEGRAM_HEALTH_DOWN_THRESHOLD:2}
+      # Cosmetic only: show this host instead of the docker alias host.docker.internal in alert
+      # text (connection still uses INSTAGRAM_BOT_URLS). E.g. the panel server's public IP.
+      display-host: ${TELEGRAM_HEALTH_DISPLAY_HOST:}
       profiles:
         report-cron: ${TELEGRAM_HEALTH_PROFILES_CRON:0 0 9 * * *}
         window-hours: ${TELEGRAM_HEALTH_PROFILES_WINDOW_HOURS:24}

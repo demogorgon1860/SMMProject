@@ -65,6 +65,14 @@ public class TelegramBotProperties {
          */
         private int downThreshold = 2;
 
+        /**
+         * Cosmetic, alert-text only: occurrences of the docker alias {@code host.docker.internal}
+         * in an instance URL are shown as this host (e.g. the panel server's public IP) in System
+         * Health messages. The panel still CONNECTS via the real {@code INSTAGRAM_BOT_URLS} value —
+         * this changes display, not routing. Blank = show the raw instance URL.
+         */
+        private String displayHost = "";
+
         private Profiles profiles = new Profiles();
 
         @Data

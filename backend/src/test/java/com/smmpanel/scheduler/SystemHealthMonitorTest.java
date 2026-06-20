@@ -29,6 +29,7 @@ class SystemHealthMonitorTest {
 
     private static final String URL = "http://45.142.211.90:8080";
 
+    private TelegramBotProperties props;
     private TelegramBotService tg;
     private InstagramBotClient client;
     private StringRedisTemplate redis;
@@ -38,7 +39,7 @@ class SystemHealthMonitorTest {
     @BeforeEach
     @SuppressWarnings("unchecked")
     void setUp() {
-        TelegramBotProperties props = new TelegramBotProperties();
+        props = new TelegramBotProperties();
         props.getHealth().setDownThreshold(2);
 
         tg = mock(TelegramBotService.class);
@@ -105,6 +106,27 @@ class SystemHealthMonitorTest {
         monitor.pollBotLiveness();
 
         verify(tg, never()).sendToHealthChat(anyString());
+    }
+
+    @Test
+    void displayHostRewritesDockerAliasInAlertText() {
+        props.getHealth().setDisplayHost("45.142.211.90");
+        String dockerUrl = "http://host.docker.internal:8080";
+        InstanceStatus dockerDown =
+                InstanceStatus.builder().baseUrl(dockerUrl).online(false).lastError("x").build();
+
+        when(client.getAllInstanceStatuses())
+                .thenReturn(List.of(dockerDown))
+                .thenReturn(List.of(dockerDown)); // 2nd poll → DOWN alert
+
+        monitor.pollBotLiveness();
+        monitor.pollBotLiveness();
+
+        ArgumentCaptor<String> cap = ArgumentCaptor.forClass(String.class);
+        verify(tg, times(1)).sendToHealthChat(cap.capture());
+        assertThat(cap.getValue())
+                .contains("http://45.142.211.90:8080")
+                .doesNotContain("host.docker.internal");
     }
 
     @Test

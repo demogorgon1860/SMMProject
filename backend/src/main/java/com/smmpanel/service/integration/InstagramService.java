@@ -11,6 +11,7 @@ import com.smmpanel.service.balance.BalanceService;
 import com.smmpanel.service.instagram.InstagramRabbitPublisher;
 import com.smmpanel.service.notification.DailyProfitService;
 import com.smmpanel.service.notification.TelegramNotificationService;
+import com.smmpanel.service.order.OrderSerializationService;
 import com.smmpanel.util.AfterCommitRunner;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -18,6 +19,7 @@ import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +41,13 @@ public class InstagramService {
     private final BalanceService balanceService;
     private final BotWebhookEventRecorder botWebhookEventRecorder;
     private final DailyProfitService dailyProfitService;
+
+    /**
+     * Lazy (ObjectProvider) to break the construction cycle: OrderSerializationService depends on
+     * InstagramService (to dispatch), and this completion path depends back on it (to release the
+     * next same-link order). Resolved only when a terminal webhook fires.
+     */
+    private final ObjectProvider<OrderSerializationService> orderSerializationServiceProvider;
 
     @Value("${app.instagram.use-rabbitmq:true}")
     private boolean useRabbitMQ;
@@ -162,11 +171,11 @@ public class InstagramService {
         // fallback doesn't silently fall back to the mixed pool. Re-uses the same parsing /
         // prefix-building logic (see InstagramRabbitPublisher for the protocol rationale).
         String gender =
-                com.smmpanel.service.instagram.InstagramRabbitPublisher
-                        .parseGenderFromServiceName(service.getName());
+                com.smmpanel.service.instagram.InstagramRabbitPublisher.parseGenderFromServiceName(
+                        service.getName());
         String commentText =
-                com.smmpanel.service.instagram.InstagramRabbitPublisher
-                        .buildCommentTextWithGender(order.getCustomComments(), gender);
+                com.smmpanel.service.instagram.InstagramRabbitPublisher.buildCommentTextWithGender(
+                        order.getCustomComments(), gender);
 
         // Build request
         InstagramOrderRequest request =
@@ -388,6 +397,8 @@ public class InstagramService {
 
         // Send Telegram notification
         telegramNotificationService.notifyOrderCompleted(order, actualDelivered);
+
+        maybePumpNextForUrl(order);
     }
 
     /** Handle failed order callback. */
@@ -466,12 +477,27 @@ public class InstagramService {
         } else {
             telegramNotificationService.notifyOrderFailed(order, completed);
         }
+
+        maybePumpNextForUrl(order);
+    }
+
+    /**
+     * Per-URL serialization: when this order has just reached a terminal state it no longer
+     * occupies its link, so release the next PENDING order for the same link — after commit and off
+     * the webhook request thread. Kept symmetric with InstagramResultConsumer (RabbitMQ path).
+     */
+    private void maybePumpNextForUrl(Order order) {
+        if (order.getStatus() != null && order.getStatus().isTerminal()) {
+            final String link = order.getLink();
+            AfterCommitRunner.runAfterCommit(
+                    () -> orderSerializationServiceProvider.getObject().pumpUrlAsync(link));
+        }
     }
 
     /**
      * Defer a {@link DailyProfitService#recordProfit} call until the surrounding transaction
-     * commits. Captures the charge value (and status) at call time so the lambda doesn't depend
-     * on the entity remaining attached after the persistence context closes. No-op for
+     * commits. Captures the charge value (and status) at call time so the lambda doesn't depend on
+     * the entity remaining attached after the persistence context closes. No-op for
      * non-profit-bearing statuses.
      */
     private void recordProfitAfterCommit(Order order) {

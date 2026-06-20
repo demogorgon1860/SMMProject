@@ -531,6 +531,16 @@ app:
       # delivered followers/likes are effectively permanent, so a short window let old consumed
       # age out and the cap "reset", admitting repeat orders the bot could no longer deliver.
       window-days: 90
+    # Per-URL order serialization: orders on the SAME normalized link are dispatched one-at-a-time
+    # (start-count correctness). enabled=false ⇒ legacy immediate dispatch. The sweeper is the
+    # authoritative backstop; stuck active orders are alerted (System Health) but NOT auto-released.
+    serialization:
+      enabled: ${ORDER_URL_SERIALIZATION_ENABLED:true}
+      active-statuses: ${ORDER_SERIALIZATION_ACTIVE_STATUSES:IN_PROGRESS,PROCESSING,ACTIVE,PAUSED,HOLDING}
+      sweep-interval-ms: ${ORDER_SERIALIZATION_SWEEP_MS:60000}
+      sweep-batch-size: ${ORDER_SERIALIZATION_SWEEP_BATCH:500}
+      stuck-active-hours: ${ORDER_SERIALIZATION_STUCK_HOURS:6}
+      stuck-alert-cooldown-minutes: ${ORDER_SERIALIZATION_STUCK_ALERT_COOLDOWN_MIN:60}
   balance:
     minimum-deposit: 1.00
     maximum-deposit: 10000.00

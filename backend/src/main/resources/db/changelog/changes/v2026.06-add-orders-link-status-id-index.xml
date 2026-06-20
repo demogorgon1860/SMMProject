@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="v2026.06-add-orders-link-status-id-index" author="dev">
+        <comment>
+            Index backing the hot per-URL dispatch path (OrderSerializationService): the busy-check
+            (existsByLinkAndStatusIn) and the next-pending pick (findOrdersByLinkAndStatusOrderById,
+            WHERE link=? AND status=? ORDER BY id) — leftmost link= equality + status + id sort. The
+            sweeper's status-led queries (findLinksWithPendingAndNoActive / findStuckActiveLinks) are
+            not link-driven and keep using idx_orders_status / idx_orders_processing.
+            Partial — excludes the terminal statuses (COMPLETED/PARTIAL/CANCELLED), which serialization
+            never queries; that keeps the index to the small non-terminal working set (matches the
+            existing idx_orders_status / idx_orders_processing partial-on-status convention). The
+            orders table is partitioned by created_at; PostgreSQL propagates the index to every
+            existing and future partition automatically.
+        </comment>
+        <sql>
+            CREATE INDEX IF NOT EXISTS idx_orders_link_status_id
+            ON orders (link, status, id)
+            WHERE status NOT IN ('COMPLETED','PARTIAL','CANCELLED');
+        </sql>
+        <rollback>
+            <sql>DROP INDEX IF EXISTS idx_orders_link_status_id;</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

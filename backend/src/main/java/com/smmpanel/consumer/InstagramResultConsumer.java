@@ -9,6 +9,7 @@ import com.smmpanel.service.admin.BotWebhookEventRecorder;
 import com.smmpanel.service.balance.BalanceService;
 import com.smmpanel.service.notification.DailyProfitService;
 import com.smmpanel.service.notification.TelegramNotificationService;
+import com.smmpanel.service.order.OrderSerializationService;
 import com.smmpanel.util.AfterCommitRunner;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -35,6 +36,7 @@ public class InstagramResultConsumer {
     private final BalanceService balanceService;
     private final BotWebhookEventRecorder botWebhookEventRecorder;
     private final DailyProfitService dailyProfitService;
+    private final OrderSerializationService orderSerializationService;
 
     @RabbitListener(queues = RabbitMQConfig.QUEUE_RESULTS)
     @Transactional
@@ -127,6 +129,15 @@ public class InstagramResultConsumer {
                 telegramNotificationService.notifyOrderFailed(order, result.getCompleted());
             }
 
+            // Per-URL serialization: once this order is terminal it no longer occupies its link —
+            // release the next PENDING order for the same link (after commit, off the listener
+            // thread). Kept symmetric with the HTTP webhook path in InstagramService.
+            if (order.getStatus() != null && order.getStatus().isTerminal()) {
+                final String link = order.getLink();
+                AfterCommitRunner.runAfterCommit(
+                        () -> orderSerializationService.pumpUrlAsync(link));
+            }
+
         } catch (NumberFormatException e) {
             log.error(
                     "Invalid external_id format in Instagram result: {}",
@@ -143,9 +154,9 @@ public class InstagramResultConsumer {
     }
 
     /**
-     * Defer a {@link DailyProfitService#recordProfit} call until the surrounding RabbitMQ
-     * listener transaction commits. No-op for non-profit-bearing statuses. Captures charge and
-     * status at call time so the lambda doesn't depend on the entity remaining attached.
+     * Defer a {@link DailyProfitService#recordProfit} call until the surrounding RabbitMQ listener
+     * transaction commits. No-op for non-profit-bearing statuses. Captures charge and status at
+     * call time so the lambda doesn't depend on the entity remaining attached.
      */
     private void recordProfitAfterCommit(Order order) {
         OrderStatus status = order.getStatus();

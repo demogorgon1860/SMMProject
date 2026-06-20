@@ -32,11 +32,10 @@ public interface OrderRepository
 
     /**
      * Refill-only listing for the user-facing {@code /orders} "Refill" tab, with optional
-     * search-by-id / search-by-link filters baked into the same query — when the operator
-     * types into the search bar on the Refill tab the count + page must honour it (otherwise
-     * "No orders match" never shows and pagination lies). Same shape as
-     * {@link #adminSearchInStatuses}: every search filter is null-tolerant, JOIN FETCH on
-     * user/service keeps the list page N+1-free.
+     * search-by-id / search-by-link filters baked into the same query — when the operator types
+     * into the search bar on the Refill tab the count + page must honour it (otherwise "No orders
+     * match" never shows and pagination lies). Same shape as {@link #adminSearchInStatuses}: every
+     * search filter is null-tolerant, JOIN FETCH on user/service keeps the list page N+1-free.
      */
     @Query(
             value =
@@ -56,10 +55,10 @@ public interface OrderRepository
             Pageable pageable);
 
     /**
-     * Admin "Refill" bucket — same shape as {@link #adminSearchInStatuses} but pinned to
-     * {@code is_refill = true}. Status is intentionally not a filter (the operator's bucket
-     * choice is "refill", and refill rows go through PENDING → IN_PROGRESS → COMPLETED/PARTIAL
-     * over their lifetime). Date range + id + username + link work as the operator expects.
+     * Admin "Refill" bucket — same shape as {@link #adminSearchInStatuses} but pinned to {@code
+     * is_refill = true}. Status is intentionally not a filter (the operator's bucket choice is
+     * "refill", and refill rows go through PENDING → IN_PROGRESS → COMPLETED/PARTIAL over their
+     * lifetime). Date range + id + username + link work as the operator expects.
      */
     @Query(
             value =
@@ -161,15 +160,15 @@ public interface OrderRepository
     List<Order> findOrdersWithDetailsByUserId(@Param("userId") Long userId);
 
     /**
-     * Batch lookup for the Perfect Panel {@code action=statuses} endpoint. Resellers poll this
-     * with 25–50 order IDs every few seconds; the previous implementation loaded ALL of the
-     * user's historical orders (could be thousands) and filtered in memory, which dominated
-     * the endpoint's latency and turned a fast batch read into an O(allUserOrders) scan.
+     * Batch lookup for the Perfect Panel {@code action=statuses} endpoint. Resellers poll this with
+     * 25–50 order IDs every few seconds; the previous implementation loaded ALL of the user's
+     * historical orders (could be thousands) and filtered in memory, which dominated the endpoint's
+     * latency and turned a fast batch read into an O(allUserOrders) scan.
      *
      * <p>This query restricts the row set to {@code id IN (:ids) AND user = :userId} at the SQL
      * level, with JOIN FETCH on user and service so the response mapper reads both lazy
-     * associations without follow-up queries. Authorization is enforced inline (filter by
-     * user_id) so a malicious caller can't probe other users' order IDs.
+     * associations without follow-up queries. Authorization is enforced inline (filter by user_id)
+     * so a malicious caller can't probe other users' order IDs.
      */
     @Query(
             "SELECT o FROM Order o "
@@ -243,12 +242,12 @@ public interface OrderRepository
 
     /**
      * Fulfilled-only revenue: SUM(charge) over orders that actually completed (or partially
-     * completed). Excludes CANCELLED, FAILED, REFUND and in-flight statuses. PARTIAL orders
-     * already have their {@code charge} shrunk to the delivered fraction by {@code
-     * OrderService.markPartialCompletion}, so summing it here yields net profit without a
-     * separate refund subtraction. Powers the admin dashboard "last 24h / 7d / 30d" cards —
-     * the unfiltered {@link #sumRevenueAfter(LocalDateTime)} above includes pending/cancelled
-     * orders and overstates earnings.
+     * completed). Excludes CANCELLED, FAILED, REFUND and in-flight statuses. PARTIAL orders already
+     * have their {@code charge} shrunk to the delivered fraction by {@code
+     * OrderService.markPartialCompletion}, so summing it here yields net profit without a separate
+     * refund subtraction. Powers the admin dashboard "last 24h / 7d / 30d" cards — the unfiltered
+     * {@link #sumRevenueAfter(LocalDateTime)} above includes pending/cancelled orders and
+     * overstates earnings.
      */
     @Query(
             "SELECT COALESCE(SUM(o.charge), 0) FROM Order o WHERE o.createdAt >= :date AND"
@@ -348,10 +347,9 @@ public interface OrderRepository
      */
     @Query(
             "SELECT COALESCE(SUM(CASE WHEN o.status IN (com.smmpanel.entity.OrderStatus.COMPLETED,"
-                    + " com.smmpanel.entity.OrderStatus.PARTIAL) THEN o.quantity -"
-                    + " COALESCE(o.remains, 0) ELSE o.quantity END), 0) FROM Order o WHERE"
-                    + " o.service.id IN :serviceIds AND o.link = :link AND o.status IN :statuses AND"
-                    + " o.createdAt >= :cutoff")
+                + " com.smmpanel.entity.OrderStatus.PARTIAL) THEN o.quantity - COALESCE(o.remains,"
+                + " 0) ELSE o.quantity END), 0) FROM Order o WHERE o.service.id IN :serviceIds AND"
+                + " o.link = :link AND o.status IN :statuses AND o.createdAt >= :cutoff")
     Long sumConsumedQuantityByServiceIdsAndLink(
             @Param("serviceIds") java.util.Collection<Long> serviceIds,
             @Param("link") String link,
@@ -360,8 +358,8 @@ public interface OrderRepository
 
     /**
      * Acquire a transaction-scoped PostgreSQL advisory lock on (quota group, link). Released
-     * automatically on commit or rollback. Serializes concurrent createOrder calls on the same
-     * link within the same quota group so the aggregate cannot be read-skewed across simultaneous
+     * automatically on commit or rollback. Serializes concurrent createOrder calls on the same link
+     * within the same quota group so the aggregate cannot be read-skewed across simultaneous
      * requests. The lock key is the group key (action+gender), NOT the service id — two orders on
      * the same link through different geo/duplicate services of the same group must take the same
      * lock, otherwise they could both read a stale consumed value and jointly overshoot the cap.
@@ -380,6 +378,63 @@ public interface OrderRepository
     @Query("SELECT o FROM Order o WHERE o.user.id = :userId AND o.createdAt > :createdAt")
     List<Order> findByUserIdAndCreatedAtAfter(
             @Param("userId") Long userId, @Param("createdAt") LocalDateTime createdAt);
+
+    // ============ Per-URL order serialization (OrderSerializationService) ============
+
+    /**
+     * Transaction-scoped advisory lock keyed ONLY on the link (single-bigint form — a DISJOINT lock
+     * space from the two-int {@link #acquireQuotaLock}, so the two can never deadlock). Serializes
+     * the "is this URL busy? → dispatch the next" critical section across concurrent pumps.
+     * Released on commit/rollback. Returns {@code Object} for the same reason as {@link
+     * #acquireQuotaLock} (the void function comes back as a {@link org.postgresql.util.PGobject};
+     * do not cast it).
+     */
+    @Query(value = "SELECT pg_advisory_xact_lock(hashtext(:link))", nativeQuery = true)
+    Object acquireUrlSerializationLock(@Param("link") String link);
+
+    /** True if any order for this link currently occupies the URL (status in the active set). */
+    boolean existsByLinkAndStatusIn(String link, java.util.Collection<OrderStatus> statuses);
+
+    /**
+     * Waiting orders for a link in a given status, oldest first (id ASC = FIFO: 30000 → 30001 → …).
+     * JOIN FETCH user+service so the dispatch path has them without a lazy round-trip. Call with a
+     * limit-1 {@code Pageable} to get only the next one.
+     */
+    @Query(
+            "SELECT o FROM Order o JOIN FETCH o.user JOIN FETCH o.service"
+                    + " WHERE o.link = :link AND o.status = :status ORDER BY o.id ASC")
+    List<Order> findOrdersByLinkAndStatusOrderById(
+            @Param("link") String link, @Param("status") OrderStatus status, Pageable pageable);
+
+    /**
+     * Sweeper backstop — links that have ≥1 PENDING order but NO order currently occupying the URL.
+     * These need a pump (the active order reached terminal via a path that did not fire a pump, or
+     * a pump was missed across a restart). Ordered/limited by the caller's {@code Pageable}.
+     */
+    @Query(
+            "SELECT DISTINCT o.link FROM Order o"
+                    + " WHERE o.status = com.smmpanel.entity.OrderStatus.PENDING"
+                    + " AND o.link NOT IN"
+                    + " (SELECT o2.link FROM Order o2 WHERE o2.status IN :activeStatuses)")
+    List<String> findLinksWithPendingAndNoActive(
+            @Param("activeStatuses") java.util.Collection<OrderStatus> activeStatuses,
+            Pageable pageable);
+
+    /**
+     * Sweeper alert — links whose occupying order has been stuck (its {@code updatedAt} is older
+     * than {@code cutoff}) while PENDING orders wait behind it. Alert-only candidates; the sweeper
+     * never auto-releases these (preserves start-count correctness — operator resolves manually).
+     */
+    @Query(
+            "SELECT DISTINCT o.link FROM Order o"
+                    + " WHERE o.status IN :activeStatuses AND o.updatedAt < :cutoff"
+                    + " AND o.link IN"
+                    + " (SELECT o2.link FROM Order o2"
+                    + " WHERE o2.status = com.smmpanel.entity.OrderStatus.PENDING)")
+    List<String> findStuckActiveLinks(
+            @Param("activeStatuses") java.util.Collection<OrderStatus> activeStatuses,
+            @Param("cutoff") LocalDateTime cutoff,
+            Pageable pageable);
 
     // User-specific queries
     Page<Order> findByUser_UsernameOrderByCreatedAtDesc(String username, Pageable pageable);

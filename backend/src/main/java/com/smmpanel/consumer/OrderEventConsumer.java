@@ -6,12 +6,10 @@ import com.smmpanel.event.OrderCreatedEvent;
 import com.smmpanel.event.OrderStatusChangedEvent;
 import com.smmpanel.producer.OrderEventProducer;
 import com.smmpanel.repository.jpa.OrderRepository;
-import com.smmpanel.service.balance.BalanceService;
 import com.smmpanel.service.core.MessageProcessingService;
-import com.smmpanel.service.integration.InstagramService;
 import com.smmpanel.service.kafka.MessageIdempotencyService;
+import com.smmpanel.service.order.OrderSerializationService;
 import com.smmpanel.service.order.OrderStateManagementService;
-import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -36,8 +34,7 @@ public class OrderEventConsumer {
     private final OrderEventProducer orderEventProducer;
     private final MessageProcessingService messageProcessingService;
     private final MessageIdempotencyService deduplicationService;
-    private final InstagramService instagramService;
-    private final BalanceService balanceService;
+    private final OrderSerializationService orderSerializationService;
 
     /** Process order created events with RetryTopic and DLT */
     @RetryableTopic(
@@ -213,57 +210,21 @@ public class OrderEventConsumer {
         processInstagramOrder(order);
     }
 
-    /** Process Instagram order - send to Instagram bot with retry support */
+    /**
+     * Hand the order to the per-URL serialization gate. When enabled, {@code pumpUrl} dispatches
+     * the lowest-id PENDING order for this link only if the URL is free — so this order may be sent
+     * now or left PENDING (an earlier same-link order goes first, or one is already active), and
+     * the completion pump / sweeper releases it later. When disabled, dispatch immediately (legacy
+     * behavior). Exceptions propagate so the Kafka RetryTopic re-runs the (idempotent) pump. The
+     * actual bot dispatch + cancel/refund-on-error now lives in {@code
+     * OrderSerializationService.dispatchOrderToBot} (extracted verbatim).
+     */
     private void processInstagramOrder(Order order) {
         log.info("Processing Instagram order {} via Kafka consumer", order.getId());
-
-        try {
-            var instagramResponse = instagramService.createInstagramOrder(order);
-
-            if (instagramResponse.isSuccess()) {
-                // Save bot's order ID for webhook correlation and set status
-                order.setInstagramBotOrderId(instagramResponse.getId());
-                order.setStatus(OrderStatus.IN_PROGRESS);
-                orderRepository.save(order);
-
-                log.info(
-                        "Instagram order {} successfully sent to bot, botOrderId: {}",
-                        order.getId(),
-                        instagramResponse.getId());
-            } else {
-                log.error(
-                        "Instagram bot returned error for order {}: {}",
-                        order.getId(),
-                        instagramResponse.getError());
-
-                // Mark as cancelled and refund
-                order.setStatus(OrderStatus.CANCELLED);
-                order.setErrorMessage("Instagram bot error: " + instagramResponse.getError());
-                // CRITICAL: Set remains to full quantity (nothing delivered)
-                order.setRemains(order.getQuantity());
-
-                // Refund user
-                BigDecimal refundAmount = order.getCharge();
-                balanceService.refund(
-                        order.getUser(),
-                        refundAmount,
-                        order,
-                        "Refund for failed Instagram order #" + order.getId());
-
-                // CRITICAL: Set charge to 0 after full refund
-                order.setCharge(BigDecimal.ZERO);
-                orderRepository.save(order);
-
-                log.info(
-                        "Refunded {} to user for failed Instagram order {}",
-                        refundAmount,
-                        order.getId());
-            }
-        } catch (Exception e) {
-            log.error("Failed to process Instagram order {}: {}", order.getId(), e.getMessage(), e);
-
-            // Re-throw to trigger Kafka retry mechanism
-            throw new RuntimeException("Instagram order processing failed: " + e.getMessage(), e);
+        if (orderSerializationService.isEnabled()) {
+            orderSerializationService.pumpUrl(order.getLink());
+        } else {
+            orderSerializationService.dispatchOrderToBot(order);
         }
     }
 }

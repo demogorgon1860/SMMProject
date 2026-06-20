@@ -284,8 +284,18 @@ public class OrderService {
                 instagramOrderEvent.setQuantity(order.getQuantity());
                 instagramOrderEvent.setTimestamp(LocalDateTime.now());
 
-                orderEventProducer.publishOrderCreatedEvent(instagramOrderEvent);
-                log.info("Published Instagram OrderCreatedEvent for order {}", order.getId());
+                // Publish AFTER commit (symmetric with the core createOrder path). With per-URL
+                // serialization the Kafka consumer pumps by LINK; an order not yet committed is
+                // invisible to that lookup, so an inline publish would strand it in PENDING until
+                // the sweeper (~60s). AfterCommitRunner falls back to inline if no tx is active.
+                final Long createdOrderId = order.getId();
+                com.smmpanel.util.AfterCommitRunner.runAfterCommit(
+                        () -> {
+                            orderEventProducer.publishOrderCreatedEvent(instagramOrderEvent);
+                            log.info(
+                                    "Published Instagram OrderCreatedEvent for order {}",
+                                    createdOrderId);
+                        });
             } else {
                 log.info(
                         "Order {} - Not an Instagram order, skipping special processing",
@@ -616,19 +626,18 @@ public class OrderService {
      * <ol>
      *   <li><b>Ownership + status guard</b> — own orders only, and only while still cancellable
      *       (PENDING / ACTIVE / IN_PROGRESS / PROCESSING). The frontend Cancel button is shown
-     *       under exactly the same set, so the backend rejection is unreachable in normal UX —
-     *       the check stays as a defense-in-depth boundary.
-     *   <li><b>Tell the bot to stop</b> — best-effort {@code cancelOrderFast}. Without this, a
-     *       user could click Cancel on an ACTIVE/PROCESSING order, get a refund, and let the
-     *       bot finish delivery for free. Failure here is logged and swallowed: the panel is
-     *       the source of truth, and the webhook handlers (InstagramService /
-     *       InstagramResultConsumer) skip late-arriving callbacks once the order is already
-     *       in a terminal state.
-     *   <li><b>Refund</b> — full when nothing was delivered (status → CANCELLED), pro-rata
-     *       partial when {@code views_delivered > 0} (status → PARTIAL). The math lives in
-     *       {@link InstagramService#processPartialRefund} / {@link
-     *       InstagramService#processFullRefund} which already handle the BigDecimal rounding,
-     *       balance update, and charge mutation atomically with this transaction.
+     *       under exactly the same set, so the backend rejection is unreachable in normal UX — the
+     *       check stays as a defense-in-depth boundary.
+     *   <li><b>Tell the bot to stop</b> — best-effort {@code cancelOrderFast}. Without this, a user
+     *       could click Cancel on an ACTIVE/PROCESSING order, get a refund, and let the bot finish
+     *       delivery for free. Failure here is logged and swallowed: the panel is the source of
+     *       truth, and the webhook handlers (InstagramService / InstagramResultConsumer) skip
+     *       late-arriving callbacks once the order is already in a terminal state.
+     *   <li><b>Refund</b> — full when nothing was delivered (status → CANCELLED), pro-rata partial
+     *       when {@code views_delivered > 0} (status → PARTIAL). The math lives in {@link
+     *       InstagramService#processPartialRefund} / {@link InstagramService#processFullRefund}
+     *       which already handle the BigDecimal rounding, balance update, and charge mutation
+     *       atomically with this transaction.
      * </ol>
      *
      * @param orderId the order ID
@@ -640,9 +649,7 @@ public class OrderService {
                 orderRepository
                         .findById(orderId)
                         .orElseThrow(
-                                () ->
-                                        new OrderValidationException(
-                                                "Order not found: " + orderId));
+                                () -> new OrderValidationException("Order not found: " + orderId));
 
         if (!order.getUser().getUsername().equals(username)) {
             throw new OrderValidationException("You can only cancel your own orders");
@@ -1219,7 +1226,9 @@ public class OrderService {
         // under two hosts, which split the per-URL quota into separate buckets. Case-insensitive
         // (?i) so a pathless mixed-case host like https://M.instagram.com is also collapsed,
         // matching the SQL backfill's case-insensitive host rewrite.
-        url = url.replaceFirst("(?i)^https://(www\\.|m\\.)?instagram\\.com", "https://www.instagram.com");
+        url =
+                url.replaceFirst(
+                        "(?i)^https://(www\\.|m\\.)?instagram\\.com", "https://www.instagram.com");
 
         // Strip query parameters — Instagram never needs them for content access
         int queryIndex = url.indexOf('?');
@@ -1428,8 +1437,18 @@ public class OrderService {
             instagramOrderEvent.setQuantity(order.getQuantity());
             instagramOrderEvent.setTimestamp(LocalDateTime.now());
 
-            orderEventProducer.publishOrderCreatedEvent(instagramOrderEvent);
-            log.info("Published Instagram OrderCreatedEvent for order {}", order.getId());
+            // Publish AFTER the creating transaction commits. The Kafka consumer looks the order up
+            // by id, so publishing inside the tx lets it lose the race and throw "Order not found"
+            // (today masked by retries); after-commit also makes same-link FIFO match commit order.
+            // AfterCommitRunner falls back to inline when there's no active tx, so nothing is lost.
+            final Long createdOrderId = order.getId();
+            com.smmpanel.util.AfterCommitRunner.runAfterCommit(
+                    () -> {
+                        orderEventProducer.publishOrderCreatedEvent(instagramOrderEvent);
+                        log.info(
+                                "Published Instagram OrderCreatedEvent for order {}",
+                                createdOrderId);
+                    });
         } else {
             log.info(
                     "Order {} - Not an Instagram order, skipping special processing",

@@ -812,4 +812,7 @@
          rows share a per-URL quota key with new orders -->
     <include file="db/changelog/changes/v2026.06-canonicalize-instagram-links.xml"/>
 
+    <!-- Index for per-URL order serialization (busy-check + next-pending pick + sweeper) -->
+    <include file="db/changelog/changes/v2026.06-add-orders-link-status-id-index.xml"/>
+
 </databaseChangeLog>

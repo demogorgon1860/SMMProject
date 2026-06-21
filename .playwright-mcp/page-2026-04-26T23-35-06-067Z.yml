@@ -1,0 +1,160 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - link "SMMWorld SMMWorld" [ref=e6] [cursor=pointer]:
+      - /url: /dashboard
+      - img "SMMWorld" [ref=e7]
+      - generic [ref=e8]: SMMWorld
+    - navigation [ref=e9]:
+      - link "Dashboard" [ref=e10] [cursor=pointer]:
+        - /url: /dashboard
+        - img [ref=e11]
+        - generic [ref=e16]: Dashboard
+      - link "New order" [ref=e17] [cursor=pointer]:
+        - /url: /new-order
+        - img [ref=e18]
+        - generic [ref=e20]: New order
+      - link "Orders" [ref=e21] [cursor=pointer]:
+        - /url: /orders
+        - img [ref=e22]
+        - generic [ref=e27]: Orders
+      - link "Transactions" [ref=e28] [cursor=pointer]:
+        - /url: /transactions
+        - img [ref=e29]
+        - generic [ref=e32]: Transactions
+      - link "Add funds" [ref=e33] [cursor=pointer]:
+        - /url: /add-funds
+        - img [ref=e34]
+        - generic [ref=e37]: Add funds
+      - link "API" [ref=e38] [cursor=pointer]:
+        - /url: /api-docs
+        - img [ref=e39]
+        - generic [ref=e41]: API
+      - link "Help" [ref=e42] [cursor=pointer]:
+        - /url: /help
+        - img [ref=e43]
+        - generic [ref=e46]: Help
+      - link "Profile" [ref=e47] [cursor=pointer]:
+        - /url: /profile
+        - img [ref=e49]
+        - generic [ref=e52]: Profile
+    - link "YO @you you@example.com" [ref=e54] [cursor=pointer]:
+      - /url: /profile?tab=account
+      - generic [ref=e55]: YO
+      - generic [ref=e56]:
+        - generic [ref=e57]: "@you"
+        - generic [ref=e58]: you@example.com
+      - img [ref=e59]
+  - generic [ref=e61]:
+    - banner [ref=e62]:
+      - button "Search orders, services…" [ref=e63] [cursor=pointer]:
+        - img [ref=e64]
+        - generic [ref=e67]: Search orders, services…
+      - link "$828.47" [ref=e68] [cursor=pointer]:
+        - /url: /add-funds
+        - img [ref=e69]
+        - generic [ref=e72]: $828.47
+        - img [ref=e73]
+      - button "Toggle theme" [ref=e75] [cursor=pointer]:
+        - img [ref=e76]
+      - button "Notifications" [ref=e78] [cursor=pointer]:
+        - img [ref=e79]
+      - button "M" [ref=e82] [cursor=pointer]:
+        - generic [ref=e83]: M
+        - img [ref=e84]
+    - main [ref=e86]:
+      - generic [ref=e87]:
+        - generic [ref=e88]:
+          - generic [ref=e89]: M
+          - generic [ref=e90]:
+            - heading "@mmknshnk" [level=1] [ref=e91]
+            - generic [ref=e92]:
+              - generic [ref=e93]: arthur.arthurpopov@gmail.com
+              - generic [ref=e94]:
+                - img [ref=e95]
+                - text: verified
+              - generic [ref=e97]: ·
+              - generic [ref=e98]: joined —
+        - generic [ref=e100]:
+          - button "Account" [ref=e101] [cursor=pointer]
+          - button "Security" [ref=e102] [cursor=pointer]
+          - button "Preferences" [ref=e103] [cursor=pointer]
+          - button "Sessions" [ref=e104] [cursor=pointer]
+          - button "Danger zone" [ref=e105] [cursor=pointer]
+        - generic [ref=e107]:
+          - generic [ref=e108]:
+            - generic [ref=e109]:
+              - generic [ref=e110]: Identity
+              - generic [ref=e111]:
+                - generic [ref=e112]:
+                  - generic [ref=e114]: Username
+                  - textbox [ref=e116]: mmknshnk
+                - generic [ref=e117]:
+                  - generic [ref=e119]: Email
+                  - generic [ref=e120]:
+                    - textbox [ref=e121]: arthur.arthurpopov@gmail.com
+                    - img [ref=e123]
+                - generic [ref=e126]:
+                  - generic [ref=e128]: Time zone
+                  - generic [ref=e129]:
+                    - combobox [ref=e130] [cursor=pointer]:
+                      - option "UTC"
+                      - option "Europe/Berlin" [selected]
+                      - option "Europe/London"
+                      - option "America/New_York"
+                      - option "America/Los_Angeles"
+                      - option "Asia/Tokyo"
+                      - option "Asia/Singapore"
+                    - img
+              - generic [ref=e131]:
+                - button "Cancel" [ref=e132] [cursor=pointer]
+                - button "Save changes" [ref=e133] [cursor=pointer]
+            - generic [ref=e134]:
+              - generic [ref=e135]: Notifications
+              - paragraph [ref=e136]: Email-only for now. Telegram-bot delivery lands in the next release.
+              - list [ref=e137]:
+                - listitem [ref=e138]:
+                  - generic [ref=e139]:
+                    - generic [ref=e140]: Order completed
+                    - generic [ref=e141]: Heads-up when an order finishes delivery
+                  - switch [checked] [ref=e142] [cursor=pointer]
+                - listitem [ref=e144]:
+                  - generic [ref=e145]:
+                    - generic [ref=e146]: Order partial
+                    - generic [ref=e147]: When we stop early and refund the remainder
+                  - switch [checked] [ref=e148] [cursor=pointer]
+                - listitem [ref=e150]:
+                  - generic [ref=e151]:
+                    - generic [ref=e152]: Order cancelled
+                    - generic [ref=e153]: Confirmation + refund details
+                  - switch [checked] [ref=e154] [cursor=pointer]
+                - listitem [ref=e156]:
+                  - generic [ref=e157]:
+                    - generic [ref=e158]: Deposit confirmed
+                    - generic [ref=e159]: When your top-up clears confirms
+                  - switch [checked] [ref=e160] [cursor=pointer]
+                - listitem [ref=e162]:
+                  - generic [ref=e163]:
+                    - generic [ref=e164]: Weekly summary
+                    - generic [ref=e165]: Monday morning recap of last week
+                  - switch [ref=e166] [cursor=pointer]
+                - listitem [ref=e168]:
+                  - generic [ref=e169]:
+                    - generic [ref=e170]: Promotions
+                    - generic [ref=e171]: Rare. Only when we ship something material.
+                  - switch [ref=e172] [cursor=pointer]
+          - complementary [ref=e174]:
+            - generic [ref=e175]:
+              - generic [ref=e176]: Lifetime stats
+              - generic [ref=e177]:
+                - generic [ref=e178]:
+                  - generic [ref=e179]: Orders
+                  - generic [ref=e180]: —
+                - generic [ref=e181]:
+                  - generic [ref=e182]: Spent
+                  - generic [ref=e183]: $0.00
+                - generic [ref=e184]:
+                  - generic [ref=e185]: Tickets
+                  - generic [ref=e186]: "0"
+                - generic [ref=e187]:
+                  - generic [ref=e188]: Member
+                  - generic [ref=e189]: —

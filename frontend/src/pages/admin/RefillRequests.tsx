@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Badge,
   Button,
@@ -9,6 +10,7 @@ import {
   IDCell,
   Modal,
   PageHeader,
+  Pagination,
   Tabs,
   Textarea,
   TimeCell,
@@ -16,7 +18,7 @@ import {
 } from '../../components/ui';
 import { adminAPI } from '../../services/api';
 import { useAdminActions } from '../../store/adminActions';
-import { cn } from '../../lib/utils';
+import { cn, fmtInt, toNum } from '../../lib/utils';
 
 // =====================================================================
 // Admin queue for user-initiated refill requests.
@@ -39,6 +41,12 @@ interface RefillRequest {
   decidedAt?: string;
   refillOrderId?: number;
   createdAt: string;
+  // Bot drop-check snapshot bound at request time (drives drop-based approval).
+  refillNeeded?: number;
+  dropRate?: number | string;
+  dropped?: number;
+  staleCheck?: boolean;
+  earlyStopped?: boolean;
 }
 
 interface ListResponse {
@@ -56,7 +64,15 @@ const TABS = [
   { value: 'REJECTED' as Status, label: 'Rejected' },
 ];
 
-export function AdminRefillRequestsPage() {
+const PAGE_SIZE = 25;
+
+/**
+ * The queue implementation. Rendered with chrome by {@link AdminRefillRequestsPage} (the
+ * standalone /admin/refill-requests route) and headerless by {@link AdminRefillQueue} (embedded
+ * in the unified /admin/refill page). Both wrappers are zero-prop so they satisfy the lazy-route
+ * {@code ComponentType<unknown>} contract.
+ */
+function RefillRequestsInner({ embedded }: { embedded: boolean }) {
   const toast = useToast();
   const pushAction = useAdminActions((s) => s.push);
   const [tab, setTab] = useState<Status>('PENDING');
@@ -65,13 +81,20 @@ export function AdminRefillRequestsPage() {
   const [pendingCount, setPendingCount] = useState<number>(0);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [rejectTarget, setRejectTarget] = useState<RefillRequest | null>(null);
+  const [page, setPage] = useState(1); // 1-based (Pagination convention)
+  const [total, setTotal] = useState(0);
 
   const load = useCallback(
-    async (status: Status) => {
+    async (status: Status, pageArg: number) => {
       setLoading(true);
       try {
-        const data: ListResponse = await adminAPI.refillRequestsList(status);
+        const data: ListResponse = await adminAPI.refillRequestsList(
+          status,
+          pageArg - 1,
+          PAGE_SIZE,
+        );
         setItems(Array.isArray(data.items) ? data.items : []);
+        setTotal(data.totalElements ?? 0);
         setPendingCount(data.pendingCount ?? 0);
       } catch {
         toast('Failed to load refill requests', 'error');
@@ -84,8 +107,8 @@ export function AdminRefillRequestsPage() {
   );
 
   useEffect(() => {
-    void load(tab);
-  }, [tab, load]);
+    void load(tab, page);
+  }, [tab, page, load]);
 
   const approve = async (req: RefillRequest) => {
     setBusyId(req.id);
@@ -99,8 +122,13 @@ export function AdminRefillRequestsPage() {
       });
       toast(`Refill approved · order #${req.orderId}`, 'success');
       // Pop the row from PENDING tab; counter ticks down.
+      const wasLastOnPage = items.length === 1;
       setItems((rows) => rows.filter((r) => r.id !== req.id));
       setPendingCount((c) => Math.max(0, c - 1));
+      setTotal((t) => Math.max(0, t - 1));
+      // Removing the last row on a non-first page would strand the operator on an empty page —
+      // step back one (which reloads that page) instead.
+      if (wasLastOnPage && page > 1) setPage((p) => p - 1);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string }; status?: number } };
       toast(e.response?.data?.message ?? 'Approval failed', 'error');
@@ -120,8 +148,11 @@ export function AdminRefillRequestsPage() {
         summary: `Rejected refill request on Order #${req.orderId} · ${reason}`,
       });
       toast(`Refill rejected · order #${req.orderId}`, 'success');
+      const wasLastOnPage = items.length === 1;
       setItems((rows) => rows.filter((r) => r.id !== req.id));
       setPendingCount((c) => Math.max(0, c - 1));
+      setTotal((t) => Math.max(0, t - 1));
+      if (wasLastOnPage && page > 1) setPage((p) => p - 1);
       setRejectTarget(null);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } } };
@@ -133,17 +164,26 @@ export function AdminRefillRequestsPage() {
 
   return (
     <>
-      <PageHeader
-        title="Refill requests"
-        subtitle={
-          <span>
-            <span className="font-mono text-fg">{pendingCount}</span> awaiting review
-          </span>
-        }
-      />
+      {!embedded && (
+        <PageHeader
+          title="Refill requests"
+          subtitle={
+            <span>
+              <span className="font-mono text-fg">{pendingCount}</span> awaiting review
+            </span>
+          }
+        />
+      )}
 
-      <div className="space-y-4 p-6">
-        <Tabs value={tab} onChange={(v) => setTab(v as Status)} tabs={TABS} />
+      <div className={cn('space-y-4', embedded ? '' : 'p-6')}>
+        <Tabs
+          value={tab}
+          onChange={(v) => {
+            setTab(v as Status);
+            setPage(1);
+          }}
+          tabs={TABS}
+        />
 
         <Card pad={false}>
           {loading ? (
@@ -165,12 +205,14 @@ export function AdminRefillRequestsPage() {
               }
             />
           ) : (
+            <>
             <table className="tbl">
               <thead>
                 <tr>
                   <th>Request</th>
                   <th>Order</th>
                   <th>User</th>
+                  <th>Drop</th>
                   <th>Note</th>
                   <th>Created</th>
                   <th>Status</th>
@@ -189,6 +231,10 @@ export function AdminRefillRequestsPage() {
                 ))}
               </tbody>
             </table>
+            {total > PAGE_SIZE && (
+              <Pagination page={page} total={total} pageSize={PAGE_SIZE} onPage={setPage} />
+            )}
+            </>
           )}
         </Card>
       </div>
@@ -201,6 +247,16 @@ export function AdminRefillRequestsPage() {
       />
     </>
   );
+}
+
+/** Standalone page (/admin/refill-requests route) — full chrome. */
+export function AdminRefillRequestsPage() {
+  return <RefillRequestsInner embedded={false} />;
+}
+
+/** Headerless queue for embedding in the unified /admin/refill page. */
+export function AdminRefillQueue() {
+  return <RefillRequestsInner embedded />;
 }
 
 function RowItem({
@@ -221,11 +277,43 @@ function RowItem({
         <IDCell id={req.id} />
       </td>
       <td className="font-mono text-[12px]">
-        <a href={`/orders/${req.orderId}`} className="text-accent hover:underline">
+        <Link to={`/admin/orders?id=${req.orderId}`} className="text-accent hover:underline">
           #{req.orderId}
-        </a>
+        </Link>
       </td>
       <td className="font-mono text-[12px] text-fg-muted">#{req.userId}</td>
+      <td className="font-mono text-[12px]">
+        {req.dropRate != null ? (
+          <span className="inline-flex items-center gap-1.5">
+            <span
+              className={cn(
+                toNum(req.dropRate) >= 50
+                  ? 'text-danger'
+                  : toNum(req.dropRate) > 0
+                    ? 'text-warn'
+                    : 'text-fg-muted',
+              )}
+            >
+              {toNum(req.dropRate)}%
+            </span>
+            {req.refillNeeded != null && (
+              <span className="text-fg-subtle">· {fmtInt(req.refillNeeded)}</span>
+            )}
+            {req.staleCheck && (
+              <span title="Проверка устарела — дроп мог измениться">
+                <Icon name="warning" size={12} className="text-warn" />
+              </span>
+            )}
+            {req.earlyStopped && (
+              <span title="Частичный скан — количество приблизительное (оценка снизу)">
+                <Icon name="info" size={12} className="text-fg-subtle" />
+              </span>
+            )}
+          </span>
+        ) : (
+          <span className="text-fg-dim">—</span>
+        )}
+      </td>
       <td className="max-w-[320px] text-[12.5px] text-fg-muted">
         <span className="block truncate" title={req.userNote ?? ''}>
           {req.userNote ?? <span className="text-fg-dim">—</span>}
@@ -287,7 +375,7 @@ function RejectModal({
     if (open) setReason('');
   }, [open, targetId]);
 
-  const valid = reason.trim().length >= 5;
+  const valid = reason.trim().length >= 5 && reason.length <= 500;
 
   return (
     <Modal
@@ -322,6 +410,7 @@ function RejectModal({
         <Textarea
           block
           rows={4}
+          maxLength={500}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           placeholder="Original delivery already at quota · views from this geo not eligible · …"

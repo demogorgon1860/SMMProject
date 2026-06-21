@@ -26,6 +26,7 @@ const NAV: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
   { to: '/new-order', label: 'New order', icon: 'plus' },
   { to: '/orders', label: 'Orders', icon: 'list' },
+  { to: '/refill', label: 'Refill', icon: 'refresh' },
   { to: '/transactions', label: 'Transactions', icon: 'receipt' },
   { to: '/add-funds', label: 'Add funds', icon: 'wallet' },
   { to: '/docs', label: 'API', icon: 'code' },

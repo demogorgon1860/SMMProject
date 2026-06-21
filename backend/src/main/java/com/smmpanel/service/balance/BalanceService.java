@@ -767,15 +767,15 @@ public class BalanceService {
     /**
      * Filtered variant — returns transactions matching the given types and/or date range.
      *
-     * <p>Either filter is optional: {@code types == null} means "any type", {@code (from, to)}
-     * must be provided together (both non-null) to apply a date range — passing only one is
-     * ignored (controller responsibility). Active users can have thousands of ORDER_PAYMENT
-     * rows; without a type filter the first page would drown rare DEPOSIT / REFUND entries.
-     * Dedicated derived queries per combination keep the JPQL trivial and let Postgres pick
-     * the (user_id, created_at DESC) index naturally.
+     * <p>Either filter is optional: {@code types == null} means "any type", {@code (from, to)} must
+     * be provided together (both non-null) to apply a date range — passing only one is ignored
+     * (controller responsibility). Active users can have thousands of ORDER_PAYMENT rows; without a
+     * type filter the first page would drown rare DEPOSIT / REFUND entries. Dedicated derived
+     * queries per combination keep the JPQL trivial and let Postgres pick the (user_id, created_at
+     * DESC) index naturally.
      *
-     * <p>The controller is responsible for never passing an empty {@code types} collection:
-     * an explicit-but-empty filter should return an empty page, not all transactions.
+     * <p>The controller is responsible for never passing an empty {@code types} collection: an
+     * explicit-but-empty filter should return an empty page, not all transactions.
      */
     @Transactional(readOnly = true)
     public Page<TransactionHistoryResponse> getTransactionHistory(
@@ -795,14 +795,12 @@ public class BalanceService {
                                     userId, types, from, to, pageable);
         } else if (hasTypes) {
             raw =
-                    transactionRepository
-                            .findByUserIdAndTransactionTypeInOrderByCreatedAtDesc(
-                                    userId, types, pageable);
+                    transactionRepository.findByUserIdAndTransactionTypeInOrderByCreatedAtDesc(
+                            userId, types, pageable);
         } else if (hasRange) {
             raw =
-                    transactionRepository
-                            .findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(
-                                    userId, from, to, pageable);
+                    transactionRepository.findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(
+                            userId, from, to, pageable);
         } else {
             raw = transactionRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
         }
@@ -810,14 +808,14 @@ public class BalanceService {
     }
 
     /**
-     * Per-type sums over the user's entire transaction history. Returns a map keyed by the
-     * {@link com.smmpanel.entity.TransactionType} enum name (e.g. {@code "DEPOSIT"},
-     * {@code "ORDER_PAYMENT"}, {@code "REFUND"}, {@code "ADJUSTMENT"}), value = signed
-     * BigDecimal sum of {@code amount}. Types that the user has never transacted in are
-     * omitted from the map — the caller should default to zero.
+     * Per-type sums over the user's entire transaction history. Returns a map keyed by the {@link
+     * com.smmpanel.entity.TransactionType} enum name (e.g. {@code "DEPOSIT"}, {@code
+     * "ORDER_PAYMENT"}, {@code "REFUND"}, {@code "ADJUSTMENT"}), value = signed BigDecimal sum of
+     * {@code amount}. Types that the user has never transacted in are omitted from the map — the
+     * caller should default to zero.
      *
-     * <p>Used by the Transactions page stat cards so they reflect real lifetime totals
-     * rather than just the latest paginated page.
+     * <p>Used by the Transactions page stat cards so they reflect real lifetime totals rather than
+     * just the latest paginated page.
      */
     @Transactional(readOnly = true)
     public java.util.Map<String, java.math.BigDecimal> getTransactionSummary(Long userId) {

@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      Durable record of a live "drop check" run against the Instagram bot
+      (POST /api/refill/check -> poll GET /api/refill/status). The bot's own job
+      store is memory-only (LRU, lost on restart), so the panel persists the
+      result here: it is the source of truth for the Refill page, survives bot
+      restarts, and lets a scheduler poll RUNNING rows out-of-band (never inside
+      an HTTP request or the admin approve() transaction, since a bot check can
+      take minutes).
+
+      v1 is SINGLE-ACTION only (like OR follow OR comment), so exactly one bot
+      report maps to one row — the columns are flat single values. drop_rate is
+      computed panel-side as refill_needed / ordered_count * 100.
+
+      status flow: RUNNING -> DONE | FAILED.
+    -->
+    <changeSet id="v2026.06-add-refill-checks" author="dev">
+        <!-- Idempotent: skip if table already exists (prod operator may pre-apply DDL). -->
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <not><tableExists tableName="refill_checks"/></not>
+        </preConditions>
+        <createTable tableName="refill_checks">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="order_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_rc_user" references="users(id)"/>
+            </column>
+            <!-- Bot job id (rf_...) and the instance that answered, so status polling
+                 pins to the same bot (multi-bot safe; single-bot collapses to one). -->
+            <column name="bot_job_id" type="VARCHAR(64)"/>
+            <column name="bot_instance_url" type="VARCHAR(255)"/>
+            <!-- like | follow | comment (single-action v1). -->
+            <column name="action_type" type="VARCHAR(20)"/>
+            <column name="status" type="VARCHAR(20)" defaultValue="RUNNING">
+                <constraints nullable="false"/>
+            </column>
+            <!-- Result snapshot from the single bot report (set when DONE). -->
+            <column name="ordered_count" type="INTEGER"/>
+            <column name="delivered" type="INTEGER"/>
+            <column name="matchable" type="INTEGER"/>
+            <column name="present" type="INTEGER"/>
+            <column name="dropped" type="INTEGER"/>
+            <column name="refill_needed" type="INTEGER"/>
+            <column name="current_count" type="INTEGER"/>
+            <column name="drop_rate" type="DECIMAL(5,2)"/>
+            <column name="early_stopped" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="note" type="VARCHAR(500)"/>
+            <column name="error" type="VARCHAR(500)"/>
+            <column name="requested_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="checked_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+
+        <!-- Latest check for an order (the Refill page reads this). -->
+        <createIndex tableName="refill_checks" indexName="idx_rc_order_created">
+            <column name="order_id"/>
+            <column name="requested_at" descending="true"/>
+        </createIndex>
+
+        <!-- Per-user history + abuse/rate-limit counting. -->
+        <createIndex tableName="refill_checks" indexName="idx_rc_user_created">
+            <column name="user_id"/>
+            <column name="requested_at" descending="true"/>
+        </createIndex>
+
+        <!-- Scheduler scan: only the (few) in-flight checks. Partial index needs raw SQL. -->
+        <sql>
+            CREATE INDEX idx_rc_running
+                ON refill_checks(requested_at)
+                WHERE status = 'RUNNING';
+        </sql>
+
+        <rollback>
+            <dropTable tableName="refill_checks"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

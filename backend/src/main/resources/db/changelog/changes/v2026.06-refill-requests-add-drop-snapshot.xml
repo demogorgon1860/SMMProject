@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      Snapshot of the bot drop-check that backed a refill request, copied onto the
+      request at creation time. Lets the admin queue show the real drop rate /
+      refill-needed, and lets approve() size the refill from the actually-dropped
+      amount (refill_needed) instead of the whole order. All nullable, no defaults
+      — existing rows (and requests made without a prior check) keep NULLs.
+    -->
+    <changeSet id="v2026.06-refill-requests-add-drop-snapshot" author="dev">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <not><columnExists tableName="refill_requests" columnName="bot_refill_needed"/></not>
+        </preConditions>
+        <addColumn tableName="refill_requests">
+            <column name="bot_refill_needed" type="INTEGER"/>
+            <column name="bot_dropped" type="INTEGER"/>
+            <column name="bot_drop_rate" type="DECIMAL(5,2)"/>
+            <column name="bot_current_count" type="INTEGER"/>
+            <column name="bot_early_stopped" type="BOOLEAN"/>
+            <column name="bot_check_id" type="BIGINT"/>
+            <column name="bot_checked_at" type="TIMESTAMP WITH TIME ZONE"/>
+        </addColumn>
+
+        <rollback>
+            <dropColumn tableName="refill_requests">
+                <column name="bot_refill_needed"/>
+                <column name="bot_dropped"/>
+                <column name="bot_drop_rate"/>
+                <column name="bot_current_count"/>
+                <column name="bot_early_stopped"/>
+                <column name="bot_check_id"/>
+                <column name="bot_checked_at"/>
+            </dropColumn>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

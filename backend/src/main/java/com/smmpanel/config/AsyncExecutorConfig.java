@@ -9,13 +9,13 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 /**
  * Provides the {@code asyncExecutor} bean used by {@link
- * org.springframework.scheduling.annotation.Async @Async("asyncExecutor")} methods —
- * EmailService Resend calls, Telegram notifications, profile exports.
+ * org.springframework.scheduling.annotation.Async @Async("asyncExecutor")} methods — EmailService
+ * Resend calls, Telegram notifications, profile exports.
  *
- * <p>Originally lived inside {@code AsyncVideoProcessingConfig} (see commit 4fc76acb).
- * Extracted to its own config when the YouTube/Binom video-processing infrastructure
- * was removed during Task 10 cleanup, so the dead-code sweep didn't accidentally take
- * a live executor with it. Parameters preserved verbatim.
+ * <p>Originally lived inside {@code AsyncVideoProcessingConfig} (see commit 4fc76acb). Extracted to
+ * its own config when the YouTube/Binom video-processing infrastructure was removed during Task 10
+ * cleanup, so the dead-code sweep didn't accidentally take a live executor with it. Parameters
+ * preserved verbatim.
  *
  * <p>{@code @EnableAsync} stays on {@code SmmPanelApplication}.
  */

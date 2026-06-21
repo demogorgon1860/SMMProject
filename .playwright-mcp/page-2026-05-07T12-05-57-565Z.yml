@@ -1,0 +1,147 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - link "SMMWorld SMMWorld" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - img "SMMWorld" [ref=e7]
+        - generic [ref=e8]: SMMWorld
+      - navigation [ref=e9]:
+        - link "Pricing" [ref=e10] [cursor=pointer]:
+          - /url: /pricing
+        - link "API" [ref=e11] [cursor=pointer]:
+          - /url: /docs
+        - link "Help" [ref=e12] [cursor=pointer]:
+          - /url: /help
+      - button "Toggle theme" [ref=e13] [cursor=pointer]:
+        - img [ref=e14]
+      - link "Admin panel" [ref=e16] [cursor=pointer]:
+        - /url: /admin
+        - text: Admin panel
+        - img [ref=e17]
+  - main [ref=e19]:
+    - generic [ref=e24]:
+      - heading "Real delivery, every order." [level=1] [ref=e26]:
+        - text: Real delivery,
+        - text: every order.
+      - paragraph [ref=e27]: SMMWorld is the Instagram growth network. We don't resell — every like, follow, and comment is delivered by us directly. Real quality, refill 30 days, crypto only.
+      - generic [ref=e29]: Free $5 credit · no card · pay only with crypto
+    - generic [ref=e32]:
+      - generic [ref=e33]:
+        - img [ref=e35]
+        - generic [ref=e37]: Real quality
+        - paragraph [ref=e38]: Every action is delivered through our own infrastructure. No reposting from third-party panels.
+      - generic [ref=e39]:
+        - img [ref=e41]
+        - generic [ref=e43]: Refill window · 30 days
+        - paragraph [ref=e44]: 30-day refill window from order completion. If delivery drops, request a free refill from the order page — an operator approves and re-runs.
+      - generic [ref=e45]:
+        - img [ref=e47]
+        - generic [ref=e50]: Crypto only
+        - paragraph [ref=e51]: Pay with USDT, BTC, ETH, TON, LTC. Privacy-first. No KYC. No card fees.
+      - generic [ref=e52]:
+        - img [ref=e54]
+        - generic [ref=e56]: Perfect-Panel API
+        - paragraph [ref=e57]: Drop-in compatible /api/v2 endpoint. Plug existing reseller pipelines in 5 minutes.
+    - generic [ref=e58]:
+      - generic [ref=e59]: Coverage
+      - heading "Built for Instagram. Network expands on schedule." [level=2] [ref=e60]
+      - paragraph [ref=e61]: We launched on Instagram because that's where the demand is. Other platforms come online as we build the bot infrastructure for them — not as we onboard another reseller.
+      - generic [ref=e62]:
+        - generic [ref=e63]:
+          - generic [ref=e64]:
+            - img [ref=e66]
+            - generic [ref=e70]:
+              - generic [ref=e71]: Instagram
+              - generic [ref=e72]: Live
+          - paragraph [ref=e74]: Likes · Follows · Comments
+          - generic [ref=e75]:
+            - generic [ref=e76]: — services
+            - generic [ref=e77]: ·
+            - generic [ref=e78]: min $—/1k
+            - generic [ref=e79]: ·
+            - generic [ref=e80]: 30-day refill
+        - generic [ref=e81]:
+          - img [ref=e83]
+          - generic [ref=e86]: TikTok
+          - generic [ref=e87]: Soon
+        - generic [ref=e88]:
+          - img [ref=e90]
+          - generic [ref=e92]: Twitter / X
+          - generic [ref=e93]: Soon
+        - generic [ref=e94]:
+          - img [ref=e96]
+          - generic [ref=e99]: Telegram
+          - generic [ref=e100]: Soon
+        - generic [ref=e101]:
+          - img [ref=e103]
+          - generic [ref=e105]: Facebook
+          - generic [ref=e106]: Soon
+    - generic [ref=e107]:
+      - generic [ref=e108]: How it works
+      - heading "Four steps. Zero hand-holding." [level=2] [ref=e109]
+      - generic [ref=e110]:
+        - generic [ref=e111]:
+          - generic [ref=e112]: "01"
+          - generic [ref=e113]: Top up with crypto
+          - paragraph [ref=e114]: USDT (TRC-20), BTC, ETH, TON, or LTC. Auto-credit on confirm.
+        - generic [ref=e115]:
+          - generic [ref=e116]: "02"
+          - generic [ref=e117]: Pick service · paste link
+          - paragraph [ref=e118]: Likes, followers, real comments. Custom comment lists. Drip-feed if you need slow.
+        - generic [ref=e119]:
+          - generic [ref=e120]: "03"
+          - generic [ref=e121]: We dispatch through the network
+          - paragraph [ref=e122]: Validated, queued, executed by our delivery network. Live progress in your dashboard.
+        - generic [ref=e123]:
+          - generic [ref=e124]: "04"
+          - generic [ref=e125]: Refill 30 days
+          - paragraph [ref=e126]: Free refill window for 30 days from completion. If delivery drops, request a refill from the order page — an operator approves and the bot re-runs.
+    - generic [ref=e129]:
+      - heading "Plug in. Profit." [level=2] [ref=e130]
+      - paragraph [ref=e131]: Free $5 welcome credit. No card. No phone number. Connect via API in 5 minutes.
+      - link "Read API docs" [ref=e133] [cursor=pointer]:
+        - /url: /docs
+        - button "Read API docs" [ref=e134]
+  - contentinfo [ref=e135]:
+    - generic [ref=e136]:
+      - generic [ref=e137]:
+        - generic [ref=e138]:
+          - img "SMMWorld" [ref=e139]
+          - generic [ref=e140]: SMMWorld
+        - paragraph [ref=e141]: Infrastructure for Instagram growth.
+      - generic [ref=e142]:
+        - generic [ref=e143]: Product
+        - list [ref=e144]:
+          - listitem [ref=e145]:
+            - link "Services" [ref=e146] [cursor=pointer]:
+              - /url: /services-list
+          - listitem [ref=e147]:
+            - link "Pricing" [ref=e148] [cursor=pointer]:
+              - /url: /pricing
+          - listitem [ref=e149]:
+            - link "API" [ref=e150] [cursor=pointer]:
+              - /url: /docs
+      - generic [ref=e151]:
+        - generic [ref=e152]: Company
+        - list [ref=e153]:
+          - listitem [ref=e154]:
+            - link "Help" [ref=e155] [cursor=pointer]:
+              - /url: /help
+          - listitem [ref=e156]:
+            - link "Terms" [ref=e157] [cursor=pointer]:
+              - /url: /legal/terms
+          - listitem [ref=e158]:
+            - link "Privacy" [ref=e159] [cursor=pointer]:
+              - /url: /legal/privacy
+      - generic [ref=e160]:
+        - generic [ref=e161]: Refund & AML
+        - list [ref=e162]:
+          - listitem [ref=e163]:
+            - link "Refund Policy" [ref=e164] [cursor=pointer]:
+              - /url: /legal/refund
+          - listitem [ref=e165]:
+            - link "AML Policy" [ref=e166] [cursor=pointer]:
+              - /url: /legal/aml
+    - generic [ref=e167]:
+      - generic [ref=e168]: © 2026 SMMWorld. All systems normal.
+      - generic [ref=e169]: smmworld.vip

@@ -8,8 +8,8 @@ import org.junit.jupiter.api.Test;
 /**
  * Golden-case tests for {@link OrderService#normalizeInstagramUrl(String)} — the canonical form the
  * per-URL quota keys on. This MUST stay in sync with the SQL backfill in {@code
- * v2026.06-canonicalize-instagram-links.xml}; every case here has a matching transform there.
- * Pure function, no Spring context.
+ * v2026.06-canonicalize-instagram-links.xml}; every case here has a matching transform there. Pure
+ * function, no Spring context.
  */
 class OrderServiceNormalizeUrlTest {
 
@@ -69,7 +69,8 @@ class OrderServiceNormalizeUrlTest {
     void stripsQueryAndFragment() {
         assertEquals(
                 CANONICAL_PROFILE,
-                OrderService.normalizeInstagramUrl("https://www.instagram.com/Chrimbu/?igsh=abc123"));
+                OrderService.normalizeInstagramUrl(
+                        "https://www.instagram.com/Chrimbu/?igsh=abc123"));
         assertEquals(
                 "https://www.instagram.com/p/DZE5GuwAsa1/",
                 OrderService.normalizeInstagramUrl(

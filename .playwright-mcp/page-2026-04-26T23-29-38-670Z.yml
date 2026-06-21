@@ -1,0 +1,60 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - link "SMMWorld SMMWorld" [ref=e6] [cursor=pointer]:
+      - /url: /
+      - img "SMMWorld" [ref=e7]
+      - generic [ref=e8]: SMMWorld
+    - generic [ref=e10]:
+      - generic [ref=e11]: Create account
+      - heading "Join SMMWorld." [level=1] [ref=e12]
+      - paragraph [ref=e13]:
+        - text: Already have an account?
+        - link "Sign in" [ref=e14] [cursor=pointer]:
+          - /url: /login
+      - generic [ref=e15]:
+        - generic [ref=e16]:
+          - generic [ref=e17]:
+            - generic [ref=e18]: Username
+            - generic [ref=e19]: 3+ characters, letters/digits/_
+          - textbox [ref=e21]:
+            - /placeholder: your_username
+        - generic [ref=e22]:
+          - generic [ref=e24]: Email
+          - textbox [ref=e26]:
+            - /placeholder: you@example.com
+        - generic [ref=e27]:
+          - generic [ref=e28]:
+            - generic [ref=e29]: Password
+            - generic [ref=e30]: 8+ characters
+          - generic [ref=e31]:
+            - textbox "Show password" [ref=e32]:
+              - /placeholder: ••••••••
+            - button "Show password" [ref=e34] [cursor=pointer]:
+              - img [ref=e35]
+        - generic [ref=e43]:
+          - checkbox "I agree to the Terms and Privacy Policy." [ref=e44] [cursor=pointer]
+          - generic [ref=e45]:
+            - text: I agree to the
+            - link "Terms" [ref=e46] [cursor=pointer]:
+              - /url: /legal/terms
+            - text: and
+            - link "Privacy Policy" [ref=e47] [cursor=pointer]:
+              - /url: /legal/privacy
+            - text: .
+        - button "Create account" [disabled]
+  - generic [ref=e53]:
+    - generic [ref=e54]: Numbers
+    - heading "Built for resellers running real money." [level=2] [ref=e55]
+    - generic [ref=e56]:
+      - generic [ref=e57]:
+        - generic [ref=e58]: 47s
+        - generic [ref=e59]: avg start
+      - generic [ref=e60]:
+        - generic [ref=e61]: —
+        - generic [ref=e62]: orders delivered
+      - generic [ref=e63]:
+        - generic [ref=e64]: —
+        - generic [ref=e65]: resellers
+      - generic [ref=e66]:
+        - generic [ref=e67]: —
+        - generic [ref=e68]: services live

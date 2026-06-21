@@ -38,14 +38,14 @@ public interface BalanceTransactionRepository extends JpaRepository<BalanceTrans
                     Pageable pageable);
 
     /**
-     * Lifetime SUM(amount) GROUP BY transaction_type for one user. Powers the Transactions
-     * page stat cards (Deposited / Spent / Refunded). Computing these client-side from a
-     * paginated last-N is wrong for active users — old deposits and refunds get pushed
-     * off-window by recent ORDER_PAYMENT churn. One indexed GROUP BY is cheaper than
-     * shipping thousands of rows over the wire and aggregating on the client.
+     * Lifetime SUM(amount) GROUP BY transaction_type for one user. Powers the Transactions page
+     * stat cards (Deposited / Spent / Refunded). Computing these client-side from a paginated
+     * last-N is wrong for active users — old deposits and refunds get pushed off-window by recent
+     * ORDER_PAYMENT churn. One indexed GROUP BY is cheaper than shipping thousands of rows over the
+     * wire and aggregating on the client.
      *
-     * <p>Returns rows of {@code [TransactionType, BigDecimal]}. Types absent from the
-     * user's history don't appear at all — the caller defaults to zero.
+     * <p>Returns rows of {@code [TransactionType, BigDecimal]}. Types absent from the user's
+     * history don't appear at all — the caller defaults to zero.
      */
     @Query(
             "SELECT bt.transactionType, COALESCE(SUM(bt.amount), 0) FROM BalanceTransaction bt"

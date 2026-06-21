@@ -117,12 +117,12 @@ public class BotWebhookSseBroadcaster implements MessageListener {
     }
 
     /**
-     * Periodic SSE comment so idle connections don't get closed by intermediaries while we wait
-     * on the next bot webhook. Cloudflare's free-tier plan kills HTTP/3 connections that have
-     * been quiet for ~100s, surfacing in the browser as {@code ERR_QUIC_PROTOCOL_ERROR} and
-     * triggering the frontend's reconnect loop — which on a busy admin page meant a fresh
-     * stream every couple of minutes per open tab. A 25s comment keeps the path warm without
-     * adding meaningful traffic (only a {@code ":\n\n"} byte sequence per emitter per tick).
+     * Periodic SSE comment so idle connections don't get closed by intermediaries while we wait on
+     * the next bot webhook. Cloudflare's free-tier plan kills HTTP/3 connections that have been
+     * quiet for ~100s, surfacing in the browser as {@code ERR_QUIC_PROTOCOL_ERROR} and triggering
+     * the frontend's reconnect loop — which on a busy admin page meant a fresh stream every couple
+     * of minutes per open tab. A 25s comment keeps the path warm without adding meaningful traffic
+     * (only a {@code ":\n\n"} byte sequence per emitter per tick).
      */
     @Scheduled(fixedDelay = 25_000L, initialDelay = 25_000L)
     public void heartbeat() {

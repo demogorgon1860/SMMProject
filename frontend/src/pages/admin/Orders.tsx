@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useServerPagination } from '../../lib/hooks/useServerPagination';
 import {
   Badge,
@@ -49,6 +50,13 @@ const PAGE_SIZE = 100;
 
 export function AdminOrdersPage() {
   const [openId, setOpenId] = useState<number | null>(null);
+  // Deep-link support: /admin/orders?id=123 opens that order's drawer when the row is on the
+  // loaded page (e.g. arrived from the Refill queue or the command palette). Harmless otherwise.
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const id = Number(searchParams.get('id'));
+    if (Number.isInteger(id) && id > 0) setOpenId(id);
+  }, [searchParams]);
   // Single-select status — backend's GET /v2/admin/orders takes one `status` param,
   // so multi-select would either be client-side-only (and break with server pagination)
   // or fan out into N requests. One value keeps the URL→backend mapping honest.

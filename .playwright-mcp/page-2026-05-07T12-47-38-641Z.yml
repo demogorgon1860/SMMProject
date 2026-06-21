@@ -1,0 +1,742 @@
+- generic [ref=e7]:
+  - complementary [ref=e8]:
+    - generic [ref=e9]:
+      - link "SMMWorld SMMWorld admin" [ref=e10] [cursor=pointer]:
+        - /url: /admin
+        - img "SMMWorld" [ref=e11]
+        - generic [ref=e12]:
+          - generic [ref=e13]: SMMWorld
+          - generic [ref=e14]: admin
+      - button "Collapse" [ref=e15] [cursor=pointer]:
+        - img [ref=e16]
+    - navigation [ref=e18]:
+      - generic [ref=e19]:
+        - generic [ref=e20]: Operations
+        - link "Dashboard" [ref=e21] [cursor=pointer]:
+          - /url: /admin
+          - img [ref=e22]
+          - generic [ref=e27]: Dashboard
+        - link "Orders" [ref=e28] [cursor=pointer]:
+          - /url: /admin/orders
+          - img [ref=e29]
+          - generic [ref=e31]: Orders
+        - link "Refill requests" [ref=e32] [cursor=pointer]:
+          - /url: /admin/refill-requests
+          - img [ref=e33]
+          - generic [ref=e35]: Refill requests
+        - link "Services" [ref=e36] [cursor=pointer]:
+          - /url: /admin/services
+          - img [ref=e37]
+          - generic [ref=e42]: Services
+      - generic [ref=e43]:
+        - generic [ref=e44]: Customers
+        - link "Users" [ref=e45] [cursor=pointer]:
+          - /url: /admin/users
+          - img [ref=e46]
+          - generic [ref=e51]: Users
+      - generic [ref=e52]:
+        - generic [ref=e53]: Money
+        - link "Payments" [ref=e54] [cursor=pointer]:
+          - /url: /admin/payments
+          - img [ref=e55]
+          - generic [ref=e58]: Payments
+        - link "Balance Txs" [ref=e59] [cursor=pointer]:
+          - /url: /admin/balance
+          - img [ref=e60]
+          - generic [ref=e63]: Balance Txs
+      - generic [ref=e64]:
+        - generic [ref=e65]: Infrastructure
+        - link "Instagram Bot" [ref=e66] [cursor=pointer]:
+          - /url: /admin/bot
+          - img [ref=e68]
+          - generic [ref=e73]: Instagram Bot
+        - link "Telegram Control" [ref=e74] [cursor=pointer]:
+          - /url: /admin/telegram
+          - img [ref=e75]
+          - generic [ref=e77]: Telegram Control
+        - link "System Monitoring" [ref=e78] [cursor=pointer]:
+          - /url: /admin/system
+          - img [ref=e79]
+          - generic [ref=e81]: System Monitoring
+      - generic [ref=e82]:
+        - generic [ref=e83]: Settings
+        - link "Settings" [ref=e84] [cursor=pointer]:
+          - /url: /admin/settings
+          - img [ref=e85]
+          - generic [ref=e88]: Settings
+  - generic [ref=e89]:
+    - banner [ref=e90]:
+      - button "Search orders, users, services… ⌘K" [ref=e91] [cursor=pointer]:
+        - img [ref=e92]
+        - generic [ref=e95]: Search orders, users, services…
+        - generic [ref=e96]: ⌘K
+      - generic [ref=e97]: PROD
+      - button "Toggle theme" [ref=e100] [cursor=pointer]:
+        - img [ref=e101]
+      - button "Notifications" [ref=e103] [cursor=pointer]:
+        - img [ref=e104]
+      - button "A admin admin" [ref=e107] [cursor=pointer]:
+        - generic [ref=e108]: A
+        - generic [ref=e109]:
+          - generic [ref=e110]: admin
+          - generic [ref=e111]: admin
+        - img [ref=e112]
+    - main [ref=e114]:
+      - generic [ref=e116]:
+        - generic [ref=e117]:
+          - generic [ref=e118]: Instagram bot
+          - generic [ref=e120]: 2 / 2 online · 32 active workers
+        - button "Refresh" [ref=e122] [cursor=pointer]:
+          - img [ref=e123]
+          - text: Refresh
+      - generic [ref=e125]:
+        - generic [ref=e126]:
+          - generic [ref=e127]:
+            - generic [ref=e128]:
+              - generic [ref=e129]:
+                - img [ref=e130]
+                - generic [ref=e135]: bot-01
+                - generic [ref=e136]: Up
+                - generic [ref=e138]: Up
+              - button "Reload" [ref=e140] [cursor=pointer]:
+                - img [ref=e141]
+                - text: Reload
+            - generic [ref=e143]: http://host.docker.internal:8080
+            - generic [ref=e144]:
+              - generic [ref=e145]:
+                - generic [ref=e146]: Queue depth
+                - generic [ref=e147]: "0"
+              - generic [ref=e148]:
+                - generic [ref=e149]: In progress
+                - generic [ref=e150]: "17"
+              - generic [ref=e151]:
+                - generic [ref=e152]: Active workers
+                - generic [ref=e153]: "17"
+              - generic [ref=e154]:
+                - generic [ref=e155]: Completed
+                - generic [ref=e156]: "172"
+              - generic [ref=e157]:
+                - generic [ref=e158]: Uptime
+                - generic [ref=e159]: 01d 20h 48m
+              - generic [ref=e160]:
+                - generic [ref=e161]: Heartbeat
+                - generic [ref=e162]: 2026-05-07 15:47
+            - generic [ref=e163]:
+              - button "Stop workers" [ref=e164] [cursor=pointer]:
+                - img [ref=e165]
+                - text: Stop workers
+              - button "Drain" [ref=e168] [cursor=pointer]
+          - generic [ref=e169]:
+            - generic [ref=e170]:
+              - generic [ref=e171]:
+                - img [ref=e172]
+                - generic [ref=e177]: bot-02
+                - generic [ref=e178]: Up
+                - generic [ref=e180]: Up
+              - button "Reload" [ref=e182] [cursor=pointer]:
+                - img [ref=e183]
+                - text: Reload
+            - generic [ref=e185]: http://45.142.208.109:8080
+            - generic [ref=e186]:
+              - generic [ref=e187]:
+                - generic [ref=e188]: Queue depth
+                - generic [ref=e189]: "0"
+              - generic [ref=e190]:
+                - generic [ref=e191]: In progress
+                - generic [ref=e192]: "15"
+              - generic [ref=e193]:
+                - generic [ref=e194]: Active workers
+                - generic [ref=e195]: "15"
+              - generic [ref=e196]:
+                - generic [ref=e197]: Completed
+                - generic [ref=e198]: "182"
+              - generic [ref=e199]:
+                - generic [ref=e200]: Uptime
+                - generic [ref=e201]: 01d 20h 48m
+              - generic [ref=e202]:
+                - generic [ref=e203]: Heartbeat
+                - generic [ref=e204]: 2026-05-07 15:47
+            - generic [ref=e205]:
+              - button "Stop workers" [ref=e206] [cursor=pointer]:
+                - img [ref=e207]
+                - text: Stop workers
+              - button "Drain" [ref=e210] [cursor=pointer]
+        - generic [ref=e211]:
+          - generic [ref=e213]:
+            - generic [ref=e214]: AdsPower profile groups
+            - generic [ref=e215]: Pools used by the Go bot
+          - generic [ref=e218]:
+            - img [ref=e220]
+            - generic [ref=e222]: Not exposed by bot API
+            - generic [ref=e223]: The bot does not surface AdsPower group counts on a cheap endpoint. Adding /api/profiles/groups (with caching) is a follow-up — see commands/05-real-admin-bot-page.md.
+        - generic [ref=e224]:
+          - generic [ref=e225]:
+            - generic [ref=e226]:
+              - generic [ref=e227]: Recent bot webhooks
+              - generic [ref=e229]: Live tail
+            - button "Pause" [ref=e231] [cursor=pointer]
+          - generic [ref=e233]:
+            - generic [ref=e234]:
+              - generic [ref=e235]: 15:46:25
+              - generic [ref=e236]: order.result
+              - generic [ref=e237]: panel_10498_1778155929526878200
+              - generic [ref=e238]: ext=10498
+              - generic [ref=e239]: completed=25
+              - generic [ref=e240]: failed=6
+              - generic [ref=e241]: "[rabbitmq]"
+            - generic [ref=e242]:
+              - generic [ref=e243]: 15:43:02
+              - generic [ref=e244]: order.result
+              - generic [ref=e245]: panel_10495_1778155755421936500
+              - generic [ref=e246]: ext=10495
+              - generic [ref=e247]: completed=25
+              - generic [ref=e248]: failed=5
+              - generic [ref=e249]: "[rabbitmq]"
+            - generic [ref=e250]:
+              - generic [ref=e251]: 15:42:06
+              - generic [ref=e252]: order.result
+              - generic [ref=e253]: panel_10507_1778157716301217200
+              - generic [ref=e254]: ext=10507
+              - generic [ref=e255]: completed=0
+              - generic [ref=e256]: "[rabbitmq]"
+            - generic [ref=e257]:
+              - generic [ref=e258]: 15:39:46
+              - generic [ref=e259]: order.result
+              - generic [ref=e260]: panel_10506_1778157559165773100
+              - generic [ref=e261]: ext=10506
+              - generic [ref=e262]: completed=0
+              - generic [ref=e263]: "[rabbitmq]"
+            - generic [ref=e264]:
+              - generic [ref=e265]: 15:39:10
+              - generic [ref=e266]: order.result
+              - generic [ref=e267]: panel_10505_1778157539421242000
+              - generic [ref=e268]: ext=10505
+              - generic [ref=e269]: completed=0
+              - generic [ref=e270]: "[rabbitmq]"
+            - generic [ref=e271]:
+              - generic [ref=e272]: 15:36:58
+              - generic [ref=e273]: order.result
+              - generic [ref=e274]: panel_10504_1778157408694503600
+              - generic [ref=e275]: ext=10504
+              - generic [ref=e276]: completed=0
+              - generic [ref=e277]: "[rabbitmq]"
+            - generic [ref=e278]:
+              - generic [ref=e279]: 15:35:36
+              - generic [ref=e280]: order.result
+              - generic [ref=e281]: panel_10503_1778157328625793300
+              - generic [ref=e282]: ext=10503
+              - generic [ref=e283]: completed=0
+              - generic [ref=e284]: "[rabbitmq]"
+            - generic [ref=e285]:
+              - generic [ref=e286]: 15:33:48
+              - generic [ref=e287]: order.result
+              - generic [ref=e288]: panel_10493_1778155653292432900
+              - generic [ref=e289]: ext=10493
+              - generic [ref=e290]: completed=10
+              - generic [ref=e291]: failed=2
+              - generic [ref=e292]: "[rabbitmq]"
+            - generic [ref=e293]:
+              - generic [ref=e294]: 15:32:13
+              - generic [ref=e295]: order.result
+              - generic [ref=e296]: panel_10502_1778157127449885500
+              - generic [ref=e297]: ext=10502
+              - generic [ref=e298]: completed=0
+              - generic [ref=e299]: "[rabbitmq]"
+            - generic [ref=e300]:
+              - generic [ref=e301]: 15:26:11
+              - generic [ref=e302]: order.result
+              - generic [ref=e303]: panel_10464_1778147350599378700
+              - generic [ref=e304]: ext=10464
+              - generic [ref=e305]: completed=101
+              - generic [ref=e306]: failed=42
+              - generic [ref=e307]: "[rabbitmq]"
+            - generic [ref=e308]:
+              - generic [ref=e309]: 15:19:18
+              - generic [ref=e310]: order.result
+              - generic [ref=e311]: panel_10501_1778156351235396900
+              - generic [ref=e312]: ext=10501
+              - generic [ref=e313]: completed=0
+              - generic [ref=e314]: "[rabbitmq]"
+            - generic [ref=e315]:
+              - generic [ref=e316]: 15:18:32
+              - generic [ref=e317]: order.result
+              - generic [ref=e318]: panel_10500_1778156296383231400
+              - generic [ref=e319]: ext=10500
+              - generic [ref=e320]: completed=0
+              - generic [ref=e321]: "[rabbitmq]"
+            - generic [ref=e322]:
+              - generic [ref=e323]: 15:18:11
+              - generic [ref=e324]: order.result
+              - generic [ref=e325]: panel_10387_1778117616503839800
+              - generic [ref=e326]: ext=10387
+              - generic [ref=e327]: completed=250
+              - generic [ref=e328]: failed=450
+              - generic [ref=e329]: "[rabbitmq]"
+            - generic [ref=e330]:
+              - generic [ref=e331]: 15:15:41
+              - generic [ref=e332]: order.result
+              - generic [ref=e333]: panel_10482_1778152825739507000
+              - generic [ref=e334]: ext=10482
+              - generic [ref=e335]: completed=30
+              - generic [ref=e336]: failed=17
+              - generic [ref=e337]: "[rabbitmq]"
+            - generic [ref=e338]:
+              - generic [ref=e339]: 15:14:41
+              - generic [ref=e340]: order.result
+              - generic [ref=e341]: panel_10499_1778156065754089700
+              - generic [ref=e342]: ext=10499
+              - generic [ref=e343]: completed=0
+              - generic [ref=e344]: "[rabbitmq]"
+            - generic [ref=e345]:
+              - generic [ref=e346]: 15:12:15
+              - generic [ref=e347]: order.result
+              - generic [ref=e348]: panel_10498_1778155929526878200
+              - generic [ref=e349]: ext=10498
+              - generic [ref=e350]: completed=0
+              - generic [ref=e351]: "[rabbitmq]"
+            - generic [ref=e352]:
+              - generic [ref=e353]: 15:12:03
+              - generic [ref=e354]: order.result
+              - generic [ref=e355]: panel_10497_1778155909690358300
+              - generic [ref=e356]: ext=10497
+              - generic [ref=e357]: completed=0
+              - generic [ref=e358]: "[rabbitmq]"
+            - generic [ref=e359]:
+              - generic [ref=e360]: 15:09:32
+              - generic [ref=e361]: order.result
+              - generic [ref=e362]: panel_10496_1778155764462540300
+              - generic [ref=e363]: ext=10496
+              - generic [ref=e364]: completed=0
+              - generic [ref=e365]: "[rabbitmq]"
+            - generic [ref=e366]:
+              - generic [ref=e367]: 15:09:22
+              - generic [ref=e368]: order.result
+              - generic [ref=e369]: panel_10495_1778155755421936500
+              - generic [ref=e370]: ext=10495
+              - generic [ref=e371]: completed=0
+              - generic [ref=e372]: "[rabbitmq]"
+            - generic [ref=e373]:
+              - generic [ref=e374]: 15:08:25
+              - generic [ref=e375]: order.result
+              - generic [ref=e376]: panel_10448_1778141066191570900
+              - generic [ref=e377]: ext=10448
+              - generic [ref=e378]: completed=110
+              - generic [ref=e379]: failed=148
+              - generic [ref=e380]: "[rabbitmq]"
+            - generic [ref=e381]:
+              - generic [ref=e382]: 15:08:18
+              - generic [ref=e383]: order.result
+              - generic [ref=e384]: panel_10494_1778155690240109700
+              - generic [ref=e385]: ext=10494
+              - generic [ref=e386]: completed=0
+              - generic [ref=e387]: "[rabbitmq]"
+            - generic [ref=e388]:
+              - generic [ref=e389]: 15:07:43
+              - generic [ref=e390]: order.result
+              - generic [ref=e391]: panel_10493_1778155653292432900
+              - generic [ref=e392]: ext=10493
+              - generic [ref=e393]: completed=0
+              - generic [ref=e394]: "[rabbitmq]"
+            - generic [ref=e395]:
+              - generic [ref=e396]: 15:07:29
+              - generic [ref=e397]: order.result
+              - generic [ref=e398]: panel_10427_1778136135390382300
+              - generic [ref=e399]: ext=10427
+              - generic [ref=e400]: completed=151
+              - generic [ref=e401]: failed=193
+              - generic [ref=e402]: "[rabbitmq]"
+            - generic [ref=e403]:
+              - generic [ref=e404]: 15:07:16
+              - generic [ref=e405]: order.result
+              - generic [ref=e406]: panel_10492_1778155624134716200
+              - generic [ref=e407]: ext=10492
+              - generic [ref=e408]: completed=0
+              - generic [ref=e409]: "[rabbitmq]"
+            - generic [ref=e410]:
+              - generic [ref=e411]: 15:04:38
+              - generic [ref=e412]: order.result
+              - generic [ref=e413]: panel_10481_1778152508523151600
+              - generic [ref=e414]: ext=10481
+              - generic [ref=e415]: completed=25
+              - generic [ref=e416]: failed=15
+              - generic [ref=e417]: "[rabbitmq]"
+            - generic [ref=e418]:
+              - generic [ref=e419]: 15:03:35
+              - generic [ref=e420]: order.result
+              - generic [ref=e421]: panel_10445_1778140396849479000
+              - generic [ref=e422]: ext=10445
+              - generic [ref=e423]: completed=109
+              - generic [ref=e424]: failed=156
+              - generic [ref=e425]: "[rabbitmq]"
+            - generic [ref=e426]:
+              - generic [ref=e427]: 15:01:01
+              - generic [ref=e428]: order.result
+              - generic [ref=e429]: panel_10484_1778152919777103100
+              - generic [ref=e430]: ext=10484
+              - generic [ref=e431]: completed=31
+              - generic [ref=e432]: failed=4
+              - generic [ref=e433]: "[rabbitmq]"
+            - generic [ref=e434]:
+              - generic [ref=e435]: 15:00:41
+              - generic [ref=e436]: order.result
+              - generic [ref=e437]: panel_10491_1778155230649496700
+              - generic [ref=e438]: ext=10491
+              - generic [ref=e439]: completed=0
+              - generic [ref=e440]: "[rabbitmq]"
+            - generic [ref=e441]:
+              - generic [ref=e442]: 15:00:31
+              - generic [ref=e443]: order.result
+              - generic [ref=e444]: panel_10423_1778134930809851000
+              - generic [ref=e445]: ext=10423
+              - generic [ref=e446]: completed=105
+              - generic [ref=e447]: failed=289
+              - generic [ref=e448]: "[rabbitmq]"
+            - generic [ref=e449]:
+              - generic [ref=e450]: 14:59:23
+              - generic [ref=e451]: order.result
+              - generic [ref=e452]: panel_10422_1778134560627004700
+              - generic [ref=e453]: ext=10422
+              - generic [ref=e454]: completed=110
+              - generic [ref=e455]: failed=278
+              - generic [ref=e456]: "[rabbitmq]"
+            - generic [ref=e457]:
+              - generic [ref=e458]: 14:58:00
+              - generic [ref=e459]: order.result
+              - generic [ref=e460]: panel_10478_1778151909778096900
+              - generic [ref=e461]: ext=10478
+              - generic [ref=e462]: completed=25
+              - generic [ref=e463]: failed=16
+              - generic [ref=e464]: "[rabbitmq]"
+            - generic [ref=e465]:
+              - generic [ref=e466]: 14:57:52
+              - generic [ref=e467]: order.result
+              - generic [ref=e468]: panel_10490_1778155061502565200
+              - generic [ref=e469]: ext=10490
+              - generic [ref=e470]: completed=0
+              - generic [ref=e471]: "[rabbitmq]"
+            - generic [ref=e472]:
+              - generic [ref=e473]: 14:53:02
+              - generic [ref=e474]: order.result
+              - generic [ref=e475]: panel_10489_1778154765299431700
+              - generic [ref=e476]: ext=10489
+              - generic [ref=e477]: completed=0
+              - generic [ref=e478]: "[rabbitmq]"
+            - generic [ref=e479]:
+              - generic [ref=e480]: 14:50:26
+              - generic [ref=e481]: order.result
+              - generic [ref=e482]: panel_10397_1778121727451081900
+              - generic [ref=e483]: ext=10397
+              - generic [ref=e484]: completed=94
+              - generic [ref=e485]: failed=549
+              - generic [ref=e486]: "[rabbitmq]"
+            - generic [ref=e487]:
+              - generic [ref=e488]: 14:48:03
+              - generic [ref=e489]: order.result
+              - generic [ref=e490]: panel_10451_1778141774872692300
+              - generic [ref=e491]: ext=10451
+              - generic [ref=e492]: completed=50
+              - generic [ref=e493]: failed=190
+              - generic [ref=e494]: "[rabbitmq]"
+            - generic [ref=e495]:
+              - generic [ref=e496]: 14:45:18
+              - generic [ref=e497]: order.result
+              - generic [ref=e498]: panel_10451_1778141774872692300
+              - generic [ref=e499]: ext=10451
+              - generic [ref=e500]: completed=49
+              - generic [ref=e501]: failed=186
+              - generic [ref=e502]: "[rabbitmq]"
+            - generic [ref=e503]:
+              - generic [ref=e504]: 14:43:01
+              - generic [ref=e505]: order.result
+              - generic [ref=e506]: panel_10488_1778154170728009400
+              - generic [ref=e507]: ext=10488
+              - generic [ref=e508]: completed=0
+              - generic [ref=e509]: "[rabbitmq]"
+            - generic [ref=e510]:
+              - generic [ref=e511]: 14:39:15
+              - generic [ref=e512]: order.result
+              - generic [ref=e513]: panel_10471_1778148691922113500
+              - generic [ref=e514]: ext=10471
+              - generic [ref=e515]: completed=50
+              - generic [ref=e516]: failed=34
+              - generic [ref=e517]: "[rabbitmq]"
+            - generic [ref=e518]:
+              - generic [ref=e519]: 14:38:14
+              - generic [ref=e520]: order.result
+              - generic [ref=e521]: panel_10487_1778153883879667000
+              - generic [ref=e522]: ext=10487
+              - generic [ref=e523]: completed=0
+              - generic [ref=e524]: "[rabbitmq]"
+            - generic [ref=e525]:
+              - generic [ref=e526]: 14:38:12
+              - generic [ref=e527]: order.result
+              - generic [ref=e528]: panel_10486_1778153882838623900
+              - generic [ref=e529]: ext=10486
+              - generic [ref=e530]: completed=0
+              - generic [ref=e531]: "[rabbitmq]"
+            - generic [ref=e532]:
+              - generic [ref=e533]: 14:37:33
+              - generic [ref=e534]: order.result
+              - generic [ref=e535]: panel_10451_1778141774872692300
+              - generic [ref=e536]: ext=10451
+              - generic [ref=e537]: completed=48
+              - generic [ref=e538]: failed=168
+              - generic [ref=e539]: "[rabbitmq]"
+            - generic [ref=e540]:
+              - generic [ref=e541]: 14:37:19
+              - generic [ref=e542]: order.result
+              - generic [ref=e543]: panel_10435_1778138169611778900
+              - generic [ref=e544]: ext=10435
+              - generic [ref=e545]: completed=101
+              - generic [ref=e546]: failed=171
+              - generic [ref=e547]: "[rabbitmq]"
+            - generic [ref=e548]:
+              - generic [ref=e549]: 14:34:44
+              - generic [ref=e550]: order.result
+              - generic [ref=e551]: panel_10470_1778148690892485700
+              - generic [ref=e552]: ext=10470
+              - generic [ref=e553]: completed=48
+              - generic [ref=e554]: failed=33
+              - generic [ref=e555]: "[rabbitmq]"
+            - generic [ref=e556]:
+              - generic [ref=e557]: 14:30:58
+              - generic [ref=e558]: order.result
+              - generic [ref=e559]: panel_10451_1778141774872692300
+              - generic [ref=e560]: ext=10451
+              - generic [ref=e561]: completed=48
+              - generic [ref=e562]: failed=154
+              - generic [ref=e563]: "[rabbitmq]"
+            - generic [ref=e564]:
+              - generic [ref=e565]: 14:22:09
+              - generic [ref=e566]: order.result
+              - generic [ref=e567]: panel_10484_1778152919777103100
+              - generic [ref=e568]: ext=10484
+              - generic [ref=e569]: completed=0
+              - generic [ref=e570]: "[rabbitmq]"
+            - generic [ref=e571]:
+              - generic [ref=e572]: 14:22:07
+              - generic [ref=e573]: order.result
+              - generic [ref=e574]: panel_10482_1778152825739507000
+              - generic [ref=e575]: ext=10482
+              - generic [ref=e576]: completed=0
+              - generic [ref=e577]: "[rabbitmq]"
+            - generic [ref=e578]:
+              - generic [ref=e579]: 14:22:02
+              - generic [ref=e580]: order.result
+              - generic [ref=e581]: panel_10451_1778141774872692300
+              - generic [ref=e582]: ext=10451
+              - generic [ref=e583]: completed=47
+              - generic [ref=e584]: failed=138
+              - generic [ref=e585]: "[rabbitmq]"
+            - generic [ref=e586]:
+              - generic [ref=e587]: 14:22:01
+              - generic [ref=e588]: order.result
+              - generic [ref=e589]: panel_10476_1778151726221033500
+              - generic [ref=e590]: ext=10476
+              - generic [ref=e591]: completed=5
+              - generic [ref=e592]: "[rabbitmq]"
+            - generic [ref=e593]:
+              - generic [ref=e594]: 14:20:52
+              - generic [ref=e595]: order.result
+              - generic [ref=e596]: panel_10483_1778152842720679900
+              - generic [ref=e597]: ext=10483
+              - generic [ref=e598]: completed=0
+              - generic [ref=e599]: "[rabbitmq]"
+            - generic [ref=e600]:
+              - generic [ref=e601]: 14:17:43
+              - generic [ref=e602]: order.result
+              - generic [ref=e603]: panel_10473_1778149559736308600
+              - generic [ref=e604]: ext=10473
+              - generic [ref=e605]: completed=28
+              - generic [ref=e606]: failed=11
+              - generic [ref=e607]: "[rabbitmq]"
+        - generic [ref=e608]:
+          - generic [ref=e610]:
+            - generic [ref=e611]: bot-01 — queue snapshot
+            - generic [ref=e612]: Last 10 orders on this instance
+          - table [ref=e614]:
+            - rowgroup [ref=e615]:
+              - row "ID External Type Status Done Total Created" [ref=e616]:
+                - columnheader "ID" [ref=e617]
+                - columnheader "External" [ref=e618]
+                - columnheader "Type" [ref=e619]
+                - columnheader "Status" [ref=e620]
+                - columnheader "Done" [ref=e621]
+                - columnheader "Total" [ref=e622]
+                - columnheader "Created" [ref=e623]
+            - rowgroup [ref=e624]:
+              - row "panel_10466_1778… 10466 follow completed 15 15 2026-05-07 12:55" [ref=e625]:
+                - cell "panel_10466_1778…" [ref=e626]
+                - cell "10466" [ref=e627]
+                - cell "follow" [ref=e628]
+                - cell "completed" [ref=e629]
+                - cell "15" [ref=e630]
+                - cell "15" [ref=e631]
+                - cell "2026-05-07 12:55" [ref=e632]
+              - row "panel_10411_1778… 10411 follow cancelled 116 147 2026-05-07 08:25" [ref=e633]:
+                - cell "panel_10411_1778…" [ref=e634]
+                - cell "10411" [ref=e635]
+                - cell "follow" [ref=e636]
+                - cell "cancelled" [ref=e637]
+                - cell "116" [ref=e638]
+                - cell "147" [ref=e639]
+                - cell "2026-05-07 08:25" [ref=e640]
+              - row "panel_10406_1778… 10406 like processing 163 206 2026-05-07 07:52" [ref=e641]:
+                - cell "panel_10406_1778…" [ref=e642]
+                - cell "10406" [ref=e643]
+                - cell "like" [ref=e644]
+                - cell "processing" [ref=e645]
+                - cell "163" [ref=e646]
+                - cell "206" [ref=e647]
+                - cell "2026-05-07 07:52" [ref=e648]
+              - row "panel_10405_1778… 10405 follow completed 20 20 2026-05-07 07:10" [ref=e649]:
+                - cell "panel_10405_1778…" [ref=e650]
+                - cell "10405" [ref=e651]
+                - cell "follow" [ref=e652]
+                - cell "completed" [ref=e653]
+                - cell "20" [ref=e654]
+                - cell "20" [ref=e655]
+                - cell "2026-05-07 07:10" [ref=e656]
+              - row "panel_10383_1778… 10383 follow completed 52 52 2026-05-07 04:25" [ref=e657]:
+                - cell "panel_10383_1778…" [ref=e658]
+                - cell "10383" [ref=e659]
+                - cell "follow" [ref=e660]
+                - cell "completed" [ref=e661]
+                - cell "52" [ref=e662]
+                - cell "52" [ref=e663]
+                - cell "2026-05-07 04:25" [ref=e664]
+              - row "panel_10367_1778… 10367 like completed 50 50 2026-05-07 03:04" [ref=e665]:
+                - cell "panel_10367_1778…" [ref=e666]
+                - cell "10367" [ref=e667]
+                - cell "like" [ref=e668]
+                - cell "completed" [ref=e669]
+                - cell "50" [ref=e670]
+                - cell "50" [ref=e671]
+                - cell "2026-05-07 03:04" [ref=e672]
+              - row "panel_10344_1778… 10344 like completed 50 50 2026-05-07 01:27" [ref=e673]:
+                - cell "panel_10344_1778…" [ref=e674]
+                - cell "10344" [ref=e675]
+                - cell "like" [ref=e676]
+                - cell "completed" [ref=e677]
+                - cell "50" [ref=e678]
+                - cell "50" [ref=e679]
+                - cell "2026-05-07 01:27" [ref=e680]
+              - row "panel_10226_1778… 10226 follow completed 100 100 2026-05-06 21:40" [ref=e681]:
+                - cell "panel_10226_1778…" [ref=e682]
+                - cell "10226" [ref=e683]
+                - cell "follow" [ref=e684]
+                - cell "completed" [ref=e685]
+                - cell "100" [ref=e686]
+                - cell "100" [ref=e687]
+                - cell "2026-05-06 21:40" [ref=e688]
+              - row "panel_10163_1778… 10163 like completed 100 100 2026-05-06 18:43" [ref=e689]:
+                - cell "panel_10163_1778…" [ref=e690]
+                - cell "10163" [ref=e691]
+                - cell "like" [ref=e692]
+                - cell "completed" [ref=e693]
+                - cell "100" [ref=e694]
+                - cell "100" [ref=e695]
+                - cell "2026-05-06 18:43" [ref=e696]
+              - row "panel_10111_1778… 10111 comment completed 10 10 2026-05-06 16:06" [ref=e697]:
+                - cell "panel_10111_1778…" [ref=e698]
+                - cell "10111" [ref=e699]
+                - cell "comment" [ref=e700]
+                - cell "completed" [ref=e701]
+                - cell "10" [ref=e702]
+                - cell "10" [ref=e703]
+                - cell "2026-05-06 16:06" [ref=e704]
+        - generic [ref=e705]:
+          - generic [ref=e707]:
+            - generic [ref=e708]: bot-02 — queue snapshot
+            - generic [ref=e709]: Last 10 orders on this instance
+          - table [ref=e711]:
+            - rowgroup [ref=e712]:
+              - row "ID External Type Status Done Total Created" [ref=e713]:
+                - columnheader "ID" [ref=e714]
+                - columnheader "External" [ref=e715]
+                - columnheader "Type" [ref=e716]
+                - columnheader "Status" [ref=e717]
+                - columnheader "Done" [ref=e718]
+                - columnheader "Total" [ref=e719]
+                - columnheader "Created" [ref=e720]
+            - rowgroup [ref=e721]:
+              - row "panel_10497_1778… 10497 follow processing 28 60 2026-05-07 15:11" [ref=e722]:
+                - cell "panel_10497_1778…" [ref=e723]
+                - cell "10497" [ref=e724]
+                - cell "follow" [ref=e725]
+                - cell "processing" [ref=e726]
+                - cell "28" [ref=e727]
+                - cell "60" [ref=e728]
+                - cell "2026-05-07 15:11" [ref=e729]
+              - row "panel_10482_1778… 10482 like completed 30 30 2026-05-07 14:20" [ref=e730]:
+                - cell "panel_10482_1778…" [ref=e731]
+                - cell "10482" [ref=e732]
+                - cell "like" [ref=e733]
+                - cell "completed" [ref=e734]
+                - cell "30" [ref=e735]
+                - cell "30" [ref=e736]
+                - cell "2026-05-07 14:20" [ref=e737]
+              - row "panel_10397_1778… 10397 like completed 94 94 2026-05-07 05:42" [ref=e738]:
+                - cell "panel_10397_1778…" [ref=e739]
+                - cell "10397" [ref=e740]
+                - cell "like" [ref=e741]
+                - cell "completed" [ref=e742]
+                - cell "94" [ref=e743]
+                - cell "94" [ref=e744]
+                - cell "2026-05-07 05:42" [ref=e745]
+              - row "panel_10396_1778… 10396 follow cancelled 83 100 2026-05-07 05:18" [ref=e746]:
+                - cell "panel_10396_1778…" [ref=e747]
+                - cell "10396" [ref=e748]
+                - cell "follow" [ref=e749]
+                - cell "cancelled" [ref=e750]
+                - cell "83" [ref=e751]
+                - cell "100" [ref=e752]
+                - cell "2026-05-07 05:18" [ref=e753]
+              - row "panel_10393_1778… 10393 follow completed 100 100 2026-05-07 05:05" [ref=e754]:
+                - cell "panel_10393_1778…" [ref=e755]
+                - cell "10393" [ref=e756]
+                - cell "follow" [ref=e757]
+                - cell "completed" [ref=e758]
+                - cell "100" [ref=e759]
+                - cell "100" [ref=e760]
+                - cell "2026-05-07 05:05" [ref=e761]
+              - row "panel_10361_1778… 10361 like completed 104 104 2026-05-07 02:33" [ref=e762]:
+                - cell "panel_10361_1778…" [ref=e763]
+                - cell "10361" [ref=e764]
+                - cell "like" [ref=e765]
+                - cell "completed" [ref=e766]
+                - cell "104" [ref=e767]
+                - cell "104" [ref=e768]
+                - cell "2026-05-07 02:33" [ref=e769]
+              - row "panel_10339_1778… 10339 follow completed 50 50 2026-05-07 01:23" [ref=e770]:
+                - cell "panel_10339_1778…" [ref=e771]
+                - cell "10339" [ref=e772]
+                - cell "follow" [ref=e773]
+                - cell "completed" [ref=e774]
+                - cell "50" [ref=e775]
+                - cell "50" [ref=e776]
+                - cell "2026-05-07 01:23" [ref=e777]
+              - row "panel_10332_1778… 10332 like completed 102 102 2026-05-07 00:46" [ref=e778]:
+                - cell "panel_10332_1778…" [ref=e779]
+                - cell "10332" [ref=e780]
+                - cell "like" [ref=e781]
+                - cell "completed" [ref=e782]
+                - cell "102" [ref=e783]
+                - cell "102" [ref=e784]
+                - cell "2026-05-07 00:46" [ref=e785]
+              - row "panel_10216_1778… 10216 like completed 68 68 2026-05-06 21:12" [ref=e786]:
+                - cell "panel_10216_1778…" [ref=e787]
+                - cell "10216" [ref=e788]
+                - cell "like" [ref=e789]
+                - cell "completed" [ref=e790]
+                - cell "68" [ref=e791]
+                - cell "68" [ref=e792]
+                - cell "2026-05-06 21:12" [ref=e793]
+              - row "panel_10096_1778… 10096 follow cancelled 152 240 2026-05-06 14:37" [ref=e794]:
+                - cell "panel_10096_1778…" [ref=e795]
+                - cell "10096" [ref=e796]
+                - cell "follow" [ref=e797]
+                - cell "cancelled" [ref=e798]
+                - cell "152" [ref=e799]
+                - cell "240" [ref=e800]
+                - cell "2026-05-06 14:37" [ref=e801]

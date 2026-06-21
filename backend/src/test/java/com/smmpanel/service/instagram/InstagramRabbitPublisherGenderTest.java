@@ -10,11 +10,11 @@ import org.junit.jupiter.api.Test;
 /**
  * Unit tests for the gender-targeting helpers in {@link InstagramRabbitPublisher}.
  *
- * <p>Both helpers are pure functions of their inputs (no Spring context, no I/O), so a plain
- * JUnit class is enough — these tests are mostly there to lock the bot-side contract in
- * place. The bot reads gender ONLY from the {@code GENDER:MALE\n} / {@code GENDER:FEMALE\n}
- * prefix at the start of {@code commentText}; if these tests start failing, the very real
- * customer-facing symptom ("MALE-targeted order delivered by female accounts") comes back.
+ * <p>Both helpers are pure functions of their inputs (no Spring context, no I/O), so a plain JUnit
+ * class is enough — these tests are mostly there to lock the bot-side contract in place. The bot
+ * reads gender ONLY from the {@code GENDER:MALE\n} / {@code GENDER:FEMALE\n} prefix at the start of
+ * {@code commentText}; if these tests start failing, the very real customer-facing symptom
+ * ("MALE-targeted order delivered by female accounts") comes back.
  */
 class InstagramRabbitPublisherGenderTest {
 
@@ -98,7 +98,8 @@ class InstagramRabbitPublisherGenderTest {
                     "GENDER:MALE\n",
                     InstagramRabbitPublisher.buildCommentTextWithGender(null, "MALE"));
             assertEquals(
-                    "GENDER:MALE\n", InstagramRabbitPublisher.buildCommentTextWithGender("", "MALE"));
+                    "GENDER:MALE\n",
+                    InstagramRabbitPublisher.buildCommentTextWithGender("", "MALE"));
         }
 
         @Test

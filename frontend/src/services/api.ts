@@ -162,6 +162,24 @@ export const orderAPI = {
 };
 
 // =====================================================================
+// Refill drop-check (user-facing) — the Refill page.
+//
+// Flow: POST /check kicks off the bot's live drop scan and returns immediately
+// with status=RUNNING; poll GET /check every few seconds until DONE/FAILED, then
+// (if canRefill) submit the actual refill request via orderAPI.requestRefill —
+// which now binds the checked drop amount so admin approval re-delivers only the
+// drop, not the whole order. History comes from profileAPI.myRefillRequests().
+// =====================================================================
+export const refillAPI = {
+  // Returns RefillCheckResponse { status: 'RUNNING' | 'DONE' | 'FAILED', dropRate,
+  // refillNeeded, canRefill, earlyStopped, ... }. 409 on combo / ineligible / rate-limited.
+  checkDrop: (orderId: number) => api.post(`/v1/refill/check/${orderId}`).then((r) => r.data),
+
+  // Latest check for an order (404 if none yet). Poll while status === 'RUNNING'.
+  getCheck: (orderId: number) => api.get(`/v1/refill/check/${orderId}`).then((r) => r.data),
+};
+
+// =====================================================================
 // Services catalog (user)
 // =====================================================================
 export const serviceAPI = {
@@ -622,6 +640,22 @@ export const adminAPI = {
     api.post(`/v2/admin/refill-requests/${id}/approve`).then((r) => r.data),
   refillRequestsReject: (id: number | string, reason: string) =>
     api.post(`/v2/admin/refill-requests/${id}/reject`, { reason }).then((r) => r.data),
+
+  // Admin drop-check tool — check ANY order by id (admin Refill page).
+  refillCheckStart: (orderId: number) =>
+    api.post(`/v2/admin/refill-checks/${orderId}`).then((r) => r.data),
+  refillCheckGet: (orderId: number) =>
+    api.get(`/v2/admin/refill-checks/${orderId}`).then((r) => r.data),
+  // Direct admin refill. With `quantity` → re-deliver exactly that (the checked drop);
+  // without → legacy whole-order/remainder override.
+  refillOrderDirect: (orderId: number, quantity?: number) =>
+    api
+      .post(
+        `/v2/admin/orders/${orderId}/refill`,
+        null,
+        quantity != null ? { params: { quantity } } : undefined,
+      )
+      .then((r) => r.data),
 };
 
 export default api;

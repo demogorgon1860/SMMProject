@@ -4,11 +4,13 @@ import com.smmpanel.dto.refill.RefillRequestResponse;
 import com.smmpanel.dto.refill.RefillResponse;
 import com.smmpanel.entity.Order;
 import com.smmpanel.entity.OrderStatus;
+import com.smmpanel.entity.RefillCheck;
 import com.smmpanel.entity.RefillRequest;
 import com.smmpanel.entity.User;
 import com.smmpanel.exception.ResourceNotFoundException;
 import com.smmpanel.exception.UserNotFoundException;
 import com.smmpanel.repository.jpa.OrderRepository;
+import com.smmpanel.repository.jpa.RefillCheckRepository;
 import com.smmpanel.repository.jpa.RefillRequestRepository;
 import com.smmpanel.repository.jpa.UserRepository;
 import java.time.Duration;
@@ -56,6 +58,7 @@ public class RefillRequestService {
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final OrderRefillService orderRefillService;
+    private final RefillCheckRepository refillCheckRepository;
 
     /** Refill window measured from {@code Order.updatedAt} (= order completion time). */
     @Value("${app.refill.window-days:30}")
@@ -132,6 +135,27 @@ public class RefillRequestService {
                         .status(RefillRequest.Status.PENDING)
                         .userNote(trimToNull(userNote))
                         .build();
+
+        // Bind the latest completed drop-check so approval re-delivers ONLY the dropped amount
+        // and the admin queue shows the real drop rate. No check present → legacy whole-order
+        // refill on approval (preserves the Orders-drawer "request refill" path).
+        Optional<RefillCheck> doneCheck =
+                refillCheckRepository.findFirstByOrderIdAndStatusOrderByRequestedAtDesc(
+                        orderId, RefillCheck.Status.DONE);
+        if (doneCheck.isPresent()) {
+            RefillCheck c = doneCheck.get();
+            if (c.getRefillNeeded() != null && c.getRefillNeeded() <= 0) {
+                throw new IllegalStateException("Дроп не обнаружен — доливать нечего.");
+            }
+            req.setBotRefillNeeded(c.getRefillNeeded());
+            req.setBotDropped(c.getDropped());
+            req.setBotDropRate(c.getDropRate());
+            req.setBotCurrentCount(c.getCurrentCount());
+            req.setBotEarlyStopped(c.getEarlyStopped());
+            req.setBotCheckId(c.getId());
+            req.setBotCheckedAt(c.getCheckedAt());
+        }
+
         try {
             req = refillRequestRepository.save(req);
         } catch (DataIntegrityViolationException e) {
@@ -210,7 +234,13 @@ public class RefillRequestService {
             throw new IllegalStateException("Request already " + req.getStatus());
         }
 
-        RefillResponse refill = orderRefillService.createRefill(req.getOrderId());
+        // Drop-based: when the request carries a bot-checked drop amount, re-deliver exactly that
+        // (not the whole order). Falls back to the legacy quantity when no check was bound.
+        RefillResponse refill =
+                req.getBotRefillNeeded() != null
+                        ? orderRefillService.createRefill(
+                                req.getOrderId(), req.getBotRefillNeeded())
+                        : orderRefillService.createRefill(req.getOrderId());
 
         req.setStatus(RefillRequest.Status.APPROVED);
         req.setAdminId(admin.getId());

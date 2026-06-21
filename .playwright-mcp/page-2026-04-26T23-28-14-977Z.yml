@@ -1,0 +1,143 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - link "SMMWorld SMMWorld" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - img "SMMWorld" [ref=e7]
+        - generic [ref=e8]: SMMWorld
+      - navigation [ref=e9]:
+        - link "Services" [ref=e10] [cursor=pointer]:
+          - /url: /services-list
+        - link "Pricing" [ref=e11] [cursor=pointer]:
+          - /url: /pricing
+        - link "API" [ref=e12] [cursor=pointer]:
+          - /url: /api-docs
+        - link "Help" [ref=e13] [cursor=pointer]:
+          - /url: /help
+      - button "Toggle theme" [ref=e14] [cursor=pointer]:
+        - img [ref=e15]
+      - link "Sign in" [ref=e17] [cursor=pointer]:
+        - /url: /login
+      - link "Get started" [ref=e18] [cursor=pointer]:
+        - /url: /register
+        - text: Get started
+        - img [ref=e19]
+  - main [ref=e21]:
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - generic [ref=e24]:
+          - generic [ref=e25]: Legal
+          - heading "Privacy Policy" [level=1] [ref=e26]
+          - generic [ref=e27]: Last updated 2026-04-15
+        - generic [ref=e28]:
+          - button "Print" [ref=e29] [cursor=pointer]:
+            - img [ref=e30]
+            - text: Print
+          - link "Contact" [ref=e33] [cursor=pointer]:
+            - /url: mailto:compliance@smmworld.vip
+            - button "Contact" [ref=e34]
+      - generic [ref=e35]:
+        - navigation [ref=e36]:
+          - generic [ref=e37]:
+            - generic [ref=e38]: Sections
+            - list [ref=e39]:
+              - listitem [ref=e40]:
+                - link "01Plain-English summary" [ref=e41] [cursor=pointer]:
+                  - /url: "#summary"
+              - listitem [ref=e42]:
+                - link "02What we collect" [ref=e43] [cursor=pointer]:
+                  - /url: "#collect"
+              - listitem [ref=e44]:
+                - link "03How we use it" [ref=e45] [cursor=pointer]:
+                  - /url: "#use"
+              - listitem [ref=e46]:
+                - link "04Who we share with" [ref=e47] [cursor=pointer]:
+                  - /url: "#share"
+              - listitem [ref=e48]:
+                - link "05How long we keep it" [ref=e49] [cursor=pointer]:
+                  - /url: "#retain"
+              - listitem [ref=e50]:
+                - link "06Your rights" [ref=e51] [cursor=pointer]:
+                  - /url: "#rights"
+              - listitem [ref=e52]:
+                - link "07Cookies" [ref=e53] [cursor=pointer]:
+                  - /url: "#cookies"
+              - listitem [ref=e54]:
+                - link "08Children" [ref=e55] [cursor=pointer]:
+                  - /url: "#children"
+              - listitem [ref=e56]:
+                - link "09Contact DPO" [ref=e57] [cursor=pointer]:
+                  - /url: "#contact"
+            - paragraph [ref=e58]: This is the legally binding version. A plain-English summary lives at the top of each document.
+        - article [ref=e59]:
+          - heading "Plain-English summary" [level=2] [ref=e60]
+          - paragraph [ref=e61]: We collect the minimum needed to run the service. We don't sell your data. We don't run ads. Crypto-only payments mean we don't even store card details.
+          - heading "What we collect" [level=2] [ref=e62]
+          - list [ref=e63]:
+            - listitem [ref=e64]: "Account: email, username, hashed password"
+            - listitem [ref=e65]: "Usage: orders you place, links you submit, IP address, user-agent"
+            - listitem [ref=e66]: "Billing: deposit transactions and crypto wallet addresses"
+            - listitem [ref=e67]: "Support: ticket content and attachments you send"
+          - heading "How we use it" [level=2] [ref=e68]
+          - paragraph [ref=e69]: To deliver orders, prevent fraud, comply with law, and improve the service. We do not use your data to train AI or sell to third parties.
+          - heading "Who we share with" [level=2] [ref=e70]
+          - paragraph [ref=e71]: We share data only with sub-processors necessary to operate (e.g. Cryptomus for payments) under appropriate data-processing agreements.
+          - heading "How long we keep it" [level=2] [ref=e72]
+          - paragraph [ref=e73]: Active account data is retained while your account is open. Order history and audit logs are kept 7 years for accounting and AML compliance. After deletion (Profile → Danger Zone), personal data is purged within 30 days.
+          - heading "Your rights" [level=2] [ref=e74]
+          - paragraph [ref=e75]:
+            - text: Under GDPR / CCPA you can request access, correction, deletion, or export of your data. Email
+            - code [ref=e76]: compliance@smmworld.vip
+            - text: from the address on your account.
+          - heading "Cookies" [level=2] [ref=e77]
+          - paragraph [ref=e78]: We use a single session cookie for authentication and a refresh-token cookie. We do not use tracking or advertising cookies.
+          - heading "Children" [level=2] [ref=e79]
+          - paragraph [ref=e80]: Service is not directed to children under 18. We delete any account we discover does not meet this requirement.
+          - heading "Contact DPO" [level=2] [ref=e81]
+          - paragraph [ref=e82]:
+            - text: Email
+            - code [ref=e83]: dpo@smmworld.vip
+            - text: . We respond within 30 days.
+  - contentinfo [ref=e84]:
+    - generic [ref=e85]:
+      - generic [ref=e86]:
+        - generic [ref=e87]:
+          - img "SMMWorld" [ref=e88]
+          - generic [ref=e89]: SMMWorld
+        - paragraph [ref=e90]: Infrastructure for Instagram growth.
+      - generic [ref=e91]:
+        - generic [ref=e92]: Product
+        - list [ref=e93]:
+          - listitem [ref=e94]:
+            - link "Services" [ref=e95] [cursor=pointer]:
+              - /url: /services-list
+          - listitem [ref=e96]:
+            - link "Pricing" [ref=e97] [cursor=pointer]:
+              - /url: /pricing
+          - listitem [ref=e98]:
+            - link "API" [ref=e99] [cursor=pointer]:
+              - /url: /api-docs
+      - generic [ref=e100]:
+        - generic [ref=e101]: Company
+        - list [ref=e102]:
+          - listitem [ref=e103]:
+            - link "Help" [ref=e104] [cursor=pointer]:
+              - /url: /help
+          - listitem [ref=e105]:
+            - link "Terms" [ref=e106] [cursor=pointer]:
+              - /url: /legal/terms
+          - listitem [ref=e107]:
+            - link "Privacy" [ref=e108] [cursor=pointer]:
+              - /url: /legal/privacy
+      - generic [ref=e109]:
+        - generic [ref=e110]: Refund & AML
+        - list [ref=e111]:
+          - listitem [ref=e112]:
+            - link "Refund Policy" [ref=e113] [cursor=pointer]:
+              - /url: /legal/refund
+          - listitem [ref=e114]:
+            - link "AML Policy" [ref=e115] [cursor=pointer]:
+              - /url: /legal/aml
+    - generic [ref=e116]:
+      - generic [ref=e117]: © 2026 SMMWorld. All systems normal.
+      - generic [ref=e118]: smmworld.vip

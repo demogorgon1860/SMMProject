@@ -200,9 +200,9 @@ public interface OptimizedOrderQueries {
 /**
  * QUERY OPTIMIZATION PATTERNS USED:
  *
- * <p>1. JOIN FETCH for required relationships (user, service) 2. DISTINCT when fetching collections to avoid
- * cartesian products 4. Proper ordering for predictable results 5. Parameterized queries for
- * security and performance 6. Specialized indexes support (see entity definitions)
+ * <p>1. JOIN FETCH for required relationships (user, service) 2. DISTINCT when fetching collections
+ * to avoid cartesian products 4. Proper ordering for predictable results 5. Parameterized queries
+ * for security and performance 6. Specialized indexes support (see entity definitions)
  *
  * <p>PERFORMANCE BENEFITS: - Eliminates N+1 queries - Reduces database round trips from O(n) to
  * O(1) - Improves page load times significantly - Better memory utilization in application -

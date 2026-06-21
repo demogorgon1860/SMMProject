@@ -11,6 +11,7 @@ import com.smmpanel.exception.ResourceNotFoundException;
 import com.smmpanel.producer.OrderEventProducer;
 import com.smmpanel.repository.jpa.OrderRefillRepository;
 import com.smmpanel.repository.jpa.OrderRepository;
+import com.smmpanel.util.AfterCommitRunner;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -32,9 +33,9 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li>{@code PARTIAL} → top up only the under-delivered amount ({@code quantity - delivered}).
- *   <li>{@code COMPLETED} → replace the full original quantity. The panel has no background
- *       re-poll of post metrics after completion, so we can't independently detect drops; admin
- *       approval IS the drop-claim gate.
+ *   <li>{@code COMPLETED} → replace the full original quantity. The panel has no background re-poll
+ *       of post metrics after completion, so we can't independently detect drops; admin approval IS
+ *       the drop-claim gate.
  * </ul>
  *
  * <p>{@code IN_PROGRESS} orders are not eligible — refilling while the bot is still running the
@@ -57,10 +58,27 @@ public class OrderRefillService {
     private static final int IDEMPOTENCY_WINDOW_SECONDS = 60;
     private static final double MAX_REFILL_QUANTITY_MULTIPLIER = 1.5;
 
-    /** Create a refill for an order that has underdelivered Instagram actions. */
+    /**
+     * Create a refill using the legacy default quantity (full original for COMPLETED, undelivered
+     * remainder for PARTIAL). Kept for the admin manual-override path.
+     */
     @Transactional(isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
     public RefillResponse createRefill(Long orderId) {
-        log.info("[REFILL] Creating refill for order {}", orderId);
+        return createRefill(orderId, null);
+    }
+
+    /**
+     * Create a refill for an order. When {@code overrideRefillQuantity} is non-null (e.g. the
+     * bot-checked drop amount {@code refill_needed}), the refill is sized to exactly that many
+     * actions — re-delivering ONLY what dropped — instead of the legacy default. Still subject to
+     * the {@code <= 0} guard and the 1.5x cap.
+     */
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    public RefillResponse createRefill(Long orderId, Integer overrideRefillQuantity) {
+        log.info(
+                "[REFILL] Creating refill for order {} (override={})",
+                orderId,
+                overrideRefillQuantity);
 
         Order originalOrder = acquireOrderLockForRefill(orderId);
 
@@ -82,10 +100,16 @@ public class OrderRefillService {
         // The {@link #MAX_REFILL_QUANTITY_MULTIPLIER} cap (1.5x of original quantity) below
         // is the hard guardrail; neither branch ever exceeds 1.0x by construction.
         Integer deliveredViews = calculateDeliveredViews(originalOrder);
-        int refillQuantity =
-                originalOrder.getStatus() == OrderStatus.COMPLETED
-                        ? originalOrder.getQuantity()
-                        : Math.max(0, originalOrder.getQuantity() - deliveredViews);
+        int refillQuantity;
+        if (overrideRefillQuantity != null) {
+            // Drop-based: re-deliver exactly the bot-checked dropped amount (refill_needed).
+            refillQuantity = overrideRefillQuantity;
+        } else {
+            refillQuantity =
+                    originalOrder.getStatus() == OrderStatus.COMPLETED
+                            ? originalOrder.getQuantity()
+                            : Math.max(0, originalOrder.getQuantity() - deliveredViews);
+        }
 
         log.info(
                 "[REFILL] Order {} - Status: {}, Original: {}, Delivered: {}, RefillQty: {}",
@@ -139,7 +163,11 @@ public class OrderRefillService {
                 refillOrder.getId(),
                 originalOrder.getUser().getId());
 
-        orderEventProducer.publishOrderCreatedEvent(event);
+        // Publish AFTER the surrounding transaction commits. approve() joins this tx (REQUIRED),
+        // so sending inline risks (a) the Kafka consumer reading the refill Order row before it's
+        // committed → "order not found", and (b) phantom dispatch if the tx later rolls back.
+        // Same pattern OrderService.createOrder uses.
+        AfterCommitRunner.runAfterCommit(() -> orderEventProducer.publishOrderCreatedEvent(event));
 
         log.info(
                 "[REFILL] SUCCESS - Refill ID: {}, Refill Order ID: {}, Quantity: {}",

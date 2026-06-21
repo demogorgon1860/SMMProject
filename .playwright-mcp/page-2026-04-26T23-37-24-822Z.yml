@@ -1,0 +1,223 @@
+- generic [ref=e67]:
+  - complementary [ref=e68]:
+    - generic [ref=e69]:
+      - link "SMMWorld SMMWorld admin · v2.4.1" [ref=e70] [cursor=pointer]:
+        - /url: /admin
+        - img "SMMWorld" [ref=e71]
+        - generic [ref=e72]:
+          - generic [ref=e73]: SMMWorld
+          - generic [ref=e74]: admin · v2.4.1
+      - button "Collapse" [ref=e75] [cursor=pointer]:
+        - img [ref=e76]
+    - navigation [ref=e78]:
+      - generic [ref=e79]:
+        - generic [ref=e80]: Operations
+        - link "Dashboard" [ref=e81] [cursor=pointer]:
+          - /url: /admin
+          - img [ref=e83]
+          - generic [ref=e88]: Dashboard
+        - link "Orders" [ref=e89] [cursor=pointer]:
+          - /url: /admin/orders
+          - img [ref=e90]
+          - generic [ref=e92]: Orders
+        - link "Refill requests" [ref=e93] [cursor=pointer]:
+          - /url: /admin/refill-requests
+          - img [ref=e94]
+          - generic [ref=e96]: Refill requests
+        - link "Services" [ref=e97] [cursor=pointer]:
+          - /url: /admin/services
+          - img [ref=e98]
+          - generic [ref=e103]: Services
+      - generic [ref=e104]:
+        - generic [ref=e105]: Customers
+        - link "Users" [ref=e106] [cursor=pointer]:
+          - /url: /admin/users
+          - img [ref=e107]
+          - generic [ref=e112]: Users
+      - generic [ref=e113]:
+        - generic [ref=e114]: Money
+        - link "Payments" [ref=e115] [cursor=pointer]:
+          - /url: /admin/payments
+          - img [ref=e116]
+          - generic [ref=e119]: Payments
+        - link "Balance Txs" [ref=e120] [cursor=pointer]:
+          - /url: /admin/balance
+          - img [ref=e121]
+          - generic [ref=e124]: Balance Txs
+      - generic [ref=e125]:
+        - generic [ref=e126]: Infrastructure
+        - link "Instagram Bot" [ref=e127] [cursor=pointer]:
+          - /url: /admin/bot
+          - img [ref=e128]
+          - generic [ref=e133]: Instagram Bot
+        - link "Telegram Control" [ref=e134] [cursor=pointer]:
+          - /url: /admin/telegram
+          - img [ref=e135]
+          - generic [ref=e137]: Telegram Control
+        - link "System Monitoring" [ref=e138] [cursor=pointer]:
+          - /url: /admin/system
+          - img [ref=e139]
+          - generic [ref=e141]: System Monitoring
+      - generic [ref=e142]:
+        - generic [ref=e143]: Settings
+        - link "Settings" [ref=e144] [cursor=pointer]:
+          - /url: /admin/settings
+          - img [ref=e145]
+          - generic [ref=e148]: Settings
+    - generic [ref=e149]:
+      - generic [ref=e150]: System health
+      - generic [ref=e151]:
+        - generic [ref=e153]: Degraded
+        - generic [ref=e154]: bot-02
+  - generic [ref=e155]:
+    - banner [ref=e156]:
+      - button "Search orders, users, services… ⌘K" [ref=e157] [cursor=pointer]:
+        - img [ref=e158]
+        - generic [ref=e161]: Search orders, users, services…
+        - generic [ref=e162]: ⌘K
+      - generic [ref=e163]: PROD
+      - button "Toggle theme" [ref=e165] [cursor=pointer]:
+        - img [ref=e166]
+      - button "Notifications" [ref=e168] [cursor=pointer]:
+        - img [ref=e169]
+      - button "A admin admin" [ref=e173] [cursor=pointer]:
+        - generic [ref=e174]: A
+        - generic [ref=e175]:
+          - generic [ref=e176]: admin
+          - generic [ref=e177]: admin
+        - img [ref=e178]
+    - main [ref=e180]:
+      - generic [ref=e182]:
+        - generic [ref=e183]:
+          - generic [ref=e184]: Operations dashboard
+          - generic [ref=e186]: Live as of just now
+        - generic [ref=e187]:
+          - button "Refresh" [ref=e188] [cursor=pointer]:
+            - img [ref=e189]
+            - text: Refresh
+          - button "Export report" [ref=e191] [cursor=pointer]:
+            - img [ref=e192]
+            - text: Export report
+      - generic [ref=e194]:
+        - generic [ref=e195]:
+          - generic [ref=e196]:
+            - generic [ref=e197]:
+              - generic [ref=e198]: Today's profit
+              - generic [ref=e199]: +12.4%
+            - generic [ref=e200]: $0.00
+            - img [ref=e202]
+          - generic [ref=e205]:
+            - generic [ref=e206]:
+              - generic [ref=e207]: Today's orders
+              - generic [ref=e208]: +12.4%
+            - generic [ref=e209]: "0"
+            - img [ref=e211]
+          - generic [ref=e214]:
+            - generic [ref=e216]: Active orders
+            - generic [ref=e217]: "0"
+            - generic [ref=e218]: 0 dispatched
+          - generic [ref=e219]:
+            - generic [ref=e221]: Pending decisions
+            - generic [ref=e222]: "0"
+            - generic [ref=e223]: none
+          - generic [ref=e224]:
+            - generic [ref=e226]: Total users
+            - generic [ref=e227]: "0"
+          - generic [ref=e228]:
+            - generic [ref=e230]: Bot health
+            - generic [ref=e233]: Degraded
+            - generic [ref=e235]: auto-refresh · 10s
+        - generic [ref=e236]:
+          - generic [ref=e237]:
+            - generic [ref=e238]:
+              - generic [ref=e239]:
+                - generic [ref=e240]: Profit · last 30 days
+                - generic [ref=e241]: Avg $782 / day · Σ $23.4k
+              - button "Range" [ref=e242] [cursor=pointer]
+            - img [ref=e244]:
+              - generic [ref=e246]: "680"
+              - generic [ref=e248]: "510"
+              - generic [ref=e250]: "340"
+              - generic [ref=e252]: "170"
+              - generic [ref=e254]: "0"
+              - generic [ref=e263]: "-29d"
+              - generic [ref=e264]: "-24d"
+              - generic [ref=e265]: "-19d"
+              - generic [ref=e266]: "-14d"
+              - generic [ref=e267]: "-9d"
+              - generic [ref=e268]: "-4d"
+          - generic [ref=e269]:
+            - generic [ref=e271]:
+              - generic [ref=e272]: Orders by status · last 30 days
+              - generic [ref=e274]:
+                - generic [ref=e275]: completed
+                - generic [ref=e277]: partial
+                - generic [ref=e279]: cancelled
+            - img [ref=e282]:
+              - generic [ref=e284]: "135"
+              - generic [ref=e286]: "101"
+              - generic [ref=e288]: "68"
+              - generic [ref=e290]: "34"
+              - generic [ref=e292]: "0"
+              - generic [ref=e413]: "-29d"
+              - generic [ref=e414]: "-24d"
+              - generic [ref=e415]: "-19d"
+              - generic [ref=e416]: "-14d"
+              - generic [ref=e417]: "-9d"
+              - generic [ref=e418]: "-4d"
+        - generic [ref=e419]:
+          - generic [ref=e420]:
+            - generic [ref=e421]:
+              - generic [ref=e422]:
+                - generic [ref=e423]: Recent orders
+                - generic [ref=e424]: Last 0 orders
+              - link "View all" [ref=e425] [cursor=pointer]:
+                - /url: /admin/orders
+                - button "View all" [ref=e426]:
+                  - text: View all
+                  - img [ref=e427]
+            - generic [ref=e430]: No orders yet today.
+          - generic [ref=e431]:
+            - generic [ref=e432]:
+              - generic [ref=e433]:
+                - generic [ref=e434]: Recent admin actions
+                - generic [ref=e435]: Most recent first
+              - link "Full audit log" [ref=e436] [cursor=pointer]:
+                - /url: /admin/settings?tab=audit
+                - button "Full audit log" [ref=e437]:
+                  - text: Full audit log
+                  - img [ref=e438]
+            - generic [ref=e441]: Admin actions you take (refunds, balance adjusts, mark partial) appear here.
+        - generic [ref=e442]:
+          - generic [ref=e443]:
+            - generic [ref=e444]:
+              - generic [ref=e445]: Live system status
+              - generic [ref=e446]: auto-refresh · 10s
+            - button "Refresh" [ref=e447] [cursor=pointer]:
+              - img [ref=e448]
+              - text: Refresh
+          - generic [ref=e451]:
+            - generic [ref=e452]:
+              - generic [ref=e455]: Spring Boot
+              - generic [ref=e456]: 14ms
+              - generic [ref=e457]: v2.4.1 · 3h uptime
+            - generic [ref=e458]:
+              - generic [ref=e461]: PostgreSQL
+              - generic [ref=e462]: 3ms
+              - generic [ref=e463]: 42 conn · 18.2 GB
+            - generic [ref=e464]:
+              - generic [ref=e467]: Redis
+              - generic [ref=e468]: 1ms
+              - generic [ref=e469]: lettuce · 412 MB
+            - generic [ref=e470]:
+              - generic [ref=e473]: RabbitMQ
+              - generic [ref=e474]: 6ms
+              - generic [ref=e475]: 12 queues · 0 DLQ
+            - generic [ref=e476]:
+              - generic [ref=e479]: IG Bot · primary
+              - generic [ref=e480]: 41ms
+              - generic [ref=e481]: 6 workers
+            - generic [ref=e482]:
+              - generic [ref=e485]: IG Bot · secondary
+              - generic [ref=e486]: 312ms
+              - generic [ref=e487]: circuit half-open

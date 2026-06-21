@@ -1,0 +1,126 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - link "SMMWorld SMMWorld" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - img "SMMWorld" [ref=e7]
+        - generic [ref=e8]: SMMWorld
+      - navigation [ref=e9]:
+        - link "Services" [ref=e10] [cursor=pointer]:
+          - /url: /services-list
+        - link "Pricing" [ref=e11] [cursor=pointer]:
+          - /url: /pricing
+        - link "API" [ref=e12] [cursor=pointer]:
+          - /url: /api-docs
+        - link "Help" [ref=e13] [cursor=pointer]:
+          - /url: /help
+      - button "Toggle theme" [ref=e14] [cursor=pointer]:
+        - img [ref=e15]
+      - link "Sign in" [ref=e17] [cursor=pointer]:
+        - /url: /login
+      - link "Get started" [ref=e18] [cursor=pointer]:
+        - /url: /register
+        - text: Get started
+        - img [ref=e19]
+  - main [ref=e21]:
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - generic [ref=e24]:
+          - generic [ref=e25]: Legal
+          - heading "AML Policy" [level=1] [ref=e26]
+          - generic [ref=e27]: Last updated 2026-04-15
+        - generic [ref=e28]:
+          - button "Print" [ref=e29] [cursor=pointer]:
+            - img [ref=e30]
+            - text: Print
+          - link "Contact" [ref=e33] [cursor=pointer]:
+            - /url: mailto:compliance@smmworld.vip
+            - button "Contact" [ref=e34]
+      - generic [ref=e35]:
+        - navigation [ref=e36]:
+          - generic [ref=e37]:
+            - generic [ref=e38]: Sections
+            - list [ref=e39]:
+              - listitem [ref=e40]:
+                - link "01Why this exists" [ref=e41] [cursor=pointer]:
+                  - /url: "#why"
+              - listitem [ref=e42]:
+                - link "02Wallet screening" [ref=e43] [cursor=pointer]:
+                  - /url: "#screen"
+              - listitem [ref=e44]:
+                - link "03When we ask for ID" [ref=e45] [cursor=pointer]:
+                  - /url: "#kyc"
+              - listitem [ref=e46]:
+                - link "04Suspicious activity reports" [ref=e47] [cursor=pointer]:
+                  - /url: "#sars"
+              - listitem [ref=e48]:
+                - link "05Sanctions" [ref=e49] [cursor=pointer]:
+                  - /url: "#sanctions"
+              - listitem [ref=e50]:
+                - link "06Questions" [ref=e51] [cursor=pointer]:
+                  - /url: "#questions"
+            - paragraph [ref=e52]: This is the legally binding version. A plain-English summary lives at the top of each document.
+        - article [ref=e53]:
+          - heading "Why this exists" [level=2] [ref=e54]
+          - paragraph [ref=e55]: We're a crypto-accepting business operating in the EU. We screen for compliance with EU AMLD6 and equivalent regulations.
+          - heading "Wallet screening" [level=2] [ref=e56]
+          - paragraph [ref=e57]: Every incoming deposit is screened against sanction lists and known mixer/darknet flows via our payment processor. Flagged deposits are held until cleared.
+          - heading "When we ask for ID" [level=2] [ref=e58]
+          - paragraph [ref=e59]: "We may request KYC documents in narrow cases:"
+          - list [ref=e60]:
+            - listitem [ref=e61]: Cumulative deposits exceed €15,000 in a rolling 12-month period
+            - listitem [ref=e62]: The wallet screening flags require enhanced due diligence
+            - listitem [ref=e63]: You request a withdrawal larger than €10,000 in a single transaction
+          - paragraph [ref=e64]: Most accounts will never see this. When we do request it, the request is encrypted in transit and storage, and documents are deleted after the verification window.
+          - heading "Suspicious activity reports" [level=2] [ref=e65]
+          - paragraph [ref=e66]: We file SARs with the appropriate Financial Intelligence Unit when legally required. We do not warn affected users in such cases.
+          - heading "Sanctions" [level=2] [ref=e67]
+          - paragraph [ref=e68]: We do not knowingly serve users in OFAC-sanctioned jurisdictions, North Korea, Iran, Syria, Cuba, the Crimea region, Donetsk, or Luhansk.
+          - heading "Questions" [level=2] [ref=e69]
+          - paragraph [ref=e70]:
+            - text: Email
+            - code [ref=e71]: compliance@smmworld.vip
+            - text: .
+  - contentinfo [ref=e72]:
+    - generic [ref=e73]:
+      - generic [ref=e74]:
+        - generic [ref=e75]:
+          - img "SMMWorld" [ref=e76]
+          - generic [ref=e77]: SMMWorld
+        - paragraph [ref=e78]: Infrastructure for Instagram growth.
+      - generic [ref=e79]:
+        - generic [ref=e80]: Product
+        - list [ref=e81]:
+          - listitem [ref=e82]:
+            - link "Services" [ref=e83] [cursor=pointer]:
+              - /url: /services-list
+          - listitem [ref=e84]:
+            - link "Pricing" [ref=e85] [cursor=pointer]:
+              - /url: /pricing
+          - listitem [ref=e86]:
+            - link "API" [ref=e87] [cursor=pointer]:
+              - /url: /api-docs
+      - generic [ref=e88]:
+        - generic [ref=e89]: Company
+        - list [ref=e90]:
+          - listitem [ref=e91]:
+            - link "Help" [ref=e92] [cursor=pointer]:
+              - /url: /help
+          - listitem [ref=e93]:
+            - link "Terms" [ref=e94] [cursor=pointer]:
+              - /url: /legal/terms
+          - listitem [ref=e95]:
+            - link "Privacy" [ref=e96] [cursor=pointer]:
+              - /url: /legal/privacy
+      - generic [ref=e97]:
+        - generic [ref=e98]: Refund & AML
+        - list [ref=e99]:
+          - listitem [ref=e100]:
+            - link "Refund Policy" [ref=e101] [cursor=pointer]:
+              - /url: /legal/refund
+          - listitem [ref=e102]:
+            - link "AML Policy" [ref=e103] [cursor=pointer]:
+              - /url: /legal/aml
+    - generic [ref=e104]:
+      - generic [ref=e105]: © 2026 SMMWorld. All systems normal.
+      - generic [ref=e106]: smmworld.vip

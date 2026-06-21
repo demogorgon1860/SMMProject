@@ -1,0 +1,191 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - link "SMMWorld SMMWorld" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - img "SMMWorld" [ref=e7]
+        - generic [ref=e8]: SMMWorld
+      - navigation [ref=e9]:
+        - link "Services" [ref=e10] [cursor=pointer]:
+          - /url: /services-list
+        - link "Pricing" [ref=e11] [cursor=pointer]:
+          - /url: /pricing
+        - link "API" [ref=e12] [cursor=pointer]:
+          - /url: /api-docs
+        - link "Help" [ref=e13] [cursor=pointer]:
+          - /url: /help
+      - button "Toggle theme" [ref=e14] [cursor=pointer]:
+        - img [ref=e15]
+      - link "Sign in" [ref=e17] [cursor=pointer]:
+        - /url: /login
+      - link "Get started" [ref=e18] [cursor=pointer]:
+        - /url: /register
+        - text: Get started
+        - img [ref=e19]
+  - main [ref=e21]:
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - generic [ref=e24]: On the go
+        - heading "Built mobile-first." [level=1] [ref=e25]
+        - paragraph [ref=e26]: The web app collapses into clean responsive layouts on mobile. A native iOS app is on the roadmap — drop your email below to be notified.
+      - generic [ref=e28]:
+        - generic [ref=e29]:
+          - generic [ref=e35]:
+            - generic [ref=e36]: SMMWorld
+            - heading "Welcome back." [level=2] [ref=e37]
+            - paragraph [ref=e38]: Sign in to your account.
+            - generic [ref=e39]:
+              - textbox "you@example.com" [ref=e40]
+              - textbox "••••••••" [ref=e41]
+              - button "Sign in" [ref=e42] [cursor=pointer]
+            - generic [ref=e43]: or
+            - button "Sign in with passkey" [ref=e44] [cursor=pointer]
+          - generic [ref=e45]:
+            - generic [ref=e46]: "01"
+            - generic [ref=e47]: Sign in
+            - generic [ref=e48]: Passkey-first.
+        - generic [ref=e49]:
+          - generic [ref=e53]:
+            - generic [ref=e54]: Wallet
+            - generic [ref=e55]: $184.52
+            - generic [ref=e56]:
+              - generic [ref=e57]:
+                - generic [ref=e58]: Active
+                - generic [ref=e59]: "3"
+              - generic [ref=e60]:
+                - generic [ref=e61]: 30d spent
+                - generic [ref=e62]: $87.20
+            - generic [ref=e63]: Recent
+            - generic [ref=e64]:
+              - generic [ref=e65]:
+                - generic [ref=e66]: "#1029488"
+                - generic [ref=e67]: Likes — Standard
+              - generic "Bot is actively executing actions" [ref=e68]: In progress
+            - generic [ref=e70]:
+              - generic [ref=e71]:
+                - generic [ref=e72]: "#1029487"
+                - generic [ref=e73]: Followers — Real
+              - generic "Fully delivered" [ref=e74]: Completed
+            - generic [ref=e76]:
+              - generic [ref=e77]:
+                - generic [ref=e78]: "#1029486"
+                - generic [ref=e79]: Comments
+              - generic "Fully delivered" [ref=e80]: Completed
+          - generic [ref=e82]:
+            - generic [ref=e83]: "01"
+            - generic [ref=e84]: Dashboard
+            - generic [ref=e85]: At-a-glance.
+        - generic [ref=e86]:
+          - generic [ref=e90]:
+            - textbox "Search services" [ref=e91]
+            - generic [ref=e92]:
+              - generic [ref=e93]: IG
+              - generic [ref=e94]: TT
+              - generic [ref=e95]: YT
+              - generic [ref=e96]: X
+              - generic [ref=e97]: TG
+            - generic [ref=e98]:
+              - generic [ref=e99]:
+                - generic [ref=e100]: Likes — Standard
+                - generic [ref=e101]: $0.38/1k
+              - generic [ref=e102]:
+                - generic [ref=e103]: Likes — Premium
+                - generic [ref=e104]: $1.10/1k
+              - generic [ref=e105]:
+                - generic [ref=e106]: Followers — Real
+                - generic [ref=e107]: $4.20/1k
+              - generic [ref=e108]:
+                - generic [ref=e109]: Comments — Random
+                - generic [ref=e110]: $18.00/1k
+          - generic [ref=e111]:
+            - generic [ref=e112]: "01"
+            - generic [ref=e113]: Catalog
+            - generic [ref=e114]: Search, pick, order.
+        - generic [ref=e115]:
+          - generic [ref=e119]:
+            - generic [ref=e120]: "#1029488"
+            - generic [ref=e121]: Likes — Standard
+            - generic [ref=e123]:
+              - img [ref=e124]
+              - generic [ref=e127]:
+                - generic [ref=e128]: 62%
+                - generic [ref=e129]: 1,540 / 2,500
+            - generic [ref=e130]:
+              - generic [ref=e131]:
+                - generic [ref=e132]: Done
+                - generic [ref=e133]: 1.5k
+              - generic [ref=e134]:
+                - generic [ref=e135]: Remain
+                - generic [ref=e136]: "960"
+              - generic [ref=e137]:
+                - generic [ref=e138]: ETA
+                - generic [ref=e139]: 4m
+            - img [ref=e141]
+          - generic [ref=e144]:
+            - generic [ref=e145]: "01"
+            - generic [ref=e146]: Order detail
+            - generic [ref=e147]: Live progress.
+        - generic [ref=e148]:
+          - generic [ref=e154]:
+            - generic [ref=e155]: Add funds
+            - generic [ref=e156]: $50.00 · USDT TRC-20
+            - generic [ref=e158]: "[QR pattern]"
+            - generic [ref=e159]: TXyzAbCdEfGh12345MnOpQrStUv6789KlMn
+            - generic [ref=e160]:
+              - generic [ref=e161]: 19:42
+              - generic [ref=e162]: Awaiting
+            - generic [ref=e163]:
+              - img [ref=e164]
+              - text: Send only USDT (TRC-20)
+          - generic [ref=e166]:
+            - generic [ref=e167]: "01"
+            - generic [ref=e168]: Add funds
+            - generic [ref=e169]: QR + countdown.
+      - generic [ref=e170]:
+        - generic [ref=e171]: "Notify me when iOS launches:"
+        - generic [ref=e172]:
+          - textbox "you@example.com" [ref=e173]
+          - button "Notify me" [ref=e174] [cursor=pointer]
+  - contentinfo [ref=e175]:
+    - generic [ref=e176]:
+      - generic [ref=e177]:
+        - generic [ref=e178]:
+          - img "SMMWorld" [ref=e179]
+          - generic [ref=e180]: SMMWorld
+        - paragraph [ref=e181]: Infrastructure for Instagram growth.
+      - generic [ref=e182]:
+        - generic [ref=e183]: Product
+        - list [ref=e184]:
+          - listitem [ref=e185]:
+            - link "Services" [ref=e186] [cursor=pointer]:
+              - /url: /services-list
+          - listitem [ref=e187]:
+            - link "Pricing" [ref=e188] [cursor=pointer]:
+              - /url: /pricing
+          - listitem [ref=e189]:
+            - link "API" [ref=e190] [cursor=pointer]:
+              - /url: /api-docs
+      - generic [ref=e191]:
+        - generic [ref=e192]: Company
+        - list [ref=e193]:
+          - listitem [ref=e194]:
+            - link "Help" [ref=e195] [cursor=pointer]:
+              - /url: /help
+          - listitem [ref=e196]:
+            - link "Terms" [ref=e197] [cursor=pointer]:
+              - /url: /legal/terms
+          - listitem [ref=e198]:
+            - link "Privacy" [ref=e199] [cursor=pointer]:
+              - /url: /legal/privacy
+      - generic [ref=e200]:
+        - generic [ref=e201]: Refund & AML
+        - list [ref=e202]:
+          - listitem [ref=e203]:
+            - link "Refund Policy" [ref=e204] [cursor=pointer]:
+              - /url: /legal/refund
+          - listitem [ref=e205]:
+            - link "AML Policy" [ref=e206] [cursor=pointer]:
+              - /url: /legal/aml
+    - generic [ref=e207]:
+      - generic [ref=e208]: © 2026 SMMWorld. All systems normal.
+      - generic [ref=e209]: smmworld.vip

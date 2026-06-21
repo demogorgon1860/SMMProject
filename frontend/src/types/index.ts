@@ -89,6 +89,53 @@ export interface Order {
   refillParentId?: number | null;
 }
 
+// ----- Refill drop-check + requests --------------------------------
+// Decimal fields (dropRate) arrive as JSON strings on the wire (BigDecimal);
+// coerce with toNum before arithmetic / Donut progress.
+
+export interface RefillCheck {
+  id: number;
+  orderId: number;
+  status: 'RUNNING' | 'DONE' | 'FAILED';
+  /** like | follow | comment */
+  actionType?: string;
+  orderedCount?: number;
+  delivered?: number;
+  present?: number;
+  dropped?: number;
+  refillNeeded?: number;
+  currentCount?: number;
+  dropRate?: number | string;
+  earlyStopped?: boolean;
+  note?: string;
+  error?: string;
+  /** True only when DONE and there is something to re-deliver (refillNeeded > 0). */
+  canRefill?: boolean;
+  requestedAt?: string;
+  checkedAt?: string;
+}
+
+export interface RefillRequest {
+  id: number;
+  orderId: number;
+  userId?: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  userNote?: string;
+  rejectionReason?: string;
+  adminId?: number;
+  decidedAt?: string;
+  refillOrderId?: number;
+  createdAt: string;
+  // Bot drop-check snapshot bound at request time (null when requested without a check).
+  refillNeeded?: number;
+  dropped?: number;
+  dropRate?: number | string;
+  currentCount?: number;
+  checkedAt?: string;
+  /** Admin warning: the backing drop-check was stale at read time. */
+  staleCheck?: boolean;
+}
+
 // ----- Services -----------------------------------------------------
 
 export type ServiceCategory = 'likes' | 'follows' | 'comments';

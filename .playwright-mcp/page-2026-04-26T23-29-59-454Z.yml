@@ -1,0 +1,42 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - link "SMMWorld SMMWorld" [ref=e6] [cursor=pointer]:
+      - /url: /
+      - img "SMMWorld" [ref=e7]
+      - generic [ref=e8]: SMMWorld
+    - generic [ref=e10]:
+      - generic [ref=e11]: Verify email
+      - heading "Check your inbox." [level=1] [ref=e12]
+      - paragraph [ref=e13]: We sent a 6-digit code.
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - textbox [active] [ref=e16]
+          - textbox [ref=e17]
+          - textbox [ref=e18]
+          - textbox [ref=e19]
+          - textbox [ref=e20]
+          - textbox [ref=e21]
+        - button "Verify and continue" [ref=e22] [cursor=pointer]
+        - generic [ref=e23]:
+          - link "Back to sign in" [ref=e24] [cursor=pointer]:
+            - /url: /login
+          - button "Resend in 0:47" [disabled] [ref=e25]
+  - generic [ref=e31]:
+    - generic [ref=e32]: Security
+    - heading "Designed like a vault." [level=2] [ref=e33]
+    - list [ref=e34]:
+      - listitem [ref=e35]:
+        - img [ref=e37]
+        - text: Email verification before activation
+      - listitem [ref=e39]:
+        - img [ref=e41]
+        - text: Refresh token in HttpOnly cookie
+      - listitem [ref=e43]:
+        - img [ref=e45]
+        - text: Per-account API key, hash-only storage
+      - listitem [ref=e47]:
+        - img [ref=e49]
+        - text: Password reset revokes all sessions
+      - listitem [ref=e51]:
+        - img [ref=e53]
+        - text: Crypto-only payments — no card data stored

@@ -702,6 +702,20 @@ app:
   refill:
     # Days after order completion during which the user may request a free refill
     window-days: ${REFILL_WINDOW_DAYS:30}
+    # Live drop-check (bot /api/refill/check) — used by the Refill page.
+    check:
+      # Scheduler poll cadence for in-flight checks.
+      poll-interval-ms: ${REFILL_CHECK_POLL_INTERVAL_MS:10000}
+      # Reuse an in-flight RUNNING check newer than this (min) instead of re-queueing the bot.
+      # Keep below lost-threshold-minutes so a soon-to-fail check isn't handed back as RUNNING.
+      reuse-window-minutes: ${REFILL_CHECK_REUSE_WINDOW_MINUTES:3}
+      # Per-user check budget within the window below (throttles the expensive checker).
+      user-rate-limit: ${REFILL_CHECK_USER_RATE_LIMIT:20}
+      user-rate-window-minutes: ${REFILL_CHECK_USER_RATE_WINDOW_MINUTES:60}
+      # If the bot job vanishes (restart / LRU eviction) and the check is older than this → FAILED.
+      lost-threshold-minutes: ${REFILL_CHECK_LOST_THRESHOLD_MINUTES:4}
+      # Overall ceiling: a check still not done past this is FAILED (bot session TTL ~25 min).
+      max-age-minutes: ${REFILL_CHECK_MAX_AGE_MINUTES:30}
 
   # ===============================
   # WELCOME CREDIT

@@ -2,6 +2,7 @@ package com.smmpanel.dto.refill;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.smmpanel.entity.RefillRequest;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -36,8 +37,29 @@ public class RefillRequestResponse {
 
     private LocalDateTime createdAt;
 
+    // ---- Bot drop-check snapshot (null when the request had no prior check) ----
+    private Integer refillNeeded;
+    private Integer dropped;
+    private BigDecimal dropRate;
+    private Integer currentCount;
+    private LocalDateTime checkedAt;
+
+    /** True when the bot scan stopped early — the dropped amount is a conservative estimate. */
+    private Boolean earlyStopped;
+
+    /** True when the backing drop-check is older than the staleness threshold at read time. */
+    private Boolean staleCheck;
+
+    /** A drop-check older than this (minutes) is flagged stale for the admin warning. */
+    private static final long STALE_CHECK_MINUTES = 30;
+
     public static RefillRequestResponse from(RefillRequest r) {
         if (r == null) return null;
+        Boolean stale =
+                r.getBotCheckedAt() == null
+                        ? null
+                        : r.getBotCheckedAt()
+                                .isBefore(LocalDateTime.now().minusMinutes(STALE_CHECK_MINUTES));
         return RefillRequestResponse.builder()
                 .id(r.getId())
                 .orderId(r.getOrderId())
@@ -49,6 +71,13 @@ public class RefillRequestResponse {
                 .decidedAt(r.getDecidedAt())
                 .refillOrderId(r.getRefillOrderId())
                 .createdAt(r.getCreatedAt())
+                .refillNeeded(r.getBotRefillNeeded())
+                .dropped(r.getBotDropped())
+                .dropRate(r.getBotDropRate())
+                .currentCount(r.getBotCurrentCount())
+                .checkedAt(r.getBotCheckedAt())
+                .earlyStopped(r.getBotEarlyStopped())
+                .staleCheck(stale)
                 .build();
     }
 }

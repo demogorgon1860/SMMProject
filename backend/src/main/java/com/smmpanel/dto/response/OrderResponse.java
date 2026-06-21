@@ -32,8 +32,8 @@ public class OrderResponse {
 
     /**
      * True when this order is a refill issued for an earlier completed/partial order. The UI
-     * renders a small "Refill" badge next to the order so the customer can tell the row apart
-     * from a fresh paid order — same row layout, just a tag. Backed by {@code Order.isRefill}.
+     * renders a small "Refill" badge next to the order so the customer can tell the row apart from
+     * a fresh paid order — same row layout, just a tag. Backed by {@code Order.isRefill}.
      */
     private Boolean isRefill;
 

@@ -63,8 +63,7 @@ public class AdminService {
                 .ordersLast7Days(orderRepository.countFulfilledOrdersAfter(last7Days))
                 .ordersLast30Days(orderRepository.countFulfilledOrdersAfter(last30Days))
                 .totalRevenue(
-                        orderRepository.sumFulfilledRevenueAfter(
-                                LocalDateTime.now().minusYears(1)))
+                        orderRepository.sumFulfilledRevenueAfter(LocalDateTime.now().minusYears(1)))
                 .revenueLast24h(orderRepository.sumFulfilledRevenueAfter(last24Hours))
                 .revenueLast7Days(orderRepository.sumFulfilledRevenueAfter(last7Days))
                 .revenueLast30Days(orderRepository.sumFulfilledRevenueAfter(last30Days))
@@ -781,20 +780,19 @@ public class AdminService {
     }
 
     /**
-     * Two callers, both wired through the frontend's "Retry" button (action=start /
-     * action=resume on POST /v2/admin/orders/{id}/actions):
+     * Two callers, both wired through the frontend's "Retry" button (action=start / action=resume
+     * on POST /v2/admin/orders/{id}/actions):
      *
      * <ul>
-     *   <li><b>PAUSED</b> — bot was paused (admin or circuit-breaker); flip back to ACTIVE
-     *       so the existing dispatch resumes from where it stopped.
-     *   <li><b>PENDING</b> — order was created but never picked up by the bot fleet (or
-     *       the dispatch silently failed). Re-dispatch via {@link InstagramService}; if a
-     *       stale {@code instagramBotOrderId} exists, cancel it on the bot side first to
-     *       avoid double-execution.
+     *   <li><b>PAUSED</b> — bot was paused (admin or circuit-breaker); flip back to ACTIVE so the
+     *       existing dispatch resumes from where it stopped.
+     *   <li><b>PENDING</b> — order was created but never picked up by the bot fleet (or the
+     *       dispatch silently failed). Re-dispatch via {@link InstagramService}; if a stale {@code
+     *       instagramBotOrderId} exists, cancel it on the bot side first to avoid double-execution.
      * </ul>
      *
-     * Any other status throws — admin should pick the right action (cancel / mark-partial
-     * / force-complete) for terminal or in-progress orders.
+     * Any other status throws — admin should pick the right action (cancel / mark-partial /
+     * force-complete) for terminal or in-progress orders.
      */
     @Transactional
     public void resumeOrder(Long orderId) {
@@ -834,10 +832,8 @@ public class AdminService {
             com.smmpanel.dto.instagram.InstagramOrderResponse resp =
                     instagramService.createInstagramOrder(order);
             if (resp == null || !resp.isSuccess()) {
-                String msg =
-                        resp == null ? "no response from Instagram service" : resp.getError();
-                throw new IllegalStateException(
-                        "Re-dispatch to bot fleet failed: " + msg);
+                String msg = resp == null ? "no response from Instagram service" : resp.getError();
+                throw new IllegalStateException("Re-dispatch to bot fleet failed: " + msg);
             }
 
             log.info(

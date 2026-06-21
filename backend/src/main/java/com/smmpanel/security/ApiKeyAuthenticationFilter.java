@@ -147,8 +147,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                                 .toList();
 
                 for (User user : legacyCandidates) {
-                    String clientIdentifier =
-                            createClientIdentifier(request, user.getApiKeyHash());
+                    String clientIdentifier = createClientIdentifier(request, user.getApiKeyHash());
                     if (validateApiKeyWithRateLimit(apiKey, user, clientIdentifier)) {
                         authenticatedUser = user;
                         // One-shot migration: subsequent requests from this user take the

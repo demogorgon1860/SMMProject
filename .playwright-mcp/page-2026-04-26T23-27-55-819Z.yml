@@ -1,0 +1,153 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - link "SMMWorld SMMWorld" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - img "SMMWorld" [ref=e7]
+        - generic [ref=e8]: SMMWorld
+      - navigation [ref=e9]:
+        - link "Services" [ref=e10] [cursor=pointer]:
+          - /url: /services-list
+        - link "Pricing" [ref=e11] [cursor=pointer]:
+          - /url: /pricing
+        - link "API" [ref=e12] [cursor=pointer]:
+          - /url: /api-docs
+        - link "Help" [ref=e13] [cursor=pointer]:
+          - /url: /help
+      - button "Toggle theme" [ref=e14] [cursor=pointer]:
+        - img [ref=e15]
+      - link "Sign in" [ref=e17] [cursor=pointer]:
+        - /url: /login
+      - link "Get started" [ref=e18] [cursor=pointer]:
+        - /url: /register
+        - text: Get started
+        - img [ref=e19]
+  - main [ref=e21]:
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - generic [ref=e24]:
+          - generic [ref=e25]: Legal
+          - heading "Terms of Service" [level=1] [ref=e26]
+          - generic [ref=e27]: Last updated 2026-04-15
+        - generic [ref=e28]:
+          - button "Print" [ref=e29] [cursor=pointer]:
+            - img [ref=e30]
+            - text: Print
+          - link "Contact" [ref=e33] [cursor=pointer]:
+            - /url: mailto:compliance@smmworld.vip
+            - button "Contact" [ref=e34]
+      - generic [ref=e35]:
+        - navigation [ref=e36]:
+          - generic [ref=e37]:
+            - generic [ref=e38]: Sections
+            - list [ref=e39]:
+              - listitem [ref=e40]:
+                - link "01Who we are" [ref=e41] [cursor=pointer]:
+                  - /url: "#who"
+              - listitem [ref=e42]:
+                - link "02What the service is" [ref=e43] [cursor=pointer]:
+                  - /url: "#service"
+              - listitem [ref=e44]:
+                - link "03Eligibility" [ref=e45] [cursor=pointer]:
+                  - /url: "#eligibility"
+              - listitem [ref=e46]:
+                - link "04Your account" [ref=e47] [cursor=pointer]:
+                  - /url: "#account"
+              - listitem [ref=e48]:
+                - link "05Orders & delivery" [ref=e49] [cursor=pointer]:
+                  - /url: "#orders"
+              - listitem [ref=e50]:
+                - link "06Acceptable use" [ref=e51] [cursor=pointer]:
+                  - /url: "#aup"
+              - listitem [ref=e52]:
+                - link "07Refunds" [ref=e53] [cursor=pointer]:
+                  - /url: "#refunds"
+              - listitem [ref=e54]:
+                - link "08Liability" [ref=e55] [cursor=pointer]:
+                  - /url: "#liability"
+              - listitem [ref=e56]:
+                - link "09Governing law" [ref=e57] [cursor=pointer]:
+                  - /url: "#law"
+              - listitem [ref=e58]:
+                - link "10Changes" [ref=e59] [cursor=pointer]:
+                  - /url: "#changes"
+            - paragraph [ref=e60]: This is the legally binding version. A plain-English summary lives at the top of each document.
+        - article [ref=e61]:
+          - heading "Who we are" [level=2] [ref=e62]
+          - paragraph [ref=e63]: SMMWorld ("we", "our", "us") is operated by SMMWorld Ltd. We provide an Instagram growth network — likes, follows, and comments delivered with real quality through our own infrastructure.
+          - heading "What the service is" [level=2] [ref=e64]
+          - paragraph [ref=e65]:
+            - text: We are
+            - strong [ref=e66]: not a reseller
+            - text: . Every action you order is dispatched through our own delivery network and executed by us directly. We do not buy from external panels.
+          - heading "Eligibility" [level=2] [ref=e67]
+          - paragraph [ref=e68]: You must be at least 18 years old (or the age of majority in your jurisdiction) and not located in a sanctioned country.
+          - heading "Your account" [level=2] [ref=e69]
+          - paragraph [ref=e70]: You're responsible for keeping your password and API key safe. Notify us immediately if you suspect unauthorized access.
+          - heading "API keys" [level=3] [ref=e71]
+          - paragraph [ref=e72]: API keys grant full account access. Treat them like passwords. Rotate them in Profile → Security at any time.
+          - heading "Orders & delivery" [level=2] [ref=e73]
+          - paragraph [ref=e74]: Order processing begins automatically once payment is confirmed. Median start time is 47 seconds. Larger orders dripfeed based on the service profile.
+          - paragraph [ref=e75]: We do not guarantee Instagram won't change its policies or remove content. We do guarantee that we will replace dropped actions during the 30-day refill window.
+          - heading "Acceptable use" [level=2] [ref=e76]
+          - paragraph [ref=e77]: "You may not use the service to:"
+          - list [ref=e78]:
+            - listitem [ref=e79]: Target accounts you do not own or have permission to grow
+            - listitem [ref=e80]: Engage in harassment, hate speech, or illegal activity
+            - listitem [ref=e81]: Reverse-engineer, scrape, or rate-limit our APIs maliciously
+            - listitem [ref=e82]: Resell credentials or share a single account across an organization
+          - heading "Refunds" [level=2] [ref=e83]
+          - paragraph [ref=e84]:
+            - text: See our
+            - link "Refund Policy" [ref=e85] [cursor=pointer]:
+              - /url: /legal/refund
+            - text: for the full breakdown. Pending orders cancel with full refund. Partial deliveries refund the undelivered portion.
+          - heading "Liability" [level=2] [ref=e86]
+          - paragraph [ref=e87]: To the maximum extent permitted by law, our total liability is capped at the amount you paid us in the 12 months preceding the claim.
+          - heading "Governing law" [level=2] [ref=e88]
+          - paragraph [ref=e89]: These terms are governed by the laws of the Republic of Cyprus. Disputes go to the courts of Limassol.
+          - heading "Changes" [level=2] [ref=e90]
+          - paragraph [ref=e91]: We may update these terms. Material changes will be announced 30 days before they take effect. Continued use after the effective date constitutes acceptance.
+  - contentinfo [ref=e92]:
+    - generic [ref=e93]:
+      - generic [ref=e94]:
+        - generic [ref=e95]:
+          - img "SMMWorld" [ref=e96]
+          - generic [ref=e97]: SMMWorld
+        - paragraph [ref=e98]: Infrastructure for Instagram growth.
+      - generic [ref=e99]:
+        - generic [ref=e100]: Product
+        - list [ref=e101]:
+          - listitem [ref=e102]:
+            - link "Services" [ref=e103] [cursor=pointer]:
+              - /url: /services-list
+          - listitem [ref=e104]:
+            - link "Pricing" [ref=e105] [cursor=pointer]:
+              - /url: /pricing
+          - listitem [ref=e106]:
+            - link "API" [ref=e107] [cursor=pointer]:
+              - /url: /api-docs
+      - generic [ref=e108]:
+        - generic [ref=e109]: Company
+        - list [ref=e110]:
+          - listitem [ref=e111]:
+            - link "Help" [ref=e112] [cursor=pointer]:
+              - /url: /help
+          - listitem [ref=e113]:
+            - link "Terms" [ref=e114] [cursor=pointer]:
+              - /url: /legal/terms
+          - listitem [ref=e115]:
+            - link "Privacy" [ref=e116] [cursor=pointer]:
+              - /url: /legal/privacy
+      - generic [ref=e117]:
+        - generic [ref=e118]: Refund & AML
+        - list [ref=e119]:
+          - listitem [ref=e120]:
+            - link "Refund Policy" [ref=e121] [cursor=pointer]:
+              - /url: /legal/refund
+          - listitem [ref=e122]:
+            - link "AML Policy" [ref=e123] [cursor=pointer]:
+              - /url: /legal/aml
+    - generic [ref=e124]:
+      - generic [ref=e125]: © 2026 SMMWorld. All systems normal.
+      - generic [ref=e126]: smmworld.vip

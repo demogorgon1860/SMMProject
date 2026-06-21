@@ -1,0 +1,248 @@
+- generic [ref=e65]:
+  - complementary [ref=e66]:
+    - link "SMMWorld SMMWorld" [ref=e68] [cursor=pointer]:
+      - /url: /dashboard
+      - img "SMMWorld" [ref=e69]
+      - generic [ref=e70]: SMMWorld
+    - navigation [ref=e71]:
+      - link "Dashboard" [ref=e72] [cursor=pointer]:
+        - /url: /dashboard
+        - img [ref=e74]
+        - generic [ref=e79]: Dashboard
+      - link "New order" [ref=e80] [cursor=pointer]:
+        - /url: /new-order
+        - img [ref=e81]
+        - generic [ref=e83]: New order
+      - link "Orders" [ref=e84] [cursor=pointer]:
+        - /url: /orders
+        - img [ref=e85]
+        - generic [ref=e90]: Orders
+      - link "Transactions" [ref=e91] [cursor=pointer]:
+        - /url: /transactions
+        - img [ref=e92]
+        - generic [ref=e95]: Transactions
+      - link "Add funds" [ref=e96] [cursor=pointer]:
+        - /url: /add-funds
+        - img [ref=e97]
+        - generic [ref=e100]: Add funds
+      - link "API" [ref=e101] [cursor=pointer]:
+        - /url: /docs
+        - img [ref=e102]
+        - generic [ref=e104]: API
+      - link "Help" [ref=e105] [cursor=pointer]:
+        - /url: /help
+        - img [ref=e106]
+        - generic [ref=e109]: Help
+      - link "Profile" [ref=e110] [cursor=pointer]:
+        - /url: /profile
+        - img [ref=e111]
+        - generic [ref=e114]: Profile
+    - link "M @mmknshnk arthur.arthurpopov@gmail.com" [ref=e116] [cursor=pointer]:
+      - /url: /profile?tab=account
+      - generic [ref=e117]: M
+      - generic [ref=e118]:
+        - generic [ref=e119]: "@mmknshnk"
+        - generic [ref=e120]: arthur.arthurpopov@gmail.com
+      - img [ref=e121]
+  - generic [ref=e123]:
+    - banner [ref=e124]:
+      - button "Search orders, services…" [ref=e125] [cursor=pointer]:
+        - img [ref=e126]
+        - generic [ref=e129]: Search orders, services…
+      - link "$828.47" [ref=e130] [cursor=pointer]:
+        - /url: /add-funds
+        - img [ref=e131]
+        - generic [ref=e134]: $828.47
+        - img [ref=e135]
+      - button "Toggle theme" [ref=e138] [cursor=pointer]:
+        - img [ref=e139]
+      - button "Notifications" [ref=e141] [cursor=pointer]:
+        - img [ref=e142]
+      - button "M" [ref=e145] [cursor=pointer]:
+        - generic [ref=e146]: M
+        - img [ref=e147]
+    - main [ref=e149]:
+      - generic [ref=e150]:
+        - generic [ref=e151]:
+          - generic [ref=e155]:
+            - generic [ref=e156]:
+              - generic [ref=e157]: Welcome back
+              - heading "@mmknshnk" [level=1] [ref=e158]
+              - generic [ref=e159]:
+                - text: 0 active · 0 completed last 30 days · balance
+                - generic [ref=e160]: $828.47
+              - generic [ref=e161]:
+                - link "Place new order" [ref=e162] [cursor=pointer]:
+                  - /url: /new-order
+                  - button "Place new order" [ref=e163]:
+                    - text: Place new order
+                    - img [ref=e164]
+                - link "Add funds" [ref=e166] [cursor=pointer]:
+                  - /url: /add-funds
+                  - button "Add funds" [ref=e167]:
+                    - img [ref=e168]
+                    - text: Add funds
+            - generic [ref=e171]:
+              - img [ref=e172]
+              - generic [ref=e175]:
+                - generic [ref=e176]: —
+                - generic [ref=e177]: success rate
+          - generic [ref=e178]:
+            - generic [ref=e179]:
+              - generic [ref=e180]: Wallet balance
+              - generic [ref=e181]: live
+            - generic [ref=e183]: $828.47
+            - generic [ref=e184]: Spent $0.00 last 30d
+            - link "Add funds" [ref=e186] [cursor=pointer]:
+              - /url: /add-funds
+              - button "Add funds" [ref=e187]:
+                - img [ref=e188]
+                - text: Add funds
+        - generic [ref=e190]:
+          - generic [ref=e191]:
+            - img [ref=e194]
+            - generic [ref=e197]: $0.00
+            - generic [ref=e198]: Total spent · 30d
+          - generic [ref=e199]:
+            - img [ref=e202]
+            - generic [ref=e204]: "0"
+            - generic [ref=e205]: Orders · 30d
+          - generic [ref=e206]:
+            - img [ref=e209]
+            - generic [ref=e211]: "0"
+            - generic [ref=e212]: Completed · 30d
+          - generic [ref=e213]:
+            - img [ref=e216]
+            - generic [ref=e218]: —
+            - generic [ref=e219]: Success rate · 30d
+        - generic [ref=e220]:
+          - generic [ref=e221]:
+            - generic [ref=e222]:
+              - generic [ref=e223]: Recent orders
+              - generic [ref=e224]: Last 6 orders
+            - link "View all" [ref=e225] [cursor=pointer]:
+              - /url: /orders
+              - button "View all" [ref=e226]:
+                - text: View all
+                - img [ref=e227]
+          - table [ref=e229]:
+            - rowgroup [ref=e230]:
+              - row "ID Service Link Qty Progress Status Charge" [ref=e231]:
+                - columnheader "ID" [ref=e232]
+                - columnheader "Service" [ref=e233]
+                - columnheader "Link" [ref=e234]
+                - columnheader "Qty" [ref=e235]
+                - columnheader "Progress" [ref=e236]
+                - columnheader "Status" [ref=e237]
+                - columnheader "Charge" [ref=e238]
+                - columnheader [ref=e239]
+            - rowgroup [ref=e240]:
+              - row "#4910 Instagram Followers [Mix Gender] [USA/Europe] instagram.com/xnnni_a/ 121 0% Partial $0.37" [ref=e241]:
+                - cell "#4910" [ref=e242]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e243]
+                - cell "instagram.com/xnnni_a/" [ref=e244]:
+                  - link "instagram.com/xnnni_a/" [ref=e245] [cursor=pointer]:
+                    - /url: https://www.instagram.com/xnnni_a/
+                - cell "121" [ref=e246]
+                - cell "0%" [ref=e247]:
+                  - generic [ref=e250]: 0%
+                - cell "Partial" [ref=e251]:
+                  - generic "Stopped early, partial refund issued" [ref=e252]: Partial
+                - cell "$0.37" [ref=e254]
+                - cell [ref=e255]:
+                  - link [ref=e256] [cursor=pointer]:
+                    - /url: /orders/4910
+                    - img [ref=e257]
+              - row "#4780 Instagram Custom Comments [Mix Gender] [USA/Europe] instagram.com/durov 3 0% Partial $0.06" [ref=e259]:
+                - cell "#4780" [ref=e260]
+                - cell "Instagram Custom Comments [Mix Gender] [USA/Europe]" [ref=e261]
+                - cell "instagram.com/durov" [ref=e262]:
+                  - link "instagram.com/durov" [ref=e263] [cursor=pointer]:
+                    - /url: https://www.instagram.com/durov
+                - cell "3" [ref=e264]
+                - cell "0%" [ref=e265]:
+                  - generic [ref=e268]: 0%
+                - cell "Partial" [ref=e269]:
+                  - generic "Stopped early, partial refund issued" [ref=e270]: Partial
+                - cell "$0.06" [ref=e272]
+                - cell [ref=e273]:
+                  - link [ref=e274] [cursor=pointer]:
+                    - /url: /orders/4780
+                    - img [ref=e275]
+              - row "#4679 Instagram Custom Comments [Mix Gender] [USA/Europe] instagram.com/p/test123/ 3 0% Partial $0.00" [ref=e277]:
+                - cell "#4679" [ref=e278]
+                - cell "Instagram Custom Comments [Mix Gender] [USA/Europe]" [ref=e279]
+                - cell "instagram.com/p/test123/" [ref=e280]:
+                  - link "instagram.com/p/test123/" [ref=e281] [cursor=pointer]:
+                    - /url: https://instagram.com/p/test123/
+                - cell "3" [ref=e282]
+                - cell "0%" [ref=e283]:
+                  - generic [ref=e286]: 0%
+                - cell "Partial" [ref=e287]:
+                  - generic "Stopped early, partial refund issued" [ref=e288]: Partial
+                - cell "$0.00" [ref=e290]
+                - cell [ref=e291]:
+                  - link [ref=e292] [cursor=pointer]:
+                    - /url: /orders/4679
+                    - img [ref=e293]
+              - row "#3979 Instagram Likes [Mix Gender] [USA/Europe] instagram.com/p/DVxChWKjOYh/ 10 0% Completed $0.04" [ref=e295]:
+                - cell "#3979" [ref=e296]
+                - cell "Instagram Likes [Mix Gender] [USA/Europe]" [ref=e297]
+                - cell "instagram.com/p/DVxChWKjOYh/" [ref=e298]:
+                  - link "instagram.com/p/DVxChWKjOYh/" [ref=e299] [cursor=pointer]:
+                    - /url: https://www.instagram.com/p/DVxChWKjOYh/?img_index=1
+                - cell "10" [ref=e300]
+                - cell "0%" [ref=e301]:
+                  - generic [ref=e304]: 0%
+                - cell "Completed" [ref=e305]:
+                  - generic "Fully delivered" [ref=e306]: Completed
+                - cell "$0.04" [ref=e308]
+                - cell [ref=e309]:
+                  - link [ref=e310] [cursor=pointer]:
+                    - /url: /orders/3979
+                    - img [ref=e311]
+              - row "#3978 Instagram Comments [Mix Gender] [USA/Europe] instagram.com/p/DVxChWKjOYh/ 10 0% Completed $0.80" [ref=e313]:
+                - cell "#3978" [ref=e314]
+                - cell "Instagram Comments [Mix Gender] [USA/Europe]" [ref=e315]
+                - cell "instagram.com/p/DVxChWKjOYh/" [ref=e316]:
+                  - link "instagram.com/p/DVxChWKjOYh/" [ref=e317] [cursor=pointer]:
+                    - /url: https://www.instagram.com/p/DVxChWKjOYh/?img_index=1
+                - cell "10" [ref=e318]
+                - cell "0%" [ref=e319]:
+                  - generic [ref=e322]: 0%
+                - cell "Completed" [ref=e323]:
+                  - generic "Fully delivered" [ref=e324]: Completed
+                - cell "$0.80" [ref=e326]
+                - cell [ref=e327]:
+                  - link [ref=e328] [cursor=pointer]:
+                    - /url: /orders/3978
+                    - img [ref=e329]
+              - row "#3726 Instagram Likes [Mix Gender] [USA/Europe] instagram.com/p/DWHDgVXDHTB/ 30 0% Completed $0.12" [ref=e331]:
+                - cell "#3726" [ref=e332]
+                - cell "Instagram Likes [Mix Gender] [USA/Europe]" [ref=e333]
+                - cell "instagram.com/p/DWHDgVXDHTB/" [ref=e334]:
+                  - link "instagram.com/p/DWHDgVXDHTB/" [ref=e335] [cursor=pointer]:
+                    - /url: https://www.instagram.com/p/DWHDgVXDHTB/
+                - cell "30" [ref=e336]
+                - cell "0%" [ref=e337]:
+                  - generic [ref=e340]: 0%
+                - cell "Completed" [ref=e341]:
+                  - generic "Fully delivered" [ref=e342]: Completed
+                - cell "$0.12" [ref=e344]
+                - cell [ref=e345]:
+                  - link [ref=e346] [cursor=pointer]:
+                    - /url: /orders/3726
+                    - img [ref=e347]
+        - generic [ref=e349]:
+          - generic [ref=e350]:
+            - img [ref=e352]
+            - generic [ref=e355]:
+              - generic [ref=e356]: Need a hand?
+              - paragraph [ref=e357]: Average response under 12 minutes. Email beats Telegram.
+          - generic [ref=e358]:
+            - link "Open ticket" [ref=e359] [cursor=pointer]:
+              - /url: /help
+              - button "Open ticket" [ref=e360]
+            - link "Email" [ref=e361] [cursor=pointer]:
+              - /url: mailto:hello@smmworld.vip
+              - button "Email" [ref=e362]

@@ -242,6 +242,111 @@ public class InstagramBotClient {
         throw new RuntimeException("Order " + orderId + " not found on any bot instance");
     }
 
+    // ==================== Refill drop-check ====================
+
+    /**
+     * Kick off a live refill (drop) check for ONE panel order. POST /api/refill/check.
+     *
+     * <p>The order's delivered-set lives in the store of the bot instance that ran it, so we try
+     * each instance until one accepts the order (single-bot collapses to one), and report which
+     * instance answered so {@link #refillStatus} can pin status polling to it. The bot returns a
+     * job id immediately and runs the (slow) enumeration in the background; the caller persists the
+     * job id and polls out-of-band. Never blocks on the result here.
+     */
+    public RefillCheckResult refillCheck(String panelOrderId) {
+        String lastError = "no bot instances configured";
+        for (String instance : botInstances) {
+            try {
+                RefillCheckResult r =
+                        executeOnInstance(
+                                instance,
+                                true,
+                                () -> {
+                                    String url = instance + "/api/refill/check";
+
+                                    HttpHeaders headers = new HttpHeaders();
+                                    headers.setContentType(MediaType.APPLICATION_JSON);
+
+                                    Map<String, Object> payload =
+                                            Map.of("orders", List.of(panelOrderId));
+                                    HttpEntity<String> entity =
+                                            new HttpEntity<>(
+                                                    objectMapper.writeValueAsString(payload),
+                                                    headers);
+
+                                    ResponseEntity<RefillCheckResponseDto> resp =
+                                            restTemplate.exchange(
+                                                    url,
+                                                    HttpMethod.POST,
+                                                    entity,
+                                                    RefillCheckResponseDto.class);
+
+                                    RefillCheckResponseDto body = resp.getBody();
+                                    if (resp.getStatusCode() == HttpStatus.OK
+                                            && body != null
+                                            && Boolean.TRUE.equals(body.getSuccess())
+                                            && body.getJobId() != null) {
+                                        log.info(
+                                                "Refill check queued on {} for order {}: job {}",
+                                                instance,
+                                                panelOrderId,
+                                                body.getJobId());
+                                        return RefillCheckResult.builder()
+                                                .accepted(true)
+                                                .instanceUrl(instance)
+                                                .jobId(body.getJobId())
+                                                .build();
+                                    }
+                                    throw new RuntimeException(
+                                            body != null && body.getError() != null
+                                                    ? body.getError()
+                                                    : "refill check rejected by bot");
+                                });
+                if (r.isAccepted()) return r;
+                lastError = r.getError();
+            } catch (Exception e) {
+                lastError = e.getMessage();
+                log.warn("refillCheck failed on {}: {}", instance, e.getMessage());
+            }
+        }
+        return RefillCheckResult.builder().accepted(false).error(lastError).build();
+    }
+
+    /**
+     * Poll a refill job's status on the instance that accepted it. GET /api/refill/status. Returns
+     * the job snapshot (its {@code status} is queued | running | done with {@code reports}), or
+     * {@code null} when the job is gone (bot restart / LRU eviction → 404) or the instance is
+     * unreachable — the caller distinguishes "still running" from "lost" via its own age tracking.
+     */
+    public RefillStatusOutcome refillStatus(String instanceUrl, String jobId) {
+        String url =
+                instanceUrl
+                        + "/api/refill/status?job_id="
+                        + java.net.URLEncoder.encode(
+                                jobId, java.nio.charset.StandardCharsets.UTF_8);
+        try {
+            // Plain fast (3s) GET — a background poll tolerates failures, and we need to read the
+            // raw HTTP status (404 = job gone vs transient) which the circuit-breaker wrapper
+            // hides.
+            ResponseEntity<RefillStatusResponseDto> resp =
+                    fastRestTemplate.exchange(
+                            url, HttpMethod.GET, null, RefillStatusResponseDto.class);
+            if (resp.getStatusCode() == HttpStatus.OK
+                    && resp.getBody() != null
+                    && resp.getBody().getJob() != null) {
+                return RefillStatusOutcome.found(resp.getBody().getJob());
+            }
+            return RefillStatusOutcome.transientError();
+        } catch (org.springframework.web.client.HttpClientErrorException.NotFound nf) {
+            // The bot no longer has this job (restart / LRU eviction) — a definitive "gone".
+            return RefillStatusOutcome.missing();
+        } catch (Exception e) {
+            // Network blip, breaker, non-2xx — NOT proof the job is gone; keep polling.
+            log.debug("refillStatus({}, {}) failed: {}", instanceUrl, jobId, e.getMessage());
+            return RefillStatusOutcome.transientError();
+        }
+    }
+
     /** Cancel an order. Tries each bot instance — succeeds if any one cancels it. */
     public boolean cancelOrder(String orderId) {
         String externalIdFallback = extractExternalIdFallback(orderId);

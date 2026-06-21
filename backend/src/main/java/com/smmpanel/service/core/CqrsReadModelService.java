@@ -23,7 +23,6 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -94,16 +93,16 @@ public class CqrsReadModelService {
     }
 
     /**
-     * Disabled: this listener tried to bind Kafka messages directly to the JPA-managed
-     * {@link OrderEvent} entity (with {@code @Id}, {@code @JdbcTypeCode(SqlTypes.JSON)}
-     * Maps, and Lombok-generated constructors). Spring Kafka's deserializer can't
-     * reconstruct that shape, so every pending message in {@code smm.order.processing}
-     * raised "Listener method could not be invoked" and retried forever — thousands of
-     * Redis lookups per minute, log spam, no actual work done. The primary read path
-     * goes through {@code Order} directly and doesn't need this CQRS layer to function.
+     * Disabled: this listener tried to bind Kafka messages directly to the JPA-managed {@link
+     * OrderEvent} entity (with {@code @Id}, {@code @JdbcTypeCode(SqlTypes.JSON)} Maps, and
+     * Lombok-generated constructors). Spring Kafka's deserializer can't reconstruct that shape, so
+     * every pending message in {@code smm.order.processing} raised "Listener method could not be
+     * invoked" and retried forever — thousands of Redis lookups per minute, log spam, no actual
+     * work done. The primary read path goes through {@code Order} directly and doesn't need this
+     * CQRS layer to function.
      *
-     * <p>To restore: introduce a plain {@code OrderEventMessage} DTO (no JPA, no Lombok
-     * builders) as the listener parameter and translate to {@link OrderEvent} inside.
+     * <p>To restore: introduce a plain {@code OrderEventMessage} DTO (no JPA, no Lombok builders)
+     * as the listener parameter and translate to {@link OrderEvent} inside.
      */
     public void handleOrderEvent(OrderEvent event) {
         try {

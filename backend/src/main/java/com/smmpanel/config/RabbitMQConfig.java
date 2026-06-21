@@ -15,9 +15,9 @@ import org.springframework.context.annotation.Configuration;
  * RabbitMQ configuration for Instagram bot routing.
  *
  * <p>Architecture: - Panel publishes orders to instagram.direct exchange with routing key DE
- * (German + ENG) or MIX_GEO (cheap non-warmed pool) - Bot server consumes from
- * instagram.orders.de or instagram.orders.mix_geo queues - Bot publishes results to
- * instagram.results queue - Failed orders go to instagram.dead via dead letter exchange
+ * (German + ENG) or MIX_GEO (cheap non-warmed pool) - Bot server consumes from instagram.orders.de
+ * or instagram.orders.mix_geo queues - Bot publishes results to instagram.results queue - Failed
+ * orders go to instagram.dead via dead letter exchange
  */
 @Configuration
 public class RabbitMQConfig {

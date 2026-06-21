@@ -1,0 +1,134 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - link "SMMWorld SMMWorld" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - img "SMMWorld" [ref=e7]
+        - generic [ref=e8]: SMMWorld
+      - navigation [ref=e9]:
+        - link "Services" [ref=e10] [cursor=pointer]:
+          - /url: /services-list
+        - link "Pricing" [ref=e11] [cursor=pointer]:
+          - /url: /pricing
+        - link "API" [ref=e12] [cursor=pointer]:
+          - /url: /api-docs
+        - link "Help" [ref=e13] [cursor=pointer]:
+          - /url: /help
+      - button "Toggle theme" [ref=e14] [cursor=pointer]:
+        - img [ref=e15]
+      - link "Sign in" [ref=e17] [cursor=pointer]:
+        - /url: /login
+      - link "Get started" [ref=e18] [cursor=pointer]:
+        - /url: /register
+        - text: Get started
+        - img [ref=e19]
+  - main [ref=e21]:
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - generic [ref=e24]:
+          - generic [ref=e25]: Legal
+          - heading "Refund Policy" [level=1] [ref=e26]
+          - generic [ref=e27]: Last updated 2026-04-15
+        - generic [ref=e28]:
+          - button "Print" [ref=e29] [cursor=pointer]:
+            - img [ref=e30]
+            - text: Print
+          - link "Contact" [ref=e33] [cursor=pointer]:
+            - /url: mailto:compliance@smmworld.vip
+            - button "Contact" [ref=e34]
+      - generic [ref=e35]:
+        - navigation [ref=e36]:
+          - generic [ref=e37]:
+            - generic [ref=e38]: Sections
+            - list [ref=e39]:
+              - listitem [ref=e40]:
+                - link "01Short version" [ref=e41] [cursor=pointer]:
+                  - /url: "#short"
+              - listitem [ref=e42]:
+                - link "02Automatic refunds" [ref=e43] [cursor=pointer]:
+                  - /url: "#auto"
+              - listitem [ref=e44]:
+                - link "03Manual refunds" [ref=e45] [cursor=pointer]:
+                  - /url: "#manual"
+              - listitem [ref=e46]:
+                - link "04Wallet withdrawal" [ref=e47] [cursor=pointer]:
+                  - /url: "#withdrawal"
+              - listitem [ref=e48]:
+                - link "05Not covered" [ref=e49] [cursor=pointer]:
+                  - /url: "#noncovered"
+              - listitem [ref=e50]:
+                - link "06Chargebacks" [ref=e51] [cursor=pointer]:
+                  - /url: "#chargebacks"
+            - paragraph [ref=e52]: This is the legally binding version. A plain-English summary lives at the top of each document.
+        - article [ref=e53]:
+          - heading "Short version" [level=2] [ref=e54]
+          - list [ref=e55]:
+            - listitem [ref=e56]: Pending orders → full refund, automatic, instant
+            - listitem [ref=e57]: Partial delivery → refund for the undelivered portion, automatic
+            - listitem [ref=e58]: Delivery pause / circuit breaker → either resume or full refund based on admin decision (≤4h SLA)
+            - listitem [ref=e59]: "Refill window: 30 days after completion, free"
+          - paragraph [ref=e60]: All refunds go back to your SMMWorld wallet balance. Crypto withdrawals incur the network fee.
+          - heading "Automatic refunds" [level=2] [ref=e61]
+          - paragraph [ref=e62]: "The system issues these without you opening a ticket:"
+          - list [ref=e63]:
+            - listitem [ref=e64]: Order cancelled while pending
+            - listitem [ref=e65]:
+              - text: Order ends as
+              - code [ref=e66]: partial
+              - text: — undelivered portion refunded
+            - listitem [ref=e67]: Order fails with zero delivery — full refund
+            - listitem [ref=e68]: Profile drop detected during refill window — replacement at no charge
+          - heading "Manual refunds" [level=2] [ref=e69]
+          - paragraph [ref=e70]: If something feels wrong (wrong link, target account privated mid-run), open a ticket from Help. We review and credit within 24 business hours.
+          - heading "Wallet withdrawal" [level=2] [ref=e71]
+          - paragraph [ref=e72]: You can withdraw your wallet balance at any time to a crypto address you control. Minimum $5. We pay the network fee from your balance.
+          - heading "Not covered" [level=2] [ref=e73]
+          - list [ref=e74]:
+            - listitem [ref=e75]: Drops detected outside the 30-day refill window
+            - listitem [ref=e76]: Account changes after delivery (rebrand, post deleted, account banned)
+            - listitem [ref=e77]: Targeting accounts that turn private after dispatch — partial delivery applies
+          - heading "Chargebacks" [level=2] [ref=e78]
+          - paragraph [ref=e79]: We are crypto-only, so chargebacks do not apply. Any disputes are resolved through this policy and our ticket system.
+  - contentinfo [ref=e80]:
+    - generic [ref=e81]:
+      - generic [ref=e82]:
+        - generic [ref=e83]:
+          - img "SMMWorld" [ref=e84]
+          - generic [ref=e85]: SMMWorld
+        - paragraph [ref=e86]: Infrastructure for Instagram growth.
+      - generic [ref=e87]:
+        - generic [ref=e88]: Product
+        - list [ref=e89]:
+          - listitem [ref=e90]:
+            - link "Services" [ref=e91] [cursor=pointer]:
+              - /url: /services-list
+          - listitem [ref=e92]:
+            - link "Pricing" [ref=e93] [cursor=pointer]:
+              - /url: /pricing
+          - listitem [ref=e94]:
+            - link "API" [ref=e95] [cursor=pointer]:
+              - /url: /api-docs
+      - generic [ref=e96]:
+        - generic [ref=e97]: Company
+        - list [ref=e98]:
+          - listitem [ref=e99]:
+            - link "Help" [ref=e100] [cursor=pointer]:
+              - /url: /help
+          - listitem [ref=e101]:
+            - link "Terms" [ref=e102] [cursor=pointer]:
+              - /url: /legal/terms
+          - listitem [ref=e103]:
+            - link "Privacy" [ref=e104] [cursor=pointer]:
+              - /url: /legal/privacy
+      - generic [ref=e105]:
+        - generic [ref=e106]: Refund & AML
+        - list [ref=e107]:
+          - listitem [ref=e108]:
+            - link "Refund Policy" [ref=e109] [cursor=pointer]:
+              - /url: /legal/refund
+          - listitem [ref=e110]:
+            - link "AML Policy" [ref=e111] [cursor=pointer]:
+              - /url: /legal/aml
+    - generic [ref=e112]:
+      - generic [ref=e113]: © 2026 SMMWorld. All systems normal.
+      - generic [ref=e114]: smmworld.vip

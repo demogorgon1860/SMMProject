@@ -1,0 +1,154 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - link "SMMWorld SMMWorld admin · v2.4.1" [ref=e6] [cursor=pointer]:
+        - /url: /admin
+        - img "SMMWorld" [ref=e7]
+        - generic [ref=e8]:
+          - generic [ref=e9]: SMMWorld
+          - generic [ref=e10]: admin · v2.4.1
+      - button "Collapse" [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+    - navigation [ref=e14]:
+      - generic [ref=e15]:
+        - generic [ref=e16]: Operations
+        - link "Dashboard" [ref=e17] [cursor=pointer]:
+          - /url: /admin
+          - img [ref=e18]
+          - generic [ref=e23]: Dashboard
+        - link "Orders" [ref=e24] [cursor=pointer]:
+          - /url: /admin/orders
+          - img [ref=e25]
+          - generic [ref=e27]: Orders
+        - link "Refill requests" [ref=e28] [cursor=pointer]:
+          - /url: /admin/refill-requests
+          - img [ref=e29]
+          - generic [ref=e31]: Refill requests
+        - link "Services" [ref=e32] [cursor=pointer]:
+          - /url: /admin/services
+          - img [ref=e33]
+          - generic [ref=e38]: Services
+      - generic [ref=e39]:
+        - generic [ref=e40]: Customers
+        - link "Users" [ref=e41] [cursor=pointer]:
+          - /url: /admin/users
+          - img [ref=e42]
+          - generic [ref=e47]: Users
+      - generic [ref=e48]:
+        - generic [ref=e49]: Money
+        - link "Payments" [ref=e50] [cursor=pointer]:
+          - /url: /admin/payments
+          - img [ref=e51]
+          - generic [ref=e54]: Payments
+        - link "Balance Txs" [ref=e55] [cursor=pointer]:
+          - /url: /admin/balance
+          - img [ref=e56]
+          - generic [ref=e59]: Balance Txs
+      - generic [ref=e60]:
+        - generic [ref=e61]: Infrastructure
+        - link "Instagram Bot" [ref=e62] [cursor=pointer]:
+          - /url: /admin/bot
+          - img [ref=e63]
+          - generic [ref=e68]: Instagram Bot
+        - link "Telegram Control" [ref=e69] [cursor=pointer]:
+          - /url: /admin/telegram
+          - img [ref=e70]
+          - generic [ref=e72]: Telegram Control
+        - link "System Monitoring" [ref=e73] [cursor=pointer]:
+          - /url: /admin/system
+          - img [ref=e74]
+          - generic [ref=e76]: System Monitoring
+      - generic [ref=e77]:
+        - generic [ref=e78]: Settings
+        - link "Settings" [ref=e79] [cursor=pointer]:
+          - /url: /admin/settings
+          - img [ref=e81]
+          - generic [ref=e84]: Settings
+    - generic [ref=e85]:
+      - generic [ref=e86]: System health
+      - generic [ref=e87]:
+        - generic [ref=e89]: Degraded
+        - generic [ref=e90]: bot-02
+  - generic [ref=e91]:
+    - banner [ref=e92]:
+      - button "Search orders, users, services… ⌘K" [ref=e93] [cursor=pointer]:
+        - img [ref=e94]
+        - generic [ref=e97]: Search orders, users, services…
+        - generic [ref=e98]: ⌘K
+      - generic [ref=e99]: PROD
+      - button "Toggle theme" [ref=e101] [cursor=pointer]:
+        - img [ref=e102]
+      - button "Notifications" [ref=e104] [cursor=pointer]:
+        - img [ref=e105]
+      - button "A admin admin" [ref=e109] [cursor=pointer]:
+        - generic [ref=e110]: A
+        - generic [ref=e111]:
+          - generic [ref=e112]: admin
+          - generic [ref=e113]: admin
+        - img [ref=e114]
+    - main [ref=e116]:
+      - generic [ref=e120]: Settings
+      - generic [ref=e121]:
+        - generic [ref=e122]:
+          - button "General" [ref=e123] [cursor=pointer]
+          - button "Admins 4" [ref=e124] [cursor=pointer]:
+            - text: Admins
+            - generic [ref=e125]: "4"
+          - button "Integrations" [ref=e126] [cursor=pointer]
+        - generic [ref=e127]:
+          - generic [ref=e128]:
+            - generic [ref=e131]: Platform fees
+            - generic [ref=e132]:
+              - generic [ref=e133]:
+                - generic [ref=e135]: Min order charge (USD)
+                - spinbutton [ref=e137]: "0.05"
+              - generic [ref=e138]:
+                - generic [ref=e140]: Markup on reseller pricing (%)
+                - spinbutton [ref=e142]: "15"
+              - generic [ref=e143]:
+                - generic [ref=e145]: Cryptomus fee passthrough (%)
+                - spinbutton [ref=e147]: "1"
+              - button "Save fees" [ref=e148] [cursor=pointer]
+          - generic [ref=e149]:
+            - generic [ref=e152]: Rate limits
+            - generic [ref=e153]:
+              - generic [ref=e154]:
+                - generic [ref=e156]: Orders / minute / user
+                - spinbutton [ref=e158]: "20"
+              - generic [ref=e159]:
+                - generic [ref=e161]: API requests / minute
+                - spinbutton [ref=e163]: "60"
+              - generic [ref=e164]:
+                - generic [ref=e166]: Max concurrent orders / user
+                - spinbutton [ref=e168]: "10"
+              - button "Save limits" [ref=e169] [cursor=pointer]
+          - generic [ref=e170]:
+            - generic [ref=e173]: Maintenance mode
+            - generic [ref=e175]:
+              - generic [ref=e176]:
+                - generic [ref=e177]: Maintenance mode
+                - paragraph [ref=e178]: Disabled — system accepting orders.
+              - switch [ref=e179] [cursor=pointer]
+          - generic [ref=e181]:
+            - generic [ref=e184]: Feature flags
+            - generic [ref=e185]:
+              - generic [ref=e186]:
+                - generic [ref=e187]:
+                  - generic [ref=e188]: Bot-02 round-robin
+                  - generic [ref=e189]: Distribute new orders across both bot instances
+                - switch [checked] [ref=e190] [cursor=pointer]
+              - generic [ref=e192]:
+                - generic [ref=e193]:
+                  - generic [ref=e194]: GPT-4o comment service
+                  - generic [ref=e195]: Use OpenAI for context-aware Instagram comments
+                - switch [checked] [ref=e196] [cursor=pointer]
+              - generic [ref=e198]:
+                - generic [ref=e199]:
+                  - generic [ref=e200]: Automatic refunds
+                  - generic [ref=e201]: Auto-refund on partial / failed orders
+                - switch [checked] [ref=e202] [cursor=pointer]
+              - generic [ref=e204]:
+                - generic [ref=e205]:
+                  - generic [ref=e206]: Reseller portal (beta)
+                  - generic [ref=e207]: New /reseller layout for high-volume accounts
+                - switch [ref=e208] [cursor=pointer]

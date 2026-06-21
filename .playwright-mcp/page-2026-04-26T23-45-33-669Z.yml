@@ -1,0 +1,154 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - link "SMMWorld SMMWorld admin · v2.4.1" [ref=e6] [cursor=pointer]:
+        - /url: /admin
+        - img "SMMWorld" [ref=e7]
+        - generic [ref=e8]:
+          - generic [ref=e9]: SMMWorld
+          - generic [ref=e10]: admin · v2.4.1
+      - button "Collapse" [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+    - navigation [ref=e14]:
+      - generic [ref=e15]:
+        - generic [ref=e16]: Operations
+        - link "Dashboard" [ref=e17] [cursor=pointer]:
+          - /url: /admin
+          - img [ref=e18]
+          - generic [ref=e23]: Dashboard
+        - link "Orders" [ref=e24] [cursor=pointer]:
+          - /url: /admin/orders
+          - img [ref=e25]
+          - generic [ref=e27]: Orders
+        - link "Refill requests" [ref=e28] [cursor=pointer]:
+          - /url: /admin/refill-requests
+          - img [ref=e29]
+          - generic [ref=e31]: Refill requests
+        - link "Services" [ref=e32] [cursor=pointer]:
+          - /url: /admin/services
+          - img [ref=e33]
+          - generic [ref=e38]: Services
+      - generic [ref=e39]:
+        - generic [ref=e40]: Customers
+        - link "Users" [ref=e41] [cursor=pointer]:
+          - /url: /admin/users
+          - img [ref=e42]
+          - generic [ref=e47]: Users
+      - generic [ref=e48]:
+        - generic [ref=e49]: Money
+        - link "Payments" [ref=e50] [cursor=pointer]:
+          - /url: /admin/payments
+          - img [ref=e51]
+          - generic [ref=e54]: Payments
+        - link "Balance Txs" [ref=e55] [cursor=pointer]:
+          - /url: /admin/balance
+          - img [ref=e56]
+          - generic [ref=e59]: Balance Txs
+      - generic [ref=e60]:
+        - generic [ref=e61]: Infrastructure
+        - link "Instagram Bot" [ref=e62] [cursor=pointer]:
+          - /url: /admin/bot
+          - img [ref=e63]
+          - generic [ref=e68]: Instagram Bot
+        - link "Telegram Control" [ref=e69] [cursor=pointer]:
+          - /url: /admin/telegram
+          - img [ref=e70]
+          - generic [ref=e72]: Telegram Control
+        - link "System Monitoring" [ref=e73] [cursor=pointer]:
+          - /url: /admin/system
+          - img [ref=e75]
+          - generic [ref=e77]: System Monitoring
+      - generic [ref=e78]:
+        - generic [ref=e79]: Settings
+        - link "Settings" [ref=e80] [cursor=pointer]:
+          - /url: /admin/settings
+          - img [ref=e81]
+          - generic [ref=e84]: Settings
+    - generic [ref=e85]:
+      - generic [ref=e86]: System health
+      - generic [ref=e87]:
+        - generic [ref=e89]: Degraded
+        - generic [ref=e90]: bot-02
+  - generic [ref=e91]:
+    - banner [ref=e92]:
+      - button "Search orders, users, services… ⌘K" [ref=e93] [cursor=pointer]:
+        - img [ref=e94]
+        - generic [ref=e97]: Search orders, users, services…
+        - generic [ref=e98]: ⌘K
+      - generic [ref=e99]: PROD
+      - button "Toggle theme" [ref=e101] [cursor=pointer]:
+        - img [ref=e102]
+      - button "Notifications" [ref=e104] [cursor=pointer]:
+        - img [ref=e105]
+      - button "A admin admin" [ref=e109] [cursor=pointer]:
+        - generic [ref=e110]: A
+        - generic [ref=e111]:
+          - generic [ref=e112]: admin
+          - generic [ref=e113]: admin
+        - img [ref=e114]
+    - main [ref=e116]:
+      - generic [ref=e119]:
+        - generic [ref=e120]: System monitoring
+        - generic [ref=e121]: Application internals · Phase 3 backend wires SSE / Redis stats
+      - generic [ref=e122]:
+        - generic [ref=e123]:
+          - button "Logs" [ref=e124] [cursor=pointer]
+          - button "Errors 5" [ref=e125] [cursor=pointer]:
+            - text: Errors
+            - generic [ref=e126]: "5"
+          - button "Queues" [ref=e127] [cursor=pointer]
+          - button "Cache" [ref=e128] [cursor=pointer]
+        - generic [ref=e129]:
+          - generic [ref=e130]:
+            - generic [ref=e131]:
+              - generic [ref=e132]: Application logs
+              - generic [ref=e134]: Live tail
+            - generic [ref=e136]:
+              - combobox [ref=e137] [cursor=pointer]:
+                - option "All levels" [selected]
+                - option "INFO"
+                - option "WARN"
+                - option "ERROR"
+                - option "DEBUG"
+              - img
+          - generic [ref=e139]:
+            - generic [ref=e140]:
+              - generic [ref=e141]: 14:32:08.442
+              - generic [ref=e142]: INFO
+              - generic [ref=e143]: OrderService
+              - generic [ref=e144]: "Order 1028523 status transition: in_progress → completed"
+            - generic [ref=e145]:
+              - generic [ref=e146]: 14:32:08.391
+              - generic [ref=e147]: DEBUG
+              - generic [ref=e148]: RedisClient
+              - generic [ref=e149]: SET telegram:profit:2026-04-26 total=2134.50
+            - generic [ref=e150]:
+              - generic [ref=e151]: 14:32:07.912
+              - generic [ref=e152]: INFO
+              - generic [ref=e153]: InstagramResultConsumer
+              - generic [ref=e154]: Received result webhook for igb_j8x2k1 (completed=1000)
+            - generic [ref=e155]:
+              - generic [ref=e156]: 14:32:04.218
+              - generic [ref=e157]: WARN
+              - generic [ref=e158]: InstagramBotClient
+              - generic [ref=e159]: "Bot #2 latency 312ms — circuit half-open"
+            - generic [ref=e160]:
+              - generic [ref=e161]: 14:32:01.004
+              - generic [ref=e162]: INFO
+              - generic [ref=e163]: BalanceService
+              - generic [ref=e164]: Charged $4.40 from user 10011 for order 1028523
+            - generic [ref=e165]:
+              - generic [ref=e166]: 14:31:31.208
+              - generic [ref=e167]: ERROR
+              - generic [ref=e168]: InstagramService
+              - generic [ref=e169]: Profile pool exhausted for group Success — pausing order 1028471
+            - generic [ref=e170]:
+              - generic [ref=e171]: 14:30:42.002
+              - generic [ref=e172]: WARN
+              - generic [ref=e173]: CancelDecisionService
+              - generic [ref=e174]: Pending cancel decision for 1028471 stored in Redis (ttl=4h)
+            - generic [ref=e175]:
+              - generic [ref=e176]: 14:29:42.001
+              - generic [ref=e177]: INFO
+              - generic [ref=e178]: CryptomusService
+              - generic [ref=e179]: Payment cmp_9a8bc2d0 confirmed (BTC, $200.00)

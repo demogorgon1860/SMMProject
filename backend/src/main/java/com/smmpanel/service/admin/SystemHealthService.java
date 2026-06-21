@@ -69,17 +69,17 @@ public class SystemHealthService {
     private static final Duration HTTP_PROBE_TIMEOUT = Duration.ofMillis(1_500);
 
     /**
-     * Soft cache TTL: snapshots older than this trigger a background refresh, but the stale
-     * value is still returned to the caller immediately. Combined with {@link #HARD_CACHE_TTL_MS}
-     * this gives stale-while-revalidate semantics — the admin dashboard responds in &lt;5 ms
-     * after the first warm-up while never showing data older than {@code HARD_CACHE_TTL_MS}.
+     * Soft cache TTL: snapshots older than this trigger a background refresh, but the stale value
+     * is still returned to the caller immediately. Combined with {@link #HARD_CACHE_TTL_MS} this
+     * gives stale-while-revalidate semantics — the admin dashboard responds in &lt;5 ms after the
+     * first warm-up while never showing data older than {@code HARD_CACHE_TTL_MS}.
      */
     private static final long CACHE_TTL_MS = 5_000L;
 
     /**
      * Hard cache TTL: snapshots older than this are treated as missing and the call blocks for a
-     * fresh probe. Backstop for the case where a background refresh stalled — we'd rather make
-     * the operator wait 2 s than show them health data from a minute ago.
+     * fresh probe. Backstop for the case where a background refresh stalled — we'd rather make the
+     * operator wait 2 s than show them health data from a minute ago.
      */
     private static final long HARD_CACHE_TTL_MS = 30_000L;
 
@@ -101,10 +101,10 @@ public class SystemHealthService {
     private final AtomicReference<CachedSnapshot> cache = new AtomicReference<>();
 
     /**
-     * Single-flight guard for background refreshes. Prevents the case where N concurrent
-     * dashboard tabs all see the cache go stale at the same moment and each kick off their
-     * own {@code runAllChecks} run — that would defeat the cache and fan out 6 probes per
-     * tab against PG/Redis/RabbitMQ/Bot/Cryptomus.
+     * Single-flight guard for background refreshes. Prevents the case where N concurrent dashboard
+     * tabs all see the cache go stale at the same moment and each kick off their own {@code
+     * runAllChecks} run — that would defeat the cache and fan out 6 probes per tab against
+     * PG/Redis/RabbitMQ/Bot/Cryptomus.
      */
     private final AtomicBoolean refreshInFlight = new AtomicBoolean(false);
 
@@ -131,13 +131,13 @@ public class SystemHealthService {
      *
      * <ul>
      *   <li>fresh cache (&lt;{@link #CACHE_TTL_MS}) → return immediately.
-     *   <li>stale cache (between {@code CACHE_TTL_MS} and {@link #HARD_CACHE_TTL_MS}) → return
-     *       the stale snapshot immediately AND kick off a background refresh.
+     *   <li>stale cache (between {@code CACHE_TTL_MS} and {@link #HARD_CACHE_TTL_MS}) → return the
+     *       stale snapshot immediately AND kick off a background refresh.
      *   <li>missing or hard-expired cache → block on a real probe (≤2 s budget).
      * </ul>
      *
-     * After the first warm-up this means the endpoint responds in &lt;5 ms regardless of how
-     * slow the underlying probes are. Order matches the tile grid the frontend renders.
+     * After the first warm-up this means the endpoint responds in &lt;5 ms regardless of how slow
+     * the underlying probes are. Order matches the tile grid the frontend renders.
      */
     public List<SystemHealthComponent> probe() {
         long now = System.currentTimeMillis();
@@ -161,10 +161,10 @@ public class SystemHealthService {
     }
 
     /**
-     * Kick off a single non-blocking refresh. The atomic guard ensures only one is in flight
-     * at a time even when many dashboard tabs hit the endpoint simultaneously. Failures are
-     * swallowed (logged only) so a transient probe error never poisons the cached snapshot —
-     * the next caller will see the previous good values until a refresh succeeds.
+     * Kick off a single non-blocking refresh. The atomic guard ensures only one is in flight at a
+     * time even when many dashboard tabs hit the endpoint simultaneously. Failures are swallowed
+     * (logged only) so a transient probe error never poisons the cached snapshot — the next caller
+     * will see the previous good values until a refresh succeeds.
      */
     private void triggerBackgroundRefresh() {
         if (!refreshInFlight.compareAndSet(false, true)) {

@@ -1,0 +1,2643 @@
+- generic [ref=e7]:
+  - complementary [ref=e8]:
+    - generic [ref=e9]:
+      - link "SMMWorld SMMWorld admin" [ref=e10] [cursor=pointer]:
+        - /url: /admin
+        - img "SMMWorld" [ref=e11]
+        - generic [ref=e12]:
+          - generic [ref=e13]: SMMWorld
+          - generic [ref=e14]: admin
+      - button "Collapse" [ref=e15] [cursor=pointer]:
+        - img [ref=e16]
+    - navigation [ref=e18]:
+      - generic [ref=e19]:
+        - generic [ref=e20]: Operations
+        - link "Dashboard" [ref=e21] [cursor=pointer]:
+          - /url: /admin
+          - img [ref=e22]
+          - generic [ref=e27]: Dashboard
+        - link "Orders" [ref=e28] [cursor=pointer]:
+          - /url: /admin/orders
+          - img [ref=e30]
+          - generic [ref=e32]: Orders
+        - link "Refill requests" [ref=e33] [cursor=pointer]:
+          - /url: /admin/refill-requests
+          - img [ref=e34]
+          - generic [ref=e36]: Refill requests
+        - link "Services" [ref=e37] [cursor=pointer]:
+          - /url: /admin/services
+          - img [ref=e38]
+          - generic [ref=e43]: Services
+      - generic [ref=e44]:
+        - generic [ref=e45]: Customers
+        - link "Users" [ref=e46] [cursor=pointer]:
+          - /url: /admin/users
+          - img [ref=e47]
+          - generic [ref=e52]: Users
+      - generic [ref=e53]:
+        - generic [ref=e54]: Money
+        - link "Payments" [ref=e55] [cursor=pointer]:
+          - /url: /admin/payments
+          - img [ref=e56]
+          - generic [ref=e59]: Payments
+        - link "Balance Txs" [ref=e60] [cursor=pointer]:
+          - /url: /admin/balance
+          - img [ref=e61]
+          - generic [ref=e64]: Balance Txs
+      - generic [ref=e65]:
+        - generic [ref=e66]: Infrastructure
+        - link "Instagram Bot" [ref=e67] [cursor=pointer]:
+          - /url: /admin/bot
+          - img [ref=e68]
+          - generic [ref=e73]: Instagram Bot
+        - link "Telegram Control" [ref=e74] [cursor=pointer]:
+          - /url: /admin/telegram
+          - img [ref=e75]
+          - generic [ref=e77]: Telegram Control
+        - link "System Monitoring" [ref=e78] [cursor=pointer]:
+          - /url: /admin/system
+          - img [ref=e79]
+          - generic [ref=e81]: System Monitoring
+      - generic [ref=e82]:
+        - generic [ref=e83]: Settings
+        - link "Settings" [ref=e84] [cursor=pointer]:
+          - /url: /admin/settings
+          - img [ref=e85]
+          - generic [ref=e88]: Settings
+  - generic [ref=e89]:
+    - banner [ref=e90]:
+      - button "Search orders, users, services… ⌘K" [ref=e91] [cursor=pointer]:
+        - img [ref=e92]
+        - generic [ref=e95]: Search orders, users, services…
+        - generic [ref=e96]: ⌘K
+      - generic [ref=e97]: PROD
+      - button "Toggle theme" [ref=e100] [cursor=pointer]:
+        - img [ref=e101]
+      - button "Notifications" [ref=e103] [cursor=pointer]:
+        - img [ref=e104]
+      - button "A admin admin" [ref=e107] [cursor=pointer]:
+        - generic [ref=e108]: A
+        - generic [ref=e109]:
+          - generic [ref=e110]: admin
+          - generic [ref=e111]: admin
+        - img [ref=e112]
+    - main [ref=e114]:
+      - generic [ref=e117]:
+        - generic [ref=e118]: Orders
+        - generic [ref=e120]: Page 1 of 100 · 9963 total
+      - generic [ref=e121]:
+        - generic [ref=e122]:
+          - generic [ref=e123]:
+            - generic [ref=e124]:
+              - img
+              - textbox [ref=e125]:
+                - /placeholder: Search id / service / user id
+            - generic [ref=e126]:
+              - img
+              - textbox [ref=e127]:
+                - /placeholder: URL contains…
+            - button "All time" [ref=e129] [cursor=pointer]:
+              - img [ref=e130]
+              - generic [ref=e133]: All time
+              - img [ref=e134]
+          - generic [ref=e136]:
+            - button "pending" [ref=e137] [cursor=pointer]
+            - button "in progress" [ref=e138] [cursor=pointer]
+            - button "completed" [ref=e139] [cursor=pointer]
+            - button "partial" [ref=e140] [cursor=pointer]
+            - button "cancelled" [ref=e141] [cursor=pointer]
+            - button "paused" [ref=e142] [cursor=pointer]
+            - button "error" [ref=e143] [cursor=pointer]
+        - generic [ref=e144]:
+          - table [ref=e146]:
+            - rowgroup [ref=e147]:
+              - row "ID User Service Target URL Qty Start count Remains Charge Status Created" [ref=e148]:
+                - columnheader [ref=e149]:
+                  - checkbox [ref=e150] [cursor=pointer]
+                - columnheader "ID" [ref=e151]
+                - columnheader "User" [ref=e152]
+                - columnheader "Service" [ref=e153]
+                - columnheader "Target URL" [ref=e154]
+                - columnheader "Qty" [ref=e155]
+                - columnheader "Start count" [ref=e156]
+                - columnheader "Remains" [ref=e157]
+                - columnheader "Charge" [ref=e158]
+                - columnheader "Status" [ref=e159]
+                - columnheader "Created" [ref=e160]
+                - columnheader [ref=e161]
+            - rowgroup [ref=e162]:
+              - row "Today (100)" [ref=e163]:
+                - cell "Today (100)" [ref=e164]:
+                  - generic [ref=e165]:
+                    - text: Today
+                    - generic [ref=e166]: (100)
+              - 'row "# 10502 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/estherscirclewomensministry/ Copy link 20 451 20 $0.20 In progress 2026-05-07 12:32" [ref=e167] [cursor=pointer]':
+                - cell [ref=e168]:
+                  - checkbox [ref=e169]
+                - cell "# 10502" [ref=e170]:
+                  - button "# 10502" [ref=e171]:
+                    - generic [ref=e172]: "#"
+                    - text: "10502"
+                    - img [ref=e173]
+                - cell "#" [ref=e176]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e177]
+                - cell "instagram.com/estherscirclewomensministry/ Copy link" [ref=e178]:
+                  - generic [ref=e179]:
+                    - link "instagram.com/estherscirclewomensministry/" [ref=e180]:
+                      - /url: https://instagram.com/estherscirclewomensministry/
+                    - button "Copy link" [ref=e181]:
+                      - img [ref=e182]
+                - cell "20" [ref=e185]
+                - cell "451" [ref=e186]
+                - cell "20" [ref=e187]
+                - cell "$0.20" [ref=e188]
+                - cell "In progress" [ref=e189]:
+                  - generic "Bot is actively executing actions" [ref=e190]: In progress
+                - cell "2026-05-07 12:32" [ref=e192]
+                - cell [ref=e193]:
+                  - img [ref=e194]
+              - 'row "# 10501 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DU1eSXQDV-h/ Copy link 25 3 23 $0.10 In progress 2026-05-07 12:19" [ref=e196] [cursor=pointer]':
+                - cell [ref=e197]:
+                  - checkbox [ref=e198]
+                - cell "# 10501" [ref=e199]:
+                  - button "# 10501" [ref=e200]:
+                    - generic [ref=e201]: "#"
+                    - text: "10501"
+                    - img [ref=e202]
+                - cell "#" [ref=e205]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e206]
+                - cell "instagram.com/p/DU1eSXQDV-h/ Copy link" [ref=e207]:
+                  - generic [ref=e208]:
+                    - link "instagram.com/p/DU1eSXQDV-h/" [ref=e209]:
+                      - /url: https://www.instagram.com/p/DU1eSXQDV-h/
+                    - button "Copy link" [ref=e210]:
+                      - img [ref=e211]
+                - cell "25" [ref=e214]
+                - cell "3" [ref=e215]
+                - cell "23" [ref=e216]
+                - cell "$0.10" [ref=e217]
+                - cell "In progress" [ref=e218]:
+                  - generic "Bot is actively executing actions" [ref=e219]: In progress
+                - cell "2026-05-07 12:19" [ref=e221]
+                - cell [ref=e222]:
+                  - img [ref=e223]
+              - 'row "# 10500 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/amoksiarchitectuur/ Copy link 263 5 260 $2.63 In progress 2026-05-07 12:18" [ref=e225] [cursor=pointer]':
+                - cell [ref=e226]:
+                  - checkbox [ref=e227]
+                - cell "# 10500" [ref=e228]:
+                  - button "# 10500" [ref=e229]:
+                    - generic [ref=e230]: "#"
+                    - text: "10500"
+                    - img [ref=e231]
+                - cell "#" [ref=e234]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e235]
+                - cell "instagram.com/amoksiarchitectuur/ Copy link" [ref=e236]:
+                  - generic [ref=e237]:
+                    - link "instagram.com/amoksiarchitectuur/" [ref=e238]:
+                      - /url: https://www.instagram.com/amoksiarchitectuur/
+                    - button "Copy link" [ref=e239]:
+                      - img [ref=e240]
+                - cell "263" [ref=e243]
+                - cell "5" [ref=e244]
+                - cell "260" [ref=e245]
+                - cell "$2.63" [ref=e246]
+                - cell "In progress" [ref=e247]:
+                  - generic "Bot is actively executing actions" [ref=e248]: In progress
+                - cell "2026-05-07 12:18" [ref=e250]
+                - cell [ref=e251]:
+                  - img [ref=e252]
+              - 'row "# 10499 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/beardable/ Copy link 100 12,868 94 $1.00 In progress 2026-05-07 12:14" [ref=e254] [cursor=pointer]':
+                - cell [ref=e255]:
+                  - checkbox [ref=e256]
+                - cell "# 10499" [ref=e257]:
+                  - button "# 10499" [ref=e258]:
+                    - generic [ref=e259]: "#"
+                    - text: "10499"
+                    - img [ref=e260]
+                - cell "#" [ref=e263]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e264]
+                - cell "instagram.com/beardable/ Copy link" [ref=e265]:
+                  - generic [ref=e266]:
+                    - link "instagram.com/beardable/" [ref=e267]:
+                      - /url: https://www.instagram.com/beardable/
+                    - button "Copy link" [ref=e268]:
+                      - img [ref=e269]
+                - cell "100" [ref=e272]
+                - cell "12,868" [ref=e273]
+                - cell "94" [ref=e274]
+                - cell "$1.00" [ref=e275]
+                - cell "In progress" [ref=e276]:
+                  - generic "Bot is actively executing actions" [ref=e277]: In progress
+                - cell "2026-05-07 12:14" [ref=e279]
+                - cell [ref=e280]:
+                  - img [ref=e281]
+              - 'row "# 10498 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/solus_cos/ Copy link 25 86 16 $0.25 In progress 2026-05-07 12:12" [ref=e283] [cursor=pointer]':
+                - cell [ref=e284]:
+                  - checkbox [ref=e285]
+                - cell "# 10498" [ref=e286]:
+                  - button "# 10498" [ref=e287]:
+                    - generic [ref=e288]: "#"
+                    - text: "10498"
+                    - img [ref=e289]
+                - cell "#" [ref=e292]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e293]
+                - cell "instagram.com/solus_cos/ Copy link" [ref=e294]:
+                  - generic [ref=e295]:
+                    - link "instagram.com/solus_cos/" [ref=e296]:
+                      - /url: https://www.instagram.com/solus_cos/
+                    - button "Copy link" [ref=e297]:
+                      - img [ref=e298]
+                - cell "25" [ref=e301]
+                - cell "86" [ref=e302]
+                - cell "16" [ref=e303]
+                - cell "$0.25" [ref=e304]
+                - cell "In progress" [ref=e305]:
+                  - generic "Bot is actively executing actions" [ref=e306]: In progress
+                - cell "2026-05-07 12:12" [ref=e308]
+                - cell [ref=e309]:
+                  - img [ref=e310]
+              - 'row "# 10497 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/zjenet/ Copy link 60 479 51 $0.60 In progress 2026-05-07 12:11" [ref=e312] [cursor=pointer]':
+                - cell [ref=e313]:
+                  - checkbox [ref=e314]
+                - cell "# 10497" [ref=e315]:
+                  - button "# 10497" [ref=e316]:
+                    - generic [ref=e317]: "#"
+                    - text: "10497"
+                    - img [ref=e318]
+                - cell "#" [ref=e321]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e322]
+                - cell "instagram.com/zjenet/ Copy link" [ref=e323]:
+                  - generic [ref=e324]:
+                    - link "instagram.com/zjenet/" [ref=e325]:
+                      - /url: https://www.instagram.com/zjenet/
+                    - button "Copy link" [ref=e326]:
+                      - img [ref=e327]
+                - cell "60" [ref=e330]
+                - cell "479" [ref=e331]
+                - cell "51" [ref=e332]
+                - cell "$0.60" [ref=e333]
+                - cell "In progress" [ref=e334]:
+                  - generic "Bot is actively executing actions" [ref=e335]: In progress
+                - cell "2026-05-07 12:11" [ref=e337]
+                - cell [ref=e338]:
+                  - img [ref=e339]
+              - 'row "# 10496 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/hedonisterie_wedding/ Copy link 100 2,592 89 $1.00 In progress 2026-05-07 12:09" [ref=e341] [cursor=pointer]':
+                - cell [ref=e342]:
+                  - checkbox [ref=e343]
+                - cell "# 10496" [ref=e344]:
+                  - button "# 10496" [ref=e345]:
+                    - generic [ref=e346]: "#"
+                    - text: "10496"
+                    - img [ref=e347]
+                - cell "#" [ref=e350]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e351]
+                - cell "instagram.com/hedonisterie_wedding/ Copy link" [ref=e352]:
+                  - generic [ref=e353]:
+                    - link "instagram.com/hedonisterie_wedding/" [ref=e354]:
+                      - /url: https://www.instagram.com/hedonisterie_wedding/
+                    - button "Copy link" [ref=e355]:
+                      - img [ref=e356]
+                - cell "100" [ref=e359]
+                - cell "2,592" [ref=e360]
+                - cell "89" [ref=e361]
+                - cell "$1.00" [ref=e362]
+                - cell "In progress" [ref=e363]:
+                  - generic "Bot is actively executing actions" [ref=e364]: In progress
+                - cell "2026-05-07 12:09" [ref=e366]
+                - cell [ref=e367]:
+                  - img [ref=e368]
+              - 'row "# 10495 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/derpapaosse/ Copy link 25 11,714 17 $0.25 In progress 2026-05-07 12:09" [ref=e370] [cursor=pointer]':
+                - cell [ref=e371]:
+                  - checkbox [ref=e372]
+                - cell "# 10495" [ref=e373]:
+                  - button "# 10495" [ref=e374]:
+                    - generic [ref=e375]: "#"
+                    - text: "10495"
+                    - img [ref=e376]
+                - cell "#" [ref=e379]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e380]
+                - cell "instagram.com/derpapaosse/ Copy link" [ref=e381]:
+                  - generic [ref=e382]:
+                    - link "instagram.com/derpapaosse/" [ref=e383]:
+                      - /url: https://www.instagram.com/derpapaosse/
+                    - button "Copy link" [ref=e384]:
+                      - img [ref=e385]
+                - cell "25" [ref=e388]
+                - cell "11,714" [ref=e389]
+                - cell "17" [ref=e390]
+                - cell "$0.25" [ref=e391]
+                - cell "In progress" [ref=e392]:
+                  - generic "Bot is actively executing actions" [ref=e393]: In progress
+                - cell "2026-05-07 12:09" [ref=e395]
+                - cell [ref=e396]:
+                  - img [ref=e397]
+              - 'row "# 10494 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/trapcosmetics.official/ Copy link 105 939 96 $1.05 In progress 2026-05-07 12:08" [ref=e399] [cursor=pointer]':
+                - cell [ref=e400]:
+                  - checkbox [ref=e401]
+                - cell "# 10494" [ref=e402]:
+                  - button "# 10494" [ref=e403]:
+                    - generic [ref=e404]: "#"
+                    - text: "10494"
+                    - img [ref=e405]
+                - cell "#" [ref=e408]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e409]
+                - cell "instagram.com/trapcosmetics.official/ Copy link" [ref=e410]:
+                  - generic [ref=e411]:
+                    - link "instagram.com/trapcosmetics.official/" [ref=e412]:
+                      - /url: https://www.instagram.com/trapcosmetics.official/
+                    - button "Copy link" [ref=e413]:
+                      - img [ref=e414]
+                - cell "105" [ref=e417]
+                - cell "939" [ref=e418]
+                - cell "96" [ref=e419]
+                - cell "$1.05" [ref=e420]
+                - cell "In progress" [ref=e421]:
+                  - generic "Bot is actively executing actions" [ref=e422]: In progress
+                - cell "2026-05-07 12:08" [ref=e424]
+                - cell [ref=e425]:
+                  - img [ref=e426]
+              - 'row "# 10493 # Instagram Custom Comments [Mix Gender] [USA/Europe] instagram.com/p/DYCSjgbjP91/ Copy link 10 4 4 $0.70 In progress 2026-05-07 12:07" [ref=e428] [cursor=pointer]':
+                - cell [ref=e429]:
+                  - checkbox [ref=e430]
+                - cell "# 10493" [ref=e431]:
+                  - button "# 10493" [ref=e432]:
+                    - generic [ref=e433]: "#"
+                    - text: "10493"
+                    - img [ref=e434]
+                - cell "#" [ref=e437]
+                - cell "Instagram Custom Comments [Mix Gender] [USA/Europe]" [ref=e438]
+                - cell "instagram.com/p/DYCSjgbjP91/ Copy link" [ref=e439]:
+                  - generic [ref=e440]:
+                    - link "instagram.com/p/DYCSjgbjP91/" [ref=e441]:
+                      - /url: https://www.instagram.com/p/DYCSjgbjP91/
+                    - button "Copy link" [ref=e442]:
+                      - img [ref=e443]
+                - cell "10" [ref=e446]
+                - cell "4" [ref=e447]
+                - cell "4" [ref=e448]
+                - cell "$0.70" [ref=e449]
+                - cell "In progress" [ref=e450]:
+                  - generic "Bot is actively executing actions" [ref=e451]: In progress
+                - cell "2026-05-07 12:07" [ref=e453]
+                - cell [ref=e454]:
+                  - img [ref=e455]
+              - 'row "# 10492 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DYAjeoMIQ-e/ Copy link 100 3 90 $0.40 In progress 2026-05-07 12:07" [ref=e457] [cursor=pointer]':
+                - cell [ref=e458]:
+                  - checkbox [ref=e459]
+                - cell "# 10492" [ref=e460]:
+                  - button "# 10492" [ref=e461]:
+                    - generic [ref=e462]: "#"
+                    - text: "10492"
+                    - img [ref=e463]
+                - cell "#" [ref=e466]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e467]
+                - cell "instagram.com/p/DYAjeoMIQ-e/ Copy link" [ref=e468]:
+                  - generic [ref=e469]:
+                    - link "instagram.com/p/DYAjeoMIQ-e/" [ref=e470]:
+                      - /url: https://www.instagram.com/p/DYAjeoMIQ-e/
+                    - button "Copy link" [ref=e471]:
+                      - img [ref=e472]
+                - cell "100" [ref=e475]
+                - cell "3" [ref=e476]
+                - cell "90" [ref=e477]
+                - cell "$0.40" [ref=e478]
+                - cell "In progress" [ref=e479]:
+                  - generic "Bot is actively executing actions" [ref=e480]: In progress
+                - cell "2026-05-07 12:07" [ref=e482]
+                - cell [ref=e483]:
+                  - img [ref=e484]
+              - 'row "# 10491 # Instagram Likes [Female] [USA/Europe] instagram.com/p/DU1IISvjBe7/ Copy link 50 5 33 $0.20 In progress 2026-05-07 12:00" [ref=e486] [cursor=pointer]':
+                - cell [ref=e487]:
+                  - checkbox [ref=e488]
+                - cell "# 10491" [ref=e489]:
+                  - button "# 10491" [ref=e490]:
+                    - generic [ref=e491]: "#"
+                    - text: "10491"
+                    - img [ref=e492]
+                - cell "#" [ref=e495]
+                - cell "Instagram Likes [Female] [USA/Europe]" [ref=e496]
+                - cell "instagram.com/p/DU1IISvjBe7/ Copy link" [ref=e497]:
+                  - generic [ref=e498]:
+                    - link "instagram.com/p/DU1IISvjBe7/" [ref=e499]:
+                      - /url: https://www.instagram.com/p/DU1IISvjBe7/
+                    - button "Copy link" [ref=e500]:
+                      - img [ref=e501]
+                - cell "50" [ref=e504]
+                - cell "5" [ref=e505]
+                - cell "33" [ref=e506]
+                - cell "$0.20" [ref=e507]
+                - cell "In progress" [ref=e508]:
+                  - generic "Bot is actively executing actions" [ref=e509]: In progress
+                - cell "2026-05-07 12:00" [ref=e511]
+                - cell [ref=e512]:
+                  - img [ref=e513]
+              - 'row "# 10490 # Instagram Likes [Female] [USA/Europe] instagram.com/p/DYCVQx9pjtH/ Copy link 50 1 30 $0.20 In progress 2026-05-07 11:57" [ref=e515] [cursor=pointer]':
+                - cell [ref=e516]:
+                  - checkbox [ref=e517]
+                - cell "# 10490" [ref=e518]:
+                  - button "# 10490" [ref=e519]:
+                    - generic [ref=e520]: "#"
+                    - text: "10490"
+                    - img [ref=e521]
+                - cell "#" [ref=e524]
+                - cell "Instagram Likes [Female] [USA/Europe]" [ref=e525]
+                - cell "instagram.com/p/DYCVQx9pjtH/ Copy link" [ref=e526]:
+                  - generic [ref=e527]:
+                    - link "instagram.com/p/DYCVQx9pjtH/" [ref=e528]:
+                      - /url: https://www.instagram.com/p/DYCVQx9pjtH/
+                    - button "Copy link" [ref=e529]:
+                      - img [ref=e530]
+                - cell "50" [ref=e533]
+                - cell "1" [ref=e534]
+                - cell "30" [ref=e535]
+                - cell "$0.20" [ref=e536]
+                - cell "In progress" [ref=e537]:
+                  - generic "Bot is actively executing actions" [ref=e538]: In progress
+                - cell "2026-05-07 11:57" [ref=e540]
+                - cell [ref=e541]:
+                  - img [ref=e542]
+              - 'row "# 10489 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/scheisscontentt/ Copy link 52 505 44 $0.52 In progress 2026-05-07 11:52" [ref=e544] [cursor=pointer]':
+                - cell [ref=e545]:
+                  - checkbox [ref=e546]
+                - cell "# 10489" [ref=e547]:
+                  - button "# 10489" [ref=e548]:
+                    - generic [ref=e549]: "#"
+                    - text: "10489"
+                    - img [ref=e550]
+                - cell "#" [ref=e553]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e554]
+                - cell "instagram.com/scheisscontentt/ Copy link" [ref=e555]:
+                  - generic [ref=e556]:
+                    - link "instagram.com/scheisscontentt/" [ref=e557]:
+                      - /url: https://www.instagram.com/scheisscontentt/
+                    - button "Copy link" [ref=e558]:
+                      - img [ref=e559]
+                - cell "52" [ref=e562]
+                - cell "505" [ref=e563]
+                - cell "44" [ref=e564]
+                - cell "$0.52" [ref=e565]
+                - cell "In progress" [ref=e566]:
+                  - generic "Bot is actively executing actions" [ref=e567]: In progress
+                - cell "2026-05-07 11:52" [ref=e569]
+                - cell [ref=e570]:
+                  - img [ref=e571]
+              - 'row "# 10488 # Instagram Likes [Female] [USA/Europe] instagram.com/p/DYCTVCGDKzA/ Copy link 51 1 24 $0.20 In progress 2026-05-07 11:42" [ref=e573] [cursor=pointer]':
+                - cell [ref=e574]:
+                  - checkbox [ref=e575]
+                - cell "# 10488" [ref=e576]:
+                  - button "# 10488" [ref=e577]:
+                    - generic [ref=e578]: "#"
+                    - text: "10488"
+                    - img [ref=e579]
+                - cell "#" [ref=e582]
+                - cell "Instagram Likes [Female] [USA/Europe]" [ref=e583]
+                - cell "instagram.com/p/DYCTVCGDKzA/ Copy link" [ref=e584]:
+                  - generic [ref=e585]:
+                    - link "instagram.com/p/DYCTVCGDKzA/" [ref=e586]:
+                      - /url: https://www.instagram.com/p/DYCTVCGDKzA/
+                    - button "Copy link" [ref=e587]:
+                      - img [ref=e588]
+                - cell "51" [ref=e591]
+                - cell "1" [ref=e592]
+                - cell "24" [ref=e593]
+                - cell "$0.20" [ref=e594]
+                - cell "In progress" [ref=e595]:
+                  - generic "Bot is actively executing actions" [ref=e596]: In progress
+                - cell "2026-05-07 11:42" [ref=e598]
+                - cell [ref=e599]:
+                  - img [ref=e600]
+              - 'row "# 10487 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DYCTCsijSgR/ Copy link 103 50 72 $0.41 In progress 2026-05-07 11:38" [ref=e602] [cursor=pointer]':
+                - cell [ref=e603]:
+                  - checkbox [ref=e604]
+                - cell "# 10487" [ref=e605]:
+                  - button "# 10487" [ref=e606]:
+                    - generic [ref=e607]: "#"
+                    - text: "10487"
+                    - img [ref=e608]
+                - cell "#" [ref=e611]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e612]
+                - cell "instagram.com/p/DYCTCsijSgR/ Copy link" [ref=e613]:
+                  - generic [ref=e614]:
+                    - link "instagram.com/p/DYCTCsijSgR/" [ref=e615]:
+                      - /url: https://www.instagram.com/p/DYCTCsijSgR/
+                    - button "Copy link" [ref=e616]:
+                      - img [ref=e617]
+                - cell "103" [ref=e620]
+                - cell "50" [ref=e621]
+                - cell "72" [ref=e622]
+                - cell "$0.41" [ref=e623]
+                - cell "In progress" [ref=e624]:
+                  - generic "Bot is actively executing actions" [ref=e625]: In progress
+                - cell "2026-05-07 11:38" [ref=e627]
+                - cell [ref=e628]:
+                  - img [ref=e629]
+              - 'row "# 10486 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DYCTCsijSgR/ Copy link 101 49 70 $0.40 In progress 2026-05-07 11:38" [ref=e631] [cursor=pointer]':
+                - cell [ref=e632]:
+                  - checkbox [ref=e633]
+                - cell "# 10486" [ref=e634]:
+                  - button "# 10486" [ref=e635]:
+                    - generic [ref=e636]: "#"
+                    - text: "10486"
+                    - img [ref=e637]
+                - cell "#" [ref=e640]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e641]
+                - cell "instagram.com/p/DYCTCsijSgR/ Copy link" [ref=e642]:
+                  - generic [ref=e643]:
+                    - link "instagram.com/p/DYCTCsijSgR/" [ref=e644]:
+                      - /url: https://www.instagram.com/p/DYCTCsijSgR/
+                    - button "Copy link" [ref=e645]:
+                      - img [ref=e646]
+                - cell "101" [ref=e649]
+                - cell "49" [ref=e650]
+                - cell "70" [ref=e651]
+                - cell "$0.40" [ref=e652]
+                - cell "In progress" [ref=e653]:
+                  - generic "Bot is actively executing actions" [ref=e654]: In progress
+                - cell "2026-05-07 11:38" [ref=e656]
+                - cell [ref=e657]:
+                  - img [ref=e658]
+              - 'row "# 10485 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DXvwbGVjYwj/ Copy link 30 0 30 $0.12 Pending 2026-05-07 11:21" [ref=e660] [cursor=pointer]':
+                - cell [ref=e661]:
+                  - checkbox [ref=e662]
+                - cell "# 10485" [ref=e663]:
+                  - button "# 10485" [ref=e664]:
+                    - generic [ref=e665]: "#"
+                    - text: "10485"
+                    - img [ref=e666]
+                - cell "#" [ref=e669]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e670]
+                - cell "instagram.com/p/DXvwbGVjYwj/ Copy link" [ref=e671]:
+                  - generic [ref=e672]:
+                    - link "instagram.com/p/DXvwbGVjYwj/" [ref=e673]:
+                      - /url: https://www.instagram.com/p/DXvwbGVjYwj/
+                    - button "Copy link" [ref=e674]:
+                      - img [ref=e675]
+                - cell "30" [ref=e678]
+                - cell "0" [ref=e679]
+                - cell "30" [ref=e680]
+                - cell "$0.12" [ref=e681]
+                - cell "Pending" [ref=e682]:
+                  - generic "Queued, not yet dispatched to bot" [ref=e683]: Pending
+                - cell "2026-05-07 11:21" [ref=e685]
+                - cell [ref=e686]:
+                  - img [ref=e687]
+              - 'row "# 10484 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DYB4y0ZDeG4/ Copy link 31 6 0 $0.12 Completed 2026-05-07 11:21" [ref=e689] [cursor=pointer]':
+                - cell [ref=e690]:
+                  - checkbox [ref=e691]
+                - cell "# 10484" [ref=e692]:
+                  - button "# 10484" [ref=e693]:
+                    - generic [ref=e694]: "#"
+                    - text: "10484"
+                    - img [ref=e695]
+                - cell "#" [ref=e698]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e699]
+                - cell "instagram.com/p/DYB4y0ZDeG4/ Copy link" [ref=e700]:
+                  - generic [ref=e701]:
+                    - link "instagram.com/p/DYB4y0ZDeG4/" [ref=e702]:
+                      - /url: https://www.instagram.com/p/DYB4y0ZDeG4/
+                    - button "Copy link" [ref=e703]:
+                      - img [ref=e704]
+                - cell "31" [ref=e707]
+                - cell "6" [ref=e708]
+                - cell "0" [ref=e709]
+                - cell "$0.12" [ref=e710]
+                - cell "Completed" [ref=e711]:
+                  - generic "Fully delivered" [ref=e712]: Completed
+                - cell "2026-05-07 11:21" [ref=e714]
+                - cell [ref=e715]:
+                  - img [ref=e716]
+              - 'row "# 10483 # Instagram Likes [Female] [USA/Europe] instagram.com/p/DYCNFqDCKZB/ Copy link 150 3 108 $0.60 In progress 2026-05-07 11:20" [ref=e718] [cursor=pointer]':
+                - cell [ref=e719]:
+                  - checkbox [ref=e720]
+                - cell "# 10483" [ref=e721]:
+                  - button "# 10483" [ref=e722]:
+                    - generic [ref=e723]: "#"
+                    - text: "10483"
+                    - img [ref=e724]
+                - cell "#" [ref=e727]
+                - cell "Instagram Likes [Female] [USA/Europe]" [ref=e728]
+                - cell "instagram.com/p/DYCNFqDCKZB/ Copy link" [ref=e729]:
+                  - generic [ref=e730]:
+                    - link "instagram.com/p/DYCNFqDCKZB/" [ref=e731]:
+                      - /url: https://www.instagram.com/p/DYCNFqDCKZB/
+                    - button "Copy link" [ref=e732]:
+                      - img [ref=e733]
+                - cell "150" [ref=e736]
+                - cell "3" [ref=e737]
+                - cell "108" [ref=e738]
+                - cell "$0.60" [ref=e739]
+                - cell "In progress" [ref=e740]:
+                  - generic "Bot is actively executing actions" [ref=e741]: In progress
+                - cell "2026-05-07 11:20" [ref=e743]
+                - cell [ref=e744]:
+                  - img [ref=e745]
+              - 'row "# 10482 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DYCKUFyiApW/ Copy link 30 15 0 $0.12 Completed 2026-05-07 11:20" [ref=e747] [cursor=pointer]':
+                - cell [ref=e748]:
+                  - checkbox [ref=e749]
+                - cell "# 10482" [ref=e750]:
+                  - button "# 10482" [ref=e751]:
+                    - generic [ref=e752]: "#"
+                    - text: "10482"
+                    - img [ref=e753]
+                - cell "#" [ref=e756]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e757]
+                - cell "instagram.com/p/DYCKUFyiApW/ Copy link" [ref=e758]:
+                  - generic [ref=e759]:
+                    - link "instagram.com/p/DYCKUFyiApW/" [ref=e760]:
+                      - /url: https://www.instagram.com/p/DYCKUFyiApW/
+                    - button "Copy link" [ref=e761]:
+                      - img [ref=e762]
+                - cell "30" [ref=e765]
+                - cell "15" [ref=e766]
+                - cell "0" [ref=e767]
+                - cell "$0.12" [ref=e768]
+                - cell "Completed" [ref=e769]:
+                  - generic "Fully delivered" [ref=e770]: Completed
+                - cell "2026-05-07 11:20" [ref=e772]
+                - cell [ref=e773]:
+                  - img [ref=e774]
+              - 'row "# 10481 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DU1eSXQDV-h/ Copy link 25 3 0 $0.10 Completed 2026-05-07 11:15" [ref=e776] [cursor=pointer]':
+                - cell [ref=e777]:
+                  - checkbox [ref=e778]
+                - cell "# 10481" [ref=e779]:
+                  - button "# 10481" [ref=e780]:
+                    - generic [ref=e781]: "#"
+                    - text: "10481"
+                    - img [ref=e782]
+                - cell "#" [ref=e785]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e786]
+                - cell "instagram.com/p/DU1eSXQDV-h/ Copy link" [ref=e787]:
+                  - generic [ref=e788]:
+                    - link "instagram.com/p/DU1eSXQDV-h/" [ref=e789]:
+                      - /url: https://www.instagram.com/p/DU1eSXQDV-h/
+                    - button "Copy link" [ref=e790]:
+                      - img [ref=e791]
+                - cell "25" [ref=e794]
+                - cell "3" [ref=e795]
+                - cell "0" [ref=e796]
+                - cell "$0.10" [ref=e797]
+                - cell "Completed" [ref=e798]:
+                  - generic "Fully delivered" [ref=e799]: Completed
+                - cell "2026-05-07 11:15" [ref=e801]
+                - cell [ref=e802]:
+                  - img [ref=e803]
+              - 'row "# 10480 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DYCPwxSCMnU/ Copy link 100 2 66 $0.40 In progress 2026-05-07 11:14" [ref=e805] [cursor=pointer]':
+                - cell [ref=e806]:
+                  - checkbox [ref=e807]
+                - cell "# 10480" [ref=e808]:
+                  - button "# 10480" [ref=e809]:
+                    - generic [ref=e810]: "#"
+                    - text: "10480"
+                    - img [ref=e811]
+                - cell "#" [ref=e814]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e815]
+                - cell "instagram.com/p/DYCPwxSCMnU/ Copy link" [ref=e816]:
+                  - generic [ref=e817]:
+                    - link "instagram.com/p/DYCPwxSCMnU/" [ref=e818]:
+                      - /url: https://www.instagram.com/p/DYCPwxSCMnU/
+                    - button "Copy link" [ref=e819]:
+                      - img [ref=e820]
+                - cell "100" [ref=e823]
+                - cell "2" [ref=e824]
+                - cell "66" [ref=e825]
+                - cell "$0.40" [ref=e826]
+                - cell "In progress" [ref=e827]:
+                  - generic "Bot is actively executing actions" [ref=e828]: In progress
+                - cell "2026-05-07 11:14" [ref=e830]
+                - cell [ref=e831]:
+                  - img [ref=e832]
+              - 'row "# 10479 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/juliette_lutsak_art/ Copy link 60 1,709 27 $0.60 In progress 2026-05-07 11:13" [ref=e834] [cursor=pointer]':
+                - cell [ref=e835]:
+                  - checkbox [ref=e836]
+                - cell "# 10479" [ref=e837]:
+                  - button "# 10479" [ref=e838]:
+                    - generic [ref=e839]: "#"
+                    - text: "10479"
+                    - img [ref=e840]
+                - cell "#" [ref=e843]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e844]
+                - cell "instagram.com/juliette_lutsak_art/ Copy link" [ref=e845]:
+                  - generic [ref=e846]:
+                    - link "instagram.com/juliette_lutsak_art/" [ref=e847]:
+                      - /url: https://www.instagram.com/juliette_lutsak_art/
+                    - button "Copy link" [ref=e848]:
+                      - img [ref=e849]
+                - cell "60" [ref=e852]
+                - cell "1,709" [ref=e853]
+                - cell "27" [ref=e854]
+                - cell "$0.60" [ref=e855]
+                - cell "In progress" [ref=e856]:
+                  - generic "Bot is actively executing actions" [ref=e857]: In progress
+                - cell "2026-05-07 11:13" [ref=e859]
+                - cell [ref=e860]:
+                  - img [ref=e861]
+              - 'row "# 10478 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/derpapaosse/ Copy link 25 11,689 0 $0.25 Completed 2026-05-07 11:05" [ref=e863] [cursor=pointer]':
+                - cell [ref=e864]:
+                  - checkbox [ref=e865]
+                - cell "# 10478" [ref=e866]:
+                  - button "# 10478" [ref=e867]:
+                    - generic [ref=e868]: "#"
+                    - text: "10478"
+                    - img [ref=e869]
+                - cell "#" [ref=e872]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e873]
+                - cell "instagram.com/derpapaosse/ Copy link" [ref=e874]:
+                  - generic [ref=e875]:
+                    - link "instagram.com/derpapaosse/" [ref=e876]:
+                      - /url: https://www.instagram.com/derpapaosse/
+                    - button "Copy link" [ref=e877]:
+                      - img [ref=e878]
+                - cell "25" [ref=e881]
+                - cell "11,689" [ref=e882]
+                - cell "0" [ref=e883]
+                - cell "$0.25" [ref=e884]
+                - cell "Completed" [ref=e885]:
+                  - generic "Fully delivered" [ref=e886]: Completed
+                - cell "2026-05-07 11:05" [ref=e888]
+                - cell [ref=e889]:
+                  - img [ref=e890]
+              - 'row "# 10477 # Instagram Likes [Female] [USA/Europe] instagram.com/p/DYCPQ8DxH1Z/ Copy link 100 0 54 $0.40 In progress 2026-05-07 11:04" [ref=e892] [cursor=pointer]':
+                - cell [ref=e893]:
+                  - checkbox [ref=e894]
+                - cell "# 10477" [ref=e895]:
+                  - button "# 10477" [ref=e896]:
+                    - generic [ref=e897]: "#"
+                    - text: "10477"
+                    - img [ref=e898]
+                - cell "#" [ref=e901]
+                - cell "Instagram Likes [Female] [USA/Europe]" [ref=e902]
+                - cell "instagram.com/p/DYCPQ8DxH1Z/ Copy link" [ref=e903]:
+                  - generic [ref=e904]:
+                    - link "instagram.com/p/DYCPQ8DxH1Z/" [ref=e905]:
+                      - /url: https://www.instagram.com/p/DYCPQ8DxH1Z/
+                    - button "Copy link" [ref=e906]:
+                      - img [ref=e907]
+                - cell "100" [ref=e910]
+                - cell "0" [ref=e911]
+                - cell "54" [ref=e912]
+                - cell "$0.40" [ref=e913]
+                - cell "In progress" [ref=e914]:
+                  - generic "Bot is actively executing actions" [ref=e915]: In progress
+                - cell "2026-05-07 11:04" [ref=e917]
+                - cell [ref=e918]:
+                  - img [ref=e919]
+              - 'row "# 10476 # Instagram Custom Comments [Mix Gender] [USA/Europe] instagram.com/p/DX_73szRgQV/ Copy link 5 0 0 $0.35 Completed 2026-05-07 11:02" [ref=e921] [cursor=pointer]':
+                - cell [ref=e922]:
+                  - checkbox [ref=e923]
+                - cell "# 10476" [ref=e924]:
+                  - button "# 10476" [ref=e925]:
+                    - generic [ref=e926]: "#"
+                    - text: "10476"
+                    - img [ref=e927]
+                - cell "#" [ref=e930]
+                - cell "Instagram Custom Comments [Mix Gender] [USA/Europe]" [ref=e931]
+                - cell "instagram.com/p/DX_73szRgQV/ Copy link" [ref=e932]:
+                  - generic [ref=e933]:
+                    - link "instagram.com/p/DX_73szRgQV/" [ref=e934]:
+                      - /url: https://www.instagram.com/p/DX_73szRgQV/
+                    - button "Copy link" [ref=e935]:
+                      - img [ref=e936]
+                - cell "5" [ref=e939]
+                - cell "0" [ref=e940]
+                - cell "0" [ref=e941]
+                - cell "$0.35" [ref=e942]
+                - cell "Completed" [ref=e943]:
+                  - generic "Fully delivered" [ref=e944]: Completed
+                - cell "2026-05-07 11:02" [ref=e946]
+                - cell [ref=e947]:
+                  - img [ref=e948]
+              - 'row "# 10475 # Instagram Comments [Mix Gender] [USA/Europe] instagram.com/p/DYCNkentjNz/ Copy link 273 0 257 $24.57 In progress 2026-05-07 10:59" [ref=e950] [cursor=pointer]':
+                - cell [ref=e951]:
+                  - checkbox [ref=e952]
+                - cell "# 10475" [ref=e953]:
+                  - button "# 10475" [ref=e954]:
+                    - generic [ref=e955]: "#"
+                    - text: "10475"
+                    - img [ref=e956]
+                - cell "#" [ref=e959]
+                - cell "Instagram Comments [Mix Gender] [USA/Europe]" [ref=e960]
+                - cell "instagram.com/p/DYCNkentjNz/ Copy link" [ref=e961]:
+                  - generic [ref=e962]:
+                    - link "instagram.com/p/DYCNkentjNz/" [ref=e963]:
+                      - /url: https://www.instagram.com/p/DYCNkentjNz/
+                    - button "Copy link" [ref=e964]:
+                      - img [ref=e965]
+                - cell "273" [ref=e968]
+                - cell "0" [ref=e969]
+                - cell "257" [ref=e970]
+                - cell "$24.57" [ref=e971]
+                - cell "In progress" [ref=e972]:
+                  - generic "Bot is actively executing actions" [ref=e973]: In progress
+                - cell "2026-05-07 10:59" [ref=e975]
+                - cell [ref=e976]:
+                  - img [ref=e977]
+              - 'row "# 10474 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DYCIaaTDd19/ Copy link 132 125 72 $0.53 In progress 2026-05-07 10:36" [ref=e979] [cursor=pointer]':
+                - cell [ref=e980]:
+                  - checkbox [ref=e981]
+                - cell "# 10474" [ref=e982]:
+                  - button "# 10474" [ref=e983]:
+                    - generic [ref=e984]: "#"
+                    - text: "10474"
+                    - img [ref=e985]
+                - cell "#" [ref=e988]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e989]
+                - cell "instagram.com/p/DYCIaaTDd19/ Copy link" [ref=e990]:
+                  - generic [ref=e991]:
+                    - link "instagram.com/p/DYCIaaTDd19/" [ref=e992]:
+                      - /url: https://www.instagram.com/p/DYCIaaTDd19/
+                    - button "Copy link" [ref=e993]:
+                      - img [ref=e994]
+                - cell "132" [ref=e997]
+                - cell "125" [ref=e998]
+                - cell "72" [ref=e999]
+                - cell "$0.53" [ref=e1000]
+                - cell "In progress" [ref=e1001]:
+                  - generic "Bot is actively executing actions" [ref=e1002]: In progress
+                - cell "2026-05-07 10:36" [ref=e1004]
+                - cell [ref=e1005]:
+                  - img [ref=e1006]
+              - 'row "# 10473 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/zarovavodka/ Copy link 20 112,290 0 $0.20 Completed 2026-05-07 10:25" [ref=e1008] [cursor=pointer]':
+                - cell [ref=e1009]:
+                  - checkbox [ref=e1010]
+                - cell "# 10473" [ref=e1011]:
+                  - button "# 10473" [ref=e1012]:
+                    - generic [ref=e1013]: "#"
+                    - text: "10473"
+                    - img [ref=e1014]
+                - cell "#" [ref=e1017]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e1018]
+                - cell "instagram.com/zarovavodka/ Copy link" [ref=e1019]:
+                  - generic [ref=e1020]:
+                    - link "instagram.com/zarovavodka/" [ref=e1021]:
+                      - /url: https://instagram.com/zarovavodka/
+                    - button "Copy link" [ref=e1022]:
+                      - img [ref=e1023]
+                - cell "20" [ref=e1026]
+                - cell "112,290" [ref=e1027]
+                - cell "0" [ref=e1028]
+                - cell "$0.20" [ref=e1029]
+                - cell "Completed" [ref=e1030]:
+                  - generic "Fully delivered" [ref=e1031]: Completed
+                - cell "2026-05-07 10:25" [ref=e1033]
+                - cell [ref=e1034]:
+                  - img [ref=e1035]
+              - 'row "# 10472 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DYCJGaJCOz1/ Copy link 100 0 18 $0.40 In progress 2026-05-07 10:15" [ref=e1037] [cursor=pointer]':
+                - cell [ref=e1038]:
+                  - checkbox [ref=e1039]
+                - cell "# 10472" [ref=e1040]:
+                  - button "# 10472" [ref=e1041]:
+                    - generic [ref=e1042]: "#"
+                    - text: "10472"
+                    - img [ref=e1043]
+                - cell "#" [ref=e1046]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e1047]
+                - cell "instagram.com/p/DYCJGaJCOz1/ Copy link" [ref=e1048]:
+                  - generic [ref=e1049]:
+                    - link "instagram.com/p/DYCJGaJCOz1/" [ref=e1050]:
+                      - /url: https://www.instagram.com/p/DYCJGaJCOz1/
+                    - button "Copy link" [ref=e1051]:
+                      - img [ref=e1052]
+                - cell "100" [ref=e1055]
+                - cell "0" [ref=e1056]
+                - cell "18" [ref=e1057]
+                - cell "$0.40" [ref=e1058]
+                - cell "In progress" [ref=e1059]:
+                  - generic "Bot is actively executing actions" [ref=e1060]: In progress
+                - cell "2026-05-07 10:15" [ref=e1062]
+                - cell [ref=e1063]:
+                  - img [ref=e1064]
+              - 'row "# 10471 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DYCIdVjCvWD/ Copy link 50 0 0 $0.20 Completed 2026-05-07 10:11" [ref=e1066] [cursor=pointer]':
+                - cell [ref=e1067]:
+                  - checkbox [ref=e1068]
+                - cell "# 10471" [ref=e1069]:
+                  - button "# 10471" [ref=e1070]:
+                    - generic [ref=e1071]: "#"
+                    - text: "10471"
+                    - img [ref=e1072]
+                - cell "#" [ref=e1075]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e1076]
+                - cell "instagram.com/p/DYCIdVjCvWD/ Copy link" [ref=e1077]:
+                  - generic [ref=e1078]:
+                    - link "instagram.com/p/DYCIdVjCvWD/" [ref=e1079]:
+                      - /url: https://www.instagram.com/p/DYCIdVjCvWD/
+                    - button "Copy link" [ref=e1080]:
+                      - img [ref=e1081]
+                - cell "50" [ref=e1084]
+                - cell "0" [ref=e1085]
+                - cell "0" [ref=e1086]
+                - cell "$0.20" [ref=e1087]
+                - cell "Completed" [ref=e1088]:
+                  - generic "Fully delivered" [ref=e1089]: Completed
+                - cell "2026-05-07 10:11" [ref=e1091]
+                - cell [ref=e1092]:
+                  - img [ref=e1093]
+              - 'row "# 10470 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DYCIdVjCvWD/ Copy link 48 0 0 $0.19 Completed 2026-05-07 10:11" [ref=e1095] [cursor=pointer]':
+                - cell [ref=e1096]:
+                  - checkbox [ref=e1097]
+                - cell "# 10470" [ref=e1098]:
+                  - button "# 10470" [ref=e1099]:
+                    - generic [ref=e1100]: "#"
+                    - text: "10470"
+                    - img [ref=e1101]
+                - cell "#" [ref=e1104]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e1105]
+                - cell "instagram.com/p/DYCIdVjCvWD/ Copy link" [ref=e1106]:
+                  - generic [ref=e1107]:
+                    - link "instagram.com/p/DYCIdVjCvWD/" [ref=e1108]:
+                      - /url: https://www.instagram.com/p/DYCIdVjCvWD/
+                    - button "Copy link" [ref=e1109]:
+                      - img [ref=e1110]
+                - cell "48" [ref=e1113]
+                - cell "0" [ref=e1114]
+                - cell "0" [ref=e1115]
+                - cell "$0.19" [ref=e1116]
+                - cell "Completed" [ref=e1117]:
+                  - generic "Fully delivered" [ref=e1118]: Completed
+                - cell "2026-05-07 10:11" [ref=e1120]
+                - cell [ref=e1121]:
+                  - img [ref=e1122]
+              - 'row "# 10469 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DVf-OBkDUoC/ Copy link 25 3 0 $0.10 Completed 2026-05-07 10:11" [ref=e1124] [cursor=pointer]':
+                - cell [ref=e1125]:
+                  - checkbox [ref=e1126]
+                - cell "# 10469" [ref=e1127]:
+                  - button "# 10469" [ref=e1128]:
+                    - generic [ref=e1129]: "#"
+                    - text: "10469"
+                    - img [ref=e1130]
+                - cell "#" [ref=e1133]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e1134]
+                - cell "instagram.com/p/DVf-OBkDUoC/ Copy link" [ref=e1135]:
+                  - generic [ref=e1136]:
+                    - link "instagram.com/p/DVf-OBkDUoC/" [ref=e1137]:
+                      - /url: https://www.instagram.com/p/DVf-OBkDUoC/
+                    - button "Copy link" [ref=e1138]:
+                      - img [ref=e1139]
+                - cell "25" [ref=e1142]
+                - cell "3" [ref=e1143]
+                - cell "0" [ref=e1144]
+                - cell "$0.10" [ref=e1145]
+                - cell "Completed" [ref=e1146]:
+                  - generic "Fully delivered" [ref=e1147]: Completed
+                - cell "2026-05-07 10:11" [ref=e1149]
+                - cell [ref=e1150]:
+                  - img [ref=e1151]
+              - 'row "# 10468 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/simple_renovations/ Copy link 21 49 0 $0.21 Completed 2026-05-07 10:06" [ref=e1153] [cursor=pointer]':
+                - cell [ref=e1154]:
+                  - checkbox [ref=e1155]
+                - cell "# 10468" [ref=e1156]:
+                  - button "# 10468" [ref=e1157]:
+                    - generic [ref=e1158]: "#"
+                    - text: "10468"
+                    - img [ref=e1159]
+                - cell "#" [ref=e1162]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e1163]
+                - cell "instagram.com/simple_renovations/ Copy link" [ref=e1164]:
+                  - generic [ref=e1165]:
+                    - link "instagram.com/simple_renovations/" [ref=e1166]:
+                      - /url: https://www.instagram.com/simple_renovations/
+                    - button "Copy link" [ref=e1167]:
+                      - img [ref=e1168]
+                - cell "21" [ref=e1171]
+                - cell "49" [ref=e1172]
+                - cell "0" [ref=e1173]
+                - cell "$0.21" [ref=e1174]
+                - cell "Completed" [ref=e1175]:
+                  - generic "Fully delivered" [ref=e1176]: Completed
+                - cell "2026-05-07 10:06" [ref=e1178]
+                - cell [ref=e1179]:
+                  - img [ref=e1180]
+              - 'row "# 10467 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/yolo_connect_ke/ Copy link 20 0 0 $0.20 Completed 2026-05-07 09:56" [ref=e1182] [cursor=pointer]':
+                - cell [ref=e1183]:
+                  - checkbox [ref=e1184]
+                - cell "# 10467" [ref=e1185]:
+                  - button "# 10467" [ref=e1186]:
+                    - generic [ref=e1187]: "#"
+                    - text: "10467"
+                    - img [ref=e1188]
+                - cell "#" [ref=e1191]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e1192]
+                - cell "instagram.com/yolo_connect_ke/ Copy link" [ref=e1193]:
+                  - generic [ref=e1194]:
+                    - link "instagram.com/yolo_connect_ke/" [ref=e1195]:
+                      - /url: https://instagram.com/yolo_connect_ke/
+                    - button "Copy link" [ref=e1196]:
+                      - img [ref=e1197]
+                - cell "20" [ref=e1200]
+                - cell "0" [ref=e1201]
+                - cell "0" [ref=e1202]
+                - cell "$0.20" [ref=e1203]
+                - cell "Completed" [ref=e1204]:
+                  - generic "Fully delivered" [ref=e1205]: Completed
+                - cell "2026-05-07 09:56" [ref=e1207]
+                - cell [ref=e1208]:
+                  - img [ref=e1209]
+              - 'row "# 10466 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/misellie.fergus_weltenarchiv/ Copy link 15 3,090 0 $0.15 Completed 2026-05-07 09:55" [ref=e1211] [cursor=pointer]':
+                - cell [ref=e1212]:
+                  - checkbox [ref=e1213]
+                - cell "# 10466" [ref=e1214]:
+                  - button "# 10466" [ref=e1215]:
+                    - generic [ref=e1216]: "#"
+                    - text: "10466"
+                    - img [ref=e1217]
+                - cell "#" [ref=e1220]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e1221]
+                - cell "instagram.com/misellie.fergus_weltenarchiv/ Copy link" [ref=e1222]:
+                  - generic [ref=e1223]:
+                    - link "instagram.com/misellie.fergus_weltenarchiv/" [ref=e1224]:
+                      - /url: https://www.instagram.com/misellie.fergus_weltenarchiv/
+                    - button "Copy link" [ref=e1225]:
+                      - img [ref=e1226]
+                - cell "15" [ref=e1229]
+                - cell "3,090" [ref=e1230]
+                - cell "0" [ref=e1231]
+                - cell "$0.15" [ref=e1232]
+                - cell "Completed" [ref=e1233]:
+                  - generic "Fully delivered" [ref=e1234]: Completed
+                - cell "2026-05-07 09:55" [ref=e1236]
+                - cell [ref=e1237]:
+                  - img [ref=e1238]
+              - 'row "# 10465 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DYCGkNLN4iM/ Copy link 102 0 102 $0.41 Pending 2026-05-07 09:49" [ref=e1240] [cursor=pointer]':
+                - cell [ref=e1241]:
+                  - checkbox [ref=e1242]
+                - cell "# 10465" [ref=e1243]:
+                  - button "# 10465" [ref=e1244]:
+                    - generic [ref=e1245]: "#"
+                    - text: "10465"
+                    - img [ref=e1246]
+                - cell "#" [ref=e1249]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e1250]
+                - cell "instagram.com/p/DYCGkNLN4iM/ Copy link" [ref=e1251]:
+                  - generic [ref=e1252]:
+                    - link "instagram.com/p/DYCGkNLN4iM/" [ref=e1253]:
+                      - /url: https://www.instagram.com/p/DYCGkNLN4iM/
+                    - button "Copy link" [ref=e1254]:
+                      - img [ref=e1255]
+                - cell "102" [ref=e1258]
+                - cell "0" [ref=e1259]
+                - cell "102" [ref=e1260]
+                - cell "$0.41" [ref=e1261]
+                - cell "Pending" [ref=e1262]:
+                  - generic "Queued, not yet dispatched to bot" [ref=e1263]: Pending
+                - cell "2026-05-07 09:49" [ref=e1265]
+                - cell [ref=e1266]:
+                  - img [ref=e1267]
+              - 'row "# 10464 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DYCGkNLN4iM/ Copy link 101 30 0 $0.40 Completed 2026-05-07 09:49" [ref=e1269] [cursor=pointer]':
+                - cell [ref=e1270]:
+                  - checkbox [ref=e1271]
+                - cell "# 10464" [ref=e1272]:
+                  - button "# 10464" [ref=e1273]:
+                    - generic [ref=e1274]: "#"
+                    - text: "10464"
+                    - img [ref=e1275]
+                - cell "#" [ref=e1278]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e1279]
+                - cell "instagram.com/p/DYCGkNLN4iM/ Copy link" [ref=e1280]:
+                  - generic [ref=e1281]:
+                    - link "instagram.com/p/DYCGkNLN4iM/" [ref=e1282]:
+                      - /url: https://www.instagram.com/p/DYCGkNLN4iM/
+                    - button "Copy link" [ref=e1283]:
+                      - img [ref=e1284]
+                - cell "101" [ref=e1287]
+                - cell "30" [ref=e1288]
+                - cell "0" [ref=e1289]
+                - cell "$0.40" [ref=e1290]
+                - cell "Completed" [ref=e1291]:
+                  - generic "Fully delivered" [ref=e1292]: Completed
+                - cell "2026-05-07 09:49" [ref=e1294]
+                - cell [ref=e1295]:
+                  - img [ref=e1296]
+              - 'row "# 10463 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/overdose_footwear/ Copy link 180 7,240 84 $1.80 In progress 2026-05-07 09:33" [ref=e1298] [cursor=pointer]':
+                - cell [ref=e1299]:
+                  - checkbox [ref=e1300]
+                - cell "# 10463" [ref=e1301]:
+                  - button "# 10463" [ref=e1302]:
+                    - generic [ref=e1303]: "#"
+                    - text: "10463"
+                    - img [ref=e1304]
+                - cell "#" [ref=e1307]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e1308]
+                - cell "instagram.com/overdose_footwear/ Copy link" [ref=e1309]:
+                  - generic [ref=e1310]:
+                    - link "instagram.com/overdose_footwear/" [ref=e1311]:
+                      - /url: https://www.instagram.com/overdose_footwear/
+                    - button "Copy link" [ref=e1312]:
+                      - img [ref=e1313]
+                - cell "180" [ref=e1316]
+                - cell "7,240" [ref=e1317]
+                - cell "84" [ref=e1318]
+                - cell "$1.80" [ref=e1319]
+                - cell "In progress" [ref=e1320]:
+                  - generic "Bot is actively executing actions" [ref=e1321]: In progress
+                - cell "2026-05-07 09:33" [ref=e1323]
+                - cell [ref=e1324]:
+                  - img [ref=e1325]
+              - 'row "# 10462 # Instagram Comments [Mix Gender] [USA/Europe] instagram.com/p/DX_44s3J8oI/ Copy link 20 23 0 $1.80 Completed 2026-05-07 09:32" [ref=e1327] [cursor=pointer]':
+                - cell [ref=e1328]:
+                  - checkbox [ref=e1329]
+                - cell "# 10462" [ref=e1330]:
+                  - button "# 10462" [ref=e1331]:
+                    - generic [ref=e1332]: "#"
+                    - text: "10462"
+                    - img [ref=e1333]
+                - cell "#" [ref=e1336]
+                - cell "Instagram Comments [Mix Gender] [USA/Europe]" [ref=e1337]
+                - cell "instagram.com/p/DX_44s3J8oI/ Copy link" [ref=e1338]:
+                  - generic [ref=e1339]:
+                    - link "instagram.com/p/DX_44s3J8oI/" [ref=e1340]:
+                      - /url: https://www.instagram.com/p/DX_44s3J8oI/
+                    - button "Copy link" [ref=e1341]:
+                      - img [ref=e1342]
+                - cell "20" [ref=e1345]
+                - cell "23" [ref=e1346]
+                - cell "0" [ref=e1347]
+                - cell "$1.80" [ref=e1348]
+                - cell "Completed" [ref=e1349]:
+                  - generic "Fully delivered" [ref=e1350]: Completed
+                - cell "2026-05-07 09:32" [ref=e1352]
+                - cell [ref=e1353]:
+                  - img [ref=e1354]
+              - 'row "# 10461 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/ella.official.2026/ Copy link 25 758 0 $0.25 Completed 2026-05-07 09:20" [ref=e1356] [cursor=pointer]':
+                - cell [ref=e1357]:
+                  - checkbox [ref=e1358]
+                - cell "# 10461" [ref=e1359]:
+                  - button "# 10461" [ref=e1360]:
+                    - generic [ref=e1361]: "#"
+                    - text: "10461"
+                    - img [ref=e1362]
+                - cell "#" [ref=e1365]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e1366]
+                - cell "instagram.com/ella.official.2026/ Copy link" [ref=e1367]:
+                  - generic [ref=e1368]:
+                    - link "instagram.com/ella.official.2026/" [ref=e1369]:
+                      - /url: https://www.instagram.com/ella.official.2026/
+                    - button "Copy link" [ref=e1370]:
+                      - img [ref=e1371]
+                - cell "25" [ref=e1374]
+                - cell "758" [ref=e1375]
+                - cell "0" [ref=e1376]
+                - cell "$0.25" [ref=e1377]
+                - cell "Completed" [ref=e1378]:
+                  - generic "Fully delivered" [ref=e1379]: Completed
+                - cell "2026-05-07 09:20" [ref=e1381]
+                - cell [ref=e1382]:
+                  - img [ref=e1383]
+              - 'row "# 10460 # Instagram Custom Comments [Mix Gender] [USA/Europe] instagram.com/p/DYAIcqHo81-/ Copy link 11 47 0 $0.77 Completed 2026-05-07 09:15" [ref=e1385] [cursor=pointer]':
+                - cell [ref=e1386]:
+                  - checkbox [ref=e1387]
+                - cell "# 10460" [ref=e1388]:
+                  - button "# 10460" [ref=e1389]:
+                    - generic [ref=e1390]: "#"
+                    - text: "10460"
+                    - img [ref=e1391]
+                - cell "#" [ref=e1394]
+                - cell "Instagram Custom Comments [Mix Gender] [USA/Europe]" [ref=e1395]
+                - cell "instagram.com/p/DYAIcqHo81-/ Copy link" [ref=e1396]:
+                  - generic [ref=e1397]:
+                    - link "instagram.com/p/DYAIcqHo81-/" [ref=e1398]:
+                      - /url: https://www.instagram.com/p/DYAIcqHo81-/
+                    - button "Copy link" [ref=e1399]:
+                      - img [ref=e1400]
+                - cell "11" [ref=e1403]
+                - cell "47" [ref=e1404]
+                - cell "0" [ref=e1405]
+                - cell "$0.77" [ref=e1406]
+                - cell "Completed" [ref=e1407]:
+                  - generic "Fully delivered" [ref=e1408]: Completed
+                - cell "2026-05-07 09:15" [ref=e1410]
+                - cell [ref=e1411]:
+                  - img [ref=e1412]
+              - 'row "# 10459 # Instagram Custom Comments [MALE] [USA/Europe] instagram.com/p/DYB1CVdP2oa/ Copy link 8 6 0 $0.56 Completed 2026-05-07 09:09" [ref=e1414] [cursor=pointer]':
+                - cell [ref=e1415]:
+                  - checkbox [ref=e1416]
+                - cell "# 10459" [ref=e1417]:
+                  - button "# 10459" [ref=e1418]:
+                    - generic [ref=e1419]: "#"
+                    - text: "10459"
+                    - img [ref=e1420]
+                - cell "#" [ref=e1423]
+                - cell "Instagram Custom Comments [MALE] [USA/Europe]" [ref=e1424]
+                - cell "instagram.com/p/DYB1CVdP2oa/ Copy link" [ref=e1425]:
+                  - generic [ref=e1426]:
+                    - link "instagram.com/p/DYB1CVdP2oa/" [ref=e1427]:
+                      - /url: https://www.instagram.com/p/DYB1CVdP2oa/
+                    - button "Copy link" [ref=e1428]:
+                      - img [ref=e1429]
+                - cell "8" [ref=e1432]
+                - cell "6" [ref=e1433]
+                - cell "0" [ref=e1434]
+                - cell "$0.56" [ref=e1435]
+                - cell "Completed" [ref=e1436]:
+                  - generic "Fully delivered" [ref=e1437]: Completed
+                - cell "2026-05-07 09:09" [ref=e1439]
+                - cell [ref=e1440]:
+                  - img [ref=e1441]
+              - 'row "# 10458 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/derpapaosse/ Copy link 25 11,664 0 $0.25 Completed 2026-05-07 09:07" [ref=e1443] [cursor=pointer]':
+                - cell [ref=e1444]:
+                  - checkbox [ref=e1445]
+                - cell "# 10458" [ref=e1446]:
+                  - button "# 10458" [ref=e1447]:
+                    - generic [ref=e1448]: "#"
+                    - text: "10458"
+                    - img [ref=e1449]
+                - cell "#" [ref=e1452]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e1453]
+                - cell "instagram.com/derpapaosse/ Copy link" [ref=e1454]:
+                  - generic [ref=e1455]:
+                    - link "instagram.com/derpapaosse/" [ref=e1456]:
+                      - /url: https://www.instagram.com/derpapaosse/
+                    - button "Copy link" [ref=e1457]:
+                      - img [ref=e1458]
+                - cell "25" [ref=e1461]
+                - cell "11,664" [ref=e1462]
+                - cell "0" [ref=e1463]
+                - cell "$0.25" [ref=e1464]
+                - cell "Completed" [ref=e1465]:
+                  - generic "Fully delivered" [ref=e1466]: Completed
+                - cell "2026-05-07 09:07" [ref=e1468]
+                - cell [ref=e1469]:
+                  - img [ref=e1470]
+              - 'row "# 10457 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DVf-OBkDUoC/ Copy link 25 3 0 $0.10 Completed 2026-05-07 09:07" [ref=e1472] [cursor=pointer]':
+                - cell [ref=e1473]:
+                  - checkbox [ref=e1474]
+                - cell "# 10457" [ref=e1475]:
+                  - button "# 10457" [ref=e1476]:
+                    - generic [ref=e1477]: "#"
+                    - text: "10457"
+                    - img [ref=e1478]
+                - cell "#" [ref=e1481]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e1482]
+                - cell "instagram.com/p/DVf-OBkDUoC/ Copy link" [ref=e1483]:
+                  - generic [ref=e1484]:
+                    - link "instagram.com/p/DVf-OBkDUoC/" [ref=e1485]:
+                      - /url: https://www.instagram.com/p/DVf-OBkDUoC/
+                    - button "Copy link" [ref=e1486]:
+                      - img [ref=e1487]
+                - cell "25" [ref=e1490]
+                - cell "3" [ref=e1491]
+                - cell "0" [ref=e1492]
+                - cell "$0.10" [ref=e1493]
+                - cell "Completed" [ref=e1494]:
+                  - generic "Fully delivered" [ref=e1495]: Completed
+                - cell "2026-05-07 09:07" [ref=e1497]
+                - cell [ref=e1498]:
+                  - img [ref=e1499]
+              - 'row "# 10456 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DYB4-j4IOcv/ Copy link 30 23 0 $0.12 Completed 2026-05-07 09:00" [ref=e1501] [cursor=pointer]':
+                - cell [ref=e1502]:
+                  - checkbox [ref=e1503]
+                - cell "# 10456" [ref=e1504]:
+                  - button "# 10456" [ref=e1505]:
+                    - generic [ref=e1506]: "#"
+                    - text: "10456"
+                    - img [ref=e1507]
+                - cell "#" [ref=e1510]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e1511]
+                - cell "instagram.com/p/DYB4-j4IOcv/ Copy link" [ref=e1512]:
+                  - generic [ref=e1513]:
+                    - link "instagram.com/p/DYB4-j4IOcv/" [ref=e1514]:
+                      - /url: https://www.instagram.com/p/DYB4-j4IOcv/
+                    - button "Copy link" [ref=e1515]:
+                      - img [ref=e1516]
+                - cell "30" [ref=e1519]
+                - cell "23" [ref=e1520]
+                - cell "0" [ref=e1521]
+                - cell "$0.12" [ref=e1522]
+                - cell "Completed" [ref=e1523]:
+                  - generic "Fully delivered" [ref=e1524]: Completed
+                - cell "2026-05-07 09:00" [ref=e1526]
+                - cell [ref=e1527]:
+                  - img [ref=e1528]
+              - 'row "# 10455 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DYB7VReMvGH/ Copy link 25 11 0 $0.10 Completed 2026-05-07 08:50" [ref=e1530] [cursor=pointer]':
+                - cell [ref=e1531]:
+                  - checkbox [ref=e1532]
+                - cell "# 10455" [ref=e1533]:
+                  - button "# 10455" [ref=e1534]:
+                    - generic [ref=e1535]: "#"
+                    - text: "10455"
+                    - img [ref=e1536]
+                - cell "#" [ref=e1539]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e1540]
+                - cell "instagram.com/p/DYB7VReMvGH/ Copy link" [ref=e1541]:
+                  - generic [ref=e1542]:
+                    - link "instagram.com/p/DYB7VReMvGH/" [ref=e1543]:
+                      - /url: https://www.instagram.com/p/DYB7VReMvGH/
+                    - button "Copy link" [ref=e1544]:
+                      - img [ref=e1545]
+                - cell "25" [ref=e1548]
+                - cell "11" [ref=e1549]
+                - cell "0" [ref=e1550]
+                - cell "$0.10" [ref=e1551]
+                - cell "Completed" [ref=e1552]:
+                  - generic "Fully delivered" [ref=e1553]: Completed
+                - cell "2026-05-07 08:50" [ref=e1555]
+                - cell [ref=e1556]:
+                  - img [ref=e1557]
+              - 'row "# 10454 # Instagram Custom Comments [Mix Gender] [USA/Europe] instagram.com/p/DYAEcE5RvQa/ Copy link 5 0 0 $0.35 Completed 2026-05-07 08:44" [ref=e1559] [cursor=pointer]':
+                - cell [ref=e1560]:
+                  - checkbox [ref=e1561]
+                - cell "# 10454" [ref=e1562]:
+                  - button "# 10454" [ref=e1563]:
+                    - generic [ref=e1564]: "#"
+                    - text: "10454"
+                    - img [ref=e1565]
+                - cell "#" [ref=e1568]
+                - cell "Instagram Custom Comments [Mix Gender] [USA/Europe]" [ref=e1569]
+                - cell "instagram.com/p/DYAEcE5RvQa/ Copy link" [ref=e1570]:
+                  - generic [ref=e1571]:
+                    - link "instagram.com/p/DYAEcE5RvQa/" [ref=e1572]:
+                      - /url: https://www.instagram.com/p/DYAEcE5RvQa/
+                    - button "Copy link" [ref=e1573]:
+                      - img [ref=e1574]
+                - cell "5" [ref=e1577]
+                - cell "0" [ref=e1578]
+                - cell "0" [ref=e1579]
+                - cell "$0.35" [ref=e1580]
+                - cell "Completed" [ref=e1581]:
+                  - generic "Fully delivered" [ref=e1582]: Completed
+                - cell "2026-05-07 08:44" [ref=e1584]
+                - cell [ref=e1585]:
+                  - img [ref=e1586]
+              - 'row "# 10453 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/damngoodcookbooks/ Copy link 250 16,615 147 $2.50 In progress 2026-05-07 08:39" [ref=e1588] [cursor=pointer]':
+                - cell [ref=e1589]:
+                  - checkbox [ref=e1590]
+                - cell "# 10453" [ref=e1591]:
+                  - button "# 10453" [ref=e1592]:
+                    - generic [ref=e1593]: "#"
+                    - text: "10453"
+                    - img [ref=e1594]
+                - cell "#" [ref=e1597]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e1598]
+                - cell "instagram.com/damngoodcookbooks/ Copy link" [ref=e1599]:
+                  - generic [ref=e1600]:
+                    - link "instagram.com/damngoodcookbooks/" [ref=e1601]:
+                      - /url: https://www.instagram.com/damngoodcookbooks/
+                    - button "Copy link" [ref=e1602]:
+                      - img [ref=e1603]
+                - cell "250" [ref=e1606]
+                - cell "16,615" [ref=e1607]
+                - cell "147" [ref=e1608]
+                - cell "$2.50" [ref=e1609]
+                - cell "In progress" [ref=e1610]:
+                  - generic "Bot is actively executing actions" [ref=e1611]: In progress
+                - cell "2026-05-07 08:39" [ref=e1613]
+                - cell [ref=e1614]:
+                  - img [ref=e1615]
+              - 'row "# 10452 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/cooperstudio.littleones/ Copy link 20 278 0 $0.20 Completed 2026-05-07 08:30" [ref=e1617] [cursor=pointer]':
+                - cell [ref=e1618]:
+                  - checkbox [ref=e1619]
+                - cell "# 10452" [ref=e1620]:
+                  - button "# 10452" [ref=e1621]:
+                    - generic [ref=e1622]: "#"
+                    - text: "10452"
+                    - img [ref=e1623]
+                - cell "#" [ref=e1626]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e1627]
+                - cell "instagram.com/cooperstudio.littleones/ Copy link" [ref=e1628]:
+                  - generic [ref=e1629]:
+                    - link "instagram.com/cooperstudio.littleones/" [ref=e1630]:
+                      - /url: https://instagram.com/cooperstudio.littleones/
+                    - button "Copy link" [ref=e1631]:
+                      - img [ref=e1632]
+                - cell "20" [ref=e1635]
+                - cell "278" [ref=e1636]
+                - cell "0" [ref=e1637]
+                - cell "$0.20" [ref=e1638]
+                - cell "Completed" [ref=e1639]:
+                  - generic "Fully delivered" [ref=e1640]: Completed
+                - cell "2026-05-07 08:30" [ref=e1642]
+                - cell [ref=e1643]:
+                  - img [ref=e1644]
+              - 'row "# 10451 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/thederekha/ Copy link 50 8,766 0 $0.50 Completed 2026-05-07 08:16" [ref=e1646] [cursor=pointer]':
+                - cell [ref=e1647]:
+                  - checkbox [ref=e1648]
+                - cell "# 10451" [ref=e1649]:
+                  - button "# 10451" [ref=e1650]:
+                    - generic [ref=e1651]: "#"
+                    - text: "10451"
+                    - img [ref=e1652]
+                - cell "#" [ref=e1655]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e1656]
+                - cell "instagram.com/thederekha/ Copy link" [ref=e1657]:
+                  - generic [ref=e1658]:
+                    - link "instagram.com/thederekha/" [ref=e1659]:
+                      - /url: https://www.instagram.com/thederekha/
+                    - button "Copy link" [ref=e1660]:
+                      - img [ref=e1661]
+                - cell "50" [ref=e1664]
+                - cell "8,766" [ref=e1665]
+                - cell "0" [ref=e1666]
+                - cell "$0.50" [ref=e1667]
+                - cell "Completed" [ref=e1668]:
+                  - generic "Fully delivered" [ref=e1669]: Completed
+                - cell "2026-05-07 08:16" [ref=e1671]
+                - cell [ref=e1672]:
+                  - img [ref=e1673]
+              - 'row "# 10450 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/jennbeautyestetica/ Copy link 50 3,198 0 $0.50 Completed 2026-05-07 08:05" [ref=e1675] [cursor=pointer]':
+                - cell [ref=e1676]:
+                  - checkbox [ref=e1677]
+                - cell "# 10450" [ref=e1678]:
+                  - button "# 10450" [ref=e1679]:
+                    - generic [ref=e1680]: "#"
+                    - text: "10450"
+                    - img [ref=e1681]
+                - cell "#" [ref=e1684]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e1685]
+                - cell "instagram.com/jennbeautyestetica/ Copy link" [ref=e1686]:
+                  - generic [ref=e1687]:
+                    - link "instagram.com/jennbeautyestetica/" [ref=e1688]:
+                      - /url: https://www.instagram.com/jennbeautyestetica/
+                    - button "Copy link" [ref=e1689]:
+                      - img [ref=e1690]
+                - cell "50" [ref=e1693]
+                - cell "3,198" [ref=e1694]
+                - cell "0" [ref=e1695]
+                - cell "$0.50" [ref=e1696]
+                - cell "Completed" [ref=e1697]:
+                  - generic "Fully delivered" [ref=e1698]: Completed
+                - cell "2026-05-07 08:05" [ref=e1700]
+                - cell [ref=e1701]:
+                  - img [ref=e1702]
+              - 'row "# 10449 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/paragraefin24/ Copy link 50 994 0 $0.50 Completed 2026-05-07 08:05" [ref=e1704] [cursor=pointer]':
+                - cell [ref=e1705]:
+                  - checkbox [ref=e1706]
+                - cell "# 10449" [ref=e1707]:
+                  - button "# 10449" [ref=e1708]:
+                    - generic [ref=e1709]: "#"
+                    - text: "10449"
+                    - img [ref=e1710]
+                - cell "#" [ref=e1713]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e1714]
+                - cell "instagram.com/paragraefin24/ Copy link" [ref=e1715]:
+                  - generic [ref=e1716]:
+                    - link "instagram.com/paragraefin24/" [ref=e1717]:
+                      - /url: https://www.instagram.com/paragraefin24/
+                    - button "Copy link" [ref=e1718]:
+                      - img [ref=e1719]
+                - cell "50" [ref=e1722]
+                - cell "994" [ref=e1723]
+                - cell "0" [ref=e1724]
+                - cell "$0.50" [ref=e1725]
+                - cell "Completed" [ref=e1726]:
+                  - generic "Fully delivered" [ref=e1727]: Completed
+                - cell "2026-05-07 08:05" [ref=e1729]
+                - cell [ref=e1730]:
+                  - img [ref=e1731]
+              - 'row "# 10448 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/chateau.slettholt/ Copy link 110 567 0 $1.10 Completed 2026-05-07 08:04" [ref=e1733] [cursor=pointer]':
+                - cell [ref=e1734]:
+                  - checkbox [ref=e1735]
+                - cell "# 10448" [ref=e1736]:
+                  - button "# 10448" [ref=e1737]:
+                    - generic [ref=e1738]: "#"
+                    - text: "10448"
+                    - img [ref=e1739]
+                - cell "#" [ref=e1742]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e1743]
+                - cell "instagram.com/chateau.slettholt/ Copy link" [ref=e1744]:
+                  - generic [ref=e1745]:
+                    - link "instagram.com/chateau.slettholt/" [ref=e1746]:
+                      - /url: https://www.instagram.com/chateau.slettholt/
+                    - button "Copy link" [ref=e1747]:
+                      - img [ref=e1748]
+                - cell "110" [ref=e1751]
+                - cell "567" [ref=e1752]
+                - cell "0" [ref=e1753]
+                - cell "$1.10" [ref=e1754]
+                - cell "Completed" [ref=e1755]:
+                  - generic "Fully delivered" [ref=e1756]: Completed
+                - cell "2026-05-07 08:04" [ref=e1758]
+                - cell [ref=e1759]:
+                  - img [ref=e1760]
+              - 'row "# 10447 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/derpapaosse/ Copy link 25 11,639 0 $0.25 Completed 2026-05-07 08:03" [ref=e1762] [cursor=pointer]':
+                - cell [ref=e1763]:
+                  - checkbox [ref=e1764]
+                - cell "# 10447" [ref=e1765]:
+                  - button "# 10447" [ref=e1766]:
+                    - generic [ref=e1767]: "#"
+                    - text: "10447"
+                    - img [ref=e1768]
+                - cell "#" [ref=e1771]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e1772]
+                - cell "instagram.com/derpapaosse/ Copy link" [ref=e1773]:
+                  - generic [ref=e1774]:
+                    - link "instagram.com/derpapaosse/" [ref=e1775]:
+                      - /url: https://www.instagram.com/derpapaosse/
+                    - button "Copy link" [ref=e1776]:
+                      - img [ref=e1777]
+                - cell "25" [ref=e1780]
+                - cell "11,639" [ref=e1781]
+                - cell "0" [ref=e1782]
+                - cell "$0.25" [ref=e1783]
+                - cell "Completed" [ref=e1784]:
+                  - generic "Fully delivered" [ref=e1785]: Completed
+                - cell "2026-05-07 08:03" [ref=e1787]
+                - cell [ref=e1788]:
+                  - img [ref=e1789]
+              - 'row "# 10446 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DV3eF2diCm0/ Copy link 25 3 0 $0.10 Completed 2026-05-07 08:03" [ref=e1791] [cursor=pointer]':
+                - cell [ref=e1792]:
+                  - checkbox [ref=e1793]
+                - cell "# 10446" [ref=e1794]:
+                  - button "# 10446" [ref=e1795]:
+                    - generic [ref=e1796]: "#"
+                    - text: "10446"
+                    - img [ref=e1797]
+                - cell "#" [ref=e1800]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e1801]
+                - cell "instagram.com/p/DV3eF2diCm0/ Copy link" [ref=e1802]:
+                  - generic [ref=e1803]:
+                    - link "instagram.com/p/DV3eF2diCm0/" [ref=e1804]:
+                      - /url: https://www.instagram.com/p/DV3eF2diCm0/
+                    - button "Copy link" [ref=e1805]:
+                      - img [ref=e1806]
+                - cell "25" [ref=e1809]
+                - cell "3" [ref=e1810]
+                - cell "0" [ref=e1811]
+                - cell "$0.10" [ref=e1812]
+                - cell "Completed" [ref=e1813]:
+                  - generic "Fully delivered" [ref=e1814]: Completed
+                - cell "2026-05-07 08:03" [ref=e1816]
+                - cell [ref=e1817]:
+                  - img [ref=e1818]
+              - 'row "# 10445 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/bedici.app/ Copy link 100 785 0 $1.00 Completed 2026-05-07 07:53" [ref=e1820] [cursor=pointer]':
+                - cell [ref=e1821]:
+                  - checkbox [ref=e1822]
+                - cell "# 10445" [ref=e1823]:
+                  - button "# 10445" [ref=e1824]:
+                    - generic [ref=e1825]: "#"
+                    - text: "10445"
+                    - img [ref=e1826]
+                - cell "#" [ref=e1829]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e1830]
+                - cell "instagram.com/bedici.app/ Copy link" [ref=e1831]:
+                  - generic [ref=e1832]:
+                    - link "instagram.com/bedici.app/" [ref=e1833]:
+                      - /url: https://instagram.com/bedici.app/
+                    - button "Copy link" [ref=e1834]:
+                      - img [ref=e1835]
+                - cell "100" [ref=e1838]
+                - cell "785" [ref=e1839]
+                - cell "0" [ref=e1840]
+                - cell "$1.00" [ref=e1841]
+                - cell "Completed" [ref=e1842]:
+                  - generic "Fully delivered" [ref=e1843]: Completed
+                - cell "2026-05-07 07:53" [ref=e1845]
+                - cell [ref=e1846]:
+                  - img [ref=e1847]
+              - 'row "# 10444 # Instagram Likes [Female] [USA/Europe] instagram.com/p/DXyrIaAAYaC/ Copy link 50 5 0 $0.20 Completed 2026-05-07 07:52" [ref=e1849] [cursor=pointer]':
+                - cell [ref=e1850]:
+                  - checkbox [ref=e1851]
+                - cell "# 10444" [ref=e1852]:
+                  - button "# 10444" [ref=e1853]:
+                    - generic [ref=e1854]: "#"
+                    - text: "10444"
+                    - img [ref=e1855]
+                - cell "#" [ref=e1858]
+                - cell "Instagram Likes [Female] [USA/Europe]" [ref=e1859]
+                - cell "instagram.com/p/DXyrIaAAYaC/ Copy link" [ref=e1860]:
+                  - generic [ref=e1861]:
+                    - link "instagram.com/p/DXyrIaAAYaC/" [ref=e1862]:
+                      - /url: https://www.instagram.com/p/DXyrIaAAYaC/
+                    - button "Copy link" [ref=e1863]:
+                      - img [ref=e1864]
+                - cell "50" [ref=e1867]
+                - cell "5" [ref=e1868]
+                - cell "0" [ref=e1869]
+                - cell "$0.20" [ref=e1870]
+                - cell "Completed" [ref=e1871]:
+                  - generic "Fully delivered" [ref=e1872]: Completed
+                - cell "2026-05-07 07:52" [ref=e1874]
+                - cell [ref=e1875]:
+                  - img [ref=e1876]
+              - 'row "# 10443 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DYB2ojxNP2d/ Copy link 154 1 21 $0.62 In progress 2026-05-07 07:35" [ref=e1878] [cursor=pointer]':
+                - cell [ref=e1879]:
+                  - checkbox [ref=e1880]
+                - cell "# 10443" [ref=e1881]:
+                  - button "# 10443" [ref=e1882]:
+                    - generic [ref=e1883]: "#"
+                    - text: "10443"
+                    - img [ref=e1884]
+                - cell "#" [ref=e1887]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e1888]
+                - cell "instagram.com/p/DYB2ojxNP2d/ Copy link" [ref=e1889]:
+                  - generic [ref=e1890]:
+                    - link "instagram.com/p/DYB2ojxNP2d/" [ref=e1891]:
+                      - /url: https://www.instagram.com/p/DYB2ojxNP2d/
+                    - button "Copy link" [ref=e1892]:
+                      - img [ref=e1893]
+                - cell "154" [ref=e1896]
+                - cell "1" [ref=e1897]
+                - cell "21" [ref=e1898]
+                - cell "$0.62" [ref=e1899]
+                - cell "In progress" [ref=e1900]:
+                  - generic "Bot is actively executing actions" [ref=e1901]: In progress
+                - cell "2026-05-07 07:35" [ref=e1903]
+                - cell [ref=e1904]:
+                  - img [ref=e1905]
+              - 'row "# 10442 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/lieblingsplatzthestore/ Copy link 30 16,141 0 $0.30 Completed 2026-05-07 07:31" [ref=e1907] [cursor=pointer]':
+                - cell [ref=e1908]:
+                  - checkbox [ref=e1909]
+                - cell "# 10442" [ref=e1910]:
+                  - button "# 10442" [ref=e1911]:
+                    - generic [ref=e1912]: "#"
+                    - text: "10442"
+                    - img [ref=e1913]
+                - cell "#" [ref=e1916]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e1917]
+                - cell "instagram.com/lieblingsplatzthestore/ Copy link" [ref=e1918]:
+                  - generic [ref=e1919]:
+                    - link "instagram.com/lieblingsplatzthestore/" [ref=e1920]:
+                      - /url: https://www.instagram.com/lieblingsplatzthestore/
+                    - button "Copy link" [ref=e1921]:
+                      - img [ref=e1922]
+                - cell "30" [ref=e1925]
+                - cell "16,141" [ref=e1926]
+                - cell "0" [ref=e1927]
+                - cell "$0.30" [ref=e1928]
+                - cell "Completed" [ref=e1929]:
+                  - generic "Fully delivered" [ref=e1930]: Completed
+                - cell "2026-05-07 07:31" [ref=e1932]
+                - cell [ref=e1933]:
+                  - img [ref=e1934]
+              - 'row "# 10441 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/nineties_______/ Copy link 30 3,575 0 $0.30 Completed 2026-05-07 07:31" [ref=e1936] [cursor=pointer]':
+                - cell [ref=e1937]:
+                  - checkbox [ref=e1938]
+                - cell "# 10441" [ref=e1939]:
+                  - button "# 10441" [ref=e1940]:
+                    - generic [ref=e1941]: "#"
+                    - text: "10441"
+                    - img [ref=e1942]
+                - cell "#" [ref=e1945]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e1946]
+                - cell "instagram.com/nineties_______/ Copy link" [ref=e1947]:
+                  - generic [ref=e1948]:
+                    - link "instagram.com/nineties_______/" [ref=e1949]:
+                      - /url: https://www.instagram.com/nineties_______/
+                    - button "Copy link" [ref=e1950]:
+                      - img [ref=e1951]
+                - cell "30" [ref=e1954]
+                - cell "3,575" [ref=e1955]
+                - cell "0" [ref=e1956]
+                - cell "$0.30" [ref=e1957]
+                - cell "Completed" [ref=e1958]:
+                  - generic "Fully delivered" [ref=e1959]: Completed
+                - cell "2026-05-07 07:31" [ref=e1961]
+                - cell [ref=e1962]:
+                  - img [ref=e1963]
+              - 'row "# 10440 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/wishyouwearvegan/ Copy link 25 507 0 $0.25 Completed 2026-05-07 07:19" [ref=e1965] [cursor=pointer]':
+                - cell [ref=e1966]:
+                  - checkbox [ref=e1967]
+                - cell "# 10440" [ref=e1968]:
+                  - button "# 10440" [ref=e1969]:
+                    - generic [ref=e1970]: "#"
+                    - text: "10440"
+                    - img [ref=e1971]
+                - cell "#" [ref=e1974]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e1975]
+                - cell "instagram.com/wishyouwearvegan/ Copy link" [ref=e1976]:
+                  - generic [ref=e1977]:
+                    - link "instagram.com/wishyouwearvegan/" [ref=e1978]:
+                      - /url: https://www.instagram.com/wishyouwearvegan/
+                    - button "Copy link" [ref=e1979]:
+                      - img [ref=e1980]
+                - cell "25" [ref=e1983]
+                - cell "507" [ref=e1984]
+                - cell "0" [ref=e1985]
+                - cell "$0.25" [ref=e1986]
+                - cell "Completed" [ref=e1987]:
+                  - generic "Fully delivered" [ref=e1988]: Completed
+                - cell "2026-05-07 07:19" [ref=e1990]
+                - cell [ref=e1991]:
+                  - img [ref=e1992]
+              - 'row "# 10439 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DV3eF2diCm0/ Copy link 25 3 0 $0.10 Completed 2026-05-07 07:19" [ref=e1994] [cursor=pointer]':
+                - cell [ref=e1995]:
+                  - checkbox [ref=e1996]
+                - cell "# 10439" [ref=e1997]:
+                  - button "# 10439" [ref=e1998]:
+                    - generic [ref=e1999]: "#"
+                    - text: "10439"
+                    - img [ref=e2000]
+                - cell "#" [ref=e2003]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e2004]
+                - cell "instagram.com/p/DV3eF2diCm0/ Copy link" [ref=e2005]:
+                  - generic [ref=e2006]:
+                    - link "instagram.com/p/DV3eF2diCm0/" [ref=e2007]:
+                      - /url: https://www.instagram.com/p/DV3eF2diCm0/
+                    - button "Copy link" [ref=e2008]:
+                      - img [ref=e2009]
+                - cell "25" [ref=e2012]
+                - cell "3" [ref=e2013]
+                - cell "0" [ref=e2014]
+                - cell "$0.10" [ref=e2015]
+                - cell "Completed" [ref=e2016]:
+                  - generic "Fully delivered" [ref=e2017]: Completed
+                - cell "2026-05-07 07:19" [ref=e2019]
+                - cell [ref=e2020]:
+                  - img [ref=e2021]
+              - 'row "# 10438 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/derpapaosse/ Copy link 25 11,612 0 $0.25 Completed 2026-05-07 07:19" [ref=e2023] [cursor=pointer]':
+                - cell [ref=e2024]:
+                  - checkbox [ref=e2025]
+                - cell "# 10438" [ref=e2026]:
+                  - button "# 10438" [ref=e2027]:
+                    - generic [ref=e2028]: "#"
+                    - text: "10438"
+                    - img [ref=e2029]
+                - cell "#" [ref=e2032]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e2033]
+                - cell "instagram.com/derpapaosse/ Copy link" [ref=e2034]:
+                  - generic [ref=e2035]:
+                    - link "instagram.com/derpapaosse/" [ref=e2036]:
+                      - /url: https://www.instagram.com/derpapaosse/
+                    - button "Copy link" [ref=e2037]:
+                      - img [ref=e2038]
+                - cell "25" [ref=e2041]
+                - cell "11,612" [ref=e2042]
+                - cell "0" [ref=e2043]
+                - cell "$0.25" [ref=e2044]
+                - cell "Completed" [ref=e2045]:
+                  - generic "Fully delivered" [ref=e2046]: Completed
+                - cell "2026-05-07 07:19" [ref=e2048]
+                - cell [ref=e2049]:
+                  - img [ref=e2050]
+              - 'row "# 10437 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/glamourloungeleipzig/ Copy link 25 195 0 $0.25 Completed 2026-05-07 07:19" [ref=e2052] [cursor=pointer]':
+                - cell [ref=e2053]:
+                  - checkbox [ref=e2054]
+                - cell "# 10437" [ref=e2055]:
+                  - button "# 10437" [ref=e2056]:
+                    - generic [ref=e2057]: "#"
+                    - text: "10437"
+                    - img [ref=e2058]
+                - cell "#" [ref=e2061]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e2062]
+                - cell "instagram.com/glamourloungeleipzig/ Copy link" [ref=e2063]:
+                  - generic [ref=e2064]:
+                    - link "instagram.com/glamourloungeleipzig/" [ref=e2065]:
+                      - /url: https://www.instagram.com/glamourloungeleipzig/
+                    - button "Copy link" [ref=e2066]:
+                      - img [ref=e2067]
+                - cell "25" [ref=e2070]
+                - cell "195" [ref=e2071]
+                - cell "0" [ref=e2072]
+                - cell "$0.25" [ref=e2073]
+                - cell "Completed" [ref=e2074]:
+                  - generic "Fully delivered" [ref=e2075]: Completed
+                - cell "2026-05-07 07:19" [ref=e2077]
+                - cell [ref=e2078]:
+                  - img [ref=e2079]
+              - 'row "# 10436 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/lisa.bianchi0308/ Copy link 100 0 100 $0.00 Cancelled 2026-05-07 07:19" [ref=e2081] [cursor=pointer]':
+                - cell [ref=e2082]:
+                  - checkbox [ref=e2083]
+                - cell "# 10436" [ref=e2084]:
+                  - button "# 10436" [ref=e2085]:
+                    - generic [ref=e2086]: "#"
+                    - text: "10436"
+                    - img [ref=e2087]
+                - cell "#" [ref=e2090]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e2091]
+                - cell "instagram.com/lisa.bianchi0308/ Copy link" [ref=e2092]:
+                  - generic [ref=e2093]:
+                    - link "instagram.com/lisa.bianchi0308/" [ref=e2094]:
+                      - /url: https://www.instagram.com/lisa.bianchi0308/
+                    - button "Copy link" [ref=e2095]:
+                      - img [ref=e2096]
+                - cell "100" [ref=e2099]
+                - cell "0" [ref=e2100]
+                - cell "100" [ref=e2101]
+                - cell "$0.00" [ref=e2102]
+                - cell "Cancelled" [ref=e2103]:
+                  - generic "Cancelled by admin or system" [ref=e2104]: Cancelled
+                - cell "2026-05-07 07:19" [ref=e2106]
+                - cell [ref=e2107]:
+                  - img [ref=e2108]
+              - 'row "# 10435 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/iamfilippox/ Copy link 100 7,058 0 $1.00 Completed 2026-05-07 07:16" [ref=e2110] [cursor=pointer]':
+                - cell [ref=e2111]:
+                  - checkbox [ref=e2112]
+                - cell "# 10435" [ref=e2113]:
+                  - button "# 10435" [ref=e2114]:
+                    - generic [ref=e2115]: "#"
+                    - text: "10435"
+                    - img [ref=e2116]
+                - cell "#" [ref=e2119]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e2120]
+                - cell "instagram.com/iamfilippox/ Copy link" [ref=e2121]:
+                  - generic [ref=e2122]:
+                    - link "instagram.com/iamfilippox/" [ref=e2123]:
+                      - /url: https://www.instagram.com/iamfilippox/
+                    - button "Copy link" [ref=e2124]:
+                      - img [ref=e2125]
+                - cell "100" [ref=e2128]
+                - cell "7,058" [ref=e2129]
+                - cell "0" [ref=e2130]
+                - cell "$1.00" [ref=e2131]
+                - cell "Completed" [ref=e2132]:
+                  - generic "Fully delivered" [ref=e2133]: Completed
+                - cell "2026-05-07 07:16" [ref=e2135]
+                - cell [ref=e2136]:
+                  - img [ref=e2137]
+              - 'row "# 10434 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/carolestizza/ Copy link 200 10,462 66 $2.00 In progress 2026-05-07 07:14" [ref=e2139] [cursor=pointer]':
+                - cell [ref=e2140]:
+                  - checkbox [ref=e2141]
+                - cell "# 10434" [ref=e2142]:
+                  - button "# 10434" [ref=e2143]:
+                    - generic [ref=e2144]: "#"
+                    - text: "10434"
+                    - img [ref=e2145]
+                - cell "#" [ref=e2148]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e2149]
+                - cell "instagram.com/carolestizza/ Copy link" [ref=e2150]:
+                  - generic [ref=e2151]:
+                    - link "instagram.com/carolestizza/" [ref=e2152]:
+                      - /url: https://www.instagram.com/carolestizza/
+                    - button "Copy link" [ref=e2153]:
+                      - img [ref=e2154]
+                - cell "200" [ref=e2157]
+                - cell "10,462" [ref=e2158]
+                - cell "66" [ref=e2159]
+                - cell "$2.00" [ref=e2160]
+                - cell "In progress" [ref=e2161]:
+                  - generic "Bot is actively executing actions" [ref=e2162]: In progress
+                - cell "2026-05-07 07:14" [ref=e2164]
+                - cell [ref=e2165]:
+                  - img [ref=e2166]
+              - 'row "# 10433 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DYB0GdYCBTd/ Copy link 38 1 0 $0.15 Completed 2026-05-07 07:08" [ref=e2168] [cursor=pointer]':
+                - cell [ref=e2169]:
+                  - checkbox [ref=e2170]
+                - cell "# 10433" [ref=e2171]:
+                  - button "# 10433" [ref=e2172]:
+                    - generic [ref=e2173]: "#"
+                    - text: "10433"
+                    - img [ref=e2174]
+                - cell "#" [ref=e2177]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e2178]
+                - cell "instagram.com/p/DYB0GdYCBTd/ Copy link" [ref=e2179]:
+                  - generic [ref=e2180]:
+                    - link "instagram.com/p/DYB0GdYCBTd/" [ref=e2181]:
+                      - /url: https://www.instagram.com/p/DYB0GdYCBTd/
+                    - button "Copy link" [ref=e2182]:
+                      - img [ref=e2183]
+                - cell "38" [ref=e2186]
+                - cell "1" [ref=e2187]
+                - cell "0" [ref=e2188]
+                - cell "$0.15" [ref=e2189]
+                - cell "Completed" [ref=e2190]:
+                  - generic "Fully delivered" [ref=e2191]: Completed
+                - cell "2026-05-07 07:08" [ref=e2193]
+                - cell [ref=e2194]:
+                  - img [ref=e2195]
+              - 'row "# 10432 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/Madslyngsoe/ Copy link 25 5,988 0 $0.25 Completed 2026-05-07 07:03" [ref=e2197] [cursor=pointer]':
+                - cell [ref=e2198]:
+                  - checkbox [ref=e2199]
+                - cell "# 10432" [ref=e2200]:
+                  - button "# 10432" [ref=e2201]:
+                    - generic [ref=e2202]: "#"
+                    - text: "10432"
+                    - img [ref=e2203]
+                - cell "#" [ref=e2206]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e2207]
+                - cell "instagram.com/Madslyngsoe/ Copy link" [ref=e2208]:
+                  - generic [ref=e2209]:
+                    - link "instagram.com/Madslyngsoe/" [ref=e2210]:
+                      - /url: https://www.instagram.com/Madslyngsoe/
+                    - button "Copy link" [ref=e2211]:
+                      - img [ref=e2212]
+                - cell "25" [ref=e2215]
+                - cell "5,988" [ref=e2216]
+                - cell "0" [ref=e2217]
+                - cell "$0.25" [ref=e2218]
+                - cell "Completed" [ref=e2219]:
+                  - generic "Fully delivered" [ref=e2220]: Completed
+                - cell "2026-05-07 07:03" [ref=e2222]
+                - cell [ref=e2223]:
+                  - img [ref=e2224]
+              - 'row "# 10431 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DYBxDpDiMYy/ Copy link 99 7 0 $0.40 Completed 2026-05-07 06:46" [ref=e2226] [cursor=pointer]':
+                - cell [ref=e2227]:
+                  - checkbox [ref=e2228]
+                - cell "# 10431" [ref=e2229]:
+                  - button "# 10431" [ref=e2230]:
+                    - generic [ref=e2231]: "#"
+                    - text: "10431"
+                    - img [ref=e2232]
+                - cell "#" [ref=e2235]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e2236]
+                - cell "instagram.com/p/DYBxDpDiMYy/ Copy link" [ref=e2237]:
+                  - generic [ref=e2238]:
+                    - link "instagram.com/p/DYBxDpDiMYy/" [ref=e2239]:
+                      - /url: https://www.instagram.com/p/DYBxDpDiMYy/
+                    - button "Copy link" [ref=e2240]:
+                      - img [ref=e2241]
+                - cell "99" [ref=e2244]
+                - cell "7" [ref=e2245]
+                - cell "0" [ref=e2246]
+                - cell "$0.40" [ref=e2247]
+                - cell "Completed" [ref=e2248]:
+                  - generic "Fully delivered" [ref=e2249]: Completed
+                - cell "2026-05-07 06:46" [ref=e2251]
+                - cell [ref=e2252]:
+                  - img [ref=e2253]
+              - 'row "# 10430 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DYBBP9ZImEs/ Copy link 50 3 0 $0.20 Completed 2026-05-07 06:44" [ref=e2255] [cursor=pointer]':
+                - cell [ref=e2256]:
+                  - checkbox [ref=e2257]
+                - cell "# 10430" [ref=e2258]:
+                  - button "# 10430" [ref=e2259]:
+                    - generic [ref=e2260]: "#"
+                    - text: "10430"
+                    - img [ref=e2261]
+                - cell "#" [ref=e2264]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e2265]
+                - cell "instagram.com/p/DYBBP9ZImEs/ Copy link" [ref=e2266]:
+                  - generic [ref=e2267]:
+                    - link "instagram.com/p/DYBBP9ZImEs/" [ref=e2268]:
+                      - /url: https://www.instagram.com/p/DYBBP9ZImEs/
+                    - button "Copy link" [ref=e2269]:
+                      - img [ref=e2270]
+                - cell "50" [ref=e2273]
+                - cell "3" [ref=e2274]
+                - cell "0" [ref=e2275]
+                - cell "$0.20" [ref=e2276]
+                - cell "Completed" [ref=e2277]:
+                  - generic "Fully delivered" [ref=e2278]: Completed
+                - cell "2026-05-07 06:44" [ref=e2280]
+                - cell [ref=e2281]:
+                  - img [ref=e2282]
+              - 'row "# 10429 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/emeka_na_man_/ Copy link 20 613 0 $0.20 Completed 2026-05-07 06:42" [ref=e2284] [cursor=pointer]':
+                - cell [ref=e2285]:
+                  - checkbox [ref=e2286]
+                - cell "# 10429" [ref=e2287]:
+                  - button "# 10429" [ref=e2288]:
+                    - generic [ref=e2289]: "#"
+                    - text: "10429"
+                    - img [ref=e2290]
+                - cell "#" [ref=e2293]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e2294]
+                - cell "instagram.com/emeka_na_man_/ Copy link" [ref=e2295]:
+                  - generic [ref=e2296]:
+                    - link "instagram.com/emeka_na_man_/" [ref=e2297]:
+                      - /url: https://instagram.com/emeka_na_man_/
+                    - button "Copy link" [ref=e2298]:
+                      - img [ref=e2299]
+                - cell "20" [ref=e2302]
+                - cell "613" [ref=e2303]
+                - cell "0" [ref=e2304]
+                - cell "$0.20" [ref=e2305]
+                - cell "Completed" [ref=e2306]:
+                  - generic "Fully delivered" [ref=e2307]: Completed
+                - cell "2026-05-07 06:42" [ref=e2309]
+                - cell [ref=e2310]:
+                  - img [ref=e2311]
+              - 'row "# 10428 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/vidal.mgmt/ Copy link 100 1,627 0 $1.00 Completed 2026-05-07 06:42" [ref=e2313] [cursor=pointer]':
+                - cell [ref=e2314]:
+                  - checkbox [ref=e2315]
+                - cell "# 10428" [ref=e2316]:
+                  - button "# 10428" [ref=e2317]:
+                    - generic [ref=e2318]: "#"
+                    - text: "10428"
+                    - img [ref=e2319]
+                - cell "#" [ref=e2322]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e2323]
+                - cell "instagram.com/vidal.mgmt/ Copy link" [ref=e2324]:
+                  - generic [ref=e2325]:
+                    - link "instagram.com/vidal.mgmt/" [ref=e2326]:
+                      - /url: https://www.instagram.com/vidal.mgmt/
+                    - button "Copy link" [ref=e2327]:
+                      - img [ref=e2328]
+                - cell "100" [ref=e2331]
+                - cell "1,627" [ref=e2332]
+                - cell "0" [ref=e2333]
+                - cell "$1.00" [ref=e2334]
+                - cell "Completed" [ref=e2335]:
+                  - generic "Fully delivered" [ref=e2336]: Completed
+                - cell "2026-05-07 06:42" [ref=e2338]
+                - cell [ref=e2339]:
+                  - img [ref=e2340]
+              - 'row "# 10427 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/vivavidal/ Copy link 150 3,098 0 $1.50 Completed 2026-05-07 06:42" [ref=e2342] [cursor=pointer]':
+                - cell [ref=e2343]:
+                  - checkbox [ref=e2344]
+                - cell "# 10427" [ref=e2345]:
+                  - button "# 10427" [ref=e2346]:
+                    - generic [ref=e2347]: "#"
+                    - text: "10427"
+                    - img [ref=e2348]
+                - cell "#" [ref=e2351]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e2352]
+                - cell "instagram.com/vivavidal/ Copy link" [ref=e2353]:
+                  - generic [ref=e2354]:
+                    - link "instagram.com/vivavidal/" [ref=e2355]:
+                      - /url: https://www.instagram.com/vivavidal/
+                    - button "Copy link" [ref=e2356]:
+                      - img [ref=e2357]
+                - cell "150" [ref=e2360]
+                - cell "3,098" [ref=e2361]
+                - cell "0" [ref=e2362]
+                - cell "$1.50" [ref=e2363]
+                - cell "Completed" [ref=e2364]:
+                  - generic "Fully delivered" [ref=e2365]: Completed
+                - cell "2026-05-07 06:42" [ref=e2367]
+                - cell [ref=e2368]:
+                  - img [ref=e2369]
+              - 'row "# 10426 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/g.luca3dmaker/ Copy link 50 1,780 0 $0.50 Completed 2026-05-07 06:33" [ref=e2371] [cursor=pointer]':
+                - cell [ref=e2372]:
+                  - checkbox [ref=e2373]
+                - cell "# 10426" [ref=e2374]:
+                  - button "# 10426" [ref=e2375]:
+                    - generic [ref=e2376]: "#"
+                    - text: "10426"
+                    - img [ref=e2377]
+                - cell "#" [ref=e2380]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e2381]
+                - cell "instagram.com/g.luca3dmaker/ Copy link" [ref=e2382]:
+                  - generic [ref=e2383]:
+                    - link "instagram.com/g.luca3dmaker/" [ref=e2384]:
+                      - /url: https://www.instagram.com/g.luca3dmaker/
+                    - button "Copy link" [ref=e2385]:
+                      - img [ref=e2386]
+                - cell "50" [ref=e2389]
+                - cell "1,780" [ref=e2390]
+                - cell "0" [ref=e2391]
+                - cell "$0.50" [ref=e2392]
+                - cell "Completed" [ref=e2393]:
+                  - generic "Fully delivered" [ref=e2394]: Completed
+                - cell "2026-05-07 06:33" [ref=e2396]
+                - cell [ref=e2397]:
+                  - img [ref=e2398]
+              - 'row "# 10425 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/rxdleyl/ Copy link 102 53 0 $1.02 Completed 2026-05-07 06:28" [ref=e2400] [cursor=pointer]':
+                - cell [ref=e2401]:
+                  - checkbox [ref=e2402]
+                - cell "# 10425" [ref=e2403]:
+                  - button "# 10425" [ref=e2404]:
+                    - generic [ref=e2405]: "#"
+                    - text: "10425"
+                    - img [ref=e2406]
+                - cell "#" [ref=e2409]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e2410]
+                - cell "instagram.com/rxdleyl/ Copy link" [ref=e2411]:
+                  - generic [ref=e2412]:
+                    - link "instagram.com/rxdleyl/" [ref=e2413]:
+                      - /url: https://www.instagram.com/rxdleyl/
+                    - button "Copy link" [ref=e2414]:
+                      - img [ref=e2415]
+                - cell "102" [ref=e2418]
+                - cell "53" [ref=e2419]
+                - cell "0" [ref=e2420]
+                - cell "$1.02" [ref=e2421]
+                - cell "Completed" [ref=e2422]:
+                  - generic "Fully delivered" [ref=e2423]: Completed
+                - cell "2026-05-07 06:28" [ref=e2425]
+                - cell [ref=e2426]:
+                  - img [ref=e2427]
+              - 'row "# 10424 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DYANH1yia8a/ Copy link 35 23 0 $0.14 Completed 2026-05-07 06:27" [ref=e2429] [cursor=pointer]':
+                - cell [ref=e2430]:
+                  - checkbox [ref=e2431]
+                - cell "# 10424" [ref=e2432]:
+                  - button "# 10424" [ref=e2433]:
+                    - generic [ref=e2434]: "#"
+                    - text: "10424"
+                    - img [ref=e2435]
+                - cell "#" [ref=e2438]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e2439]
+                - cell "instagram.com/p/DYANH1yia8a/ Copy link" [ref=e2440]:
+                  - generic [ref=e2441]:
+                    - link "instagram.com/p/DYANH1yia8a/" [ref=e2442]:
+                      - /url: https://www.instagram.com/p/DYANH1yia8a/
+                    - button "Copy link" [ref=e2443]:
+                      - img [ref=e2444]
+                - cell "35" [ref=e2447]
+                - cell "23" [ref=e2448]
+                - cell "0" [ref=e2449]
+                - cell "$0.14" [ref=e2450]
+                - cell "Completed" [ref=e2451]:
+                  - generic "Fully delivered" [ref=e2452]: Completed
+                - cell "2026-05-07 06:27" [ref=e2454]
+                - cell [ref=e2455]:
+                  - img [ref=e2456]
+              - 'row "# 10423 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DYBtPrINYLG/ Copy link 105 22 0 $0.42 Completed 2026-05-07 06:22" [ref=e2458] [cursor=pointer]':
+                - cell [ref=e2459]:
+                  - checkbox [ref=e2460]
+                - cell "# 10423" [ref=e2461]:
+                  - button "# 10423" [ref=e2462]:
+                    - generic [ref=e2463]: "#"
+                    - text: "10423"
+                    - img [ref=e2464]
+                - cell "#" [ref=e2467]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e2468]
+                - cell "instagram.com/p/DYBtPrINYLG/ Copy link" [ref=e2469]:
+                  - generic [ref=e2470]:
+                    - link "instagram.com/p/DYBtPrINYLG/" [ref=e2471]:
+                      - /url: https://www.instagram.com/p/DYBtPrINYLG/
+                    - button "Copy link" [ref=e2472]:
+                      - img [ref=e2473]
+                - cell "105" [ref=e2476]
+                - cell "22" [ref=e2477]
+                - cell "0" [ref=e2478]
+                - cell "$0.42" [ref=e2479]
+                - cell "Completed" [ref=e2480]:
+                  - generic "Fully delivered" [ref=e2481]: Completed
+                - cell "2026-05-07 06:22" [ref=e2483]
+                - cell [ref=e2484]:
+                  - img [ref=e2485]
+              - 'row "# 10422 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DYBtPrINYLG/ Copy link 110 9 0 $0.44 Completed 2026-05-07 06:16" [ref=e2487] [cursor=pointer]':
+                - cell [ref=e2488]:
+                  - checkbox [ref=e2489]
+                - cell "# 10422" [ref=e2490]:
+                  - button "# 10422" [ref=e2491]:
+                    - generic [ref=e2492]: "#"
+                    - text: "10422"
+                    - img [ref=e2493]
+                - cell "#" [ref=e2496]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e2497]
+                - cell "instagram.com/p/DYBtPrINYLG/ Copy link" [ref=e2498]:
+                  - generic [ref=e2499]:
+                    - link "instagram.com/p/DYBtPrINYLG/" [ref=e2500]:
+                      - /url: https://www.instagram.com/p/DYBtPrINYLG/
+                    - button "Copy link" [ref=e2501]:
+                      - img [ref=e2502]
+                - cell "110" [ref=e2505]
+                - cell "9" [ref=e2506]
+                - cell "0" [ref=e2507]
+                - cell "$0.44" [ref=e2508]
+                - cell "Completed" [ref=e2509]:
+                  - generic "Fully delivered" [ref=e2510]: Completed
+                - cell "2026-05-07 06:16" [ref=e2512]
+                - cell [ref=e2513]:
+                  - img [ref=e2514]
+              - 'row "# 10421 # Instagram Custom Comments [Mix Gender] [USA/Europe] instagram.com/p/DYBrHvqjv2d/ Copy link 10 9 0 $0.70 Completed 2026-05-07 06:14" [ref=e2516] [cursor=pointer]':
+                - cell [ref=e2517]:
+                  - checkbox [ref=e2518]
+                - cell "# 10421" [ref=e2519]:
+                  - button "# 10421" [ref=e2520]:
+                    - generic [ref=e2521]: "#"
+                    - text: "10421"
+                    - img [ref=e2522]
+                - cell "#" [ref=e2525]
+                - cell "Instagram Custom Comments [Mix Gender] [USA/Europe]" [ref=e2526]
+                - cell "instagram.com/p/DYBrHvqjv2d/ Copy link" [ref=e2527]:
+                  - generic [ref=e2528]:
+                    - link "instagram.com/p/DYBrHvqjv2d/" [ref=e2529]:
+                      - /url: https://www.instagram.com/p/DYBrHvqjv2d/
+                    - button "Copy link" [ref=e2530]:
+                      - img [ref=e2531]
+                - cell "10" [ref=e2534]
+                - cell "9" [ref=e2535]
+                - cell "0" [ref=e2536]
+                - cell "$0.70" [ref=e2537]
+                - cell "Completed" [ref=e2538]:
+                  - generic "Fully delivered" [ref=e2539]: Completed
+                - cell "2026-05-07 06:14" [ref=e2541]
+                - cell [ref=e2542]:
+                  - img [ref=e2543]
+              - 'row "# 10420 # Instagram Custom Comments [Mix Gender] [USA/Europe] instagram.com/p/DYBeJQDFkKW/ Copy link 10 10 0 $0.70 Completed 2026-05-07 06:13" [ref=e2545] [cursor=pointer]':
+                - cell [ref=e2546]:
+                  - checkbox [ref=e2547]
+                - cell "# 10420" [ref=e2548]:
+                  - button "# 10420" [ref=e2549]:
+                    - generic [ref=e2550]: "#"
+                    - text: "10420"
+                    - img [ref=e2551]
+                - cell "#" [ref=e2554]
+                - cell "Instagram Custom Comments [Mix Gender] [USA/Europe]" [ref=e2555]
+                - cell "instagram.com/p/DYBeJQDFkKW/ Copy link" [ref=e2556]:
+                  - generic [ref=e2557]:
+                    - link "instagram.com/p/DYBeJQDFkKW/" [ref=e2558]:
+                      - /url: https://www.instagram.com/p/DYBeJQDFkKW/
+                    - button "Copy link" [ref=e2559]:
+                      - img [ref=e2560]
+                - cell "10" [ref=e2563]
+                - cell "10" [ref=e2564]
+                - cell "0" [ref=e2565]
+                - cell "$0.70" [ref=e2566]
+                - cell "Completed" [ref=e2567]:
+                  - generic "Fully delivered" [ref=e2568]: Completed
+                - cell "2026-05-07 06:13" [ref=e2570]
+                - cell [ref=e2571]:
+                  - img [ref=e2572]
+              - 'row "# 10419 # Instagram Custom Comments [Mix Gender] [USA/Europe] instagram.com/p/DYAyDUQAf26/ Copy link 10 0 0 $0.70 Completed 2026-05-07 06:13" [ref=e2574] [cursor=pointer]':
+                - cell [ref=e2575]:
+                  - checkbox [ref=e2576]
+                - cell "# 10419" [ref=e2577]:
+                  - button "# 10419" [ref=e2578]:
+                    - generic [ref=e2579]: "#"
+                    - text: "10419"
+                    - img [ref=e2580]
+                - cell "#" [ref=e2583]
+                - cell "Instagram Custom Comments [Mix Gender] [USA/Europe]" [ref=e2584]
+                - cell "instagram.com/p/DYAyDUQAf26/ Copy link" [ref=e2585]:
+                  - generic [ref=e2586]:
+                    - link "instagram.com/p/DYAyDUQAf26/" [ref=e2587]:
+                      - /url: https://www.instagram.com/p/DYAyDUQAf26/
+                    - button "Copy link" [ref=e2588]:
+                      - img [ref=e2589]
+                - cell "10" [ref=e2592]
+                - cell "0" [ref=e2593]
+                - cell "0" [ref=e2594]
+                - cell "$0.70" [ref=e2595]
+                - cell "Completed" [ref=e2596]:
+                  - generic "Fully delivered" [ref=e2597]: Completed
+                - cell "2026-05-07 06:13" [ref=e2599]
+                - cell [ref=e2600]:
+                  - img [ref=e2601]
+              - 'row "# 10418 # Instagram Custom Comments [MALE] [USA/Europe] instagram.com/p/DYBf4OMt48j/ Copy link 9 2 0 $0.63 Completed 2026-05-07 06:13" [ref=e2603] [cursor=pointer]':
+                - cell [ref=e2604]:
+                  - checkbox [ref=e2605]
+                - cell "# 10418" [ref=e2606]:
+                  - button "# 10418" [ref=e2607]:
+                    - generic [ref=e2608]: "#"
+                    - text: "10418"
+                    - img [ref=e2609]
+                - cell "#" [ref=e2612]
+                - cell "Instagram Custom Comments [MALE] [USA/Europe]" [ref=e2613]
+                - cell "instagram.com/p/DYBf4OMt48j/ Copy link" [ref=e2614]:
+                  - generic [ref=e2615]:
+                    - link "instagram.com/p/DYBf4OMt48j/" [ref=e2616]:
+                      - /url: https://www.instagram.com/p/DYBf4OMt48j/
+                    - button "Copy link" [ref=e2617]:
+                      - img [ref=e2618]
+                - cell "9" [ref=e2621]
+                - cell "2" [ref=e2622]
+                - cell "0" [ref=e2623]
+                - cell "$0.63" [ref=e2624]
+                - cell "Completed" [ref=e2625]:
+                  - generic "Fully delivered" [ref=e2626]: Completed
+                - cell "2026-05-07 06:13" [ref=e2628]
+                - cell [ref=e2629]:
+                  - img [ref=e2630]
+              - 'row "# 10417 # Instagram Custom Comments [FEMALE] [USA/Europe] instagram.com/p/DYBWY8yMCpN/ Copy link 9 114 0 $0.63 Completed 2026-05-07 06:12" [ref=e2632] [cursor=pointer]':
+                - cell [ref=e2633]:
+                  - checkbox [ref=e2634]
+                - cell "# 10417" [ref=e2635]:
+                  - button "# 10417" [ref=e2636]:
+                    - generic [ref=e2637]: "#"
+                    - text: "10417"
+                    - img [ref=e2638]
+                - cell "#" [ref=e2641]
+                - cell "Instagram Custom Comments [FEMALE] [USA/Europe]" [ref=e2642]
+                - cell "instagram.com/p/DYBWY8yMCpN/ Copy link" [ref=e2643]:
+                  - generic [ref=e2644]:
+                    - link "instagram.com/p/DYBWY8yMCpN/" [ref=e2645]:
+                      - /url: https://www.instagram.com/p/DYBWY8yMCpN/
+                    - button "Copy link" [ref=e2646]:
+                      - img [ref=e2647]
+                - cell "9" [ref=e2650]
+                - cell "114" [ref=e2651]
+                - cell "0" [ref=e2652]
+                - cell "$0.63" [ref=e2653]
+                - cell "Completed" [ref=e2654]:
+                  - generic "Fully delivered" [ref=e2655]: Completed
+                - cell "2026-05-07 06:12" [ref=e2657]
+                - cell [ref=e2658]:
+                  - img [ref=e2659]
+              - 'row "# 10416 # Instagram Custom Comments [Mix Gender] [USA/Europe] instagram.com/p/DYAeRBvPK-I/ Copy link 5 18 0 $0.35 Completed 2026-05-07 06:12" [ref=e2661] [cursor=pointer]':
+                - cell [ref=e2662]:
+                  - checkbox [ref=e2663]
+                - cell "# 10416" [ref=e2664]:
+                  - button "# 10416" [ref=e2665]:
+                    - generic [ref=e2666]: "#"
+                    - text: "10416"
+                    - img [ref=e2667]
+                - cell "#" [ref=e2670]
+                - cell "Instagram Custom Comments [Mix Gender] [USA/Europe]" [ref=e2671]
+                - cell "instagram.com/p/DYAeRBvPK-I/ Copy link" [ref=e2672]:
+                  - generic [ref=e2673]:
+                    - link "instagram.com/p/DYAeRBvPK-I/" [ref=e2674]:
+                      - /url: https://www.instagram.com/p/DYAeRBvPK-I/
+                    - button "Copy link" [ref=e2675]:
+                      - img [ref=e2676]
+                - cell "5" [ref=e2679]
+                - cell "18" [ref=e2680]
+                - cell "0" [ref=e2681]
+                - cell "$0.35" [ref=e2682]
+                - cell "Completed" [ref=e2683]:
+                  - generic "Fully delivered" [ref=e2684]: Completed
+                - cell "2026-05-07 06:12" [ref=e2686]
+                - cell [ref=e2687]:
+                  - img [ref=e2688]
+              - 'row "# 10415 # Instagram Custom Comments [Mix Gender] [USA/Europe] instagram.com/p/DYAxnSmgYZ2/ Copy link 25 4 0 $1.75 Completed 2026-05-07 06:12" [ref=e2690] [cursor=pointer]':
+                - cell [ref=e2691]:
+                  - checkbox [ref=e2692]
+                - cell "# 10415" [ref=e2693]:
+                  - button "# 10415" [ref=e2694]:
+                    - generic [ref=e2695]: "#"
+                    - text: "10415"
+                    - img [ref=e2696]
+                - cell "#" [ref=e2699]
+                - cell "Instagram Custom Comments [Mix Gender] [USA/Europe]" [ref=e2700]
+                - cell "instagram.com/p/DYAxnSmgYZ2/ Copy link" [ref=e2701]:
+                  - generic [ref=e2702]:
+                    - link "instagram.com/p/DYAxnSmgYZ2/" [ref=e2703]:
+                      - /url: https://www.instagram.com/p/DYAxnSmgYZ2/
+                    - button "Copy link" [ref=e2704]:
+                      - img [ref=e2705]
+                - cell "25" [ref=e2708]
+                - cell "4" [ref=e2709]
+                - cell "0" [ref=e2710]
+                - cell "$1.75" [ref=e2711]
+                - cell "Completed" [ref=e2712]:
+                  - generic "Fully delivered" [ref=e2713]: Completed
+                - cell "2026-05-07 06:12" [ref=e2715]
+                - cell [ref=e2716]:
+                  - img [ref=e2717]
+              - 'row "# 10414 # Instagram Custom Comments [FEMALE] [USA/Europe] instagram.com/p/DX9-fRnoy91/ Copy link 7 9 0 $0.49 Completed 2026-05-07 06:12" [ref=e2719] [cursor=pointer]':
+                - cell [ref=e2720]:
+                  - checkbox [ref=e2721]
+                - cell "# 10414" [ref=e2722]:
+                  - button "# 10414" [ref=e2723]:
+                    - generic [ref=e2724]: "#"
+                    - text: "10414"
+                    - img [ref=e2725]
+                - cell "#" [ref=e2728]
+                - cell "Instagram Custom Comments [FEMALE] [USA/Europe]" [ref=e2729]
+                - cell "instagram.com/p/DX9-fRnoy91/ Copy link" [ref=e2730]:
+                  - generic [ref=e2731]:
+                    - link "instagram.com/p/DX9-fRnoy91/" [ref=e2732]:
+                      - /url: https://www.instagram.com/p/DX9-fRnoy91/
+                    - button "Copy link" [ref=e2733]:
+                      - img [ref=e2734]
+                - cell "7" [ref=e2737]
+                - cell "9" [ref=e2738]
+                - cell "0" [ref=e2739]
+                - cell "$0.49" [ref=e2740]
+                - cell "Completed" [ref=e2741]:
+                  - generic "Fully delivered" [ref=e2742]: Completed
+                - cell "2026-05-07 06:12" [ref=e2744]
+                - cell [ref=e2745]:
+                  - img [ref=e2746]
+              - 'row "# 10413 # Instagram Custom Comments [FEMALE] [USA/Europe] instagram.com/p/DX9rdv8CNOM/ Copy link 15 7 0 $1.05 Completed 2026-05-07 06:11" [ref=e2748] [cursor=pointer]':
+                - cell [ref=e2749]:
+                  - checkbox [ref=e2750]
+                - cell "# 10413" [ref=e2751]:
+                  - button "# 10413" [ref=e2752]:
+                    - generic [ref=e2753]: "#"
+                    - text: "10413"
+                    - img [ref=e2754]
+                - cell "#" [ref=e2757]
+                - cell "Instagram Custom Comments [FEMALE] [USA/Europe]" [ref=e2758]
+                - cell "instagram.com/p/DX9rdv8CNOM/ Copy link" [ref=e2759]:
+                  - generic [ref=e2760]:
+                    - link "instagram.com/p/DX9rdv8CNOM/" [ref=e2761]:
+                      - /url: https://www.instagram.com/p/DX9rdv8CNOM/
+                    - button "Copy link" [ref=e2762]:
+                      - img [ref=e2763]
+                - cell "15" [ref=e2766]
+                - cell "7" [ref=e2767]
+                - cell "0" [ref=e2768]
+                - cell "$1.05" [ref=e2769]
+                - cell "Completed" [ref=e2770]:
+                  - generic "Fully delivered" [ref=e2771]: Completed
+                - cell "2026-05-07 06:11" [ref=e2773]
+                - cell [ref=e2774]:
+                  - img [ref=e2775]
+              - 'row "# 10412 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/tech.no.id/ Copy link 50 997 0 $0.50 Completed 2026-05-07 06:01" [ref=e2777] [cursor=pointer]':
+                - cell [ref=e2778]:
+                  - checkbox [ref=e2779]
+                - cell "# 10412" [ref=e2780]:
+                  - button "# 10412" [ref=e2781]:
+                    - generic [ref=e2782]: "#"
+                    - text: "10412"
+                    - img [ref=e2783]
+                - cell "#" [ref=e2786]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e2787]
+                - cell "instagram.com/tech.no.id/ Copy link" [ref=e2788]:
+                  - generic [ref=e2789]:
+                    - link "instagram.com/tech.no.id/" [ref=e2790]:
+                      - /url: https://www.instagram.com/tech.no.id/
+                    - button "Copy link" [ref=e2791]:
+                      - img [ref=e2792]
+                - cell "50" [ref=e2795]
+                - cell "997" [ref=e2796]
+                - cell "0" [ref=e2797]
+                - cell "$0.50" [ref=e2798]
+                - cell "Completed" [ref=e2799]:
+                  - generic "Fully delivered" [ref=e2800]: Completed
+                - cell "2026-05-07 06:01" [ref=e2802]
+                - cell [ref=e2803]:
+                  - img [ref=e2804]
+              - 'row "# 10411 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/jaisaaponte/ Copy link 50 86 0 $0.50 Completed 2026-05-07 05:25" [ref=e2806] [cursor=pointer]':
+                - cell [ref=e2807]:
+                  - checkbox [ref=e2808]
+                - cell "# 10411" [ref=e2809]:
+                  - button "# 10411" [ref=e2810]:
+                    - generic [ref=e2811]: "#"
+                    - text: "10411"
+                    - img [ref=e2812]
+                - cell "#" [ref=e2815]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e2816]
+                - cell "instagram.com/jaisaaponte/ Copy link" [ref=e2817]:
+                  - generic [ref=e2818]:
+                    - link "instagram.com/jaisaaponte/" [ref=e2819]:
+                      - /url: https://www.instagram.com/jaisaaponte/
+                    - button "Copy link" [ref=e2820]:
+                      - img [ref=e2821]
+                - cell "50" [ref=e2824]
+                - cell "86" [ref=e2825]
+                - cell "0" [ref=e2826]
+                - cell "$0.50" [ref=e2827]
+                - cell "Completed" [ref=e2828]:
+                  - generic "Fully delivered" [ref=e2829]: Completed
+                - cell "2026-05-07 05:25" [ref=e2831]
+                - cell [ref=e2832]:
+                  - img [ref=e2833]
+              - 'row "# 10410 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DYBk34Igk1j/ Copy link 50 37 0 $0.20 Completed 2026-05-07 05:22" [ref=e2835] [cursor=pointer]':
+                - cell [ref=e2836]:
+                  - checkbox [ref=e2837]
+                - cell "# 10410" [ref=e2838]:
+                  - button "# 10410" [ref=e2839]:
+                    - generic [ref=e2840]: "#"
+                    - text: "10410"
+                    - img [ref=e2841]
+                - cell "#" [ref=e2844]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e2845]
+                - cell "instagram.com/p/DYBk34Igk1j/ Copy link" [ref=e2846]:
+                  - generic [ref=e2847]:
+                    - link "instagram.com/p/DYBk34Igk1j/" [ref=e2848]:
+                      - /url: https://www.instagram.com/p/DYBk34Igk1j/
+                    - button "Copy link" [ref=e2849]:
+                      - img [ref=e2850]
+                - cell "50" [ref=e2853]
+                - cell "37" [ref=e2854]
+                - cell "0" [ref=e2855]
+                - cell "$0.20" [ref=e2856]
+                - cell "Completed" [ref=e2857]:
+                  - generic "Fully delivered" [ref=e2858]: Completed
+                - cell "2026-05-07 05:22" [ref=e2860]
+                - cell [ref=e2861]:
+                  - img [ref=e2862]
+              - 'row "# 10409 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/the_dancing_airtel_agent/ Copy link 20 61 0 $0.20 Completed 2026-05-07 05:02" [ref=e2864] [cursor=pointer]':
+                - cell [ref=e2865]:
+                  - checkbox [ref=e2866]
+                - cell "# 10409" [ref=e2867]:
+                  - button "# 10409" [ref=e2868]:
+                    - generic [ref=e2869]: "#"
+                    - text: "10409"
+                    - img [ref=e2870]
+                - cell "#" [ref=e2873]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e2874]
+                - cell "instagram.com/the_dancing_airtel_agent/ Copy link" [ref=e2875]:
+                  - generic [ref=e2876]:
+                    - link "instagram.com/the_dancing_airtel_agent/" [ref=e2877]:
+                      - /url: https://instagram.com/the_dancing_airtel_agent/
+                    - button "Copy link" [ref=e2878]:
+                      - img [ref=e2879]
+                - cell "20" [ref=e2882]
+                - cell "61" [ref=e2883]
+                - cell "0" [ref=e2884]
+                - cell "$0.20" [ref=e2885]
+                - cell "Completed" [ref=e2886]:
+                  - generic "Fully delivered" [ref=e2887]: Completed
+                - cell "2026-05-07 05:02" [ref=e2889]
+                - cell [ref=e2890]:
+                  - img [ref=e2891]
+              - 'row "# 10408 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DYA_3Lnjpl0/ Copy link 50 25 0 $0.20 Completed 2026-05-07 04:56" [ref=e2893] [cursor=pointer]':
+                - cell [ref=e2894]:
+                  - checkbox [ref=e2895]
+                - cell "# 10408" [ref=e2896]:
+                  - button "# 10408" [ref=e2897]:
+                    - generic [ref=e2898]: "#"
+                    - text: "10408"
+                    - img [ref=e2899]
+                - cell "#" [ref=e2902]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e2903]
+                - cell "instagram.com/p/DYA_3Lnjpl0/ Copy link" [ref=e2904]:
+                  - generic [ref=e2905]:
+                    - link "instagram.com/p/DYA_3Lnjpl0/" [ref=e2906]:
+                      - /url: https://www.instagram.com/p/DYA_3Lnjpl0/
+                    - button "Copy link" [ref=e2907]:
+                      - img [ref=e2908]
+                - cell "50" [ref=e2911]
+                - cell "25" [ref=e2912]
+                - cell "0" [ref=e2913]
+                - cell "$0.20" [ref=e2914]
+                - cell "Completed" [ref=e2915]:
+                  - generic "Fully delivered" [ref=e2916]: Completed
+                - cell "2026-05-07 04:56" [ref=e2918]
+                - cell [ref=e2919]:
+                  - img [ref=e2920]
+              - 'row "# 10407 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/wadeschaul/ Copy link 200 8,364 22 $2.00 In progress 2026-05-07 04:54" [ref=e2922] [cursor=pointer]':
+                - cell [ref=e2923]:
+                  - checkbox [ref=e2924]
+                - cell "# 10407" [ref=e2925]:
+                  - button "# 10407" [ref=e2926]:
+                    - generic [ref=e2927]: "#"
+                    - text: "10407"
+                    - img [ref=e2928]
+                - cell "#" [ref=e2931]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e2932]
+                - cell "instagram.com/wadeschaul/ Copy link" [ref=e2933]:
+                  - generic [ref=e2934]:
+                    - link "instagram.com/wadeschaul/" [ref=e2935]:
+                      - /url: https://www.instagram.com/wadeschaul/
+                    - button "Copy link" [ref=e2936]:
+                      - img [ref=e2937]
+                - cell "200" [ref=e2940]
+                - cell "8,364" [ref=e2941]
+                - cell "22" [ref=e2942]
+                - cell "$2.00" [ref=e2943]
+                - cell "In progress" [ref=e2944]:
+                  - generic "Bot is actively executing actions" [ref=e2945]: In progress
+                - cell "2026-05-07 04:54" [ref=e2947]
+                - cell [ref=e2948]:
+                  - img [ref=e2949]
+              - 'row "# 10406 # Instagram Likes [Mix Gender] [Germany] instagram.com/p/DYBk34Igk1j/ Copy link 206 1 60 $0.82 In progress 2026-05-07 04:52" [ref=e2951] [cursor=pointer]':
+                - cell [ref=e2952]:
+                  - checkbox [ref=e2953]
+                - cell "# 10406" [ref=e2954]:
+                  - button "# 10406" [ref=e2955]:
+                    - generic [ref=e2956]: "#"
+                    - text: "10406"
+                    - img [ref=e2957]
+                - cell "#" [ref=e2960]
+                - cell "Instagram Likes [Mix Gender] [Germany]" [ref=e2961]
+                - cell "instagram.com/p/DYBk34Igk1j/ Copy link" [ref=e2962]:
+                  - generic [ref=e2963]:
+                    - link "instagram.com/p/DYBk34Igk1j/" [ref=e2964]:
+                      - /url: https://www.instagram.com/p/DYBk34Igk1j/
+                    - button "Copy link" [ref=e2965]:
+                      - img [ref=e2966]
+                - cell "206" [ref=e2969]
+                - cell "1" [ref=e2970]
+                - cell "60" [ref=e2971]
+                - cell "$0.82" [ref=e2972]
+                - cell "In progress" [ref=e2973]:
+                  - generic "Bot is actively executing actions" [ref=e2974]: In progress
+                - cell "2026-05-07 04:52" [ref=e2976]
+                - cell [ref=e2977]:
+                  - img [ref=e2978]
+              - 'row "# 10405 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/svanhildurmar/ Copy link 20 6,625 0 $0.20 Completed 2026-05-07 04:10" [ref=e2980] [cursor=pointer]':
+                - cell [ref=e2981]:
+                  - checkbox [ref=e2982]
+                - cell "# 10405" [ref=e2983]:
+                  - button "# 10405" [ref=e2984]:
+                    - generic [ref=e2985]: "#"
+                    - text: "10405"
+                    - img [ref=e2986]
+                - cell "#" [ref=e2989]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e2990]
+                - cell "instagram.com/svanhildurmar/ Copy link" [ref=e2991]:
+                  - generic [ref=e2992]:
+                    - link "instagram.com/svanhildurmar/" [ref=e2993]:
+                      - /url: https://instagram.com/svanhildurmar/
+                    - button "Copy link" [ref=e2994]:
+                      - img [ref=e2995]
+                - cell "20" [ref=e2998]
+                - cell "6,625" [ref=e2999]
+                - cell "0" [ref=e3000]
+                - cell "$0.20" [ref=e3001]
+                - cell "Completed" [ref=e3002]:
+                  - generic "Fully delivered" [ref=e3003]: Completed
+                - cell "2026-05-07 04:10" [ref=e3005]
+                - cell [ref=e3006]:
+                  - img [ref=e3007]
+              - 'row "# 10404 # Instagram Followers [Mix Gender] [USA/Europe] instagram.com/goodtaste.design/ Copy link 100 47 0 $1.00 Completed 2026-05-07 04:04" [ref=e3009] [cursor=pointer]':
+                - cell [ref=e3010]:
+                  - checkbox [ref=e3011]
+                - cell "# 10404" [ref=e3012]:
+                  - button "# 10404" [ref=e3013]:
+                    - generic [ref=e3014]: "#"
+                    - text: "10404"
+                    - img [ref=e3015]
+                - cell "#" [ref=e3018]
+                - cell "Instagram Followers [Mix Gender] [USA/Europe]" [ref=e3019]
+                - cell "instagram.com/goodtaste.design/ Copy link" [ref=e3020]:
+                  - generic [ref=e3021]:
+                    - link "instagram.com/goodtaste.design/" [ref=e3022]:
+                      - /url: https://www.instagram.com/goodtaste.design/
+                    - button "Copy link" [ref=e3023]:
+                      - img [ref=e3024]
+                - cell "100" [ref=e3027]
+                - cell "47" [ref=e3028]
+                - cell "0" [ref=e3029]
+                - cell "$1.00" [ref=e3030]
+                - cell "Completed" [ref=e3031]:
+                  - generic "Fully delivered" [ref=e3032]: Completed
+                - cell "2026-05-07 04:04" [ref=e3034]
+                - cell [ref=e3035]:
+                  - img [ref=e3036]
+              - 'row "# 10403 # Instagram Likes [Female] [USA/Europe] instagram.com/p/DXm91DVCZqK/ Copy link 100 709 0 $0.40 Completed 2026-05-07 03:42" [ref=e3038] [cursor=pointer]':
+                - cell [ref=e3039]:
+                  - checkbox [ref=e3040]
+                - cell "# 10403" [ref=e3041]:
+                  - button "# 10403" [ref=e3042]:
+                    - generic [ref=e3043]: "#"
+                    - text: "10403"
+                    - img [ref=e3044]
+                - cell "#" [ref=e3047]
+                - cell "Instagram Likes [Female] [USA/Europe]" [ref=e3048]
+                - cell "instagram.com/p/DXm91DVCZqK/ Copy link" [ref=e3049]:
+                  - generic [ref=e3050]:
+                    - link "instagram.com/p/DXm91DVCZqK/" [ref=e3051]:
+                      - /url: https://www.instagram.com/p/DXm91DVCZqK/
+                    - button "Copy link" [ref=e3052]:
+                      - img [ref=e3053]
+                - cell "100" [ref=e3056]
+                - cell "709" [ref=e3057]
+                - cell "0" [ref=e3058]
+                - cell "$0.40" [ref=e3059]
+                - cell "Completed" [ref=e3060]:
+                  - generic "Fully delivered" [ref=e3061]: Completed
+                - cell "2026-05-07 03:42" [ref=e3063]
+                - cell [ref=e3064]:
+                  - img [ref=e3065]
+          - generic [ref=e3067]:
+            - generic [ref=e3068]: Showing 1–100 of 9963
+            - generic [ref=e3069]:
+              - button "Prev" [disabled]:
+                - img
+                - text: Prev
+              - generic [ref=e3070]: 1 / 100
+              - button "Next" [ref=e3071] [cursor=pointer]:
+                - text: Next
+                - img [ref=e3072]

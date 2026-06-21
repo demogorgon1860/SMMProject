@@ -28,9 +28,9 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * Tests for the fast-path/legacy-fallback dual-mode authentication in {@link
- * ApiKeyAuthenticationFilter}. The fast path resolves the owning user via the indexed
- * {@code api_key_lookup_hash} column; the legacy path scans every active user whose lookup
- * hash is still null and lazily backfills it on first success.
+ * ApiKeyAuthenticationFilter}. The fast path resolves the owning user via the indexed {@code
+ * api_key_lookup_hash} column; the legacy path scans every active user whose lookup hash is still
+ * null and lazily backfills it on first success.
  */
 @ExtendWith(MockitoExtension.class)
 class ApiKeyAuthenticationFilterTest {

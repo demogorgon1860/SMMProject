@@ -1,0 +1,236 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - link "SMMWorld SMMWorld admin · v2.4.1" [ref=e6] [cursor=pointer]:
+        - /url: /admin
+        - img "SMMWorld" [ref=e7]
+        - generic [ref=e8]:
+          - generic [ref=e9]: SMMWorld
+          - generic [ref=e10]: admin · v2.4.1
+      - button "Collapse" [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+    - navigation [ref=e14]:
+      - generic [ref=e15]:
+        - generic [ref=e16]: Operations
+        - link "Dashboard" [ref=e17] [cursor=pointer]:
+          - /url: /admin
+          - img [ref=e18]
+          - generic [ref=e23]: Dashboard
+        - link "Orders" [ref=e24] [cursor=pointer]:
+          - /url: /admin/orders
+          - img [ref=e25]
+          - generic [ref=e27]: Orders
+        - link "Refill requests" [ref=e28] [cursor=pointer]:
+          - /url: /admin/refill-requests
+          - img [ref=e29]
+          - generic [ref=e31]: Refill requests
+        - link "Services" [ref=e32] [cursor=pointer]:
+          - /url: /admin/services
+          - img [ref=e33]
+          - generic [ref=e38]: Services
+      - generic [ref=e39]:
+        - generic [ref=e40]: Customers
+        - link "Users" [ref=e41] [cursor=pointer]:
+          - /url: /admin/users
+          - img [ref=e42]
+          - generic [ref=e47]: Users
+      - generic [ref=e48]:
+        - generic [ref=e49]: Money
+        - link "Payments" [ref=e50] [cursor=pointer]:
+          - /url: /admin/payments
+          - img [ref=e51]
+          - generic [ref=e54]: Payments
+        - link "Balance Txs" [ref=e55] [cursor=pointer]:
+          - /url: /admin/balance
+          - img [ref=e56]
+          - generic [ref=e59]: Balance Txs
+      - generic [ref=e60]:
+        - generic [ref=e61]: Infrastructure
+        - link "Instagram Bot" [ref=e62] [cursor=pointer]:
+          - /url: /admin/bot
+          - img [ref=e64]
+          - generic [ref=e69]: Instagram Bot
+        - link "Telegram Control" [ref=e70] [cursor=pointer]:
+          - /url: /admin/telegram
+          - img [ref=e71]
+          - generic [ref=e73]: Telegram Control
+        - link "System Monitoring" [ref=e74] [cursor=pointer]:
+          - /url: /admin/system
+          - img [ref=e75]
+          - generic [ref=e77]: System Monitoring
+      - generic [ref=e78]:
+        - generic [ref=e79]: Settings
+        - link "Settings" [ref=e80] [cursor=pointer]:
+          - /url: /admin/settings
+          - img [ref=e81]
+          - generic [ref=e84]: Settings
+    - generic [ref=e85]:
+      - generic [ref=e86]: System health
+      - generic [ref=e87]:
+        - generic [ref=e89]: Degraded
+        - generic [ref=e90]: bot-02
+  - generic [ref=e91]:
+    - banner [ref=e92]:
+      - button "Search orders, users, services… ⌘K" [ref=e93] [cursor=pointer]:
+        - img [ref=e94]
+        - generic [ref=e97]: Search orders, users, services…
+        - generic [ref=e98]: ⌘K
+      - generic [ref=e99]: PROD
+      - button "Toggle theme" [ref=e101] [cursor=pointer]:
+        - img [ref=e102]
+      - button "Notifications" [ref=e104] [cursor=pointer]:
+        - img [ref=e105]
+      - button "A admin admin" [ref=e109] [cursor=pointer]:
+        - generic [ref=e110]: A
+        - generic [ref=e111]:
+          - generic [ref=e112]: admin
+          - generic [ref=e113]: admin
+        - img [ref=e114]
+    - main [ref=e116]:
+      - generic [ref=e118]:
+        - generic [ref=e119]:
+          - generic [ref=e120]: Instagram bot
+          - generic [ref=e122]: 2 instances · 10 total workers
+        - generic [ref=e123]:
+          - button "Stop all" [ref=e124] [cursor=pointer]:
+            - img [ref=e125]
+            - text: Stop all
+          - button "Clear queue" [ref=e128] [cursor=pointer]:
+            - img [ref=e129]
+            - text: Clear queue
+          - button "Start all" [ref=e131] [cursor=pointer]:
+            - img [ref=e132]
+            - text: Start all
+      - generic [ref=e134]:
+        - generic [ref=e135]:
+          - generic [ref=e136]:
+            - generic [ref=e137]:
+              - generic [ref=e138]:
+                - img [ref=e139]
+                - generic [ref=e144]: bot-01
+                - generic [ref=e145]: Up
+              - generic [ref=e147]:
+                - button "Reload" [ref=e148] [cursor=pointer]:
+                  - img [ref=e149]
+                  - text: Reload
+                - button "Logs" [ref=e151] [cursor=pointer]
+            - generic [ref=e152]: http://45.142.211.90:8080
+            - generic [ref=e153]:
+              - generic [ref=e154]:
+                - generic [ref=e155]: Queue depth
+                - generic [ref=e156]: "248"
+              - generic [ref=e157]:
+                - generic [ref=e158]: In progress
+                - generic [ref=e159]: "18"
+              - generic [ref=e160]:
+                - generic [ref=e161]: Workers
+                - generic [ref=e162]: "6"
+              - generic [ref=e163]:
+                - generic [ref=e164]: Heartbeat
+                - generic [ref=e165]: 0s ago
+            - generic [ref=e166]:
+              - button "Scale up" [ref=e167] [cursor=pointer]:
+                - img [ref=e168]
+                - text: Scale up
+              - button "Scale down" [ref=e170] [cursor=pointer]
+              - button "Drain" [ref=e171] [cursor=pointer]
+          - generic [ref=e172]:
+            - generic [ref=e173]:
+              - generic [ref=e174]:
+                - img [ref=e175]
+                - generic [ref=e180]: bot-02
+                - generic [ref=e181]: Degraded
+              - generic [ref=e183]:
+                - button "Reload" [ref=e184] [cursor=pointer]:
+                  - img [ref=e185]
+                  - text: Reload
+                - button "Logs" [ref=e187] [cursor=pointer]
+            - generic [ref=e188]: http://45.142.211.91:8080
+            - generic [ref=e189]:
+              - generic [ref=e190]:
+                - generic [ref=e191]: Queue depth
+                - generic [ref=e192]: 1,042
+              - generic [ref=e193]:
+                - generic [ref=e194]: In progress
+                - generic [ref=e195]: "9"
+              - generic [ref=e196]:
+                - generic [ref=e197]: Workers
+                - generic [ref=e198]: "4"
+              - generic [ref=e199]:
+                - generic [ref=e200]: Heartbeat
+                - generic [ref=e201]: 3m ago
+            - generic [ref=e202]:
+              - button "Scale up" [ref=e203] [cursor=pointer]:
+                - img [ref=e204]
+                - text: Scale up
+              - button "Scale down" [ref=e206] [cursor=pointer]
+              - button "Drain" [ref=e207] [cursor=pointer]
+        - generic [ref=e208]:
+          - generic [ref=e210]:
+            - generic [ref=e211]: AdsPower profile groups
+            - generic [ref=e212]: Pools used by the Go bot
+          - table [ref=e214]:
+            - rowgroup [ref=e215]:
+              - row "Group Available In use Error Utilization" [ref=e216]:
+                - columnheader "Group" [ref=e217]
+                - columnheader "Available" [ref=e218]
+                - columnheader "In use" [ref=e219]
+                - columnheader "Error" [ref=e220]
+                - columnheader "Utilization" [ref=e221]
+                - columnheader [ref=e222]
+            - rowgroup [ref=e223]:
+              - row "Success 142 18 4 11% Recycle errors" [ref=e224]:
+                - cell "Success" [ref=e225]
+                - cell "142" [ref=e226]
+                - cell "18" [ref=e227]
+                - cell "4" [ref=e228]
+                - cell "11%" [ref=e229]:
+                  - generic [ref=e233]: 11%
+                - cell "Recycle errors" [ref=e234]:
+                  - button "Recycle errors" [ref=e235] [cursor=pointer]
+              - row "Start_count 24 2 0 8% Recycle errors" [ref=e236]:
+                - cell "Start_count" [ref=e237]
+                - cell "24" [ref=e238]
+                - cell "2" [ref=e239]
+                - cell "0" [ref=e240]
+                - cell "8%" [ref=e241]:
+                  - generic [ref=e245]: 8%
+                - cell "Recycle errors" [ref=e246]:
+                  - button "Recycle errors" [ref=e247] [cursor=pointer]
+        - generic [ref=e248]:
+          - generic [ref=e250]:
+            - generic [ref=e251]: Recent bot webhooks
+            - generic [ref=e253]: Live tail · updates every few seconds
+          - generic [ref=e256]:
+            - generic [ref=e257]:
+              - generic [ref=e258]: 14:31:52
+              - generic [ref=e259]: order.completed
+              - generic [ref=e260]: igb_j8x2k1
+              - generic [ref=e261]: ext=1028523
+              - generic [ref=e262]: completed=1000
+            - generic [ref=e263]:
+              - generic [ref=e264]: 14:31:44
+              - generic [ref=e265]: order.progress
+              - generic [ref=e266]: igb_p2a11q
+              - generic [ref=e267]: ext=1028511
+              - generic [ref=e268]: completed=820
+            - generic [ref=e269]:
+              - generic [ref=e270]: 14:31:08
+              - generic [ref=e271]: order.partial
+              - generic [ref=e272]: igb_x0lk2a
+              - generic [ref=e273]: ext=1028498
+              - generic [ref=e274]: completed=640
+            - generic [ref=e275]:
+              - generic [ref=e276]: 14:30:41
+              - generic [ref=e277]: order.error
+              - generic [ref=e278]: igb_n3mf0p
+              - generic [ref=e279]: ext=1028492
+              - generic [ref=e280]: completed=62
+              - generic [ref=e281]: · profile pool low
+            - generic [ref=e282]:
+              - generic [ref=e283]: 14:28:44
+              - generic [ref=e284]: order.pending_cancel
+              - generic [ref=e285]: igb_fbbm2e
+              - generic [ref=e286]: ext=1028471
+              - generic [ref=e287]: completed=340
+              - generic [ref=e288]: "· circuit breaker: 10 consecutive errors"

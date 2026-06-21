@@ -14,10 +14,12 @@ import com.smmpanel.dto.refill.RefillRequestResponse;
 import com.smmpanel.dto.refill.RefillResponse;
 import com.smmpanel.entity.Order;
 import com.smmpanel.entity.OrderStatus;
+import com.smmpanel.entity.RefillCheck;
 import com.smmpanel.entity.RefillRequest;
 import com.smmpanel.entity.User;
 import com.smmpanel.exception.ResourceNotFoundException;
 import com.smmpanel.repository.jpa.OrderRepository;
+import com.smmpanel.repository.jpa.RefillCheckRepository;
 import com.smmpanel.repository.jpa.RefillRequestRepository;
 import com.smmpanel.repository.jpa.UserRepository;
 import java.time.LocalDateTime;
@@ -58,6 +60,7 @@ class RefillRequestServiceTest {
     @Mock private OrderRepository orderRepository;
     @Mock private UserRepository userRepository;
     @Mock private OrderRefillService orderRefillService;
+    @Mock private RefillCheckRepository refillCheckRepository;
 
     @InjectMocks private RefillRequestService service;
 
@@ -71,6 +74,11 @@ class RefillRequestServiceTest {
         admin = User.builder().id(ADMIN_ID).username("admin").build();
         authenticateAs("user");
         when(userRepository.findByUsername("user")).thenReturn(Optional.of(user));
+        // No prior drop-check by default → legacy whole-order refill path (LENIENT: ignored when
+        // a test returns before the snapshot-binding step).
+        when(refillCheckRepository.findFirstByOrderIdAndStatusOrderByRequestedAtDesc(
+                        anyLong(), any(RefillCheck.Status.class)))
+                .thenReturn(Optional.empty());
     }
 
     @AfterEach
@@ -337,5 +345,103 @@ class RefillRequestServiceTest {
         assertThatThrownBy(() -> service.reject(REQUEST_ID, "   "))
                 .isInstanceOf(IllegalArgumentException.class);
         verify(refillRequestRepository, never()).findById(eq(REQUEST_ID));
+    }
+
+    // -----------------------------------------------------------------
+    // drop-based refill (the core behavior change)
+    // -----------------------------------------------------------------
+
+    @Test
+    @DisplayName(
+            "createRequest binds the latest DONE drop-check; approve refills ONLY the dropped"
+                    + " amount, not the whole order")
+    void createRequest_binds_dropCheck_and_approve_uses_it() {
+        Order order = completedOrder(ORDER_ID, user);
+        when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
+        when(refillRequestRepository.existsByOrderIdAndStatus(
+                        ORDER_ID, RefillRequest.Status.APPROVED))
+                .thenReturn(false);
+        when(refillRequestRepository.findFirstByOrderIdAndStatus(
+                        ORDER_ID, RefillRequest.Status.PENDING))
+                .thenReturn(Optional.empty());
+        RefillCheck chk =
+                RefillCheck.builder()
+                        .id(77L)
+                        .orderId(ORDER_ID)
+                        .status(RefillCheck.Status.DONE)
+                        .refillNeeded(215)
+                        .dropped(215)
+                        .dropRate(new java.math.BigDecimal("21.50"))
+                        .currentCount(785)
+                        .checkedAt(LocalDateTime.now())
+                        .build();
+        when(refillCheckRepository.findFirstByOrderIdAndStatusOrderByRequestedAtDesc(
+                        ORDER_ID, RefillCheck.Status.DONE))
+                .thenReturn(Optional.of(chk));
+        when(refillRequestRepository.save(any(RefillRequest.class)))
+                .thenAnswer(
+                        inv -> {
+                            RefillRequest r = inv.getArgument(0);
+                            if (r.getId() == null) r.setId(REQUEST_ID);
+                            return r;
+                        });
+
+        RefillRequestResponse created = service.createRequest(ORDER_ID, null);
+        assertThat(created.getRefillNeeded()).isEqualTo(215);
+        assertThat(created.getDropRate()).isEqualByComparingTo("21.50");
+
+        // Approve: must size the refill to 215 (the dropped amount), NOT the whole order.
+        authenticateAs("admin");
+        when(userRepository.findByUsername("admin")).thenReturn(Optional.of(admin));
+        RefillRequest req =
+                RefillRequest.builder()
+                        .id(REQUEST_ID)
+                        .orderId(ORDER_ID)
+                        .userId(USER_ID)
+                        .status(RefillRequest.Status.PENDING)
+                        .botRefillNeeded(215)
+                        .build();
+        when(refillRequestRepository.findById(REQUEST_ID)).thenReturn(Optional.of(req));
+        when(orderRefillService.createRefill(ORDER_ID, 215))
+                .thenReturn(
+                        RefillResponse.builder()
+                                .refillId(50L)
+                                .refillOrderId(500L)
+                                .refillQuantity(215)
+                                .build());
+
+        RefillRequestResponse approved = service.approve(REQUEST_ID);
+
+        assertThat(approved.getStatus()).isEqualTo("APPROVED");
+        verify(orderRefillService, times(1)).createRefill(ORDER_ID, 215);
+        verify(orderRefillService, never()).createRefill(ORDER_ID);
+    }
+
+    @Test
+    @DisplayName("createRequest rejects when the bound drop-check found nothing dropped")
+    void createRequest_rejects_zeroDrop() {
+        Order order = completedOrder(ORDER_ID, user);
+        when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
+        when(refillRequestRepository.existsByOrderIdAndStatus(
+                        ORDER_ID, RefillRequest.Status.APPROVED))
+                .thenReturn(false);
+        when(refillRequestRepository.findFirstByOrderIdAndStatus(
+                        ORDER_ID, RefillRequest.Status.PENDING))
+                .thenReturn(Optional.empty());
+        when(refillCheckRepository.findFirstByOrderIdAndStatusOrderByRequestedAtDesc(
+                        ORDER_ID, RefillCheck.Status.DONE))
+                .thenReturn(
+                        Optional.of(
+                                RefillCheck.builder()
+                                        .id(78L)
+                                        .orderId(ORDER_ID)
+                                        .status(RefillCheck.Status.DONE)
+                                        .refillNeeded(0)
+                                        .build()));
+
+        assertThatThrownBy(() -> service.createRequest(ORDER_ID, null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Дроп не обнаружен");
+        verify(refillRequestRepository, never()).save(any());
     }
 }

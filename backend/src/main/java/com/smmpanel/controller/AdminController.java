@@ -217,8 +217,15 @@ public class AdminController {
      * remaining quantity.
      */
     @PostMapping("/orders/{orderId}/refill")
-    public ResponseEntity<RefillResponse> createRefill(@PathVariable Long orderId) {
-        RefillResponse response = orderRefillService.createRefill(orderId);
+    public ResponseEntity<RefillResponse> createRefill(
+            @PathVariable Long orderId,
+            @RequestParam(value = "quantity", required = false) Integer quantity) {
+        // quantity present → re-deliver exactly that many (e.g. the bot-checked dropped amount
+        // from the admin Refill page); absent → legacy manual override (whole order / remainder).
+        RefillResponse response =
+                quantity != null
+                        ? orderRefillService.createRefill(orderId, quantity)
+                        : orderRefillService.createRefill(orderId);
         return ResponseEntity.ok(response);
     }
 

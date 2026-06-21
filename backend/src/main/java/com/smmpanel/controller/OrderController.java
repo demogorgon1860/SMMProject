@@ -179,8 +179,7 @@ public class OrderController {
 
         // OPTIMIZED: Uses optimized service method that prevents N+1 queries
         Page<OrderResponse> orders =
-                orderService.getUserOrders(
-                        principal.getName(), status, search, refill, pageable);
+                orderService.getUserOrders(principal.getName(), status, search, refill, pageable);
 
         PerfectPanelResponse<Page<OrderResponse>> response =
                 PerfectPanelResponse.<Page<OrderResponse>>builder()

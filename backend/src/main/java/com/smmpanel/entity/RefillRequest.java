@@ -1,6 +1,7 @@
 package com.smmpanel.entity;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -70,6 +71,33 @@ public class RefillRequest {
     /** {@code Order.id} of the new refill order. Null until APPROVED. */
     @Column(name = "refill_order_id")
     private Long refillOrderId;
+
+    // ---- Bot drop-check snapshot, copied from the latest DONE RefillCheck at request creation.
+    // Nullable: requests made without a prior check (and legacy rows) keep NULLs. Drives drop-based
+    // approval (bot_refill_needed becomes the refill quantity) and admin-queue display. ----
+
+    /** Bot-checked dropped amount to re-deliver. Used as the refill quantity on approval. */
+    @Column(name = "bot_refill_needed")
+    private Integer botRefillNeeded;
+
+    @Column(name = "bot_dropped")
+    private Integer botDropped;
+
+    @Column(name = "bot_drop_rate")
+    private BigDecimal botDropRate;
+
+    @Column(name = "bot_current_count")
+    private Integer botCurrentCount;
+
+    /** True when the bot's scan stopped early — the dropped amount is a conservative estimate. */
+    @Column(name = "bot_early_stopped")
+    private Boolean botEarlyStopped;
+
+    @Column(name = "bot_check_id")
+    private Long botCheckId;
+
+    @Column(name = "bot_checked_at")
+    private LocalDateTime botCheckedAt;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

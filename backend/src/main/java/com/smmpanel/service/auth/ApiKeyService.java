@@ -84,12 +84,12 @@ public class ApiKeyService {
     }
 
     /**
-     * Lazy backfill of {@code api_key_lookup_hash} for users whose key predates the column.
-     * Called by {@link com.smmpanel.security.ApiKeyAuthenticationFilter} on a successful
-     * legacy-path authentication so the very next request from that user takes the fast
-     * path. Idempotent — does nothing if another concurrent request already filled the
-     * column. Failures are swallowed (logged only) so a transient DB hiccup never breaks
-     * the request that successfully authenticated.
+     * Lazy backfill of {@code api_key_lookup_hash} for users whose key predates the column. Called
+     * by {@link com.smmpanel.security.ApiKeyAuthenticationFilter} on a successful legacy-path
+     * authentication so the very next request from that user takes the fast path. Idempotent — does
+     * nothing if another concurrent request already filled the column. Failures are swallowed
+     * (logged only) so a transient DB hiccup never breaks the request that successfully
+     * authenticated.
      */
     @Transactional
     public void backfillLookupHashIfMissing(Long userId, String lookupHash) {
@@ -106,8 +106,7 @@ public class ApiKeyService {
                                         u.getUsername());
                             });
         } catch (Exception e) {
-            log.warn(
-                    "Lookup-hash backfill failed for user id {}: {}", userId, e.getMessage());
+            log.warn("Lookup-hash backfill failed for user id {}: {}", userId, e.getMessage());
         }
     }
 

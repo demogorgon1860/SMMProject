@@ -1,0 +1,113 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - link "SMMWorld SMMWorld admin · v2.4.1" [ref=e6] [cursor=pointer]:
+        - /url: /admin
+        - img "SMMWorld" [ref=e7]
+        - generic [ref=e8]:
+          - generic [ref=e9]: SMMWorld
+          - generic [ref=e10]: admin · v2.4.1
+      - button "Collapse" [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+    - navigation [ref=e14]:
+      - generic [ref=e15]:
+        - generic [ref=e16]: Operations
+        - link "Dashboard" [ref=e17] [cursor=pointer]:
+          - /url: /admin
+          - img [ref=e18]
+          - generic [ref=e23]: Dashboard
+        - link "Orders" [ref=e24] [cursor=pointer]:
+          - /url: /admin/orders
+          - img [ref=e26]
+          - generic [ref=e28]: Orders
+        - link "Refill requests" [ref=e29] [cursor=pointer]:
+          - /url: /admin/refill-requests
+          - img [ref=e30]
+          - generic [ref=e32]: Refill requests
+        - link "Services" [ref=e33] [cursor=pointer]:
+          - /url: /admin/services
+          - img [ref=e34]
+          - generic [ref=e39]: Services
+      - generic [ref=e40]:
+        - generic [ref=e41]: Customers
+        - link "Users" [ref=e42] [cursor=pointer]:
+          - /url: /admin/users
+          - img [ref=e43]
+          - generic [ref=e48]: Users
+      - generic [ref=e49]:
+        - generic [ref=e50]: Money
+        - link "Payments" [ref=e51] [cursor=pointer]:
+          - /url: /admin/payments
+          - img [ref=e52]
+          - generic [ref=e55]: Payments
+        - link "Balance Txs" [ref=e56] [cursor=pointer]:
+          - /url: /admin/balance
+          - img [ref=e57]
+          - generic [ref=e60]: Balance Txs
+      - generic [ref=e61]:
+        - generic [ref=e62]: Infrastructure
+        - link "Instagram Bot" [ref=e63] [cursor=pointer]:
+          - /url: /admin/bot
+          - img [ref=e64]
+          - generic [ref=e69]: Instagram Bot
+        - link "Telegram Control" [ref=e70] [cursor=pointer]:
+          - /url: /admin/telegram
+          - img [ref=e71]
+          - generic [ref=e73]: Telegram Control
+        - link "System Monitoring" [ref=e74] [cursor=pointer]:
+          - /url: /admin/system
+          - img [ref=e75]
+          - generic [ref=e77]: System Monitoring
+      - generic [ref=e78]:
+        - generic [ref=e79]: Settings
+        - link "Settings" [ref=e80] [cursor=pointer]:
+          - /url: /admin/settings
+          - img [ref=e81]
+          - generic [ref=e84]: Settings
+    - generic [ref=e85]:
+      - generic [ref=e86]: System health
+      - generic [ref=e87]:
+        - generic [ref=e89]: Degraded
+        - generic [ref=e90]: bot-02
+  - generic [ref=e91]:
+    - banner [ref=e92]:
+      - button "Search orders, users, services… ⌘K" [ref=e93] [cursor=pointer]:
+        - img [ref=e94]
+        - generic [ref=e97]: Search orders, users, services…
+        - generic [ref=e98]: ⌘K
+      - generic [ref=e99]: PROD
+      - button "Toggle theme" [ref=e101] [cursor=pointer]:
+        - img [ref=e102]
+      - button "Notifications" [ref=e104] [cursor=pointer]:
+        - img [ref=e105]
+      - button "A admin admin" [ref=e109] [cursor=pointer]:
+        - generic [ref=e110]: A
+        - generic [ref=e111]:
+          - generic [ref=e112]: admin
+          - generic [ref=e113]: admin
+        - img [ref=e114]
+    - main [ref=e116]:
+      - generic [ref=e119]:
+        - generic [ref=e120]: Orders
+        - generic [ref=e122]: 0 filtered · 0 total
+      - generic [ref=e123]:
+        - generic [ref=e124]:
+          - generic [ref=e125]:
+            - generic [ref=e126]:
+              - img
+              - textbox [ref=e127]:
+                - /placeholder: Search id / service / user id
+            - generic [ref=e128]:
+              - img
+              - textbox [ref=e129]:
+                - /placeholder: URL contains…
+          - generic [ref=e130]:
+            - button "pending" [ref=e131] [cursor=pointer]
+            - button "in progress" [ref=e132] [cursor=pointer]
+            - button "processing" [ref=e133] [cursor=pointer]
+            - button "completed" [ref=e134] [cursor=pointer]
+            - button "partial" [ref=e135] [cursor=pointer]
+            - button "cancelled" [ref=e136] [cursor=pointer]
+            - button "paused" [ref=e137] [cursor=pointer]
+            - button "error" [ref=e138] [cursor=pointer]
+        - generic [ref=e140]: Loading…

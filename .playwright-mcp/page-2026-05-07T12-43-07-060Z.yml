@@ -1,0 +1,110 @@
+- generic [ref=e7]:
+  - complementary [ref=e8]:
+    - generic [ref=e9]:
+      - link "SMMWorld SMMWorld admin" [ref=e10] [cursor=pointer]:
+        - /url: /admin
+        - img "SMMWorld" [ref=e11]
+        - generic [ref=e12]:
+          - generic [ref=e13]: SMMWorld
+          - generic [ref=e14]: admin
+      - button "Collapse" [ref=e15] [cursor=pointer]:
+        - img [ref=e16]
+    - navigation [ref=e18]:
+      - generic [ref=e19]:
+        - generic [ref=e20]: Operations
+        - link "Dashboard" [ref=e21] [cursor=pointer]:
+          - /url: /admin
+          - img [ref=e22]
+          - generic [ref=e27]: Dashboard
+        - link "Orders" [ref=e28] [cursor=pointer]:
+          - /url: /admin/orders
+          - img [ref=e29]
+          - generic [ref=e31]: Orders
+        - link "Refill requests" [ref=e32] [cursor=pointer]:
+          - /url: /admin/refill-requests
+          - img [ref=e33]
+          - generic [ref=e35]: Refill requests
+        - link "Services" [ref=e36] [cursor=pointer]:
+          - /url: /admin/services
+          - img [ref=e37]
+          - generic [ref=e42]: Services
+      - generic [ref=e43]:
+        - generic [ref=e44]: Customers
+        - link "Users" [ref=e45] [cursor=pointer]:
+          - /url: /admin/users
+          - img [ref=e46]
+          - generic [ref=e51]: Users
+      - generic [ref=e52]:
+        - generic [ref=e53]: Money
+        - link "Payments" [ref=e54] [cursor=pointer]:
+          - /url: /admin/payments
+          - img [ref=e55]
+          - generic [ref=e58]: Payments
+        - link "Balance Txs" [ref=e59] [cursor=pointer]:
+          - /url: /admin/balance
+          - img [ref=e60]
+          - generic [ref=e63]: Balance Txs
+      - generic [ref=e64]:
+        - generic [ref=e65]: Infrastructure
+        - link "Instagram Bot" [ref=e66] [cursor=pointer]:
+          - /url: /admin/bot
+          - img [ref=e67]
+          - generic [ref=e72]: Instagram Bot
+        - link "Telegram Control" [ref=e73] [cursor=pointer]:
+          - /url: /admin/telegram
+          - img [ref=e75]
+          - generic [ref=e77]: Telegram Control
+        - link "System Monitoring" [ref=e78] [cursor=pointer]:
+          - /url: /admin/system
+          - img [ref=e79]
+          - generic [ref=e81]: System Monitoring
+      - generic [ref=e82]:
+        - generic [ref=e83]: Settings
+        - link "Settings" [ref=e84] [cursor=pointer]:
+          - /url: /admin/settings
+          - img [ref=e85]
+          - generic [ref=e88]: Settings
+  - generic [ref=e89]:
+    - banner [ref=e90]:
+      - button "Search orders, users, services… ⌘K" [ref=e91] [cursor=pointer]:
+        - img [ref=e92]
+        - generic [ref=e95]: Search orders, users, services…
+        - generic [ref=e96]: ⌘K
+      - generic [ref=e97]: PROD
+      - button "Toggle theme" [ref=e100] [cursor=pointer]:
+        - img [ref=e101]
+      - button "Notifications" [ref=e103] [cursor=pointer]:
+        - img [ref=e104]
+      - button "A admin admin" [ref=e107] [cursor=pointer]:
+        - generic [ref=e108]: A
+        - generic [ref=e109]:
+          - generic [ref=e110]: admin
+          - generic [ref=e111]: admin
+        - img [ref=e112]
+    - main [ref=e114]:
+      - generic [ref=e117]:
+        - generic [ref=e118]: Telegram control
+        - generic [ref=e122]:
+          - text: "@smm_ops_bot · webhook verified ·"
+          - generic [ref=e123]: 0 pending
+      - generic [ref=e124]:
+        - generic [ref=e125]:
+          - button "Pending decisions 0" [ref=e126] [cursor=pointer]:
+            - text: Pending decisions
+            - generic [ref=e127]: "0"
+          - button "Notifications history" [ref=e128] [cursor=pointer]
+          - button "Daily profit summary" [ref=e129] [cursor=pointer]
+          - button "Webhook config" [ref=e130] [cursor=pointer]
+        - generic [ref=e131]:
+          - generic [ref=e132]:
+            - img [ref=e134]
+            - generic [ref=e136]: No pending decisions
+            - generic [ref=e137]: When the bot circuit-breaker pauses an order it shows up here within seconds.
+          - generic [ref=e138]:
+            - text: Decisions are stored in Redis (
+            - code [ref=e139]: "telegram:cancel_pending:{orderId}"
+            - text: ) with a 4-hour TTL. On expiry the system applies
+            - code [ref=e140]: app.telegram.cancel.default-action
+            - text: (currently
+            - strong [ref=e141]: proceed
+            - text: ).

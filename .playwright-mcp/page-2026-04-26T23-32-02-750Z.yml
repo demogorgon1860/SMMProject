@@ -1,0 +1,197 @@
+- generic [ref=e67]:
+  - complementary [ref=e68]:
+    - link "SMMWorld SMMWorld" [ref=e70] [cursor=pointer]:
+      - /url: /dashboard
+      - img "SMMWorld" [ref=e71]
+      - generic [ref=e72]: SMMWorld
+    - navigation [ref=e73]:
+      - link "Dashboard" [ref=e74] [cursor=pointer]:
+        - /url: /dashboard
+        - img [ref=e76]
+        - generic [ref=e81]: Dashboard
+      - link "New order" [ref=e82] [cursor=pointer]:
+        - /url: /new-order
+        - img [ref=e83]
+        - generic [ref=e85]: New order
+      - link "Orders" [ref=e86] [cursor=pointer]:
+        - /url: /orders
+        - img [ref=e87]
+        - generic [ref=e92]: Orders
+      - link "Transactions" [ref=e93] [cursor=pointer]:
+        - /url: /transactions
+        - img [ref=e94]
+        - generic [ref=e97]: Transactions
+      - link "Add funds" [ref=e98] [cursor=pointer]:
+        - /url: /add-funds
+        - img [ref=e99]
+        - generic [ref=e102]: Add funds
+      - link "API" [ref=e103] [cursor=pointer]:
+        - /url: /api-docs
+        - img [ref=e104]
+        - generic [ref=e106]: API
+      - link "Help" [ref=e107] [cursor=pointer]:
+        - /url: /help
+        - img [ref=e108]
+        - generic [ref=e111]: Help
+      - link "Profile" [ref=e112] [cursor=pointer]:
+        - /url: /profile
+        - img [ref=e113]
+        - generic [ref=e116]: Profile
+    - link "YO @you you@example.com" [ref=e118] [cursor=pointer]:
+      - /url: /profile?tab=account
+      - generic [ref=e119]: YO
+      - generic [ref=e120]:
+        - generic [ref=e121]: "@you"
+        - generic [ref=e122]: you@example.com
+      - img [ref=e123]
+  - generic [ref=e125]:
+    - banner [ref=e126]:
+      - button "Search orders, services…" [ref=e127] [cursor=pointer]:
+        - img [ref=e128]
+        - generic [ref=e131]: Search orders, services…
+      - link "$828.47" [ref=e132] [cursor=pointer]:
+        - /url: /add-funds
+        - img [ref=e133]
+        - generic [ref=e136]: $828.47
+        - img [ref=e137]
+      - button "Toggle theme" [ref=e139] [cursor=pointer]:
+        - img [ref=e140]
+      - button "Notifications" [ref=e142] [cursor=pointer]:
+        - img [ref=e143]
+      - button "M" [ref=e146] [cursor=pointer]:
+        - generic [ref=e147]: M
+        - img [ref=e148]
+    - main [ref=e150]:
+      - generic [ref=e152]:
+        - generic [ref=e153]:
+          - generic [ref=e157]:
+            - generic [ref=e158]:
+              - generic [ref=e159]: Welcome back
+              - heading "@mmknshnk" [level=1] [ref=e160]
+              - generic [ref=e161]:
+                - text: 0 active · 0 completed last 30 days · balance
+                - generic [ref=e162]: $828.47
+              - generic [ref=e163]:
+                - link "Place new order" [ref=e164] [cursor=pointer]:
+                  - /url: /new-order
+                  - button "Place new order" [ref=e165]:
+                    - text: Place new order
+                    - img [ref=e166]
+                - link "Add funds" [ref=e168] [cursor=pointer]:
+                  - /url: /add-funds
+                  - button "Add funds" [ref=e169]:
+                    - img [ref=e170]
+                    - text: Add funds
+            - generic [ref=e173]:
+              - img [ref=e174]
+              - generic [ref=e177]:
+                - generic [ref=e178]: 98.2%
+                - generic [ref=e179]: success rate
+          - generic [ref=e180]:
+            - generic [ref=e181]:
+              - generic [ref=e182]:
+                - img [ref=e184]
+                - generic [ref=e187]: +12.4%
+              - generic [ref=e188]: $6.68
+              - generic [ref=e189]: Total spent
+              - img [ref=e191]
+            - generic [ref=e193]:
+              - img [ref=e196]
+              - generic [ref=e198]: "0"
+              - generic [ref=e199]: Orders · 30d
+              - img [ref=e201]
+            - generic [ref=e203]:
+              - generic [ref=e204]:
+                - img [ref=e206]
+                - generic [ref=e208]: "-8s"
+              - generic [ref=e210]: 47s
+              - generic [ref=e211]: Avg start time
+              - img [ref=e213]
+            - generic [ref=e216]:
+              - img [ref=e219]
+              - generic [ref=e222]: 98.2%
+              - generic [ref=e223]: Success rate
+              - img [ref=e225]
+          - generic [ref=e228]:
+            - generic [ref=e229]:
+              - generic [ref=e230]:
+                - generic [ref=e231]: Recent orders
+                - generic [ref=e232]: Last 0 orders
+              - link "View all" [ref=e233] [cursor=pointer]:
+                - /url: /orders
+                - button "View all" [ref=e234]:
+                  - text: View all
+                  - img [ref=e235]
+            - generic [ref=e237]:
+              - img [ref=e239]
+              - generic [ref=e241]: No orders yet
+              - generic [ref=e242]: Place your first order to see it here.
+              - link "Place an order" [ref=e244] [cursor=pointer]:
+                - /url: /new-order
+                - button "Place an order" [ref=e245]
+        - complementary [ref=e246]:
+          - generic [ref=e247]:
+            - generic [ref=e248]:
+              - generic [ref=e249]: Wallet balance
+              - generic [ref=e250]: live
+            - generic [ref=e252]: $828.47
+            - generic [ref=e253]: + $1.20 last 30d
+            - img [ref=e255]
+            - link "Add funds" [ref=e258] [cursor=pointer]:
+              - /url: /add-funds
+              - button "Add funds" [ref=e259]:
+                - img [ref=e260]
+                - text: Add funds
+          - generic [ref=e262]:
+            - generic [ref=e263]: Announcements
+            - list [ref=e264]:
+              - listitem [ref=e265]:
+                - generic [ref=e266]:
+                  - generic [ref=e267]: Update
+                  - generic [ref=e268]: Apr 22
+                - paragraph [ref=e269]: Refill API extended to all Instagram services. Free for 30 days post-completion.
+              - listitem [ref=e270]:
+                - generic [ref=e271]:
+                  - generic [ref=e272]: Heads-up
+                  - generic [ref=e273]: Apr 18
+                - paragraph [ref=e274]: Secondary bot saw elevated latency briefly Monday morning. Resolved.
+              - listitem [ref=e275]:
+                - generic [ref=e276]:
+                  - generic [ref=e277]: Beta
+                  - generic [ref=e278]: Apr 12
+                - paragraph [ref=e279]: New Cancel button on Order detail. Pending orders refund instantly.
+              - listitem [ref=e280]:
+                - generic [ref=e281]:
+                  - generic [ref=e282]: Roadmap
+                  - generic [ref=e283]: Apr 02
+                - paragraph [ref=e284]: TikTok services targeting Q3 2026. YouTube views to follow.
+          - generic [ref=e287]:
+            - generic [ref=e288]: Roadmap
+            - generic [ref=e289]: Beyond Instagram.
+            - paragraph [ref=e290]: Platforms come online as we build the bot infrastructure.
+            - list [ref=e291]:
+              - listitem [ref=e292]:
+                - generic [ref=e293]: TikTok
+                - generic [ref=e294]: Q3 2026
+              - listitem [ref=e295]:
+                - generic [ref=e296]: YouTube
+                - generic [ref=e297]: Q3 2026
+              - listitem [ref=e298]:
+                - generic [ref=e299]: Twitter / X
+                - generic [ref=e300]: Q4 2026
+              - listitem [ref=e301]:
+                - generic [ref=e302]: Telegram
+                - generic [ref=e303]: Q4 2026
+          - generic [ref=e304]:
+            - generic [ref=e305]:
+              - img [ref=e307]
+              - generic [ref=e310]:
+                - generic [ref=e311]: Need a hand?
+                - paragraph [ref=e312]: Average response under 12 minutes. Email beats Telegram.
+            - generic [ref=e313]:
+              - link "Open ticket" [ref=e314] [cursor=pointer]:
+                - /url: /help
+                - button "Open ticket" [ref=e315]
+              - link "Email" [ref=e316] [cursor=pointer]:
+                - /url: mailto:hello@smmworld.vip
+                - button "Email" [ref=e317]

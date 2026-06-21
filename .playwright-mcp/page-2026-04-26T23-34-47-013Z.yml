@@ -1,0 +1,121 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - link "SMMWorld SMMWorld" [ref=e6] [cursor=pointer]:
+      - /url: /dashboard
+      - img "SMMWorld" [ref=e7]
+      - generic [ref=e8]: SMMWorld
+    - navigation [ref=e9]:
+      - link "Dashboard" [ref=e10] [cursor=pointer]:
+        - /url: /dashboard
+        - img [ref=e11]
+        - generic [ref=e16]: Dashboard
+      - link "New order" [ref=e17] [cursor=pointer]:
+        - /url: /new-order
+        - img [ref=e18]
+        - generic [ref=e20]: New order
+      - link "Orders" [ref=e21] [cursor=pointer]:
+        - /url: /orders
+        - img [ref=e22]
+        - generic [ref=e27]: Orders
+      - link "Transactions" [ref=e28] [cursor=pointer]:
+        - /url: /transactions
+        - img [ref=e29]
+        - generic [ref=e32]: Transactions
+      - link "Add funds" [ref=e33] [cursor=pointer]:
+        - /url: /add-funds
+        - img [ref=e35]
+        - generic [ref=e38]: Add funds
+      - link "API" [ref=e39] [cursor=pointer]:
+        - /url: /api-docs
+        - img [ref=e40]
+        - generic [ref=e42]: API
+      - link "Help" [ref=e43] [cursor=pointer]:
+        - /url: /help
+        - img [ref=e44]
+        - generic [ref=e47]: Help
+      - link "Profile" [ref=e48] [cursor=pointer]:
+        - /url: /profile
+        - img [ref=e49]
+        - generic [ref=e52]: Profile
+    - link "YO @you you@example.com" [ref=e54] [cursor=pointer]:
+      - /url: /profile?tab=account
+      - generic [ref=e55]: YO
+      - generic [ref=e56]:
+        - generic [ref=e57]: "@you"
+        - generic [ref=e58]: you@example.com
+      - img [ref=e59]
+  - generic [ref=e61]:
+    - banner [ref=e62]:
+      - button "Search orders, services…" [ref=e63] [cursor=pointer]:
+        - img [ref=e64]
+        - generic [ref=e67]: Search orders, services…
+      - link "$828.47" [ref=e68] [cursor=pointer]:
+        - /url: /add-funds
+        - img [ref=e69]
+        - generic [ref=e72]: $828.47
+        - img [ref=e73]
+      - button "Toggle theme" [ref=e75] [cursor=pointer]:
+        - img [ref=e76]
+      - button "Notifications" [ref=e78] [cursor=pointer]:
+        - img [ref=e79]
+      - button "M" [ref=e82] [cursor=pointer]:
+        - generic [ref=e83]: M
+        - img [ref=e84]
+    - main [ref=e86]:
+      - generic [ref=e87]:
+        - generic [ref=e88]: Top up
+        - heading "Add funds" [level=1] [ref=e89]
+        - paragraph [ref=e90]: Crypto only — Cryptomus handles the coin choice on the next page. Min $5, max $10,000.
+        - generic [ref=e91]:
+          - generic [ref=e92]:
+            - generic [ref=e93]:
+              - generic [ref=e95]: Amount in USD
+              - generic [ref=e96]:
+                - generic: $
+                - spinbutton [ref=e97]: "50"
+            - generic [ref=e98]:
+              - generic [ref=e99]: Quick amounts
+              - generic [ref=e100]:
+                - button "$10" [ref=e101] [cursor=pointer]
+                - button "$25" [ref=e102] [cursor=pointer]
+                - button "$50" [ref=e103] [cursor=pointer]
+                - button "$100" [ref=e104] [cursor=pointer]
+                - button "$250" [ref=e105] [cursor=pointer]
+                - button "$500" [ref=e106] [cursor=pointer]
+            - generic [ref=e107]:
+              - generic [ref=e108]:
+                - img [ref=e109]
+                - text: How payment works
+              - paragraph [ref=e111]: We hand off to Cryptomus, our payment processor. There you'll pick a coin, get a wallet address, and a 20-minute timer. Once the network confirms, your balance updates here automatically.
+            - button "Continue · $50.00" [ref=e112] [cursor=pointer]:
+              - text: Continue · $50.00
+              - img [ref=e113]
+            - paragraph [ref=e115]: You'll be redirected to cryptomus.com to complete payment.
+          - generic [ref=e116]:
+            - generic [ref=e117]: Why crypto only?
+            - list [ref=e118]:
+              - listitem [ref=e119]:
+                - img [ref=e121]
+                - generic [ref=e123]:
+                  - generic [ref=e124]: Zero chargebacks
+                  - generic [ref=e125]: No card disputes mean lower fraud cost — passed back to you in lower rates.
+              - listitem [ref=e126]:
+                - img [ref=e128]
+                - generic [ref=e130]:
+                  - generic [ref=e131]: No KYC for normal volume
+                  - generic [ref=e132]: EU AML thresholds apply only above €15k/year. See the AML policy.
+              - listitem [ref=e133]:
+                - img [ref=e135]
+                - generic [ref=e137]:
+                  - generic [ref=e138]: Fast settlement
+                  - generic [ref=e139]: USDT TRC-20 confirms in ~1 min. BTC takes 10–30. Funds credit on confirm.
+              - listitem [ref=e140]:
+                - img [ref=e142]
+                - generic [ref=e144]:
+                  - generic [ref=e145]: Privacy
+                  - generic [ref=e146]: We don't see card details. Cryptomus only sees the wallet address.
+        - generic [ref=e147]:
+          - generic [ref=e148]:
+            - generic [ref=e149]: Recent deposits
+            - generic [ref=e150]: refreshes every 15s
+          - generic [ref=e151]: Loading…

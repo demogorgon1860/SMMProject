@@ -43,16 +43,14 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
 
     /**
      * Fast-path API-key resolution. The lookup hash is a deterministic SHA-512 keyed by the
-     * application-wide global salt, so the same plaintext key always produces the same value
-     * here regardless of which user owns it. Backed by partial unique index
-     * {@code idx_users_api_key_lookup_hash} (added in migration v2026.05) — at most one row
-     * per non-null lookup hash, so this resolves in O(1). Caller must still re-verify against
-     * the per-user-salted {@code apiKeyHash} as defence in depth.
+     * application-wide global salt, so the same plaintext key always produces the same value here
+     * regardless of which user owns it. Backed by partial unique index {@code
+     * idx_users_api_key_lookup_hash} (added in migration v2026.05) — at most one row per non-null
+     * lookup hash, so this resolves in O(1). Caller must still re-verify against the
+     * per-user-salted {@code apiKeyHash} as defence in depth.
      */
-    @Query(
-            "SELECT u FROM User u WHERE u.apiKeyLookupHash = :lookupHash AND u.isActive = true")
-    Optional<User> findByApiKeyLookupHashAndIsActiveTrue(
-            @Param("lookupHash") String lookupHash);
+    @Query("SELECT u FROM User u WHERE u.apiKeyLookupHash = :lookupHash AND u.isActive = true")
+    Optional<User> findByApiKeyLookupHashAndIsActiveTrue(@Param("lookupHash") String lookupHash);
 
     // Pessimistic locking for balance operations to prevent race conditions
     @Lock(LockModeType.PESSIMISTIC_WRITE)

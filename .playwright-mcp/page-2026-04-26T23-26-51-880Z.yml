@@ -1,0 +1,101 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - link "SMMWorld SMMWorld" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - img "SMMWorld" [ref=e7]
+        - generic [ref=e8]: SMMWorld
+      - navigation [ref=e9]:
+        - link "Services" [ref=e10] [cursor=pointer]:
+          - /url: /services-list
+        - link "Pricing" [ref=e11] [cursor=pointer]:
+          - /url: /pricing
+        - link "API" [ref=e12] [cursor=pointer]:
+          - /url: /api-docs
+        - link "Help" [ref=e13] [cursor=pointer]:
+          - /url: /help
+      - button "Toggle theme" [ref=e14] [cursor=pointer]:
+        - img [ref=e15]
+      - link "Sign in" [ref=e17] [cursor=pointer]:
+        - /url: /login
+      - link "Get started" [ref=e18] [cursor=pointer]:
+        - /url: /register
+        - text: Get started
+        - img [ref=e19]
+  - main [ref=e21]:
+    - generic [ref=e22]:
+      - generic [ref=e23]: Catalog
+      - heading "Every service we run." [level=1] [ref=e24]
+      - paragraph [ref=e25]: Instagram is live with 0 services across Likes, Followers, and Comments. Other platforms come online as we add them.
+      - generic [ref=e26]:
+        - button "Instagram" [ref=e27] [cursor=pointer]:
+          - img [ref=e29]
+          - text: Instagram
+        - button "TikTok soon" [ref=e33] [cursor=pointer]:
+          - img [ref=e35]
+          - text: TikTok
+          - generic [ref=e38]: soon
+        - button "YouTube soon" [ref=e39] [cursor=pointer]:
+          - img [ref=e41]
+          - text: YouTube
+          - generic [ref=e44]: soon
+        - button "Twitter soon" [ref=e45] [cursor=pointer]:
+          - img [ref=e47]
+          - text: Twitter
+          - generic [ref=e49]: soon
+        - button "Telegram soon" [ref=e50] [cursor=pointer]:
+          - img [ref=e52]
+          - text: Telegram
+          - generic [ref=e55]: soon
+        - button "Facebook soon" [ref=e56] [cursor=pointer]:
+          - img [ref=e58]
+          - text: Facebook
+          - generic [ref=e60]: soon
+        - generic [ref=e62]:
+          - img
+          - textbox [ref=e63]:
+            - /placeholder: Search services
+      - generic [ref=e66]: Loading services…
+  - contentinfo [ref=e67]:
+    - generic [ref=e68]:
+      - generic [ref=e69]:
+        - generic [ref=e70]:
+          - img "SMMWorld" [ref=e71]
+          - generic [ref=e72]: SMMWorld
+        - paragraph [ref=e73]: Infrastructure for Instagram growth.
+      - generic [ref=e74]:
+        - generic [ref=e75]: Product
+        - list [ref=e76]:
+          - listitem [ref=e77]:
+            - link "Services" [ref=e78] [cursor=pointer]:
+              - /url: /services-list
+          - listitem [ref=e79]:
+            - link "Pricing" [ref=e80] [cursor=pointer]:
+              - /url: /pricing
+          - listitem [ref=e81]:
+            - link "API" [ref=e82] [cursor=pointer]:
+              - /url: /api-docs
+      - generic [ref=e83]:
+        - generic [ref=e84]: Company
+        - list [ref=e85]:
+          - listitem [ref=e86]:
+            - link "Help" [ref=e87] [cursor=pointer]:
+              - /url: /help
+          - listitem [ref=e88]:
+            - link "Terms" [ref=e89] [cursor=pointer]:
+              - /url: /legal/terms
+          - listitem [ref=e90]:
+            - link "Privacy" [ref=e91] [cursor=pointer]:
+              - /url: /legal/privacy
+      - generic [ref=e92]:
+        - generic [ref=e93]: Refund & AML
+        - list [ref=e94]:
+          - listitem [ref=e95]:
+            - link "Refund Policy" [ref=e96] [cursor=pointer]:
+              - /url: /legal/refund
+          - listitem [ref=e97]:
+            - link "AML Policy" [ref=e98] [cursor=pointer]:
+              - /url: /legal/aml
+    - generic [ref=e99]:
+      - generic [ref=e100]: © 2026 SMMWorld. All systems normal.
+      - generic [ref=e101]: smmworld.vip

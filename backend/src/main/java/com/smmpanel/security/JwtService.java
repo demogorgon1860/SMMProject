@@ -147,7 +147,8 @@ public class JwtService {
         // rotation takes effect within {@value #SOFT_CACHE_TTL_MS} ms even without an explicit
         // revocation list. Skip caching outright if the cap is already in the past — and once
         // the cache is full, drop instead of evicting unpredictably (cleanup() runs on a timer).
-        long tokenExp = claims.getExpiration() == null ? Long.MAX_VALUE : claims.getExpiration().getTime();
+        long tokenExp =
+                claims.getExpiration() == null ? Long.MAX_VALUE : claims.getExpiration().getTime();
         long expiresAtMs = Math.min(tokenExp, now + SOFT_CACHE_TTL_MS);
         if (expiresAtMs > now && claimsCache.size() < MAX_CACHE_SIZE) {
             claimsCache.put(token, new CachedClaims(claims, expiresAtMs));
@@ -157,8 +158,8 @@ public class JwtService {
 
     /**
      * Periodic sweep: drop expired entries so the cache size stays bounded under steady-state
-     * traffic. Runs once a minute — at 5k entries with 24-byte token strings + a Claims pointer
-     * the cache fits comfortably in heap, so the sweep mostly exists to keep memory honest.
+     * traffic. Runs once a minute — at 5k entries with 24-byte token strings + a Claims pointer the
+     * cache fits comfortably in heap, so the sweep mostly exists to keep memory honest.
      */
     @Scheduled(fixedDelay = 60_000L, initialDelay = 60_000L)
     public void cleanupExpiredClaims() {
@@ -172,7 +173,10 @@ public class JwtService {
             }
         }
         if (removed > 0) {
-            log.debug("Evicted {} expired JWT cache entries (size now {})", removed, claimsCache.size());
+            log.debug(
+                    "Evicted {} expired JWT cache entries (size now {})",
+                    removed,
+                    claimsCache.size());
         }
     }
 

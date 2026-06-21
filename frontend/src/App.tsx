@@ -88,6 +88,7 @@ const TermsPage = lazyNamed(() => import('./pages/public/legal/Terms'), 'TermsPa
 const AddFundsPage = lazyNamed(() => import('./pages/app/AddFunds'), 'AddFundsPage');
 const NewOrderPage = lazyNamed(() => import('./pages/app/NewOrder'), 'NewOrderPage');
 const OrdersPage = lazyNamed(() => import('./pages/app/Orders'), 'OrdersPage');
+const RefillPage = lazyNamed(() => import('./pages/app/Refill'), 'RefillPage');
 const ProfilePage = lazyNamed(() => import('./pages/app/Profile'), 'ProfilePage');
 const TransactionsPage = lazyNamed(() => import('./pages/app/Transactions'), 'TransactionsPage');
 
@@ -101,6 +102,7 @@ const AdminRefillRequestsPage = lazyNamed(
   () => import('./pages/admin/RefillRequests'),
   'AdminRefillRequestsPage',
 );
+const AdminRefillPage = lazyNamed(() => import('./pages/admin/Refill'), 'AdminRefillPage');
 const AdminServicesPage = lazyNamed(() => import('./pages/admin/Services'), 'AdminServicesPage');
 const AdminSettingsPage = lazyNamed(() => import('./pages/admin/Settings'), 'AdminSettingsPage');
 const AdminSystemPage = lazyNamed(() => import('./pages/admin/System'), 'AdminSystemPage');
@@ -210,6 +212,7 @@ function App() {
                 <Route path="new-order" element={<NewOrderPage />} />
                 <Route path="orders" element={<OrdersPage />} />
                 <Route path="orders/:id" element={<OrdersPage />} />
+                <Route path="refill" element={<RefillPage />} />
                 <Route path="add-funds" element={<AddFundsPage />} />
                 <Route path="transactions" element={<TransactionsPage />} />
                 <Route path="profile" element={<ProfilePage />} />
@@ -226,6 +229,7 @@ function App() {
               >
                 <Route index element={<AdminDashboardPage />} />
                 <Route path="orders" element={<AdminOrdersPage />} />
+                <Route path="refill" element={<AdminRefillPage />} />
                 <Route path="refill-requests" element={<AdminRefillRequestsPage />} />
                 <Route path="users" element={<AdminUsersPage />} />
                 <Route path="services" element={<AdminServicesPage />} />

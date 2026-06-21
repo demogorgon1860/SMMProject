@@ -35,7 +35,7 @@ const NAV: NavGroup[] = [
     items: [
       { to: '/admin', label: 'Dashboard', icon: 'dashboard' },
       { to: '/admin/orders', label: 'Orders', icon: 'orders' },
-      { to: '/admin/refill-requests', label: 'Refill requests', icon: 'refresh' },
+      { to: '/admin/refill', label: 'Refill', icon: 'refresh' },
       { to: '/admin/services', label: 'Services', icon: 'grid' },
     ],
   },

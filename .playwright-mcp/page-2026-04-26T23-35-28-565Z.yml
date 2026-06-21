@@ -1,0 +1,115 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - link "SMMWorld SMMWorld" [ref=e6] [cursor=pointer]:
+      - /url: /dashboard
+      - img "SMMWorld" [ref=e7]
+      - generic [ref=e8]: SMMWorld
+    - navigation [ref=e9]:
+      - link "Dashboard" [ref=e10] [cursor=pointer]:
+        - /url: /dashboard
+        - img [ref=e11]
+        - generic [ref=e16]: Dashboard
+      - link "New order" [ref=e17] [cursor=pointer]:
+        - /url: /new-order
+        - img [ref=e18]
+        - generic [ref=e20]: New order
+      - link "Orders" [ref=e21] [cursor=pointer]:
+        - /url: /orders
+        - img [ref=e22]
+        - generic [ref=e27]: Orders
+      - link "Transactions" [ref=e28] [cursor=pointer]:
+        - /url: /transactions
+        - img [ref=e29]
+        - generic [ref=e32]: Transactions
+      - link "Add funds" [ref=e33] [cursor=pointer]:
+        - /url: /add-funds
+        - img [ref=e34]
+        - generic [ref=e37]: Add funds
+      - link "API" [ref=e38] [cursor=pointer]:
+        - /url: /api-docs
+        - img [ref=e39]
+        - generic [ref=e41]: API
+      - link "Help" [ref=e42] [cursor=pointer]:
+        - /url: /help
+        - img [ref=e43]
+        - generic [ref=e46]: Help
+      - link "Profile" [ref=e47] [cursor=pointer]:
+        - /url: /profile
+        - img [ref=e49]
+        - generic [ref=e52]: Profile
+    - link "YO @you you@example.com" [ref=e54] [cursor=pointer]:
+      - /url: /profile?tab=account
+      - generic [ref=e55]: YO
+      - generic [ref=e56]:
+        - generic [ref=e57]: "@you"
+        - generic [ref=e58]: you@example.com
+      - img [ref=e59]
+  - generic [ref=e61]:
+    - banner [ref=e62]:
+      - button "Search orders, services…" [ref=e63] [cursor=pointer]:
+        - img [ref=e64]
+        - generic [ref=e67]: Search orders, services…
+      - link "$828.47" [ref=e68] [cursor=pointer]:
+        - /url: /add-funds
+        - img [ref=e69]
+        - generic [ref=e72]: $828.47
+        - img [ref=e73]
+      - button "Toggle theme" [ref=e75] [cursor=pointer]:
+        - img [ref=e76]
+      - button "Notifications" [ref=e78] [cursor=pointer]:
+        - img [ref=e79]
+      - button "M" [ref=e82] [cursor=pointer]:
+        - generic [ref=e83]: M
+        - img [ref=e84]
+    - main [ref=e86]:
+      - generic [ref=e87]:
+        - generic [ref=e88]:
+          - generic [ref=e89]: M
+          - generic [ref=e90]:
+            - heading "@mmknshnk" [level=1] [ref=e91]
+            - generic [ref=e92]:
+              - generic [ref=e93]: arthur.arthurpopov@gmail.com
+              - generic [ref=e94]:
+                - img [ref=e95]
+                - text: verified
+              - generic [ref=e97]: ·
+              - generic [ref=e98]: joined —
+        - generic [ref=e100]:
+          - button "Account" [ref=e101] [cursor=pointer]
+          - button "Security" [ref=e102] [cursor=pointer]
+          - button "Preferences" [ref=e103] [cursor=pointer]
+          - button "Sessions" [ref=e104] [cursor=pointer]
+          - button "Danger zone" [ref=e105] [cursor=pointer]
+        - generic [ref=e107]:
+          - generic [ref=e108]:
+            - generic [ref=e109]: Password
+            - generic [ref=e110]:
+              - generic [ref=e111]:
+                - generic [ref=e113]: Current password
+                - textbox [ref=e115]
+              - generic [ref=e116]:
+                - generic [ref=e117]:
+                  - generic [ref=e118]: New password
+                  - generic [ref=e119]: 14+ chars recommended
+                - textbox [ref=e121]
+              - generic [ref=e122]:
+                - generic [ref=e124]: Confirm new
+                - textbox [ref=e126]
+              - button "Update password" [ref=e127] [cursor=pointer]
+          - generic [ref=e129]:
+            - generic [ref=e130]:
+              - generic [ref=e131]: Two-factor authentication
+              - paragraph [ref=e132]: Required for accounts holding more than $500.
+            - switch [ref=e133] [cursor=pointer]
+          - generic [ref=e135]:
+            - generic [ref=e136]:
+              - generic [ref=e137]:
+                - generic [ref=e138]: API key
+                - paragraph [ref=e139]:
+                  - text: Use
+                  - code [ref=e140]: X-API-Key
+                  - text: header on requests. Treat it like a password.
+              - button "Generate key" [ref=e141] [cursor=pointer]:
+                - img [ref=e142]
+                - text: Generate key
+            - generic [ref=e145]: No API key configured. Generate one to start using the API.

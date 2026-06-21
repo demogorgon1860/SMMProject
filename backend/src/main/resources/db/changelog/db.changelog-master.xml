@@ -815,4 +815,10 @@
     <!-- Index for per-URL order serialization (busy-check + next-pending pick + sweeper) -->
     <include file="db/changelog/changes/v2026.06-add-orders-link-status-id-index.xml"/>
 
+    <!-- Refill live-drop check: durable record of a bot /api/refill/check run -->
+    <include file="db/changelog/changes/v2026.06-add-refill-checks.xml"/>
+
+    <!-- Refill requests: bot-checked drop snapshot for admin review + drop-based approval -->
+    <include file="db/changelog/changes/v2026.06-refill-requests-add-drop-snapshot.xml"/>
+
 </databaseChangeLog>

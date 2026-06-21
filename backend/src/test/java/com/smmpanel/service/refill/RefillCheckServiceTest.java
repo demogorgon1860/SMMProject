@@ -169,7 +169,7 @@ class RefillCheckServiceTest {
         service.applyPollResult(1L, RefillStatusOutcome.missing());
 
         assertThat(c.getStatus()).isEqualTo(RefillCheck.Status.FAILED);
-        assertThat(c.getError()).contains("потерял");
+        assertThat(c.getError()).contains("run it again");
         verify(refillCheckRepository).save(c);
     }
 
@@ -259,7 +259,7 @@ class RefillCheckServiceTest {
 
         assertThatThrownBy(() -> service.startCheckForUser(99L))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("одиночных");
+                .hasMessageContaining("single-action");
         verify(instagramBotClient, never()).refillCheck(anyString());
     }
 

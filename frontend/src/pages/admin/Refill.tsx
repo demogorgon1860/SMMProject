@@ -14,14 +14,14 @@ import {
 import { adminAPI } from '../../services/api';
 import { useAdminActions } from '../../store/adminActions';
 import type { RefillCheck } from '../../types';
-import { cn, fmtInt, toNum } from '../../lib/utils';
+import { fmtInt, toNum } from '../../lib/utils';
 import { AdminRefillQueue } from './RefillRequests';
 
 // =====================================================================
 // Admin Refill — one page, two tabs:
-//   • "Проверка дропа" — check ANY order by id, then create a refill for
+//   • "Drop check" — check ANY order by id, then create a refill for
 //     exactly the dropped amount (admin is the approver).
-//   • "Очередь запросов" — the user-initiated refill request queue
+//   • "Request queue" — the user-initiated refill request queue
 //     (embedded; approve/reject with drop rate + refill-needed columns).
 // =====================================================================
 
@@ -31,7 +31,7 @@ type Tab = 'check' | 'queue';
 function errMsg(err: unknown, fallback: string): string {
   const e = err as { response?: { data?: { message?: string }; status?: number } };
   if (e.response?.data?.message) return e.response.data.message;
-  if (e.response?.status === 404) return 'Заказ не найден.';
+  if (e.response?.status === 404) return 'Order not found.';
   return fallback;
 }
 
@@ -40,14 +40,14 @@ export function AdminRefillPage() {
 
   return (
     <>
-      <PageHeader title="Refill" subtitle="Проверка дропа и очередь запросов на рефилл" />
+      <PageHeader title="Refill" subtitle="Drop check and the refill request queue" />
       <div className="space-y-4 p-6">
         <Tabs
           value={tab}
           onChange={(v) => setTab(v as Tab)}
           tabs={[
-            { value: 'check', label: 'Проверка дропа' },
-            { value: 'queue', label: 'Очередь запросов' },
+            { value: 'check', label: 'Drop check' },
+            { value: 'queue', label: 'Request queue' },
           ]}
         />
         {tab === 'check' ? <CheckTool /> : <AdminRefillQueue />}
@@ -90,7 +90,7 @@ function CheckTool() {
   const runCheck = useCallback(async () => {
     const id = Number(orderInput.trim());
     if (!Number.isInteger(id) || id <= 0) {
-      toast('Введите корректный номер заказа', 'error');
+      toast('Enter a valid order number', 'error');
       return;
     }
     setStarting(true);
@@ -102,7 +102,7 @@ function CheckTool() {
       const res: RefillCheck = await adminAPI.refillCheckStart(id);
       setCheck(res);
     } catch (err) {
-      setCheckError(errMsg(err, 'Не удалось запустить проверку дропа.'));
+      setCheckError(errMsg(err, 'Could not start the drop check.'));
     } finally {
       setStarting(false);
     }
@@ -120,12 +120,12 @@ function CheckTool() {
         targetLabel: 'Order #' + activeOrderId,
         summary: `Created drop-based refill of ${qty} on order #${activeOrderId}`,
       });
-      toast(`Рефилл на ${fmtInt(qty)} создан · заказ #${activeOrderId}`, 'success');
+      toast(`Refill of ${fmtInt(qty)} created · order #${activeOrderId}`, 'success');
       setConfirmOpen(false);
-      setDoneMsg(`Рефилл создан на ${fmtInt(qty)}.`);
+      setDoneMsg(`Refill created for ${fmtInt(qty)}.`);
       setCheck(null);
     } catch (err) {
-      toast(errMsg(err, 'Не удалось создать рефилл.'), 'error');
+      toast(errMsg(err, 'Could not create the refill.'), 'error');
     } finally {
       setCreating(false);
     }
@@ -142,12 +142,12 @@ function CheckTool() {
       >
         <div className="min-w-[220px] flex-1">
           <label className="mb-1 block text-[11px] uppercase tracking-wider text-fg-subtle">
-            Номер заказа
+            Order number
           </label>
           <Input
             icon="search"
             inputMode="numeric"
-            placeholder="Напр. 12345"
+            placeholder="e.g. 12345"
             value={orderInput}
             onChange={(e) => setOrderInput(e.target.value.replace(/[^0-9]/g, ''))}
             block
@@ -161,7 +161,7 @@ function CheckTool() {
           loading={starting || running}
           disabled={!orderInput.trim()}
         >
-          {running ? 'Проверяем…' : 'Проверить дроп'}
+          {running ? 'Checking…' : 'Check drop'}
         </Button>
       </form>
 
@@ -185,14 +185,14 @@ function CheckTool() {
             <span className="absolute inset-0 rounded-full border-2 border-border" />
             <span className="spin absolute inset-0 rounded-full border-2 border-accent border-t-transparent" />
           </span>
-          Проверяем дроп через бота… Может занять до нескольких минут.
+          Checking the drop… This can take a few minutes.
         </div>
       )}
 
       {check?.status === 'FAILED' && (
         <div className="mt-4 flex items-start gap-2 rounded-md border border-danger/30 bg-danger-soft px-3 py-2 text-[12.5px] text-danger">
           <Icon name="alert" size={14} className="mt-[1px] flex-none" />
-          <span>{check.error ?? 'Проверка не удалась.'}</span>
+          <span>{check.error ?? 'The check failed.'}</span>
         </div>
       )}
 
@@ -204,12 +204,12 @@ function CheckTool() {
         onConfirm={createRefill}
         loading={creating}
         variant="primary"
-        confirmText="Создать рефилл"
-        cancelText="Отмена"
-        title={`Создать рефилл на заказ #${activeOrderId ?? ''}?`}
+        confirmText="Create refill"
+        cancelText="Cancel"
+        title={`Create refill on order #${activeOrderId ?? ''}?`}
         message={
           check?.refillNeeded != null
-            ? `Будет создан бесплатный рефилл на ${fmtInt(check.refillNeeded)} (отвалившееся количество).`
+            ? `This creates a free refill of ${fmtInt(check.refillNeeded)} (the dropped amount).`
             : undefined
         }
       />
@@ -231,15 +231,15 @@ function DoneResult({ check, onCreate }: { check: RefillCheck; onCreate: () => v
         stroke={14}
         color={color}
         label={`${dropRate}%`}
-        sublabel="дроп"
+        sublabel="drop"
       />
       <div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
-            ['Заказано', fmtInt(ordered)],
-            ['На месте', check.present != null ? fmtInt(check.present) : '—'],
-            ['Нужно долить', fmtInt(refillNeeded)],
-            ['Тип', (check.actionType ?? '—').toUpperCase()],
+            ['Ordered', fmtInt(ordered)],
+            ['Still there', check.present != null ? fmtInt(check.present) : '—'],
+            ['Refill needed', fmtInt(refillNeeded)],
+            ['Type', (check.actionType ?? '—').toUpperCase()],
           ].map(([k, v]) => (
             <div key={k} className="rounded-md border border-border bg-bg-sunken p-3">
               <div className="text-[10.5px] uppercase tracking-wider text-fg-subtle">{k}</div>
@@ -251,18 +251,18 @@ function DoneResult({ check, onCreate }: { check: RefillCheck; onCreate: () => v
         {check.earlyStopped && (
           <div className="mt-3 flex items-start gap-2 rounded-md border border-warn/30 bg-warn-soft px-3 py-2 text-[12px] text-warn">
             <Icon name="warning" size={13} className="mt-[1px] flex-none" />
-            <span>Скан был консервативным — реальный дроп может быть выше.</span>
+            <span>Scan was conservative — the real drop may be higher.</span>
           </div>
         )}
 
         <div className="mt-4">
           {check.canRefill ? (
             <Button variant="primary" size="md" icon="refresh" onClick={onCreate}>
-              {`Создать рефилл на ${fmtInt(refillNeeded)}`}
+              {`Create refill for ${fmtInt(refillNeeded)}`}
             </Button>
           ) : (
             <Badge tone="success" size="md" dot>
-              Дроп не обнаружен — доливать нечего
+              No drop detected — nothing to refill
             </Badge>
           )}
         </div>

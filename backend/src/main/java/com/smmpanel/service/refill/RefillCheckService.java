@@ -144,8 +144,8 @@ public class RefillCheckService {
         InstagramOrderType type = resolveType(order);
         if (!isSingleAction(type)) {
             throw new IllegalStateException(
-                    "Проверка дропа доступна только для одиночных услуг (лайки, подписки или"
-                            + " комментарии). Combo-услуги — в следующей версии.");
+                    "Drop check is available only for single-action services (likes, follows, or"
+                            + " comments). Combo services are coming later.");
         }
 
         // Idempotency: reuse a recent in-flight check rather than spawning a duplicate expensive
@@ -167,14 +167,18 @@ public class RefillCheckService {
                         requesterUserId, LocalDateTime.now().minusMinutes(userRateWindowMinutes));
         if (recent >= userRateLimit) {
             throw new IllegalStateException(
-                    "Слишком много проверок за последний час. Попробуйте позже.");
+                    "Too many checks in the last hour. Please try again later.");
         }
 
         RefillCheckResult result = instagramBotClient.refillCheck(String.valueOf(order.getId()));
         if (!result.isAccepted()) {
+            // Keep the technical reason in the logs only; show the customer a clean message.
+            log.warn(
+                    "[REFILL-CHECK] order {} not accepted by checker: {}",
+                    order.getId(),
+                    result.getError());
             throw new ApiException(
-                    "Не удалось запустить проверку дропа: "
-                            + (result.getError() == null ? "бот недоступен" : result.getError()),
+                    "Could not start the drop check. Please try again in a moment.",
                     HttpStatus.BAD_GATEWAY);
         }
 
@@ -228,13 +232,13 @@ public class RefillCheckService {
                 // Definitive 404 — the bot lost the job (restart / eviction). FAIL after the
                 // short lost-job grace so the UI can offer a re-check.
                 if (olderThan(c, now, lostThresholdMinutes)) {
-                    fail(c, now, "Бот потерял задачу проверки — запустите проверку ещё раз.");
+                    fail(c, now, "The check didn't complete — please run it again.");
                 }
             } else {
                 // Transient failure (network / breaker) — NOT proof the job is gone. Keep polling
                 // a genuinely-running (minutes-long) enumeration until the overall ceiling.
                 if (olderThan(c, now, maxAgeMinutes)) {
-                    fail(c, now, "Проверка превысила лимит времени — попробуйте ещё раз.");
+                    fail(c, now, "The check timed out — try again.");
                 }
             }
             return;
@@ -243,7 +247,7 @@ public class RefillCheckService {
         String jobStatus = job.getStatus() == null ? "" : job.getStatus().toLowerCase();
         if (!"done".equals(jobStatus)) {
             if (olderThan(c, now, maxAgeMinutes)) {
-                fail(c, now, "Проверка превысила лимит времени — попробуйте ещё раз.");
+                fail(c, now, "The check timed out — try again.");
             }
             return; // queued / running
         }
@@ -253,7 +257,7 @@ public class RefillCheckService {
                         ? null
                         : job.getReports().get(0);
         if (rep == null) {
-            fail(c, now, "Бот вернул пустой результат.");
+            fail(c, now, "The check returned no result — please try again.");
             return;
         }
         if (!"done".equalsIgnoreCase(rep.getStatus())) {
@@ -262,7 +266,7 @@ public class RefillCheckService {
             c.setError(
                     rep.getError() != null
                             ? rep.getError()
-                            : ("Проверка недоступна (" + rep.getStatus() + ")"));
+                            : ("Check unavailable (" + rep.getStatus() + ")"));
             c.setNote(rep.getNote());
             c.setEarlyStopped(Boolean.TRUE.equals(rep.getEarlyStopped()));
             c.setCheckedAt(now);

@@ -28,7 +28,7 @@ const POLL_MS = 3500;
 function errMsg(err: unknown, fallback: string): string {
   const e = err as { response?: { data?: { message?: string }; status?: number } };
   if (e.response?.data?.message) return e.response.data.message;
-  if (e.response?.status === 404) return 'Заказ не найден.';
+  if (e.response?.status === 404) return 'Order not found.';
   return fallback;
 }
 
@@ -81,7 +81,7 @@ export function RefillPage() {
   const runCheck = async () => {
     const id = Number(orderInput.trim());
     if (!Number.isInteger(id) || id <= 0) {
-      toast('Введите корректный номер заказа', 'error');
+      toast('Enter a valid order number', 'error');
       return;
     }
     setStarting(true);
@@ -98,7 +98,7 @@ export function RefillPage() {
         .then((r: RefillRequest) => setRefillReq(r))
         .catch(() => setRefillReq(null));
     } catch (err) {
-      setCheckError(errMsg(err, 'Не удалось запустить проверку дропа.'));
+      setCheckError(errMsg(err, 'Could not start the drop check.'));
     } finally {
       setStarting(false);
     }
@@ -111,10 +111,10 @@ export function RefillPage() {
       const created: RefillRequest = await orderAPI.requestRefill(activeOrderId);
       setRefillReq(created);
       setConfirmOpen(false);
-      toast('Запрос на рефилл отправлен — оператор рассмотрит его.', 'success');
+      toast('Refill request submitted — an operator will review it.', 'success');
       void loadHistory();
     } catch (err) {
-      toast(errMsg(err, 'Не удалось отправить запрос на рефилл.'), 'error');
+      toast(errMsg(err, 'Could not submit the refill request.'), 'error');
     } finally {
       setRequesting(false);
     }
@@ -125,12 +125,12 @@ export function RefillPage() {
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-[24px] font-bold tracking-[-0.02em]">Refill</h1>
         <span className="font-mono text-[12px] text-fg-subtle">
-          {history.length} {history.length === 1 ? 'запрос' : 'запросов'}
+          {history.length} {history.length === 1 ? 'request' : 'requests'}
         </span>
       </div>
       <p className="mt-1 text-[13px] text-fg-muted">
-        Введите номер заказа, чтобы проверить дроп. Если часть отвалилась — запросите рефилл, и он
-        будет создан ровно на отвалившееся количество.
+        Enter an order number to check its drop. If part of it fell off, request a refill — it'll be
+        created for exactly the dropped amount.
       </p>
 
       {/* ---- Check tool ---- */}
@@ -144,12 +144,12 @@ export function RefillPage() {
         >
           <div className="min-w-[220px] flex-1">
             <label className="mb-1 block text-[11px] uppercase tracking-wider text-fg-subtle">
-              Номер заказа
+              Order number
             </label>
             <Input
               icon="search"
               inputMode="numeric"
-              placeholder="Напр. 12345"
+              placeholder="e.g. 12345"
               value={orderInput}
               onChange={(e) => setOrderInput(e.target.value.replace(/[^0-9]/g, ''))}
               block
@@ -163,7 +163,7 @@ export function RefillPage() {
             loading={starting || running}
             disabled={!orderInput.trim()}
           >
-            {running ? 'Проверяем…' : 'Проверить дроп'}
+            {running ? 'Checking…' : 'Check drop'}
           </Button>
         </form>
 
@@ -186,15 +186,15 @@ export function RefillPage() {
       {/* ---- History ---- */}
       <Card className="mt-4 p-0">
         <div className="border-b border-border px-5 py-3 text-[13px] font-semibold">
-          История рефиллов
+          Refill history
         </div>
         {historyLoading ? (
-          <div className="p-12 text-center text-[13px] text-fg-subtle">Загрузка…</div>
+          <div className="p-12 text-center text-[13px] text-fg-subtle">Loading…</div>
         ) : history.length === 0 ? (
           <Empty
             icon="orders"
-            title="Рефиллов пока нет"
-            subtitle="Проверьте заказ на дроп и запросите рефилл — он появится здесь."
+            title="No refills yet"
+            subtitle="Check an order's drop and request a refill — it'll show up here."
           />
         ) : (
           <div className="overflow-x-auto">
@@ -242,13 +242,13 @@ export function RefillPage() {
         onConfirm={submitRefill}
         loading={requesting}
         variant="primary"
-        confirmText="Отправить запрос"
-        cancelText="Отмена"
-        title={`Запросить рефилл на заказ #${activeOrderId ?? ''}?`}
+        confirmText="Submit request"
+        cancelText="Cancel"
+        title={`Request refill on order #${activeOrderId ?? ''}?`}
         message={
           check?.refillNeeded != null
-            ? `Будет запрошен рефилл на ${fmtInt(check.refillNeeded)} (отвалившееся количество). Оператор рассмотрит запрос.`
-            : 'Оператор рассмотрит запрос на рефилл.'
+            ? `This requests a refill of ${fmtInt(check.refillNeeded)} (the dropped amount). An operator will review it.`
+            : 'An operator will review the refill request.'
         }
       />
     </div>
@@ -275,7 +275,7 @@ function CheckResult({
           <span className="absolute inset-0 rounded-full border-2 border-border" />
           <span className="spin absolute inset-0 rounded-full border-2 border-accent border-t-transparent" />
         </span>
-        Проверяем дроп через бота… Это может занять до нескольких минут — страницу можно не закрывать.
+        Checking the drop… This can take a few minutes — you can leave the page open.
       </div>
     );
   }
@@ -284,7 +284,7 @@ function CheckResult({
     return (
       <div className="mt-4 flex items-start gap-2 rounded-md border border-danger/30 bg-danger-soft px-3 py-2 text-[12.5px] text-danger">
         <Icon name="alert" size={14} className="mt-[1px] flex-none" />
-        <span>{check.error ?? 'Проверка не удалась. Попробуйте ещё раз.'}</span>
+        <span>{check.error ?? 'The check failed. Try again.'}</span>
       </div>
     );
   }
@@ -308,15 +308,15 @@ function CheckResult({
         stroke={14}
         color={color}
         label={`${dropRate}%`}
-        sublabel="дроп"
+        sublabel="drop"
       />
       <div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
-            ['Заказано', fmtInt(ordered)],
-            ['На месте', check.present != null ? fmtInt(check.present) : '—'],
-            ['Нужно долить', fmtInt(refillNeeded)],
-            ['Тип', (check.actionType ?? '—').toUpperCase()],
+            ['Ordered', fmtInt(ordered)],
+            ['Still there', check.present != null ? fmtInt(check.present) : '—'],
+            ['Refill needed', fmtInt(refillNeeded)],
+            ['Type', (check.actionType ?? '—').toUpperCase()],
           ].map(([k, v]) => (
             <div key={k} className="rounded-md border border-border bg-bg-sunken p-3">
               <div className="text-[10.5px] uppercase tracking-wider text-fg-subtle">{k}</div>
@@ -328,7 +328,7 @@ function CheckResult({
         {check.earlyStopped && (
           <div className="mt-3 flex items-start gap-2 rounded-md border border-warn/30 bg-warn-soft px-3 py-2 text-[12px] text-warn">
             <Icon name="warning" size={13} className="mt-[1px] flex-none" />
-            <span>Скан был консервативным — реальный дроп может быть выше.</span>
+            <span>Scan was conservative — the real drop may be higher.</span>
           </div>
         )}
 
@@ -348,11 +348,11 @@ function CheckResult({
               className="mt-[1px] flex-none"
             />
             <span>
-              {refillPending && 'Запрос на рефилл уже отправлен и ожидает решения оператора.'}
+              {refillPending && 'A refill request is already submitted and awaiting operator review.'}
               {refillApproved &&
-                `Рефилл одобрен${refillReq.refillOrderId ? ` — заказ #${refillReq.refillOrderId}` : ''}.`}
+                `Refill approved${refillReq.refillOrderId ? ` — order #${refillReq.refillOrderId}` : ''}.`}
               {refillRejected &&
-                `Предыдущий запрос отклонён${refillReq.rejectionReason ? `: ${refillReq.rejectionReason}` : ''}. Можно запросить снова.`}
+                `Previous request rejected${refillReq.rejectionReason ? `: ${refillReq.rejectionReason}` : ''}. You can request again.`}
             </span>
           </div>
         )}
@@ -367,21 +367,21 @@ function CheckResult({
               disabled={!canRequest}
               title={
                 refillPending
-                  ? 'Запрос уже на рассмотрении'
+                  ? 'Request already under review'
                   : refillApproved
-                    ? 'Рефилл уже одобрен'
+                    ? 'Refill already approved'
                     : undefined
               }
             >
               {refillPending
-                ? 'Рефилл на рассмотрении'
+                ? 'Refill pending'
                 : refillApproved
-                  ? 'Рефилл одобрен'
-                  : `Запросить рефилл (${fmtInt(refillNeeded)})`}
+                  ? 'Refill approved'
+                  : `Request refill (${fmtInt(refillNeeded)})`}
             </Button>
           ) : (
             <Badge tone="success" size="md" dot>
-              Дроп не обнаружен — доливать нечего
+              No drop detected — nothing to refill
             </Badge>
           )}
         </div>

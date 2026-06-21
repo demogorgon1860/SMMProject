@@ -145,7 +145,7 @@ public class RefillRequestService {
         if (doneCheck.isPresent()) {
             RefillCheck c = doneCheck.get();
             if (c.getRefillNeeded() != null && c.getRefillNeeded() <= 0) {
-                throw new IllegalStateException("Дроп не обнаружен — доливать нечего.");
+                throw new IllegalStateException("No drop detected — nothing to refill.");
             }
             req.setBotRefillNeeded(c.getRefillNeeded());
             req.setBotDropped(c.getDropped());

@@ -300,12 +300,12 @@ function RowItem({
               <span className="text-fg-subtle">· {fmtInt(req.refillNeeded)}</span>
             )}
             {req.staleCheck && (
-              <span title="Проверка устарела — дроп мог измениться">
+              <span title="Check is stale — the drop may have changed">
                 <Icon name="warning" size={12} className="text-warn" />
               </span>
             )}
             {req.earlyStopped && (
-              <span title="Частичный скан — количество приблизительное (оценка снизу)">
+              <span title="Partial scan — amount is an estimate (lower bound)">
                 <Icon name="info" size={12} className="text-fg-subtle" />
               </span>
             )}

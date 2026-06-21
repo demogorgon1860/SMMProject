@@ -441,7 +441,7 @@ class RefillRequestServiceTest {
 
         assertThatThrownBy(() -> service.createRequest(ORDER_ID, null))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Дроп не обнаружен");
+                .hasMessageContaining("No drop detected");
         verify(refillRequestRepository, never()).save(any());
     }
 }

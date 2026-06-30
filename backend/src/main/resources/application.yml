@@ -700,8 +700,9 @@ app:
   # REFILL POLICY
   # ===============================
   refill:
-    # Days after order completion during which the user may request a free refill
-    window-days: ${REFILL_WINDOW_DAYS:30}
+    # Days after order completion during which the user may request a free refill.
+    # 0 (or negative) = UNLIMITED — lifetime refill, no time restriction (our policy).
+    window-days: ${REFILL_WINDOW_DAYS:0}
     # Live drop-check (bot /api/refill/check) — used by the Refill page.
     check:
       # Scheduler poll cadence for in-flight checks.

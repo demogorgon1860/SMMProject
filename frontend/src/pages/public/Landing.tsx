@@ -56,7 +56,7 @@ function Hero() {
           </h1>
           <p className="lede mt-5 max-w-[540px] text-white/70">
             SMMWorld is the Instagram growth network. We don't resell — every like, follow, and
-            comment is delivered by us directly. Real quality, refill 30 days, crypto only.
+            comment is delivered by us directly. Real quality, lifetime refill, crypto only.
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             {/* TEMP: registration closed — restore by uncommenting
@@ -99,10 +99,10 @@ const TOP_SERVICES: ReadonlyArray<{
   min: number;
   max: number;
 }> = [
-  { id: 8,  name: 'Instagram Likes [Mix Gender] [USA/Europe]',           hint: 'No-drop · refill 30 days',                 rate: 4.0,  min: 10, max: 273 },
-  { id: 11, name: 'Instagram Followers [Mix Gender] [USA/Europe]',       hint: 'Real profiles · refill 30 days',           rate: 10.0, min: 10, max: 273 },
+  { id: 8,  name: 'Instagram Likes [Mix Gender] [USA/Europe]',           hint: 'No-drop · lifetime refill',                 rate: 4.0,  min: 10, max: 273 },
+  { id: 11, name: 'Instagram Followers [Mix Gender] [USA/Europe]',       hint: 'Real profiles · lifetime refill',           rate: 10.0, min: 10, max: 273 },
   { id: 13, name: 'Instagram Followers [Female] [USA/Europe]',           hint: 'Female-targeted demographic',              rate: 10.0, min: 10, max: 186 },
-  { id: 2,  name: 'Instagram Custom Comments [Mix Gender] [USA/Europe]', hint: 'You provide the text · refill 30 days',    rate: 70.0, min: 3,  max: 273 },
+  { id: 2,  name: 'Instagram Custom Comments [Mix Gender] [USA/Europe]', hint: 'You provide the text · lifetime refill',    rate: 70.0, min: 3,  max: 273 },
   { id: 5,  name: 'Instagram Comments [Mix Gender] [USA/Europe]',        hint: 'AI-generated context-aware · top quality', rate: 90.0, min: 3,  max: 273 },
 ];
 
@@ -143,7 +143,7 @@ function TopServicesCard({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
     <div className={t.shell}>
       <div className={t.header}>
         <div className={t.eyebrow}>Top services · Instagram</div>
-        <div className={t.headerHint}>real prices · refill 30 days</div>
+        <div className={t.headerHint}>real prices · lifetime refill</div>
       </div>
       <ul className={t.rowDivide}>
         {TOP_SERVICES.map((s) => (
@@ -248,8 +248,8 @@ function ValueProps() {
     },
     {
       icon: 'shield',
-      title: 'Refill window · 30 days',
-      body: '30-day refill window from order completion. If delivery drops, request a free refill from the order page — an operator approves and re-runs.',
+      title: 'Lifetime refill',
+      body: 'Free lifetime refill — for the life of the order. If delivery drops, request a free refill from the order page; an operator approves and re-runs.',
     },
     {
       icon: 'wallet',
@@ -316,7 +316,7 @@ function Categories() {
               <span>·</span>
               <span>min {fmtPrice(stats?.minPricePer1k)}/1k</span>
               <span>·</span>
-              <span>30-day refill</span>
+              <span>Lifetime refill</span>
             </div>
             {/* TEMP: services catalog hidden — restore with the Services nav link
             <Link to="/services-list" className="mt-5 inline-flex items-center gap-1 text-[13px] font-medium text-accent-2 hover:underline">
@@ -356,8 +356,8 @@ function HowItWorks() {
     },
     {
       n: 4,
-      title: 'Refill window · 30 days',
-      detail: 'Free refill window for 30 days from completion. If delivery drops, request a refill from the order page — an operator approves and the bot re-runs.',
+      title: 'Lifetime refill',
+      detail: 'Free lifetime refill — for the life of the order. If delivery drops, request a refill from the order page; an operator approves and the bot re-runs.',
     },
   ];
   return (
@@ -479,7 +479,7 @@ function LandingLight() {
               </h1>
               <p className="lede mt-5 max-w-[540px]">
                 SMMWorld is the Instagram growth network. We don't resell — every like, follow, and
-                comment is delivered by us directly. Real quality, refill 30 days, crypto only.
+                comment is delivered by us directly. Real quality, lifetime refill, crypto only.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 {/* TEMP: registration closed — restore by uncommenting
@@ -563,7 +563,7 @@ function LiveOrdersStripLight() {
 function ValuePropsLight() {
   const items: ReadonlyArray<{ icon: 'zap' | 'shield' | 'code' | 'wallet'; title: string; body: string }> = [
     { icon: 'zap', title: 'Real quality', body: 'Every action is delivered through our own infrastructure. No reposting from third-party panels.' },
-    { icon: 'shield', title: 'Refill window · 30 days', body: '30-day refill window from order completion. If delivery drops, request a free refill from the order page — an operator approves and re-runs.' },
+    { icon: 'shield', title: 'Lifetime refill', body: 'Free lifetime refill — for the life of the order. If delivery drops, request a free refill from the order page; an operator approves and re-runs.' },
     { icon: 'wallet', title: 'Crypto only', body: 'Pay with USDT, BTC, ETH, TON, LTC. Privacy-first. No KYC. No card fees.' },
     { icon: 'code', title: 'Perfect-Panel API', body: 'Drop-in compatible /api/v2 endpoint. Plug existing reseller pipelines in 5 minutes.' },
   ];
@@ -617,7 +617,7 @@ function CategoriesLight() {
             <span>·</span>
             <span>min {fmtPrice(stats?.minPricePer1k)}/1k</span>
             <span>·</span>
-            <span>30-day refill</span>
+            <span>Lifetime refill</span>
           </div>
           {/* TEMP: services catalog hidden — restore with the Services nav link
           <Link to="/services-list" className="mt-5 inline-flex items-center gap-1 text-[13px] font-medium text-accent hover:underline">
@@ -642,7 +642,7 @@ function HowItWorksLight() {
     { n: 1, title: 'Top up with crypto', detail: 'USDT (TRC-20), BTC, ETH, TON, or LTC. Auto-credit on confirm.' },
     { n: 2, title: 'Pick service · paste link', detail: 'Likes, followers, real comments. Custom comment lists. Drip-feed if you need slow.' },
     { n: 3, title: 'We dispatch through the network', detail: 'Validated, queued, executed by our delivery network. Live progress in your dashboard.' },
-    { n: 4, title: 'Refill 30 days', detail: 'Free refill window for 30 days from completion. If delivery drops, request a refill from the order page — an operator approves and the bot re-runs.' },
+    { n: 4, title: 'Lifetime refill', detail: 'Free lifetime refill — for the life of the order. If delivery drops, request a refill from the order page; an operator approves and the bot re-runs.' },
   ];
   return (
     <section className="container-app py-16">

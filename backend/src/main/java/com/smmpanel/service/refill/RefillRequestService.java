@@ -179,18 +179,22 @@ public class RefillRequestService {
                             + ")");
         }
 
-        // 4) Time window from completion. Using updatedAt as a proxy for "completed at" — Order
-        //    doesn't track a separate completion timestamp, but updatedAt was bumped on the
-        //    transition to COMPLETED/PARTIAL.
-        LocalDateTime referencePoint =
-                order.getUpdatedAt() != null ? order.getUpdatedAt() : order.getCreatedAt();
-        if (referencePoint == null
-                || LocalDateTime.now()
-                        .isAfter(referencePoint.plus(Duration.ofDays(refillWindowDays)))) {
-            throw new IllegalStateException(
-                    "Refill window expired (orders are eligible within "
-                            + refillWindowDays
-                            + " days of completion)");
+        // 4) Optional refill window from completion. window-days <= 0 means UNLIMITED — lifetime
+        //    refill, our policy, so the check is skipped entirely. When a positive window is
+        //    configured we measure from updatedAt as a proxy for "completed at" (Order has no
+        //    dedicated completion timestamp; updatedAt was bumped on the COMPLETED/PARTIAL
+        //    transition).
+        if (refillWindowDays > 0) {
+            LocalDateTime referencePoint =
+                    order.getUpdatedAt() != null ? order.getUpdatedAt() : order.getCreatedAt();
+            if (referencePoint == null
+                    || LocalDateTime.now()
+                            .isAfter(referencePoint.plus(Duration.ofDays(refillWindowDays)))) {
+                throw new IllegalStateException(
+                        "Refill window expired (orders are eligible within "
+                                + refillWindowDays
+                                + " days of completion)");
+            }
         }
 
         // 5) Service must be drop-checkable (single action). Reject combos at submit time so the

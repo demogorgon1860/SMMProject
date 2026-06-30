@@ -19,7 +19,7 @@ const FAQ: ReadonlyArray<{ q: string; a: string }> = [
   },
   {
     q: 'Why are my likes/followers dropping?',
-    a: 'Standard Instagram churn — the platform itself filters or unfollows over time. If you see a drop within 30 days of the order completing, request a free refill from the order detail page. An operator reviews the request and re-runs the order at the dropped quantity. We do not monitor every order automatically; the refill window starts when the order is marked completed.',
+    a: 'Standard Instagram churn — the platform itself filters or unfollows over time. If part of your order drops, submit it for a free refill from the order detail page or the Refill page — there is no time limit, refills are free for the lifetime of the order. The panel automatically checks how much actually dropped, and an operator approves a top-up for exactly that amount.',
   },
   {
     q: 'Can I cancel an order in progress?',

@@ -313,7 +313,7 @@ export function NewOrderPage() {
                 {[
                   ['Min', fmtInt(min)],
                   ['Max', fmtInt(max)],
-                  ['Refill', '30 days'],
+                  ['Refill', 'Lifetime'],
                 ].map(([k, v]) => (
                   <div key={k as string} className="rounded-md border border-border bg-bg-sunken p-3 text-center">
                     <div className="text-[10.5px] uppercase tracking-wider text-fg-subtle">{k}</div>

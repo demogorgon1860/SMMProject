@@ -19,7 +19,7 @@ export function RefundPage() {
         <li>Pending orders → full refund, automatic, instant</li>
         <li>Partial delivery → refund for the undelivered portion, automatic</li>
         <li>Delivery pause / circuit breaker → either resume or full refund based on admin decision (≤4h SLA)</li>
-        <li>Refill window: 30 days after completion, free</li>
+        <li>Refill: free for the lifetime of the order, no time limit</li>
       </ul>
       <p>All refunds go back to your SMMWorld wallet balance and can be used toward future orders.</p>
 
@@ -29,7 +29,7 @@ export function RefundPage() {
         <li>Order cancelled while pending</li>
         <li>Order ends as <code>partial</code> — undelivered portion refunded</li>
         <li>Order fails with zero delivery — full refund</li>
-        <li>Profile drop detected during refill window — replacement at no charge</li>
+        <li>Profile drop detected after delivery — replacement at no charge, any time</li>
       </ul>
 
       <h2 id="manual">Manual refunds</h2>
@@ -37,7 +37,6 @@ export function RefundPage() {
 
       <h2 id="noncovered">Not covered</h2>
       <ul>
-        <li>Drops detected outside the 30-day refill window</li>
         <li>Account changes after delivery (rebrand, post deleted, account banned)</li>
         <li>Targeting accounts that turn private after dispatch — partial delivery applies</li>
       </ul>

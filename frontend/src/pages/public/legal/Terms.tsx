@@ -42,7 +42,7 @@ export function TermsPage() {
 
       <h2 id="orders">Orders & delivery</h2>
       <p>Order processing begins automatically once payment is confirmed. Larger orders dripfeed based on the service profile. We do not warrant any specific start or completion time.</p>
-      <p>We do not guarantee Instagram won't change its policies or remove content. We do guarantee that we will replace dropped actions during the 30-day refill window.</p>
+      <p>We do not guarantee Instagram won't change its policies or remove content. We do guarantee that we will replace dropped actions, free of charge, for the lifetime of the order — there is no time limit on refills.</p>
 
       <h2 id="aup">Acceptable use</h2>
       <p>You may not use the service to:</p>

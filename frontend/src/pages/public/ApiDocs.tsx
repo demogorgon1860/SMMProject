@@ -178,7 +178,7 @@ export function ApiDocsPage() {
           </Sec>
 
           <Sec id="refill" title="POST refill" method="POST" path="/api/v2/refill">
-            <p>Manually request a refill on an under-delivered order. Free during the 30-day window.</p>
+            <p>Request a refill on an under-delivered or dropped order. Free for the lifetime of the order — the panel checks the drop automatically.</p>
             <CodeBlock>{`curl -X POST 'https://smmworld.vip/api/v2/refill?order=1029488' -H "X-API-Key: $KEY"`}</CodeBlock>
           </Sec>
 

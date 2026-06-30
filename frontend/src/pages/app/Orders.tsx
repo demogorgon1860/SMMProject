@@ -620,7 +620,7 @@ function OrderDetailDrawer({ order, onClose, onAfterAction }: DetailProps) {
       <Confirm
         open={confirm === 'refill'}
         title={`Submit order #${order.id} for refill?`}
-        body="We'll automatically check how much of this order dropped. If part of it fell off, a refill for exactly the dropped amount is queued for a quick operator approval. Refills are free during the 30-day window."
+        body="We'll automatically check how much of this order dropped. If part of it fell off, a refill for exactly the dropped amount is queued for a quick operator approval. Refills are always free — for the lifetime of the order."
         confirmText="Submit for refill"
         confirmVariant="primary"
         onConfirm={doRefill}

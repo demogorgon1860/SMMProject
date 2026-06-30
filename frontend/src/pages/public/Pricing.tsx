@@ -25,7 +25,7 @@ export function PricingPage() {
     {
       icon: 'refresh' as const,
       title: 'Refill is included',
-      body: 'Drop replacements during the 30-day refill window are free. Most panels charge separately. We don\'t.',
+      body: 'Drop replacements are free for the lifetime of the order — no time limit. Most panels charge separately, or cap it at 30 days. We don\'t.',
     },
   ];
   return (

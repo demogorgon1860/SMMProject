@@ -205,7 +205,7 @@ class RefillRequestServiceTest {
     }
 
     @Test
-    @DisplayName("createRequest: rejects orders past the refill window")
+    @DisplayName("createRequest: rejects orders past the refill window (when a window is set)")
     void createRequest_rejects_outside_window() {
         Order order = completedOrder(ORDER_ID, user);
         order.setUpdatedAt(LocalDateTime.now().minusDays(31));
@@ -214,6 +214,20 @@ class RefillRequestServiceTest {
         assertThatThrownBy(() -> service.createRequest(ORDER_ID, null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Refill window expired");
+    }
+
+    @Test
+    @DisplayName("createRequest: window-days = 0 → lifetime refill, even a very old order is accepted")
+    void createRequest_unlimited_window_accepts_old_order() {
+        ReflectionTestUtils.setField(service, "refillWindowDays", 0); // unlimited
+        Order order = completedOrder(ORDER_ID, user);
+        order.setUpdatedAt(LocalDateTime.now().minusDays(400)); // long past any 30-day window
+        order.setCreatedAt(LocalDateTime.now().minusDays(420));
+        stubEligibleOrder(order);
+
+        RefillRequestResponse resp = service.createRequest(ORDER_ID, null);
+
+        assertThat(resp.getStatus()).isEqualTo("CHECKING");
     }
 
     @Test

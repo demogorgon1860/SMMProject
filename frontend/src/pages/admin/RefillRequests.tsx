@@ -200,7 +200,7 @@ function RefillRequestsInner({ embedded }: { embedded: boolean }) {
               }
               subtitle={
                 tab === 'PENDING'
-                  ? 'When a customer requests a refill, it lands here for review.'
+                  ? "When a customer's order drops, the panel detects it automatically and queues the dropped amount here for your approval."
                   : undefined
               }
             />

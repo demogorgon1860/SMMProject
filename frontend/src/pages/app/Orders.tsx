@@ -30,7 +30,7 @@ import { cn, fmtDate, fmtDateTime, fmtInt, fmtMoney } from '../../lib/utils';
 interface RefillRequest {
   id: number;
   orderId: number;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: 'CHECKING' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'NO_DROP' | 'FAILED';
   rejectionReason?: string;
   refillOrderId?: number;
   decidedAt?: string;
@@ -122,10 +122,10 @@ export function OrdersPage() {
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <Input
             icon="search"
-            placeholder="Search id / link / service"
+            placeholder="Search id(s) / link — e.g. 29931, 29932"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            containerClassName="min-w-[240px]"
+            containerClassName="min-w-[260px]"
           />
           <Link to="/new-order">
             <Button variant="primary" size="md" icon="plus">
@@ -347,11 +347,16 @@ function OrderDetailDrawer({ order, onClose, onAfterAction }: DetailProps) {
   const normalizedStatus = (order.status ?? '').toUpperCase().replace(/\s+/g, '_');
   const cancelable = ['PENDING', 'IN_PROGRESS', 'PROCESSING', 'ACTIVE'].includes(normalizedStatus);
   const refillable = ['COMPLETED', 'PARTIAL'].includes(normalizedStatus);
+  const refillChecking = refillReq?.status === 'CHECKING';
   const refillPending = refillReq?.status === 'PENDING';
   const refillApproved = refillReq?.status === 'APPROVED';
   const refillRejected = refillReq?.status === 'REJECTED';
-  // Approved is terminal; pending blocks new request. Rejected is allowed to retry.
-  const canRequestRefill = refillable && !refillPending && !refillApproved && !refillReqLoading;
+  const refillNoDrop = refillReq?.status === 'NO_DROP';
+  const refillFailed = refillReq?.status === 'FAILED';
+  // Approved is terminal; an in-flight request (CHECKING/PENDING) blocks a new one. Rejected /
+  // no-drop / failed are all "done, nothing in flight" → the customer may submit again.
+  const refillInFlight = refillChecking || refillPending;
+  const canRequestRefill = refillable && !refillInFlight && !refillApproved && !refillReqLoading;
 
   const doCancel = async () => {
     setBusy(true);
@@ -374,9 +379,9 @@ function OrderDetailDrawer({ order, onClose, onAfterAction }: DetailProps) {
     try {
       const created: RefillRequest = await orderAPI.requestRefill(order.id);
       setRefillReq(created);
-      // Don't promise notifications — we don't send any. Status updates on next refresh
-      // of the orders list / drawer.
-      toast('Refill request submitted — check back shortly for the decision.', 'success');
+      // The panel now checks the drop automatically; status updates on the next drawer open
+      // or from the Refill page.
+      toast("Submitted — we're checking this order's drop now.", 'success');
       setConfirm(null);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string }; status?: number } };
@@ -427,28 +432,34 @@ function OrderDetailDrawer({ order, onClose, onAfterAction }: DetailProps) {
         <>
           {refillable && (
             <Button
-              variant={refillPending ? 'ghost' : 'secondary'}
+              variant={refillInFlight ? 'ghost' : 'secondary'}
               size="sm"
-              icon={refillPending ? 'info' : refillApproved ? 'check' : 'refresh'}
+              icon={refillChecking ? 'refresh' : refillPending ? 'info' : refillApproved ? 'check' : 'refresh'}
               onClick={() => setConfirm('refill')}
               disabled={!canRequestRefill}
               title={
-                refillPending
-                  ? 'Refill request pending admin review'
-                  : refillApproved
-                    ? 'Refill already approved'
-                    : refillRejected
-                      ? 'Previous request rejected — submit again'
-                      : 'Request a refill'
+                refillChecking
+                  ? "We're checking this order's drop"
+                  : refillPending
+                    ? 'Awaiting operator approval'
+                    : refillApproved
+                      ? 'Refill already approved'
+                      : refillRejected
+                        ? 'Previous request rejected — submit again'
+                        : refillNoDrop
+                          ? 'No drop was detected last time — you can submit again'
+                          : 'Submit for an automatic refill check'
               }
             >
-              {refillPending
-                ? 'Refill pending'
-                : refillApproved
-                  ? 'Refill approved'
-                  : refillRejected
-                    ? 'Request again'
-                    : 'Request refill'}
+              {refillChecking
+                ? 'Checking drop…'
+                : refillPending
+                  ? 'Awaiting approval'
+                  : refillApproved
+                    ? 'Refill approved'
+                    : refillRejected || refillFailed || refillNoDrop
+                      ? 'Submit again'
+                      : 'Request refill'}
             </Button>
           )}
           {cancelable && (
@@ -464,21 +475,38 @@ function OrderDetailDrawer({ order, onClose, onAfterAction }: DetailProps) {
         <div
           className={cn(
             'flex items-start gap-3 border-b border-border px-6 py-3 text-[12.5px]',
-            refillPending && 'bg-info-soft text-info',
+            refillChecking && 'bg-info-soft text-info',
+            refillPending && 'bg-warn-soft text-warn',
             refillApproved && 'bg-success-soft text-success',
-            refillRejected && 'bg-warn-soft text-warn',
+            (refillRejected || refillFailed) && 'bg-danger-soft text-danger',
+            refillNoDrop && 'bg-bg-sunken text-fg-muted',
           )}
         >
           <Icon
-            name={refillPending ? 'info' : refillApproved ? 'check' : 'warning'}
+            name={
+              refillChecking
+                ? 'refresh'
+                : refillApproved
+                  ? 'check'
+                  : refillPending || refillNoDrop
+                    ? 'info'
+                    : 'warning'
+            }
             size={14}
             className="mt-[1px] flex-none"
           />
           <div className="min-w-0 flex-1">
+            {refillChecking && (
+              <span>
+                <strong>Checking the drop.</strong> We're measuring how much of this order fell
+                off — if anything dropped, a refill for that amount is queued for approval
+                automatically.
+              </span>
+            )}
             {refillPending && (
               <span>
-                <strong>Refill request pending review.</strong> An operator will approve or
-                reject it. Refresh this page to see the decision.
+                <strong>Drop detected — awaiting approval.</strong> An operator will approve the
+                refill shortly. Refresh to see the decision.
               </span>
             )}
             {refillApproved && (
@@ -492,11 +520,24 @@ function OrderDetailDrawer({ order, onClose, onAfterAction }: DetailProps) {
                 . Drop counts are tracked automatically.
               </span>
             )}
+            {refillNoDrop && (
+              <span>
+                <strong>No drop detected.</strong> This order is still fully delivered — nothing to
+                refill. You can submit again later if that changes.
+              </span>
+            )}
             {refillRejected && (
               <span>
                 <strong>Previous refill request rejected.</strong>
                 {refillReq.rejectionReason ? ` Reason: ${refillReq.rejectionReason}` : ''} You
                 can submit a new request.
+              </span>
+            )}
+            {refillFailed && (
+              <span>
+                <strong>Couldn't verify the drop.</strong>
+                {refillReq.rejectionReason ? ` ${refillReq.rejectionReason}` : ''} Please submit
+                again.
               </span>
             )}
           </div>
@@ -578,9 +619,9 @@ function OrderDetailDrawer({ order, onClose, onAfterAction }: DetailProps) {
       />
       <Confirm
         open={confirm === 'refill'}
-        title={`Request refill on #${order.id}?`}
-        body="An operator will review your request and approve or reject it within the day. Refills are free during the 30-day window."
-        confirmText="Submit request"
+        title={`Submit order #${order.id} for refill?`}
+        body="We'll automatically check how much of this order dropped. If part of it fell off, a refill for exactly the dropped amount is queued for a quick operator approval. Refills are free during the 30-day window."
+        confirmText="Submit for refill"
         confirmVariant="primary"
         onConfirm={doRefill}
         onClose={() => setConfirm(null)}

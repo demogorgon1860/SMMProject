@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      Automatic refill checking. A refill request is now born CHECKING: the panel
+      runs the bot drop-check out-of-band (RefillRequestAutoScheduler) and finalizes
+      the request to PENDING (drop > 0, lands in the admin queue with the real dropped
+      amount), NO_DROP (zero drop), or FAILED (check couldn't complete). The admin only
+      approves the dropped amount — no manual checking.
+
+      Two DDL changes:
+        1) check_attempts counter — bounds the auto-check retry budget per request.
+        2) The "one active request per order" guard must now cover BOTH in-flight states
+           (CHECKING and PENDING), not just PENDING — otherwise two CHECKING requests could
+           race onto the same order before either reaches PENDING. We drop the old
+           PENDING-only partial unique index and replace it with one over the active set.
+    -->
+    <changeSet id="v2026.06-refill-auto-check-attempts" author="dev">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <not><columnExists tableName="refill_requests" columnName="check_attempts"/></not>
+        </preConditions>
+        <addColumn tableName="refill_requests">
+            <column name="check_attempts" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <rollback>
+            <dropColumn tableName="refill_requests" columnName="check_attempts"/>
+        </rollback>
+    </changeSet>
+
+    <!--
+      Replace the PENDING-only unique index with one over the ACTIVE set (CHECKING|PENDING).
+      Raw SQL because the partial WHERE clause isn't expressible via <createIndex>. Every
+      statement is independently idempotent (DROP/CREATE ... IF [NOT] EXISTS) and there is NO
+      precondition on purpose: gating the whole changeSet on the new index's absence would skip
+      the DROP of the old index on a DB where an operator pre-applied the new index by hand,
+      leaving a stale PENDING-only unique constraint behind. With IF EXISTS / IF NOT EXISTS the
+      DROP always runs and the CREATEs are no-ops when already present.
+    -->
+    <changeSet id="v2026.06-refill-auto-check-active-index" author="dev">
+        <sql>DROP INDEX IF EXISTS idx_rr_one_pending_per_order;</sql>
+        <sql>
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_rr_one_active_per_order
+                ON refill_requests(order_id)
+                WHERE status IN ('CHECKING', 'PENDING');
+        </sql>
+        <!-- Scheduler scan: only the (few) in-flight CHECKING requests. -->
+        <sql>
+            CREATE INDEX IF NOT EXISTS idx_rr_checking
+                ON refill_requests(created_at)
+                WHERE status = 'CHECKING';
+        </sql>
+        <rollback>
+            <sql>DROP INDEX IF EXISTS idx_rr_one_active_per_order;</sql>
+            <sql>DROP INDEX IF EXISTS idx_rr_checking;</sql>
+            <sql>
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_rr_one_pending_per_order
+                    ON refill_requests(order_id)
+                    WHERE status = 'PENDING';
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

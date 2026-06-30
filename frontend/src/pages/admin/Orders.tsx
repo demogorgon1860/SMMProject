@@ -217,7 +217,7 @@ export function AdminOrdersPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Input
               icon="search"
-              placeholder="Search id / service / user id"
+              placeholder="Search id(s) / username — e.g. 29931, 29932"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               containerClassName="min-w-[260px] flex-1"

@@ -13,6 +13,19 @@ import org.hibernate.annotations.CreationTimestamp;
  * <p>This entity captures only the <em>request</em> state machine; the resulting refill order +
  * tracking record live in {@link OrderRefill}, with FK back here via {@link #refillId} / {@link
  * #refillOrderId} for audit traceability.
+ *
+ * <p><b>Auto-check flow (current):</b> a request is born {@link Status#CHECKING} — the panel runs
+ * the bot drop-check out-of-band ({@code RefillRequestAutoScheduler}) and finalizes it:
+ *
+ * <ul>
+ *   <li>drop &gt; 0 → {@link Status#PENDING} (lands in the admin queue, carrying the real dropped
+ *       amount; approval re-delivers exactly that).
+ *   <li>drop == 0 → {@link Status#NO_DROP} (auto-closed, nothing to refill).
+ *   <li>check couldn't complete after the retry budget → {@link Status#FAILED} (user may resubmit).
+ * </ul>
+ *
+ * The admin only ever acts on {@link Status#PENDING}: {@link Status#APPROVED} / {@link
+ * Status#REJECTED}.
  */
 @Entity
 @Table(
@@ -29,9 +42,16 @@ import org.hibernate.annotations.CreationTimestamp;
 public class RefillRequest {
 
     public enum Status {
+        /** System is running the automatic drop-check; not yet visible to the admin. */
+        CHECKING,
+        /** Drop confirmed (&gt; 0) — awaiting admin approval, sized to the dropped amount. */
         PENDING,
         APPROVED,
-        REJECTED
+        REJECTED,
+        /** Auto-check finished with zero drop — nothing to refill (terminal, auto-closed). */
+        NO_DROP,
+        /** Auto-check could not complete after the retry budget (terminal; user may resubmit). */
+        FAILED
     }
 
     @Id
@@ -93,11 +113,25 @@ public class RefillRequest {
     @Column(name = "bot_early_stopped")
     private Boolean botEarlyStopped;
 
+    /**
+     * The drop-check this request is currently bound to. While {@link Status#CHECKING} this points
+     * at the in-flight ({@code RUNNING}) check; once finalized it points at the {@code DONE} check
+     * whose snapshot was copied onto the request.
+     */
     @Column(name = "bot_check_id")
     private Long botCheckId;
 
     @Column(name = "bot_checked_at")
     private LocalDateTime botCheckedAt;
+
+    /**
+     * How many times the auto-scheduler has kicked off a bot drop-check for this request. Bounds the
+     * retry budget so a permanently-unreachable check eventually transitions to {@link
+     * Status#FAILED} instead of looping forever.
+     */
+    @Column(name = "check_attempts", nullable = false)
+    @Builder.Default
+    private Integer checkAttempts = 0;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

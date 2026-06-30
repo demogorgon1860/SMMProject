@@ -115,25 +115,56 @@ export interface RefillCheck {
   checkedAt?: string;
 }
 
+// Lifecycle of an automatic refill request:
+//   CHECKING  → system is running the bot drop-check
+//   PENDING   → drop confirmed (> 0); awaiting admin approval (sized to the dropped amount)
+//   APPROVED  → admin approved; refill order created
+//   REJECTED  → admin rejected (carries a reason)
+//   NO_DROP   → auto-check found nothing dropped (terminal, auto-closed)
+//   FAILED    → auto-check couldn't complete (terminal; user may resubmit)
+export type RefillRequestStatus =
+  | 'CHECKING'
+  | 'PENDING'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'NO_DROP'
+  | 'FAILED';
+
 export interface RefillRequest {
   id: number;
   orderId: number;
   userId?: number;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: RefillRequestStatus;
   userNote?: string;
   rejectionReason?: string;
   adminId?: number;
   decidedAt?: string;
   refillOrderId?: number;
   createdAt: string;
-  // Bot drop-check snapshot bound at request time (null when requested without a check).
+  // Bot drop-check snapshot (populated once the auto-check finishes).
   refillNeeded?: number;
   dropped?: number;
   dropRate?: number | string;
   currentCount?: number;
   checkedAt?: string;
+  earlyStopped?: boolean;
   /** Admin warning: the backing drop-check was stale at read time. */
   staleCheck?: boolean;
+}
+
+/** Per-order outcome of a batch refill submit (POST /v1/refill/requests). */
+export interface RefillBatchItem {
+  orderId: number;
+  accepted: boolean;
+  status?: RefillRequestStatus;
+  requestId?: number;
+  message?: string;
+}
+
+export interface RefillBatchResponse {
+  results: RefillBatchItem[];
+  accepted: number;
+  rejected: number;
 }
 
 // ----- Services -----------------------------------------------------

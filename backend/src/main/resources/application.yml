@@ -716,6 +716,17 @@ app:
       lost-threshold-minutes: ${REFILL_CHECK_LOST_THRESHOLD_MINUTES:4}
       # Overall ceiling: a check still not done past this is FAILED (bot session TTL ~25 min).
       max-age-minutes: ${REFILL_CHECK_MAX_AGE_MINUTES:30}
+    # Automatic refill checking (RefillRequestAutoScheduler) — the customer just submits order
+    # numbers; the panel drop-checks each and promotes it to PENDING (drop>0) / NO_DROP / FAILED.
+    auto:
+      # How often the scheduler advances in-flight CHECKING requests.
+      poll-interval-ms: ${REFILL_AUTO_POLL_INTERVAL_MS:12000}
+      # Max NEW bot checks kicked off per tick — throttles the load a big paste-list puts on the bot.
+      max-starts-per-tick: ${REFILL_AUTO_MAX_STARTS_PER_TICK:5}
+      # Max bot checks started for one request before giving up (FAILED).
+      max-check-attempts: ${REFILL_AUTO_MAX_CHECK_ATTEMPTS:3}
+      # Overall ceiling: a request still CHECKING past this is FAILED (bot likely unreachable).
+      max-age-minutes: ${REFILL_AUTO_MAX_AGE_MINUTES:45}
 
   # ===============================
   # WELCOME CREDIT

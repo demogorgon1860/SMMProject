@@ -9,6 +9,7 @@ import com.smmpanel.service.core.AuditService;
 import com.smmpanel.service.notification.DailyProfitService;
 import com.smmpanel.service.notification.TelegramNotificationService;
 import com.smmpanel.service.order.state.OrderStateManager;
+import com.smmpanel.util.OrderSearchUtil;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -287,20 +288,32 @@ public class AdminService {
             toDateTime = LocalDate.parse(dateTo).atTime(23, 59, 59);
         }
 
-        // Resolve search parameters
+        // Multi-id paste ("29931, 29932, …") — exact id-set lookup. Respects the date range and the
+        // refill bucket, but ignores the status chip / url / username filters: the operator asked
+        // for these specific orders, so we return them regardless of the coarse filters. Handled up
+        // front because a numeric `search` is unambiguous (an id list, never a username/link).
+        List<Long> searchIds = OrderSearchUtil.parseOrderIds(search);
+        if (!searchIds.isEmpty()) {
+            Page<Order> idPage =
+                    refillOnly
+                            ? orderRepository.adminSearchRefillOnlyByIdIn(
+                                    fromDateTime, toDateTime, searchIds, pageable)
+                            : orderRepository.adminSearchByIdIn(
+                                    fromDateTime, toDateTime, searchIds, pageable);
+            return buildOrdersResponse(idPage);
+        }
+
+        // Resolve the (single) search heuristic for the non-id path. `search` is non-numeric here
+        // (numeric input was handled by the id-set branch above), so it's a link or a username.
         Long searchId = null;
         String searchUsername = null;
         String searchLink = null;
         if (search != null && !search.isEmpty()) {
             String term = search.trim().toLowerCase();
-            try {
-                searchId = Long.parseLong(term);
-            } catch (NumberFormatException ignored) {
-                if (term.contains("/") || term.contains("instagram")) {
-                    searchLink = "%" + term + "%";
-                } else {
-                    searchUsername = "%" + term + "%";
-                }
+            if (term.contains("/") || term.contains("instagram")) {
+                searchLink = "%" + term + "%";
+            } else {
+                searchUsername = "%" + term + "%";
             }
         }
         // Explicit URL search beats the heuristic. Common case: admin pastes "/p/ABC123" —
@@ -323,17 +336,7 @@ public class AdminService {
                             searchUsername,
                             searchLink,
                             pageable);
-            List<AdminOrderDto> refillDtos =
-                    refillPage.getContent().stream()
-                            .map(this::mapToAdminOrderDto)
-                            .collect(Collectors.toList());
-            Map<String, Object> refillResponse = new HashMap<>();
-            refillResponse.put("orders", refillDtos);
-            refillResponse.put("totalPages", refillPage.getTotalPages());
-            refillResponse.put("totalElements", refillPage.getTotalElements());
-            refillResponse.put("currentPage", refillPage.getNumber());
-            refillResponse.put("pageSize", refillPage.getSize());
-            return refillResponse;
+            return buildOrdersResponse(refillPage);
         }
 
         // Filter coalescing: PROCESSING is hidden from the UI and rendered as IN_PROGRESS,
@@ -352,6 +355,12 @@ public class AdminService {
                         searchLink,
                         pageable);
 
+        return buildOrdersResponse(orders);
+    }
+
+    /** Map an order page to the {orders, totalPages, totalElements, currentPage, pageSize} envelope
+     * the admin Orders table expects. */
+    private Map<String, Object> buildOrdersResponse(Page<Order> orders) {
         List<AdminOrderDto> orderDtos =
                 orders.getContent().stream()
                         .map(this::mapToAdminOrderDto)
@@ -363,7 +372,6 @@ public class AdminService {
         response.put("totalElements", orders.getTotalElements());
         response.put("currentPage", orders.getNumber());
         response.put("pageSize", orders.getSize());
-
         return response;
     }
 

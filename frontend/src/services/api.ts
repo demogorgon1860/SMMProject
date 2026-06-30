@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios';
+import type { RefillBatchResponse } from '../types';
 
 // =====================================================================
 // SMMWorld API client.
@@ -144,8 +145,9 @@ export const orderAPI = {
 
   cancel: (id: number) => api.post(`/v1/orders/${id}/cancel`).then((r) => r.data),
 
-  // Refill is a *request* — admin must approve before the actual refill order is created.
-  // Returns RefillRequestResponse: { id, orderId, status: 'PENDING' | 'APPROVED' | 'REJECTED', ... }
+  // Submit one order for an automatic refill. The panel drop-checks it and (if anything dropped)
+  // queues it for admin approval, sized to the dropped amount. Returns RefillRequestResponse with
+  // status 'CHECKING' (or the existing in-flight request, idempotently).
   requestRefill: (id: number, note?: string) =>
     api.post(`/v1/orders/${id}/refill`, note ? { note } : {}).then((r) => r.data),
 
@@ -162,21 +164,21 @@ export const orderAPI = {
 };
 
 // =====================================================================
-// Refill drop-check (user-facing) — the Refill page.
+// Refill (user-facing) — the Refill page.
 //
-// Flow: POST /check kicks off the bot's live drop scan and returns immediately
-// with status=RUNNING; poll GET /check every few seconds until DONE/FAILED, then
-// (if canRefill) submit the actual refill request via orderAPI.requestRefill —
-// which now binds the checked drop amount so admin approval re-delivers only the
-// drop, not the whole order. History comes from profileAPI.myRefillRequests().
+// Fully automatic: the customer pastes one or more order numbers and submits.
+// The panel auto-runs the bot drop-check on each order out-of-band and promotes
+// it to PENDING (drop > 0, awaiting admin approval, sized to the dropped amount),
+// NO_DROP (nothing dropped), or FAILED (couldn't verify). No manual "check drop"
+// step. History + live status come from profileAPI.myRefillRequests().
 // =====================================================================
 export const refillAPI = {
-  // Returns RefillCheckResponse { status: 'RUNNING' | 'DONE' | 'FAILED', dropRate,
-  // refillNeeded, canRefill, earlyStopped, ... }. 409 on combo / ineligible / rate-limited.
-  checkDrop: (orderId: number) => api.post(`/v1/refill/check/${orderId}`).then((r) => r.data),
-
-  // Latest check for an order (404 if none yet). Poll while status === 'RUNNING'.
-  getCheck: (orderId: number) => api.get(`/v1/refill/check/${orderId}`).then((r) => r.data),
+  // Batch submit — returns a per-order outcome { results: [{ orderId, accepted, status, ... }] }.
+  // Always 200; one ineligible order never fails the rest of the batch.
+  submitBatch: (orderIds: number[], note?: string): Promise<RefillBatchResponse> =>
+    api
+      .post('/v1/refill/requests', { orderIds, ...(note ? { note } : {}) })
+      .then((r) => r.data),
 };
 
 // =====================================================================
@@ -640,22 +642,6 @@ export const adminAPI = {
     api.post(`/v2/admin/refill-requests/${id}/approve`).then((r) => r.data),
   refillRequestsReject: (id: number | string, reason: string) =>
     api.post(`/v2/admin/refill-requests/${id}/reject`, { reason }).then((r) => r.data),
-
-  // Admin drop-check tool — check ANY order by id (admin Refill page).
-  refillCheckStart: (orderId: number) =>
-    api.post(`/v2/admin/refill-checks/${orderId}`).then((r) => r.data),
-  refillCheckGet: (orderId: number) =>
-    api.get(`/v2/admin/refill-checks/${orderId}`).then((r) => r.data),
-  // Direct admin refill. With `quantity` → re-deliver exactly that (the checked drop);
-  // without → legacy whole-order/remainder override.
-  refillOrderDirect: (orderId: number, quantity?: number) =>
-    api
-      .post(
-        `/v2/admin/orders/${orderId}/refill`,
-        null,
-        quantity != null ? { params: { quantity } } : undefined,
-      )
-      .then((r) => r.data),
 };
 
 export default api;

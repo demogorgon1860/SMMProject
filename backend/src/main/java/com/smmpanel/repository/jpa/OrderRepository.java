@@ -641,26 +641,35 @@ public interface OrderRepository
 
     // ==================== SEARCH QUERIES (partition-safe JPQL) ====================
 
-    // --- User search by ID ---
+    // --- User search by ID(s) ---
+    /**
+     * Multi-id search for the user-facing Orders search box ("29931, 29932, …"). Explicit ids
+     * intentionally ignore the status tab — the customer asked for these specific orders, so we
+     * return them whatever their state. {@code ids} is always non-empty (the caller falls back to
+     * link search otherwise), so the {@code IN} clause is never given a null/empty collection.
+     */
     @Query(
             value =
                     "SELECT o FROM Order o JOIN FETCH o.user u JOIN FETCH o.service s "
-                            + "WHERE o.user = :user AND o.id = :orderId",
-            countQuery = "SELECT COUNT(o) FROM Order o WHERE o.user = :user AND o.id = :orderId")
-    Page<Order> searchByUserAndId(
-            @Param("user") User user, @Param("orderId") Long orderId, Pageable pageable);
+                            + "WHERE o.user = :user AND o.id IN :ids",
+            countQuery =
+                    "SELECT COUNT(o) FROM Order o WHERE o.user = :user AND o.id IN :ids")
+    Page<Order> searchByUserAndIdIn(
+            @Param("user") User user,
+            @Param("ids") java.util.Collection<Long> ids,
+            Pageable pageable);
 
+    /** Multi-id search pinned to the user's refill bucket (the /orders "Refill" tab). */
     @Query(
             value =
                     "SELECT o FROM Order o JOIN FETCH o.user u JOIN FETCH o.service s "
-                            + "WHERE o.user = :user AND o.id = :orderId AND o.status = :status",
+                            + "WHERE o.user = :user AND o.isRefill = true AND o.id IN :ids",
             countQuery =
                     "SELECT COUNT(o) FROM Order o "
-                            + "WHERE o.user = :user AND o.id = :orderId AND o.status = :status")
-    Page<Order> searchByUserAndIdAndStatus(
+                            + "WHERE o.user = :user AND o.isRefill = true AND o.id IN :ids")
+    Page<Order> searchUserAndIsRefillTrueIdIn(
             @Param("user") User user,
-            @Param("orderId") Long orderId,
-            @Param("status") OrderStatus status,
+            @Param("ids") java.util.Collection<Long> ids,
             Pageable pageable);
 
     // --- User search by link ---
@@ -746,6 +755,44 @@ public interface OrderRepository
             @Param("searchId") Long searchId,
             @Param("searchUsername") String searchUsername,
             @Param("searchLink") String searchLink,
+            Pageable pageable);
+
+    /**
+     * Admin multi-id search ("29931, 29932, …"). Explicit ids ignore the status chip (the operator
+     * asked for these orders specifically) but still respect the date range. {@code ids} is always
+     * non-empty (caller falls back to the heuristic search otherwise).
+     */
+    @Query(
+            value =
+                    "SELECT o FROM Order o JOIN FETCH o.user u JOIN FETCH o.service s "
+                            + "WHERE o.id IN :ids "
+                            + "AND (CAST(:fromDate AS string) IS NULL OR o.createdAt >= :fromDate) "
+                            + "AND (CAST(:toDate AS string) IS NULL OR o.createdAt <= :toDate)",
+            countQuery =
+                    "SELECT COUNT(o) FROM Order o WHERE o.id IN :ids "
+                            + "AND (CAST(:fromDate AS string) IS NULL OR o.createdAt >= :fromDate) "
+                            + "AND (CAST(:toDate AS string) IS NULL OR o.createdAt <= :toDate)")
+    Page<Order> adminSearchByIdIn(
+            @Param("fromDate") LocalDateTime fromDate,
+            @Param("toDate") LocalDateTime toDate,
+            @Param("ids") java.util.Collection<Long> ids,
+            Pageable pageable);
+
+    /** Admin multi-id search pinned to the refill bucket (the "Refill" chip). */
+    @Query(
+            value =
+                    "SELECT o FROM Order o JOIN FETCH o.user u JOIN FETCH o.service s "
+                            + "WHERE o.isRefill = true AND o.id IN :ids "
+                            + "AND (CAST(:fromDate AS string) IS NULL OR o.createdAt >= :fromDate) "
+                            + "AND (CAST(:toDate AS string) IS NULL OR o.createdAt <= :toDate)",
+            countQuery =
+                    "SELECT COUNT(o) FROM Order o WHERE o.isRefill = true AND o.id IN :ids "
+                            + "AND (CAST(:fromDate AS string) IS NULL OR o.createdAt >= :fromDate) "
+                            + "AND (CAST(:toDate AS string) IS NULL OR o.createdAt <= :toDate)")
+    Page<Order> adminSearchRefillOnlyByIdIn(
+            @Param("fromDate") LocalDateTime fromDate,
+            @Param("toDate") LocalDateTime toDate,
+            @Param("ids") java.util.Collection<Long> ids,
             Pageable pageable);
 
     // ==================== REFILL OPERATIONS ====================

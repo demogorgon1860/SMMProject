@@ -821,4 +821,7 @@
     <!-- Refill requests: bot-checked drop snapshot for admin review + drop-based approval -->
     <include file="db/changelog/changes/v2026.06-refill-requests-add-drop-snapshot.xml"/>
 
+    <!-- Automatic refill checking: check_attempts counter + active (CHECKING|PENDING) unique index -->
+    <include file="db/changelog/changes/v2026.06-refill-auto-check.xml"/>
+
 </databaseChangeLog>

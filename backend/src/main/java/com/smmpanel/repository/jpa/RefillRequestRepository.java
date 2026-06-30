@@ -21,8 +21,19 @@ public interface RefillRequestRepository extends JpaRepository<RefillRequest, Lo
      */
     Optional<RefillRequest> findFirstByOrderIdAndStatus(Long orderId, RefillRequest.Status status);
 
+    /**
+     * Newest still-active request on an order. "Active" = CHECKING or PENDING — the active-set
+     * partial unique index guarantees at most one such row, so this is the idempotency anchor for
+     * {@code createRequest} (a re-submit returns the in-flight request instead of duplicating it).
+     */
+    Optional<RefillRequest> findFirstByOrderIdAndStatusInOrderByCreatedAtDesc(
+            Long orderId, java.util.Collection<RefillRequest.Status> statuses);
+
     /** Has the order ever been approved-refilled through the request flow? */
     boolean existsByOrderIdAndStatus(Long orderId, RefillRequest.Status status);
+
+    /** In-flight auto-check requests for the scheduler to advance (start check / finalize). */
+    List<RefillRequest> findByStatusOrderByCreatedAtAsc(RefillRequest.Status status);
 
     /** User's own request history (newest first). */
     List<RefillRequest> findByUserIdOrderByCreatedAtDesc(Long userId);

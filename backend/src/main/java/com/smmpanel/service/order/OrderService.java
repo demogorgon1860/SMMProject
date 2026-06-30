@@ -23,6 +23,7 @@ import com.smmpanel.service.notification.TelegramNotificationService;
 import com.smmpanel.service.order.state.OrderStateManager;
 import com.smmpanel.service.settings.AppSettingsService;
 import com.smmpanel.service.validation.OrderValidationService;
+import com.smmpanel.util.OrderSearchUtil;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
@@ -1509,18 +1510,19 @@ public class OrderService {
         // instead of the "No orders match" empty state. Parses the search term the same way
         // the regular branch below does (numeric → exact id, otherwise → link substring).
         if (refillOnly) {
-            Long refillSearchId = null;
-            String refillSearchLink = null;
-            if (search != null && !search.isEmpty()) {
-                String term = search.trim().toLowerCase();
-                try {
-                    refillSearchId = Long.parseLong(term);
-                } catch (NumberFormatException ignored) {
-                    refillSearchLink = "%" + term + "%";
-                }
+            // Multi-id paste ("29931, 29932, …") → exact id-set within the refill bucket.
+            List<Long> refillIds = OrderSearchUtil.parseOrderIds(search);
+            if (!refillIds.isEmpty()) {
+                return orderRepository
+                        .searchUserAndIsRefillTrueIdIn(user, refillIds, pageable)
+                        .map(this::mapToOrderResponse);
             }
+            String refillSearchLink =
+                    (search != null && !search.isEmpty())
+                            ? "%" + search.trim().toLowerCase() + "%"
+                            : null;
             return orderRepository
-                    .searchUserAndIsRefillTrue(user, refillSearchId, refillSearchLink, pageable)
+                    .searchUserAndIsRefillTrue(user, null, refillSearchLink, pageable)
                     .map(this::mapToOrderResponse);
         }
 
@@ -1553,27 +1555,23 @@ public class OrderService {
             return orders.map(this::mapToOrderResponse);
         }
 
-        // With search: use JPQL-based repository query (avoids Specification issues
-        // with partitioned tables)
-        String term = search.trim().toLowerCase();
-        try {
-            Long orderId = Long.parseLong(term);
-            // Search by exact order ID
-            Page<Order> orders =
-                    orderStatus != null
-                            ? orderRepository.searchByUserAndIdAndStatus(
-                                    user, orderId, orderStatus, pageable)
-                            : orderRepository.searchByUserAndId(user, orderId, pageable);
-            return orders.map(this::mapToOrderResponse);
-        } catch (NumberFormatException e) {
-            // Search by link
-            Page<Order> orders =
-                    orderStatus != null
-                            ? orderRepository.searchByUserAndLinkAndStatus(
-                                    user, "%" + term + "%", orderStatus, pageable)
-                            : orderRepository.searchByUserAndLink(user, "%" + term + "%", pageable);
-            return orders.map(this::mapToOrderResponse);
+        // With search. A numeric term (one id, or a comma/space list like "29931, 29932") is an
+        // exact id-set lookup — and intentionally ignores the status tab: the customer asked for
+        // those specific orders, so we return them regardless of which tab is active. A non-numeric
+        // term falls back to a link substring search (status filter still applies there).
+        List<Long> ids = OrderSearchUtil.parseOrderIds(search);
+        if (!ids.isEmpty()) {
+            return orderRepository
+                    .searchByUserAndIdIn(user, ids, pageable)
+                    .map(this::mapToOrderResponse);
         }
+        String term = search.trim().toLowerCase();
+        Page<Order> orders =
+                orderStatus != null
+                        ? orderRepository.searchByUserAndLinkAndStatus(
+                                user, "%" + term + "%", orderStatus, pageable)
+                        : orderRepository.searchByUserAndLink(user, "%" + term + "%", pageable);
+        return orders.map(this::mapToOrderResponse);
     }
 
     public com.smmpanel.dto.response.OrderStatistics getOrderStatistics(int days) {

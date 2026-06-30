@@ -130,6 +130,40 @@ public class RefillCheckService {
     // ---------------------------------------------------------------------
 
     private RefillCheckResponse startCheck(Order order, Long requesterUserId) {
+        return RefillCheckResponse.from(startCheckEntity(order, requesterUserId, true));
+    }
+
+    /**
+     * Auto-check entry point used by {@code RefillRequestAutoScheduler}. Same core as the
+     * interactive check but WITHOUT the per-user interactive rate-limit (the scheduler enforces its
+     * own per-tick throttle instead) and returns the persisted {@link RefillCheck} entity so the
+     * caller can bind its id to the originating refill request.
+     *
+     * <p>Deliberately NOT {@code @Transactional}: the bot {@code refillCheck} HTTP call inside
+     * {@link #startCheckEntity} can block for the bot's full timeout, and the scheduler calls this
+     * out of any transaction — wrapping it would pin a pooled DB connection across that network
+     * call (the anti-pattern the sibling {@code RefillCheckScheduler}/{@code applyPollResult} split
+     * avoids). The reuse-window read and the final {@code save} each run in their own
+     * repository-level transaction; nothing spans the bot call. The {@code order} is passed in
+     * already eager-fetched (user + service) by the scheduler, so no lazy access needs a session.
+     *
+     * <p>Throws {@link IllegalStateException} for <em>permanent</em> ineligibility (combo service,
+     * non-terminal status, refill-of-a-refill) so the scheduler can fail the request immediately,
+     * and {@link ApiException} for a <em>transient</em> bot failure so the scheduler can retry.
+     */
+    public RefillCheck startCheckForAuto(Order order, Long requesterUserId) {
+        return startCheckEntity(order, requesterUserId, false);
+    }
+
+    /** Latest check for an order by its own id — the scheduler reads the bound check's state. */
+    @Transactional(readOnly = true)
+    public Optional<RefillCheck> findCheckById(Long checkId) {
+        if (checkId == null) return Optional.empty();
+        return refillCheckRepository.findById(checkId);
+    }
+
+    private RefillCheck startCheckEntity(
+            Order order, Long requesterUserId, boolean enforceUserRateLimit) {
         if (Boolean.TRUE.equals(order.getIsRefill())) {
             throw new IllegalStateException("Cannot check a refill order — check the original.");
         }
@@ -158,16 +192,19 @@ public class RefillCheckService {
                 && running.get()
                         .getRequestedAt()
                         .isAfter(LocalDateTime.now().minusMinutes(reuseWindowMinutes))) {
-            return RefillCheckResponse.from(running.get());
+            return running.get();
         }
 
-        // Rate limit the expensive checker per requester.
-        long recent =
-                refillCheckRepository.countByUserIdAndRequestedAtAfter(
-                        requesterUserId, LocalDateTime.now().minusMinutes(userRateWindowMinutes));
-        if (recent >= userRateLimit) {
-            throw new IllegalStateException(
-                    "Too many checks in the last hour. Please try again later.");
+        // Rate limit the expensive checker per requester (interactive path only).
+        if (enforceUserRateLimit) {
+            long recent =
+                    refillCheckRepository.countByUserIdAndRequestedAtAfter(
+                            requesterUserId,
+                            LocalDateTime.now().minusMinutes(userRateWindowMinutes));
+            if (recent >= userRateLimit) {
+                throw new IllegalStateException(
+                        "Too many checks in the last hour. Please try again later.");
+            }
         }
 
         RefillCheckResult result = instagramBotClient.refillCheck(String.valueOf(order.getId()));
@@ -199,7 +236,7 @@ public class RefillCheckService {
                 result.getJobId(),
                 result.getInstanceUrl(),
                 type.getValue());
-        return RefillCheckResponse.from(check);
+        return check;
     }
 
     // ---------------------------------------------------------------------
@@ -320,6 +357,21 @@ public class RefillCheckService {
         c.setCheckedAt(now);
         refillCheckRepository.save(c);
         log.info("[REFILL-CHECK] order={} FAILED — {}", c.getOrderId(), message);
+    }
+
+    /**
+     * Assert the order's service is drop-checkable (a single action: like / follow / comment).
+     * Throws {@link IllegalStateException} with a customer-facing message otherwise — used by {@code
+     * RefillRequestService.createRequest} to reject combo services at submit time, so the user gets
+     * instant per-order feedback instead of discovering it later in their refill history.
+     */
+    public void assertSingleActionService(Order order) {
+        InstagramOrderType type = resolveType(order);
+        if (!isSingleAction(type)) {
+            throw new IllegalStateException(
+                    "Automatic refill is available only for single-action services (likes,"
+                            + " follows, or comments). Combo services are coming later.");
+        }
     }
 
     private InstagramOrderType resolveType(Order order) {

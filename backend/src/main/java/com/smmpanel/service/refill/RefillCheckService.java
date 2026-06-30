@@ -207,18 +207,27 @@ public class RefillCheckService {
             }
         }
 
-        RefillCheckResult result = instagramBotClient.refillCheck(String.valueOf(order.getId()));
+        // Measure the most recent delivery batch: once an order has been refilled, the next drop is
+        // checked against the LATEST settled refill, not the original — the original's already-
+        // dropped accounts were covered by that refill, so re-checking the original would
+        // double-count them. No refills yet → check the original itself.
+        Order target = resolveCheckTarget(order);
+
+        RefillCheckResult result = instagramBotClient.refillCheck(String.valueOf(target.getId()));
         if (!result.isAccepted()) {
             // Keep the technical reason in the logs only; show the customer a clean message.
             log.warn(
-                    "[REFILL-CHECK] order {} not accepted by checker: {}",
+                    "[REFILL-CHECK] order {} (target {}) not accepted by checker: {}",
                     order.getId(),
+                    target.getId(),
                     result.getError());
             throw new ApiException(
                     "Could not start the drop check. Please try again in a moment.",
                     HttpStatus.BAD_GATEWAY);
         }
 
+        // RefillCheck.orderId is the ORIGINAL (what the request is about); the bot job targets the
+        // latest delivery, and orderedCount tracks that batch's size (drop-rate is relative to it).
         RefillCheck check =
                 RefillCheck.builder()
                         .orderId(order.getId())
@@ -227,16 +236,31 @@ public class RefillCheckService {
                         .botInstanceUrl(result.getInstanceUrl())
                         .actionType(type.getValue())
                         .status(RefillCheck.Status.RUNNING)
-                        .orderedCount(order.getQuantity())
+                        .orderedCount(target.getQuantity())
                         .build();
         check = refillCheckRepository.save(check);
         log.info(
-                "[REFILL-CHECK] order={} job={} instance={} type={} → RUNNING",
+                "[REFILL-CHECK] order={} target={} job={} instance={} type={} → RUNNING",
                 order.getId(),
+                target.getId(),
                 result.getJobId(),
                 result.getInstanceUrl(),
                 type.getValue());
         return check;
+    }
+
+    /**
+     * The order whose delivered set the bot should measure: the latest <em>settled</em>
+     * (COMPLETED / PARTIAL) refill of {@code original} if one exists, otherwise {@code original}
+     * itself. This realizes the "check the last refill" rule — each refill tops up the previous
+     * delivery's drop, so the next check measures the most recent batch.
+     */
+    private Order resolveCheckTarget(Order original) {
+        return orderRepository
+                .findFirstByRefillParentIdAndStatusInOrderByIdDesc(
+                        original.getId(),
+                        List.of(OrderStatus.COMPLETED, OrderStatus.PARTIAL))
+                .orElse(original);
     }
 
     // ---------------------------------------------------------------------

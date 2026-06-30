@@ -703,6 +703,8 @@ app:
     # Days after order completion during which the user may request a free refill.
     # 0 (or negative) = UNLIMITED — lifetime refill, no time restriction (our policy).
     window-days: ${REFILL_WINDOW_DAYS:0}
+    # Max refills allowed per original order. 0 (or negative) = UNLIMITED (lifetime, repeat drops).
+    max-per-order: ${REFILL_MAX_PER_ORDER:0}
     # Live drop-check (bot /api/refill/check) — used by the Refill page.
     check:
       # Scheduler poll cadence for in-flight checks.

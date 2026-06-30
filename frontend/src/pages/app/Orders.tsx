@@ -346,17 +346,21 @@ function OrderDetailDrawer({ order, onClose, onAfterAction }: DetailProps) {
   // constants ("IN_PROGRESS") never matches and the action buttons stay hidden.
   const normalizedStatus = (order.status ?? '').toUpperCase().replace(/\s+/g, '_');
   const cancelable = ['PENDING', 'IN_PROGRESS', 'PROCESSING', 'ACTIVE'].includes(normalizedStatus);
-  const refillable = ['COMPLETED', 'PARTIAL'].includes(normalizedStatus);
+  // A refill order can't itself be refilled — you refill the original. Hide the control on
+  // refill orders so the customer never hits the server-side "this is a refill order" rejection.
+  const refillable = ['COMPLETED', 'PARTIAL'].includes(normalizedStatus) && !order.isRefill;
   const refillChecking = refillReq?.status === 'CHECKING';
   const refillPending = refillReq?.status === 'PENDING';
   const refillApproved = refillReq?.status === 'APPROVED';
   const refillRejected = refillReq?.status === 'REJECTED';
   const refillNoDrop = refillReq?.status === 'NO_DROP';
   const refillFailed = refillReq?.status === 'FAILED';
-  // Approved is terminal; an in-flight request (CHECKING/PENDING) blocks a new one. Rejected /
-  // no-drop / failed are all "done, nothing in flight" → the customer may submit again.
+  // Only an in-flight request (CHECKING/PENDING) blocks a new one. Everything terminal —
+  // approved / rejected / no-drop / failed — may be submitted again: refills are lifetime, so an
+  // order that dropped again after a previous refill must be re-checkable (the next check measures
+  // the latest refill batch).
   const refillInFlight = refillChecking || refillPending;
-  const canRequestRefill = refillable && !refillInFlight && !refillApproved && !refillReqLoading;
+  const canRequestRefill = refillable && !refillInFlight && !refillReqLoading;
 
   const doCancel = async () => {
     setBusy(true);
@@ -434,7 +438,7 @@ function OrderDetailDrawer({ order, onClose, onAfterAction }: DetailProps) {
             <Button
               variant={refillInFlight ? 'ghost' : 'secondary'}
               size="sm"
-              icon={refillChecking ? 'refresh' : refillPending ? 'info' : refillApproved ? 'check' : 'refresh'}
+              icon={refillChecking ? 'refresh' : refillPending ? 'info' : 'refresh'}
               onClick={() => setConfirm('refill')}
               disabled={!canRequestRefill}
               title={
@@ -443,7 +447,7 @@ function OrderDetailDrawer({ order, onClose, onAfterAction }: DetailProps) {
                   : refillPending
                     ? 'Awaiting operator approval'
                     : refillApproved
-                      ? 'Refill already approved'
+                      ? 'Refilled before — submit again if it dropped more'
                       : refillRejected
                         ? 'Previous request rejected — submit again'
                         : refillNoDrop
@@ -455,11 +459,9 @@ function OrderDetailDrawer({ order, onClose, onAfterAction }: DetailProps) {
                 ? 'Checking drop…'
                 : refillPending
                   ? 'Awaiting approval'
-                  : refillApproved
-                    ? 'Refill approved'
-                    : refillRejected || refillFailed || refillNoDrop
-                      ? 'Submit again'
-                      : 'Request refill'}
+                  : refillApproved || refillRejected || refillFailed || refillNoDrop
+                    ? 'Submit again'
+                    : 'Request refill'}
             </Button>
           )}
           {cancelable && (

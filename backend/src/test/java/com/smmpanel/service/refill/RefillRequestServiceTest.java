@@ -246,17 +246,34 @@ class RefillRequestServiceTest {
     }
 
     @Test
-    @DisplayName("createRequest: rejects when an APPROVED refill already exists for the order")
-    void createRequest_rejects_when_already_approved() {
+    @DisplayName("createRequest: blocked while a previous refill for the order is still in flight")
+    void createRequest_blocked_while_refill_in_flight() {
         Order order = completedOrder(ORDER_ID, user);
         when(orderRepository.findByIdWithAllDetails(ORDER_ID)).thenReturn(Optional.of(order));
-        when(refillRequestRepository.existsByOrderIdAndStatus(
-                        ORDER_ID, RefillRequest.Status.APPROVED))
+        when(orderRepository.existsByRefillParentIdAndStatusIn(eq(ORDER_ID), any()))
                 .thenReturn(true);
 
         assertThatThrownBy(() -> service.createRequest(ORDER_ID, null))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("already been approved");
+                .hasMessageContaining("still being delivered");
+        verify(refillRequestRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("createRequest: re-refill allowed — a prior APPROVED refill no longer blocks a new"
+            + " request (lifetime refills)")
+    void createRequest_allows_resubmit_after_approved() {
+        Order order = completedOrder(ORDER_ID, user);
+        stubEligibleOrder(order);
+        // Even with a prior approved refill, an order that dropped again must be re-checkable.
+        when(refillRequestRepository.existsByOrderIdAndStatus(
+                        ORDER_ID, RefillRequest.Status.APPROVED))
+                .thenReturn(true);
+
+        RefillRequestResponse resp = service.createRequest(ORDER_ID, null);
+
+        assertThat(resp.getStatus()).isEqualTo("CHECKING");
+        verify(refillRequestRepository, times(1)).save(any(RefillRequest.class));
     }
 
     @Test

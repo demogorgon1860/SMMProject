@@ -201,12 +201,18 @@ public class RefillRequestService {
         //    user gets instant feedback instead of a later FAILED in their history.
         refillCheckService.assertSingleActionService(order);
 
-        // 6) Already approved? No double-refill through this flow.
-        if (refillRequestRepository.existsByOrderIdAndStatus(
-                orderId, RefillRequest.Status.APPROVED)) {
+        // 6) Re-refill is allowed: a prior APPROVED refill no longer blocks a new request. When an
+        //    order keeps dropping over its lifetime the customer must be able to top it up again —
+        //    the drop-check is the real gate (no new drop → NO_DROP), and the next check measures
+        //    the latest refill batch, so re-submits don't double-count earlier refills.
+        //    BUT not while a previous refill is still being delivered: the drop can't be measured
+        //    mid-delivery, and approving another now would double-refill the same drop. Block until
+        //    the in-flight refill settles (then the next check measures it).
+        if (orderRepository.existsByRefillParentIdAndStatusIn(
+                orderId, OrderRefillService.IN_FLIGHT_REFILL_STATUSES)) {
             throw new IllegalStateException(
-                    "A refill has already been approved for this order. Open a support ticket if"
-                            + " more dropped.");
+                    "A refill for this order is still being delivered — please wait for it to"
+                            + " finish, then submit again.");
         }
 
         // 7) Existing in-flight (CHECKING or PENDING)? Idempotent — return it rather than 409.

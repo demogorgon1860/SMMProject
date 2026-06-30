@@ -815,6 +815,24 @@ public interface OrderRepository
     long countByRefillParentIdAndStatus(Long refillParentId, OrderStatus status);
 
     /**
+     * Latest <em>settled</em> refill order of a parent (highest id = most recent), restricted to the
+     * given statuses (COMPLETED / PARTIAL). Used by the drop-check to measure the most recent
+     * delivery batch: once an order has been refilled, the next drop is checked against the latest
+     * refill, not the original (the original's already-dropped accounts were covered by that
+     * refill). Returns empty when the order has no settled refill yet → caller checks the original.
+     */
+    Optional<Order> findFirstByRefillParentIdAndStatusInOrderByIdDesc(
+            Long refillParentId, java.util.Collection<OrderStatus> statuses);
+
+    /**
+     * True if the order has a refill still in flight (any of the given non-terminal statuses).
+     * Guards against starting a new refill cycle — or creating another refill — while a previous
+     * one is still being delivered, which would double-refill the same drop.
+     */
+    boolean existsByRefillParentIdAndStatusIn(
+            Long refillParentId, java.util.Collection<OrderStatus> statuses);
+
+    /**
      * Find all refill orders for a parent order regardless of status Used for checking refill
      * history and limits
      */

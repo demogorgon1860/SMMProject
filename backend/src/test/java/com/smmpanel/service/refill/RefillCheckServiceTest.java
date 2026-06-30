@@ -3,6 +3,7 @@ package com.smmpanel.service.refill;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -64,6 +65,9 @@ class RefillCheckServiceTest {
         ReflectionTestUtils.setField(service, "userRateWindowMinutes", 60);
         ReflectionTestUtils.setField(service, "lostThresholdMinutes", 4);
         ReflectionTestUtils.setField(service, "maxAgeMinutes", 30);
+        // Default: the order has no settled refill → the check targets the order itself.
+        when(orderRepository.findFirstByRefillParentIdAndStatusInOrderByIdDesc(anyLong(), any()))
+                .thenReturn(Optional.empty());
     }
 
     @AfterEach
@@ -306,6 +310,40 @@ class RefillCheckServiceTest {
         assertThat(resp.getStatus()).isEqualTo("RUNNING");
         verify(instagramBotClient).refillCheck("99");
         verify(refillCheckRepository).save(any(RefillCheck.class));
+    }
+
+    @Test
+    @DisplayName("startCheck: targets the LATEST settled refill (not the original) when one exists")
+    void startCheck_targets_latest_refill() {
+        User user = authAsUser();
+        Order original = order(99L, "INSTAGRAM_FOLLOWERS");
+        when(orderRepository.findByIdAndUser(99L, user)).thenReturn(Optional.of(original));
+        Order latestRefill = order(150L, "INSTAGRAM_FOLLOWERS");
+        latestRefill.setQuantity(215);
+        latestRefill.setIsRefill(true);
+        when(orderRepository.findFirstByRefillParentIdAndStatusInOrderByIdDesc(eq(99L), any()))
+                .thenReturn(Optional.of(latestRefill));
+        when(refillCheckRepository.findFirstByOrderIdAndStatusOrderByRequestedAtDesc(eq(99L), any()))
+                .thenReturn(Optional.empty());
+        when(instagramBotClient.refillCheck("150"))
+                .thenReturn(
+                        RefillCheckResult.builder()
+                                .accepted(true)
+                                .jobId("rf_9")
+                                .instanceUrl("http://bot")
+                                .build());
+        when(refillCheckRepository.save(any(RefillCheck.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        RefillCheckResponse resp = service.startCheckForUser(99L);
+
+        assertThat(resp.getStatus()).isEqualTo("RUNNING");
+        // The drop is measured against the latest refill (150), but the check is recorded under the
+        // ORIGINAL order (99) and sized to that batch's quantity.
+        assertThat(resp.getOrderId()).isEqualTo(99L);
+        assertThat(resp.getOrderedCount()).isEqualTo(215);
+        verify(instagramBotClient).refillCheck("150");
+        verify(instagramBotClient, org.mockito.Mockito.never()).refillCheck("99");
     }
 
     private User authAsUser() {

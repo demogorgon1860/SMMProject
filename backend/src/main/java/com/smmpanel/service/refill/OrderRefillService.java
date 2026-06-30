@@ -41,9 +41,10 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>{@code IN_PROGRESS} orders are not eligible — refilling while the bot is still running the
  * original would duplicate remaining work. Admin must wait for terminal status.
  *
- * <p>Guardrails: max 5 refills per order, max 1.5x of original quantity per refill, 60-second
- * idempotency window against double-click, pessimistic lock on the original order, separate
- * partial-unique index on the user-facing {@code RefillRequest} table.
+ * <p>Guardrails: refill count per order is configurable ({@code app.refill.max-per-order}, default
+ * 0 = unlimited / lifetime), max 1.5x of original quantity per refill, 60-second idempotency window
+ * against double-click, pessimistic lock on the original order, separate partial-unique index on
+ * the user-facing {@code RefillRequest} table.
  */
 @Slf4j
 @Service
@@ -54,7 +55,15 @@ public class OrderRefillService {
     private final OrderRefillRepository orderRefillRepository;
     private final OrderEventProducer orderEventProducer;
 
-    private static final int MAX_REFILLS_PER_ORDER = 5;
+    /**
+     * Max refills allowed per original order. {@code 0} (or negative) = UNLIMITED — our policy is
+     * lifetime refills with no count cap; an order that keeps dropping can be topped up
+     * indefinitely. The natural guards remain: a no-drop check resolves to NO_DROP (no refill), the
+     * 60s idempotency window blocks double-clicks, and the 1.5x quantity cap bounds each refill.
+     */
+    @org.springframework.beans.factory.annotation.Value("${app.refill.max-per-order:0}")
+    private int maxRefillsPerOrder;
+
     private static final int IDEMPOTENCY_WINDOW_SECONDS = 60;
     private static final double MAX_REFILL_QUANTITY_MULTIPLIER = 1.5;
 
@@ -206,13 +215,30 @@ public class OrderRefillService {
                         () -> new ResourceNotFoundException("Order not found with id: " + orderId));
     }
 
+    /**
+     * Statuses in which a refill order is still "in flight" (not yet a settled
+     * COMPLETED/PARTIAL/terminal result). A new refill must not be created while a previous one is
+     * in any of these — the drop can't be measured mid-delivery and a second refill would
+     * double-cover the same drop. Shared with {@code RefillRequestService.createOne}, which rejects
+     * a re-submit early for the same reason.
+     */
+    public static final java.util.List<OrderStatus> IN_FLIGHT_REFILL_STATUSES =
+            java.util.List.of(
+                    OrderStatus.PENDING,
+                    OrderStatus.IN_PROGRESS,
+                    OrderStatus.PROCESSING,
+                    OrderStatus.ACTIVE,
+                    OrderStatus.HOLDING,
+                    OrderStatus.PAUSED);
+
     private void validateNoPendingRefills(Long orderId) {
-        long pendingRefills =
-                orderRepository.countByRefillParentIdAndStatus(orderId, OrderStatus.PENDING);
-        if (pendingRefills > 0) {
+        // Any in-flight refill (not just PENDING) blocks a new one — once dispatched a refill moves
+        // to IN_PROGRESS/PROCESSING, and creating another then would double-refill the same drop.
+        if (orderRepository.existsByRefillParentIdAndStatusIn(orderId, IN_FLIGHT_REFILL_STATUSES)) {
             throw new ApiException(
                     String.format(
-                            "Order %d already has %d pending refill(s).", orderId, pendingRefills),
+                            "Order %d already has a refill in progress — wait for it to finish.",
+                            orderId),
                     HttpStatus.CONFLICT);
         }
     }
@@ -242,12 +268,15 @@ public class OrderRefillService {
     }
 
     private void validateRefillLimit(Long orderId) {
+        if (maxRefillsPerOrder <= 0) {
+            return; // unlimited (lifetime refills)
+        }
         long totalRefills = orderRefillRepository.countByOriginalOrderId(orderId);
-        if (totalRefills >= MAX_REFILLS_PER_ORDER) {
+        if (totalRefills >= maxRefillsPerOrder) {
             throw new ApiException(
                     String.format(
                             "Order %d has reached maximum refill limit (%d refills).",
-                            orderId, MAX_REFILLS_PER_ORDER),
+                            orderId, maxRefillsPerOrder),
                     HttpStatus.BAD_REQUEST);
         }
     }

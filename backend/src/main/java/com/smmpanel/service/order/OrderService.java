@@ -60,7 +60,6 @@ public class OrderService {
     private final UserRepository userRepository;
     private final ServiceRepository serviceRepository;
     private final BalanceService balanceService;
-    private final OrderStateManagementService orderStateManagementService;
     private final EventSourcingService eventSourcingService;
     private final CqrsReadModelService cqrsReadModelService;
     private final ApiKeyService apiKeyService;

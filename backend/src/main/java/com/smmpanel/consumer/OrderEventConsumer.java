@@ -9,7 +9,6 @@ import com.smmpanel.repository.jpa.OrderRepository;
 import com.smmpanel.service.core.MessageProcessingService;
 import com.smmpanel.service.kafka.MessageIdempotencyService;
 import com.smmpanel.service.order.OrderSerializationService;
-import com.smmpanel.service.order.OrderStateManagementService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -30,7 +29,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class OrderEventConsumer {
 
     private final OrderRepository orderRepository;
-    private final OrderStateManagementService orderStateManagementService;
     private final OrderEventProducer orderEventProducer;
     private final MessageProcessingService messageProcessingService;
     private final MessageIdempotencyService deduplicationService;

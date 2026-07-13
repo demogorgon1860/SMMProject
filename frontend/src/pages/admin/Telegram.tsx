@@ -329,8 +329,6 @@ function ProfitTab() {
 }
 
 function WebhookTab() {
-  const [showSecret, setShowSecret] = useState(false);
-  const secret = 'whsec_a8f9c2d0e7b6c4a3f2e1d09b8c7a6f5e4d3c2b1a';
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_1fr]">
       <Card className="p-5">
@@ -352,19 +350,14 @@ function WebhookTab() {
               <Input
                 block
                 inputSize="md"
-                value={showSecret ? secret : '•'.repeat(secret.length)}
+                value="Configured server-side — never exposed to the browser"
                 readOnly
-                iconRight={
-                  <button type="button" onClick={() => setShowSecret((v) => !v)} className="text-fg-subtle hover:text-fg">
-                    <Icon name={showSecret ? 'eye-off' : 'eye'} size={14} />
-                  </button>
-                }
               />
-              <CopyBtn value={secret} />
-              <Button variant="secondary" size="md" icon="refresh">
-                Regenerate
-              </Button>
             </div>
+            <p className="mt-1 text-[11px] text-fg-subtle">
+              Set via <code>TELEGRAM_WEBHOOK_SECRET</code>. To rotate: change it on the server and
+              re-register the webhook (<code>setWebhook?secret_token=…</code>).
+            </p>
           </div>
         </div>
       </Card>

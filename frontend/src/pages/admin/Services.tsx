@@ -206,7 +206,21 @@ function ServiceDrawer({ open, service, creating, onClose }: { open: boolean; se
           <Button variant="ghost" size="sm" onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="primary" size="sm" onClick={() => { toast(creating ? 'Service created.' : 'Saved.', 'success'); onClose(); }}>
+          {/* Honest until backend service CRUD exists: there is no create/update service endpoint
+              (only conversion-coefficients pricing is editable via API), so this must NOT toast a
+              fake "created/saved". Kept disabled with a clear reason instead of lying to the admin. */}
+          <Button
+            variant="primary"
+            size="sm"
+            disabled
+            title="Service create/edit is not wired to a backend endpoint yet — manage services via the database/migration."
+            onClick={() =>
+              toast(
+                'Service create/edit is not available yet (no backend endpoint). Manage services via the database.',
+                'error',
+              )
+            }
+          >
             {creating ? 'Create' : 'Save'}
           </Button>
         </>

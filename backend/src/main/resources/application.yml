@@ -916,7 +916,12 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus,loggers,kafka,env,threaddump,heapdump
+        # SECURITY: /actuator/** is permitAll, so the default web exposure must NOT include
+        # sensitive endpoints. env/threaddump/heapdump leak configuration and memory (secrets),
+        # and loggers can be flipped to DEBUG by anyone. Only health/info/metrics/prometheus are
+        # safe to expose unauthenticated for monitoring. Do not re-add the others without also
+        # locking /actuator down in SecurityConfig.
+        include: health,info,metrics,prometheus
       base-path: /actuator
     jmx:
       exposure:

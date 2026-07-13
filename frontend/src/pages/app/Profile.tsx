@@ -176,7 +176,21 @@ function AccountTab() {
             <Button variant="ghost" size="md">
               Cancel
             </Button>
-            <Button variant="primary" size="md" onClick={() => toast('Saved.', 'success')}>
+            <Button
+              variant="primary"
+              size="md"
+              onClick={async () => {
+                try {
+                  // PATCH /v1/me accepts username + timezone (email changes go through a
+                  // separate verified flow). Previously this only toasted "Saved" and dropped
+                  // the edits.
+                  await profileAPI.updateMe({ username, timezone: tz });
+                  toast('Saved.', 'success');
+                } catch {
+                  toast('Could not save changes.', 'error');
+                }
+              }}
+            >
               Save changes
             </Button>
           </div>
@@ -203,7 +217,14 @@ function AccountTab() {
                 </div>
                 <Switch
                   checked={notif[key as keyof typeof notif]}
-                  onChange={(v) => setNotif((n) => ({ ...n, [key]: v }))}
+                  onChange={(v) => {
+                    // Optimistic toggle + real PATCH; revert if the server rejects it.
+                    setNotif((n) => ({ ...n, [key]: v }));
+                    profileAPI.updateNotifications({ [key as string]: v }).catch(() => {
+                      setNotif((n) => ({ ...n, [key]: !v }));
+                      toast('Could not update notification setting.', 'error');
+                    });
+                  }}
                 />
               </li>
             ))}

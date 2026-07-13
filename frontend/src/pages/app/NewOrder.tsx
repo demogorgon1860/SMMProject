@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Badge,
@@ -132,17 +132,27 @@ export function NewOrderPage() {
 
   const allValid = checks.every((c) => c.ok);
 
+  // Idempotency key that stays STABLE across retries of the same order. It is generated once per
+  // attempt and reused if the first request fails/times out, so a lost-response retry hits the
+  // backend's dedupe window instead of creating a second charged order. It is cleared on success
+  // and whenever the order inputs change (a genuinely different order gets a fresh key).
+  const idempotencyKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    idempotencyKeyRef.current = null;
+  }, [selected?.id, link, effectiveQty, comments]);
+
   const placeOrder = async () => {
     // Hard guard against double-submit: a user double-clicking the button before React
     // re-renders with `submitting=true` would otherwise race past the `loading` check.
     if (!selected || !allValid || submitting) return;
     setSubmitting(true);
-    // Stable per-attempt key. Reused on a retry of the SAME submission so the backend
-    // returns the existing order (no double-charge) instead of creating a sibling.
-    const idempotencyKey =
-      (typeof crypto !== 'undefined' && 'randomUUID' in crypto
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    if (!idempotencyKeyRef.current) {
+      idempotencyKeyRef.current =
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+    const idempotencyKey = idempotencyKeyRef.current;
     try {
       const created = await orderAPI.create(
         {
@@ -155,6 +165,10 @@ export function NewOrderPage() {
         },
         idempotencyKey,
       );
+
+      // Order created — clear the key so the NEXT order gets a fresh one (a retry only reuses
+      // the key while an attempt is unresolved).
+      idempotencyKeyRef.current = null;
 
       // Stay on /new-order and let the user place another. Toast carries
       // the new order id + a deep-link to its drawer so the action is still

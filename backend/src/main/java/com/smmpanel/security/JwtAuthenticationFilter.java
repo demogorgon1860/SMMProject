@@ -7,9 +7,11 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.authentication.AccountStatusUserDetailsChecker;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsChecker;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -21,6 +23,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
+
+    // Rejects disabled / locked / expired accounts by throwing the matching
+    // AccountStatusException — a cryptographically valid token must NOT grant access
+    // to a deactivated user until it expires.
+    private final UserDetailsChecker accountStatusChecker = new AccountStatusUserDetailsChecker();
 
     @Override
     protected void doFilterInternal(
@@ -46,6 +53,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
                 if (jwtService.isTokenValid(jwt, userDetails)) {
+                    // Enforce account status AFTER token validity: a deactivated/locked
+                    // account must lose access immediately, not only at token expiry.
+                    // Throws DisabledException/LockedException/AccountExpiredException,
+                    // caught below so authentication is simply not established.
+                    accountStatusChecker.check(userDetails);
+
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(
                                     userDetails, null, userDetails.getAuthorities());

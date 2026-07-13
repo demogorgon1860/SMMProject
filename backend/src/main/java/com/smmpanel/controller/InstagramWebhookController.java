@@ -3,10 +3,15 @@ package com.smmpanel.controller;
 import com.smmpanel.dto.instagram.InstagramHealthResponse;
 import com.smmpanel.dto.instagram.InstagramWebhookCallback;
 import com.smmpanel.service.integration.InstagramService;
+import jakarta.annotation.PostConstruct;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 /** Controller for handling Instagram bot webhooks and admin operations. */
@@ -18,10 +23,38 @@ public class InstagramWebhookController {
 
     private final InstagramService instagramService;
 
+    @Value("${app.instagram.bot.webhook-secret:}")
+    private String webhookSecret;
+
+    @PostConstruct
+    void warnIfNoSecret() {
+        if (!StringUtils.hasText(webhookSecret)) {
+            log.warn(
+                    "⚠️  INSTAGRAM_WEBHOOK_SECRET is empty — POST /api/webhook/instagram accepts"
+                        + " unauthenticated callbacks, which can be forged to trigger refunds or"
+                        + " fake completions. Set it and configure the bot to send X-Webhook-Secret.");
+        }
+    }
+
     /** Webhook endpoint for Instagram bot callbacks. Called when an order completes or fails. */
     @PostMapping("/webhook/instagram")
     public ResponseEntity<Map<String, String>> handleInstagramWebhook(
-            @RequestBody InstagramWebhookCallback callback) {
+            @RequestBody InstagramWebhookCallback callback,
+            @RequestHeader(value = "X-Webhook-Secret", required = false) String secret) {
+
+        // Authenticate the caller when a secret is configured (fail-closed). When unset we accept
+        // but the startup warning above flags the exposure — this keeps the money-critical result
+        // path working until the bot is rolled out with the header.
+        if (StringUtils.hasText(webhookSecret)) {
+            byte[] expected = webhookSecret.getBytes(StandardCharsets.UTF_8);
+            byte[] provided = secret == null ? new byte[0] : secret.getBytes(StandardCharsets.UTF_8);
+            if (!MessageDigest.isEqual(expected, provided)) {
+                log.warn(
+                        "Rejected Instagram webhook with invalid secret: external_id={}",
+                        callback.getExternalId());
+                return ResponseEntity.status(401).body(Map.of("status", "unauthorized"));
+            }
+        }
 
         log.info(
                 "Received Instagram webhook: event={}, external_id={}, status={}",
@@ -34,7 +67,9 @@ public class InstagramWebhookController {
             return ResponseEntity.ok(Map.of("status", "received"));
         } catch (Exception e) {
             log.error("Error processing Instagram webhook: {}", e.getMessage(), e);
-            return ResponseEntity.ok(Map.of("status", "error", "message", e.getMessage()));
+            // Return 500 (not 200) so the bot retries a genuinely failed delivery, and do NOT
+            // leak the exception message to the caller.
+            return ResponseEntity.status(500).body(Map.of("status", "error"));
         }
     }
 

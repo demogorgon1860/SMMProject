@@ -638,20 +638,15 @@ public class ClientApiController {
                                                 + user.getBalance()));
             }
 
-            // Create all orders (transactional - all succeed or all fail)
+            // Create all orders atomically — all succeed or all roll back (no partial charge on a
+            // mid-batch failure). Bot dispatch is deferred to after the batch commits.
+            List<OrderResponse> orderResponses =
+                    orderService.createOrdersBatch(validOrders, user.getUsername());
+
             List<Map<String, Object>> createdOrders = new ArrayList<>();
             BigDecimal actualTotalCharge = BigDecimal.ZERO;
 
-            for (CreateOrderRequest orderRequest : validOrders) {
-                OrderResponse orderResponse =
-                        orderService.createOrder(orderRequest, user.getUsername());
-
-                // Refresh user to get latest balance
-                user =
-                        userRepository
-                                .findById(user.getId())
-                                .orElseThrow(() -> new ApiException("User not found"));
-
+            for (OrderResponse orderResponse : orderResponses) {
                 Map<String, Object> orderResult = new HashMap<>();
                 orderResult.put("order", orderResponse.getId());
                 orderResult.put("charge", orderResponse.getCharge());
@@ -667,6 +662,12 @@ public class ClientApiController {
                 actualTotalCharge =
                         actualTotalCharge.add(new BigDecimal(orderResponse.getCharge()));
             }
+
+            // Refresh user once for the final balance in the response.
+            user =
+                    userRepository
+                            .findById(user.getId())
+                            .orElseThrow(() -> new ApiException("User not found"));
 
             // Build response
             Map<String, Object> response = new HashMap<>();

@@ -28,6 +28,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -1305,6 +1306,21 @@ public class OrderService {
                         .build();
 
         return createOrder(orderCreateRequest, username);
+    }
+
+    /**
+     * Create a batch of orders atomically. All succeed or all roll back — the inner
+     * {@link #createOrder(OrderCreateRequest, String)} calls join this REQUIRED transaction, so a
+     * failure on any order undoes the charges and orders already created in the batch. This is the
+     * "all succeed or all fail" guarantee the mass endpoint previously only claimed in a comment.
+     */
+    @Transactional
+    public List<OrderResponse> createOrdersBatch(List<CreateOrderRequest> requests, String username) {
+        List<OrderResponse> results = new ArrayList<>(requests.size());
+        for (CreateOrderRequest request : requests) {
+            results.add(createOrder(request, username));
+        }
+        return results;
     }
 
     @Transactional

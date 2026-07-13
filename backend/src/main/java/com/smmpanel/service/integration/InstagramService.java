@@ -23,6 +23,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 /**
  * Service for managing Instagram orders through the Instagram bot. Handles order creation, status
@@ -296,6 +297,8 @@ public class InstagramService {
                 handleOrderCompleted(order, callback);
             } else if ("failed".equalsIgnoreCase(botStatus)) {
                 handleOrderFailed(order, callback);
+            } else if ("partial".equalsIgnoreCase(botStatus)) {
+                handleOrderPartial(order, callback);
             } else if ("pending_cancel".equalsIgnoreCase(botStatus)) {
                 handleOrderPendingCancelFromBot(order, callback);
             } else if (isCancelEcho) {
@@ -482,6 +485,79 @@ public class InstagramService {
     }
 
     /**
+     * Handle an explicit "partial" callback. Previously this status fell through to an
+     * "Unknown callback status" warning on the webhook path, leaving the order un-refunded and
+     * stuck while the RabbitMQ path handled it — a direct money-loss divergence. Semantics mirror
+     * the RabbitMQ consumer and handleOrderCompleted's under-delivery branch.
+     */
+    private void handleOrderPartial(Order order, InstagramWebhookCallback callback) {
+        int completed = callback.getCompleted() != null ? callback.getCompleted() : 0;
+        log.info(
+                "Instagram order {} partial: {}/{} delivered",
+                order.getId(),
+                completed,
+                order.getQuantity());
+
+        // Persist the count fields the bot reported (same set as the other terminal handlers).
+        if (callback.getStartLikeCount() != null) order.setStartLikeCount(callback.getStartLikeCount());
+        if (callback.getStartFollowerCount() != null)
+            order.setStartFollowerCount(callback.getStartFollowerCount());
+        if (callback.getStartCommentCount() != null)
+            order.setStartCommentCount(callback.getStartCommentCount());
+        if (callback.getCurrentLikeCount() != null)
+            order.setCurrentLikeCount(callback.getCurrentLikeCount());
+        if (callback.getCurrentFollowerCount() != null)
+            order.setCurrentFollowerCount(callback.getCurrentFollowerCount());
+        if (callback.getCurrentCommentCount() != null)
+            order.setCurrentCommentCount(callback.getCurrentCommentCount());
+
+        Integer ordered = order.getQuantity();
+        order.setViewsDelivered(completed);
+        order.setRemains(ordered != null ? Math.max(0, ordered - completed) : order.getRemains());
+
+        if (ordered != null && completed >= ordered) {
+            order.setStatus(OrderStatus.COMPLETED);
+            order.setTrafficStatus("COMPLETED");
+        } else if (completed > 0) {
+            order.setStatus(OrderStatus.PARTIAL);
+            order.setTrafficStatus("PARTIAL");
+            processPartialRefund(
+                    order,
+                    completed,
+                    String.format(
+                            "Partial refund for Instagram order #%d: %d/%d delivered",
+                            order.getId(), completed, order.getQuantity()));
+        } else {
+            order.setStatus(OrderStatus.CANCELLED);
+            order.setTrafficStatus("CANCELLED");
+            processFullRefund(
+                    order,
+                    String.format(
+                            "Full refund for Instagram order #%d: no items delivered",
+                            order.getId()));
+        }
+
+        order.setErrorMessage(null);
+        orderRepository.save(order);
+
+        String cacheKey = INSTAGRAM_BOT_ORDER_ID_PREFIX + order.getId();
+        redisTemplate.delete(cacheKey);
+
+        // Only COMPLETED/PARTIAL bear profit (recordProfitAfterCommit no-ops otherwise).
+        recordProfitAfterCommit(order);
+
+        if (order.getStatus() == OrderStatus.PARTIAL) {
+            telegramNotificationService.notifyOrderPartial(order, completed);
+        } else if (order.getStatus() == OrderStatus.COMPLETED) {
+            telegramNotificationService.notifyOrderCompleted(order, completed);
+        } else {
+            telegramNotificationService.notifyOrderFailed(order, completed);
+        }
+
+        maybePumpNextForUrl(order);
+    }
+
+    /**
      * Per-URL serialization: when this order has just reached a terminal state it no longer
      * occupies its link, so release the next PENDING order for the same link — after commit and off
      * the webhook request thread. Kept symmetric with InstagramResultConsumer (RabbitMQ path).
@@ -561,46 +637,88 @@ public class InstagramService {
         return null;
     }
 
+    /**
+     * Resolve the bot-side order id for a panel order. Prefers the durable entity field
+     * (populated on both the RabbitMQ and webhook paths) and falls back to the Redis cache, which
+     * only the legacy HTTP dispatch path writes. Returns null when it cannot be determined.
+     */
+    private String resolveBotOrderId(Order order, Long orderId) {
+        if (order != null && StringUtils.hasText(order.getInstagramBotOrderId())) {
+            return order.getInstagramBotOrderId();
+        }
+        Object cached = redisTemplate.opsForValue().get(INSTAGRAM_BOT_ORDER_ID_PREFIX + orderId);
+        return cached != null ? cached.toString() : null;
+    }
+
     /** Get order status from bot. */
     public InstagramOrderStatus getOrderStatus(Long orderId) {
-        String cacheKey = INSTAGRAM_BOT_ORDER_ID_PREFIX + orderId;
-        Object botOrderId = redisTemplate.opsForValue().get(cacheKey);
+        Order order = orderRepository.findById(orderId).orElse(null);
+        String botOrderId = resolveBotOrderId(order, orderId);
 
         if (botOrderId == null) {
             log.warn("No bot order ID found for panel order {}", orderId);
             return null;
         }
 
-        return botClient.getOrderStatus(botOrderId.toString());
+        return botClient.getOrderStatus(botOrderId);
     }
 
-    /** Cancel an Instagram order. */
+    /**
+     * Cancel an Instagram order (admin action) AND refund the customer for the undelivered
+     * portion. Previously this cancelled the order but never issued a refund — a direct
+     * customer-money-loss bug. A terminal-state guard prevents double-refunding an order that a
+     * webhook/consumer already settled.
+     */
     @Transactional
     public boolean cancelOrder(Long orderId) {
-        String cacheKey = INSTAGRAM_BOT_ORDER_ID_PREFIX + orderId;
-        Object botOrderId = redisTemplate.opsForValue().get(cacheKey);
-
-        if (botOrderId == null) {
-            log.warn("No bot order ID found for panel order {}", orderId);
+        Order order = orderRepository.findById(orderId).orElse(null);
+        if (order == null) {
+            log.warn("Cannot cancel: order {} not found", orderId);
             return false;
         }
 
-        boolean cancelled = botClient.cancelOrder(botOrderId.toString());
-
-        if (cancelled) {
-            Optional<Order> orderOpt = orderRepository.findById(orderId);
-            if (orderOpt.isPresent()) {
-                Order order = orderOpt.get();
-                // CRITICAL: Set remains to full quantity (cancelled = nothing delivered)
-                order.setRemains(order.getQuantity());
-                order.setStatus(OrderStatus.CANCELLED);
-                order.setTrafficStatus("CANCELLED");
-                orderRepository.save(order);
-            }
-            redisTemplate.delete(cacheKey);
+        // Already settled (COMPLETED/PARTIAL/CANCELLED) — refund was handled at that point.
+        // Refunding again here would double-credit the customer.
+        if (order.getStatus() != null && order.getStatus().isTerminal()) {
+            log.info("Order {} already terminal ({}) — cancel is a no-op", orderId, order.getStatus());
+            return false;
         }
 
-        return cancelled;
+        String botOrderId = resolveBotOrderId(order, orderId);
+        if (botOrderId == null) {
+            log.warn("No bot order ID found for panel order {} — not cancelling", orderId);
+            return false;
+        }
+
+        boolean cancelled = botClient.cancelOrder(botOrderId);
+        if (!cancelled) {
+            log.warn("Bot did not confirm cancel for order {} — leaving order untouched", orderId);
+            return false;
+        }
+
+        int delivered = order.getViewsDelivered() != null ? order.getViewsDelivered() : 0;
+        if (delivered <= 0) {
+            processFullRefund(
+                    order,
+                    String.format("Refund for cancelled Instagram order #%d", order.getId()));
+            order.setRemains(order.getQuantity());
+        } else {
+            processPartialRefund(
+                    order,
+                    delivered,
+                    String.format(
+                            "Refund for cancelled Instagram order #%d: %d/%d delivered",
+                            order.getId(), delivered, order.getQuantity()));
+            order.setRemains(Math.max(0, order.getQuantity() - delivered));
+        }
+
+        order.setStatus(OrderStatus.CANCELLED);
+        order.setTrafficStatus("CANCELLED_BY_ADMIN");
+        orderRepository.save(order);
+        redisTemplate.delete(INSTAGRAM_BOT_ORDER_ID_PREFIX + orderId);
+
+        maybePumpNextForUrl(order);
+        return true;
     }
 
     /** Check bot health status. */

@@ -212,10 +212,13 @@ public class InstagramResultConsumer {
             order.setCurrentFollowerCount(result.getCurrentFollowerCount());
         }
 
-        // Calculate remains
+        // Calculate remains and delivered. viewsDelivered must be kept in sync with the webhook
+        // path — OrderService's self-service cancel refund guard reads it, and leaving it at 0
+        // for RabbitMQ-dispatched orders lets an already-delivered order be fully refunded.
         int completed = result.getCompleted();
         int remains = order.getQuantity() - completed;
         order.setRemains(Math.max(0, remains));
+        order.setViewsDelivered(Math.max(0, completed));
 
         // Update status and process refund based on result
         OrderStatus newStatus =
@@ -244,7 +247,21 @@ public class InstagramResultConsumer {
         }
 
         return switch (botStatus.toLowerCase()) {
-            case "completed" -> OrderStatus.COMPLETED;
+            case "completed" -> {
+                // Trust but verify: the bot may report "completed" while delivering fewer than
+                // ordered. Mirror the webhook path (InstagramService.handleOrderCompleted) — refund
+                // the shortfall instead of silently charging the customer for undelivered items.
+                Integer quantity = order.getQuantity();
+                if (quantity != null && completed < quantity) {
+                    if (completed > 0) {
+                        processPartialRefund(order, completed);
+                        yield OrderStatus.PARTIAL;
+                    }
+                    processFullRefund(order);
+                    yield OrderStatus.CANCELLED;
+                }
+                yield OrderStatus.COMPLETED;
+            }
 
             case "failed" -> {
                 if (completed > 0) {

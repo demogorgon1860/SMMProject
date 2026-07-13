@@ -43,6 +43,7 @@ public class ClientApiController {
     private final ServiceRepository serviceRepository;
     private final ServiceService serviceService;
     private final BalanceService balanceService;
+    private final com.smmpanel.service.refill.RefillRequestService refillRequestService;
 
     /**
      * PRODUCTION-READY: GET endpoint for read-only operations Supports: balance, services, status,
@@ -491,11 +492,18 @@ public class ClientApiController {
             }
 
             User user = validateApiKeyAndGetUser(apiKey);
-            // Note: Refill functionality needs to be implemented in OrderService
-            // For now, return success response
-            log.info("Refill requested for order {} by user {}", orderId, user.getUsername());
 
-            return ResponseEntity.ok(Map.of("refill", orderId, "status", "Success"));
+            // Create a real refill request (createRequest validates that the order belongs to this
+            // user). Previously this returned a fake "Success" without doing anything.
+            var refill = refillRequestService.createRequest(user, orderId, "Perfect Panel API");
+            log.info(
+                    "Refill request {} created for order {} by user {}",
+                    refill.getId(),
+                    orderId,
+                    user.getUsername());
+
+            // Perfect Panel clients expect a refill id back in the "refill" field.
+            return ResponseEntity.ok(Map.of("refill", refill.getId(), "status", "Success"));
 
         } catch (Exception e) {
             log.error("Failed to refill order: {}", e.getMessage());

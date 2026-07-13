@@ -83,6 +83,15 @@ public class RefillRequestService {
     }
 
     /**
+     * Same as {@link #createRequest(Long, String)} but for callers authenticated outside the
+     * SecurityContext (e.g. the Perfect Panel /api/v2 API-key path). {@code createOne} validates
+     * that the order belongs to {@code user}.
+     */
+    public RefillRequestResponse createRequest(User user, Long orderId, String userNote) {
+        return RefillRequestResponse.from(createOne(user, orderId, userNote));
+    }
+
+    /**
      * Submit several orders at once (the Refill page paste-list). Each order is validated and
      * inserted independently so one bad id never fails the batch. Ids are de-duplicated preserving
      * input order.

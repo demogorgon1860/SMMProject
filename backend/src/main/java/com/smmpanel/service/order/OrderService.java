@@ -1289,6 +1289,20 @@ public class OrderService {
         return url;
     }
 
+    /**
+     * True only for links a bot order can actually target: a canonical
+     * {@code https://www.instagram.com/<path>} with a non-empty path. Inputs are expected to have
+     * already passed through {@link #normalizeInstagramUrl}. Non-Instagram or path-less URLs (and
+     * unnormalizable garbage that stayed on another host) return false.
+     */
+    static boolean isInstagramUrl(String url) {
+        if (url == null) {
+            return false;
+        }
+        String prefix = "https://www.instagram.com/";
+        return url.regionMatches(true, 0, prefix, 0, prefix.length()) && url.length() > prefix.length();
+    }
+
     // Additional methods required by the interface
     public OrderResponse createOrder(CreateOrderRequest request, String username) {
         User user =
@@ -1344,6 +1358,15 @@ public class OrderService {
 
         // Validate user has access to this service
         serviceService.validateUserAccessToService(user, service.getId());
+
+        // Validate the link resolves to a real Instagram target BEFORE charging. Bean Validation
+        // on the DTO does not run on this hand-built path, so without this an arbitrary URL would
+        // be forwarded verbatim to the bot. normalizeInstagramUrl canonicalizes valid inputs
+        // (bare handles, m./instagram.com, /reel/…) to https://www.instagram.com/<path>.
+        if (!isInstagramUrl(normalizeInstagramUrl(request.getLink()))) {
+            throw new OrderValidationException(
+                    "Invalid link: a valid Instagram URL (post or profile) is required");
+        }
 
         // Handle custom comments services - auto-calculate quantity from comments
         int effectiveQuantity = request.getQuantity();

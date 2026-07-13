@@ -1359,6 +1359,18 @@ public class AdminService {
     }
 
     @Transactional
+    public void setUserActive(Long userId, boolean active) {
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("User not found: " + userId));
+        user.setActive(active);
+        userRepository.save(user);
+        log.info("Set user {} active={}", user.getUsername(), active);
+    }
+
+    @Transactional
     public void updateUserRole(Long userId, String role) {
         User user =
                 userRepository

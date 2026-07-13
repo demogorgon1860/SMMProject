@@ -588,6 +588,10 @@ export const adminAPI = {
   updateUserRole: (userId: number, role: 'USER' | 'ADMIN' | 'OPERATOR') =>
     api.put(`/v2/admin/users/${userId}/role`, { role }).then((r) => r.data),
 
+  // Suspend / re-activate a user (toggles the active flag; does NOT change their role).
+  setUserActive: (userId: number, active: boolean) =>
+    api.put(`/v2/admin/users/${userId}/status`, { active }).then((r) => r.data),
+
   bulkOrderAction: (data: { orderIds: number[]; action: string; reason?: string }) =>
     api.post('/v2/admin/orders/bulk-actions', data).then((r) => r.data),
 

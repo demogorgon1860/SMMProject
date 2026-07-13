@@ -58,6 +58,13 @@ public class RefillRequest {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Optimistic lock: prevents concurrent approve()/reject() (or approve vs the auto-scheduler)
+    // from silently overwriting each other and desyncing the request from the refill it created.
+    @Version
+    @Column(name = "version", nullable = false)
+    @Builder.Default
+    private Long version = 0L;
+
     @Column(name = "order_id", nullable = false)
     private Long orderId;
 

@@ -863,6 +863,30 @@ resilience4j:
           - org.springframework.web.client.ResourceAccessException
         ignore-exceptions:
           - java.lang.IllegalArgumentException
+      # Instagram Bot per-instance retries — MUST match the exact names used in
+      # InstagramBotClient (retryRegistry.retry("instagramBotWrite"/"instagramBotRead")),
+      # otherwise they silently fall back to the bare default config and never retry
+      # RestTemplate connectivity failures (ResourceAccessException).
+      instagramBotWrite:
+        max-attempts: ${INSTAGRAM_RETRY_MAX_ATTEMPTS:3}
+        wait-duration: ${INSTAGRAM_RETRY_WAIT_DURATION:PT2S}
+        exponential-backoff-multiplier: 2.0
+        retry-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.client.ResourceAccessException
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
+      instagramBotRead:
+        max-attempts: ${INSTAGRAM_RETRY_MAX_ATTEMPTS:3}
+        wait-duration: ${INSTAGRAM_RETRY_WAIT_DURATION:PT2S}
+        exponential-backoff-multiplier: 2.0
+        retry-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.client.ResourceAccessException
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
       # Cryptomus API Retry
       cryptomus-api:
         max-attempts: ${CRYPTOMUS_RETRY_MAX_ATTEMPTS:3}

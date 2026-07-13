@@ -178,6 +178,23 @@ public class BalanceService {
         return addBalance(user, amount, null, description);
     }
 
+    // This overload carries the real crediting logic and is called directly (e.g. by
+    // CryptomusService), so it needs its own transaction/retry boundary — the annotations on the
+    // 3-arg sibling do NOT protect a direct call here, and a same-bean delegation would ignore them.
+    @Transactional(
+            isolation = Isolation.SERIALIZABLE,
+            propagation = Propagation.REQUIRED,
+            timeout = 10,
+            rollbackFor = Exception.class)
+    @Retryable(
+            value = {ObjectOptimisticLockingFailureException.class},
+            maxAttemptsExpression = "#{@balanceService.maxRetryAttempts}",
+            backoff =
+                    @Backoff(
+                            delayExpression = "#{@balanceService.initialDelayMs}",
+                            maxDelayExpression = "#{@balanceService.maxDelayMs}",
+                            multiplierExpression = "#{@balanceService.backoffMultiplier}",
+                            random = true))
     public BigDecimal addBalance(
             User user, BigDecimal amount, BalanceDeposit deposit, String description) {
         Objects.requireNonNull(user, "User cannot be null");

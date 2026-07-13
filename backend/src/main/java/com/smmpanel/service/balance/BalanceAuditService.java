@@ -28,6 +28,11 @@ public class BalanceAuditService {
     private final BalanceTransactionRepository transactionRepository;
     private final UserRepository userRepository;
 
+    // Self-reference so the reconciliation write runs through the proxy in its OWN writable
+    // transaction — the enclosing reconcile method is @Transactional(readOnly = true), and a
+    // same-bean call would both ignore @Transactional and inherit that read-only context.
+    private final org.springframework.beans.factory.ObjectProvider<BalanceAuditService> selfProvider;
+
     /** Creates a comprehensive audit log entry for balance transactions */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public BalanceTransaction createAuditEntry(
@@ -152,13 +157,18 @@ public class BalanceAuditService {
                 reconciliation.getDiscrepancy().compareTo(BigDecimal.ZERO) == 0);
         reconciliation.setDiscrepancies(discrepancies);
 
-        // Update reconciliation status for transactions
+        // Update reconciliation status for transactions (through the self proxy so it runs in its
+        // own writable transaction rather than this read-only one).
         if (reconciliation.getIsReconciled()) {
-            updateTransactionReconciliationStatus(
-                    transactions, BalanceTransaction.ReconciliationStatus.RECONCILED);
+            selfProvider
+                    .getObject()
+                    .updateTransactionReconciliationStatus(
+                            transactions, BalanceTransaction.ReconciliationStatus.RECONCILED);
         } else {
-            updateTransactionReconciliationStatus(
-                    transactions, BalanceTransaction.ReconciliationStatus.DISCREPANCY);
+            selfProvider
+                    .getObject()
+                    .updateTransactionReconciliationStatus(
+                            transactions, BalanceTransaction.ReconciliationStatus.DISCREPANCY);
         }
 
         return reconciliation;
@@ -289,13 +299,13 @@ public class BalanceAuditService {
         for (int i = 0; i < transactions.size(); i++) {
             BalanceTransaction txn = transactions.get(i);
 
-            // Verify hash integrity
-            String originalHash = txn.getAuditHash();
-            // Temporarily clear hash to recalculate
-            String tempHash = txn.getAuditHash();
-            txn.setAuditHash(null);
-            // This would trigger regeneration in a real scenario - simplified here
-            if (!originalHash.equals(tempHash)) {
+            // Verify hash integrity: recompute the expected hash from the immutable fields (without
+            // mutating the entity) and compare to the stored one. The previous code compared the
+            // stored hash to itself — it could never detect tampering — and also nulled the hash on
+            // a read-only entity.
+            String storedHash = txn.getAuditHash();
+            String expectedHash = txn.computeExpectedAuditHash();
+            if (storedHash == null || !storedHash.equals(expectedHash)) {
                 hashMismatches++;
                 integrityIssues.add(
                         String.format("Hash mismatch in transaction %s", txn.getTransactionId()));
@@ -379,9 +389,10 @@ public class BalanceAuditService {
         return report;
     }
 
-    /** Updates reconciliation status for a list of transactions */
-    @Transactional
-    private void updateTransactionReconciliationStatus(
+    /** Updates reconciliation status for a list of transactions in its own writable transaction. */
+    @Transactional(
+            propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void updateTransactionReconciliationStatus(
             List<BalanceTransaction> transactions, BalanceTransaction.ReconciliationStatus status) {
         LocalDateTime reconciledAt = LocalDateTime.now();
         for (BalanceTransaction transaction : transactions) {

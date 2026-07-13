@@ -135,7 +135,15 @@ public class BalanceTransaction {
     }
 
     private void generateAuditHash() {
-        // Generate hash for integrity verification
+        this.auditHash = computeExpectedAuditHash();
+    }
+
+    /**
+     * Recompute the integrity hash from the transaction's immutable fields WITHOUT mutating the
+     * entity. Used both by {@link #generateAuditHash()} on persist/update and by the audit-trail
+     * verifier to detect tampering (compare against the stored {@code auditHash}).
+     */
+    public String computeExpectedAuditHash() {
         String dataToHash =
                 String.format(
                         "%s|%s|%s|%s|%s|%s|%s",
@@ -158,9 +166,10 @@ public class BalanceTransaction {
                 }
                 hexString.append(hex);
             }
-            this.auditHash = hexString.toString();
+            return hexString.toString();
         } catch (Exception e) {
             log.error("Failed to generate audit hash for transaction {}", transactionId, e);
+            return null;
         }
     }
 

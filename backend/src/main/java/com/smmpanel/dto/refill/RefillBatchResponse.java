@@ -23,6 +23,7 @@ public class RefillBatchResponse {
 
     /** Convenience counts for the page header. */
     private int accepted;
+
     private int rejected;
 
     @Data

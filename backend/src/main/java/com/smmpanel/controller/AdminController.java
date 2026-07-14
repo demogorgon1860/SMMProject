@@ -341,6 +341,22 @@ public class AdminController {
         return ResponseEntity.noContent().build();
     }
 
+    /** Suspend / re-activate a user by toggling their active flag (does NOT touch their role). */
+    @PutMapping("/users/{userId}/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> setUserActive(
+            @PathVariable Long userId, @RequestBody Map<String, Boolean> request) {
+        boolean active = Boolean.TRUE.equals(request.get("active"));
+        adminService.setUserActive(userId, active);
+        adminAuditService.record(
+                "user.status_change",
+                "USER",
+                userId,
+                "User #" + userId,
+                active ? "Activated user" : "Suspended user");
+        return ResponseEntity.noContent().build();
+    }
+
     /**
      * Recent admin-action feed. Powers the "Recent admin actions" sidebar on the dashboard.
      * Replaces the previous in-memory Zustand store which was wiped on page refresh.

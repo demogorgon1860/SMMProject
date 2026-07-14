@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -44,6 +45,10 @@ public class CryptomusService {
     private final BalanceService balanceService;
     private final ObjectMapper objectMapper;
     private final AppSettingsService appSettingsService;
+
+    // Self-reference used to cross a Spring proxy boundary so the poll path's status-apply runs
+    // inside a real transaction (a direct same-bean call would bypass @Transactional).
+    private final ObjectProvider<CryptomusService> selfProvider;
 
     @Value("${app.cryptomus.min-deposit:5.00}")
     private BigDecimal minDepositAmount;
@@ -132,12 +137,19 @@ public class CryptomusService {
                         .findByOrderIdAndUser(orderId, user)
                         .orElseThrow(() -> new IllegalArgumentException("Deposit not found"));
 
-        // Get real-time status from Cryptomus API
+        // Get real-time status from Cryptomus API (outside any transaction — no DB connection is
+        // held across this network call), then apply it atomically via the self proxy so the CAS
+        // completion flip and the wallet credit commit or roll back together, exactly like the
+        // webhook path. Without the transaction a mid-credit failure would leave the deposit
+        // COMPLETED with the wallet never credited.
         try {
             var paymentInfo = cryptomusClient.getPaymentInfo(null, orderId);
             if (paymentInfo != null && paymentInfo.getPaymentStatus() != null) {
-                // Update local status based on Cryptomus response
-                updateDepositStatus(deposit, paymentInfo.getPaymentStatus());
+                selfProvider
+                        .getObject()
+                        .applyPolledDepositStatus(deposit.getId(), paymentInfo.getPaymentStatus());
+                // Re-read so the response reflects the just-applied state.
+                deposit = depositRepository.findById(deposit.getId()).orElse(deposit);
             }
         } catch (Exception e) {
             log.warn("Failed to get real-time status from Cryptomus: {}", e.getMessage());
@@ -153,6 +165,18 @@ public class CryptomusService {
                 .confirmedAt(deposit.getConfirmedAt())
                 .expiresAt(deposit.getExpiresAt())
                 .build();
+    }
+
+    /**
+     * Transactional entry point for the polling path: flips deposit status and credits the wallet
+     * atomically. Public + called through the self proxy so @Transactional actually applies.
+     */
+    @Transactional
+    public void applyPolledDepositStatus(Long depositId, String cryptomusStatus) {
+        BalanceDeposit deposit = depositRepository.findById(depositId).orElse(null);
+        if (deposit != null) {
+            updateDepositStatus(deposit, cryptomusStatus);
+        }
     }
 
     private void updateDepositStatus(BalanceDeposit deposit, String status) {

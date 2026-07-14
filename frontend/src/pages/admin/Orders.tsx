@@ -107,13 +107,40 @@ export function AdminOrdersPage() {
   });
 
   // Local optimistic overrides for drawer-driven status changes (retry/pause/cancel/refund).
-  // The hook owns the items list; we layer per-id partial patches on top of it so the UI
-  // reflects an action immediately without waiting for the next refresh tick.
-  const [overrides, setOverrides] = useState<Record<number, Partial<Order>>>({});
+  // The hook owns the items list; we layer per-id partial patches on top of it so the UI reflects
+  // an action immediately without waiting for the next refresh tick. Each override carries a
+  // timestamp and EXPIRES — otherwise it would permanently mask the real status once the periodic
+  // background refresh catches up (e.g. an order that later moves off CANCELLED).
+  const OVERRIDE_TTL_MS = 20_000;
+  const [overrides, setOverrides] = useState<Record<number, { patch: Partial<Order>; at: number }>>(
+    {},
+  );
   const ordersWithOverrides = useMemo(() => {
     if (Object.keys(overrides).length === 0) return orders;
-    return orders.map((o) => (overrides[o.id] ? { ...o, ...overrides[o.id] } : o));
+    return orders.map((o) => (overrides[o.id] ? { ...o, ...overrides[o.id].patch } : o));
   }, [orders, overrides]);
+
+  // Prune overrides whenever fresh server data arrives: drop any that have expired or that the
+  // server already reflects, so the authoritative status can no longer be masked indefinitely.
+  useEffect(() => {
+    setOverrides((prev) => {
+      const ids = Object.keys(prev);
+      if (ids.length === 0) return prev;
+      const now = Date.now();
+      const next: Record<number, { patch: Partial<Order>; at: number }> = {};
+      let changed = false;
+      for (const idStr of ids) {
+        const id = Number(idStr);
+        const ov = prev[id];
+        const server = orders.find((o) => o.id === id);
+        const expired = now - ov.at >= OVERRIDE_TTL_MS;
+        const serverCaughtUp = !!server && !!ov.patch.status && server.status === ov.patch.status;
+        if (expired || serverCaughtUp) changed = true;
+        else next[id] = ov;
+      }
+      return changed ? next : prev;
+    });
+  }, [orders]);
 
   // urlQ is now pushed to the backend via baseParams.urlSearch (see above), so we just sort
   // the server-returned rows here. The previous client-side filter was applied per-page only,
@@ -193,7 +220,10 @@ export function AdminOrdersPage() {
   };
 
   const onAfterAction = (updated: Partial<Order> & { id: number }) => {
-    setOverrides((prev) => ({ ...prev, [updated.id]: { ...prev[updated.id], ...updated } }));
+    setOverrides((prev) => ({
+      ...prev,
+      [updated.id]: { patch: { ...prev[updated.id]?.patch, ...updated }, at: Date.now() },
+    }));
   };
 
   const openOrder = ordersWithOverrides.find((o) => o.id === openId) ?? null;
@@ -663,7 +693,10 @@ function OrderAdminDrawer({ order, onClose, onAfterAction }: DrawerProps) {
         onClose={() => setConfirm(null)}
         onConfirm={() => fire('cancel', 'Cancel', 'CANCELLED')}
         title={`Cancel order #${order.id}?`}
-        message="Refunds the undelivered portion to user wallet. Logged in balance audit."
+        // The backend 'cancel' action issues a FULL refund and zeroes the charge (it does not
+        // pro-rate by delivery). Copy corrected to match — the old "undelivered portion" text was
+        // misleading and identical in effect to Force refund below.
+        message="Issues a full refund and marks the order CANCELLED. Logged in balance audit."
         confirmText="Cancel order"
         variant="danger"
         loading={busy}

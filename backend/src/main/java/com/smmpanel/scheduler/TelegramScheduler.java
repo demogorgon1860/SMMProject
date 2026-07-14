@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +32,10 @@ public class TelegramScheduler {
     private final InstagramService instagramService;
     private final TelegramBotProperties telegramBotProperties;
     private final InstagramBotClient instagramBotClient;
+
+    // Self-reference so each expired decision runs in its OWN transaction (a same-bean call would
+    // not open a new transaction), isolating one order's failure from the rest of the batch.
+    private final ObjectProvider<TelegramScheduler> selfProvider;
 
     /** Send daily profit report at 23:55. */
     @Scheduled(cron = "0 55 23 * * *")
@@ -51,7 +56,6 @@ public class TelegramScheduler {
      * from Redis. This processes decisions that are still pending.
      */
     @Scheduled(fixedRate = 600_000)
-    @Transactional
     public void checkExpiredCancelDecisions() {
         if (!telegramBotProperties.isEnabled()) return;
         List<Long> pendingOrderIds = cancelDecisionService.getAllPendingOrderIds();
@@ -61,49 +65,66 @@ public class TelegramScheduler {
 
         String defaultAction = telegramBotProperties.getCancel().getDefaultAction();
 
+        // Process each decision in its OWN transaction (via the self proxy) so a failure on one
+        // order can't roll back orders already handled in this tick while their Redis/Telegram
+        // side effects have already fired.
         for (Long orderId : pendingOrderIds) {
-            Optional<CancelPendingDecision> decisionOpt =
-                    cancelDecisionService.getPendingDecision(orderId);
-            if (decisionOpt.isEmpty()) continue; // Already expired or processed
-
-            CancelPendingDecision decision = decisionOpt.get();
-            int timeoutHours = telegramBotProperties.getCancel().getTimeoutHours();
-            boolean expired =
-                    decision.getCreatedAt() != null
-                            && decision.getCreatedAt()
-                                    .plusHours(timeoutHours)
-                                    .isBefore(java.time.LocalDateTime.now());
-
-            if (!expired) continue;
-
-            log.info(
-                    "Cancel decision for order {} has expired, applying default action: {}",
-                    orderId,
-                    defaultAction);
-
-            // Remove inline keyboard buttons from the original Telegram message
-            telegramBotService.removeInlineKeyboard(decision.getTelegramMessageId());
-            cancelDecisionService.removePendingDecision(orderId);
-
-            if ("cancel".equalsIgnoreCase(defaultAction)) {
-                applyDefaultCancel(
+            try {
+                selfProvider.getObject().processExpiredDecision(orderId, defaultAction);
+            } catch (Exception e) {
+                log.error(
+                        "Failed to process expired cancel decision for order {}: {}",
                         orderId,
-                        decision.getBotOrderId(),
-                        decision.getCompletedCount(),
-                        decision.getOriginalCount());
-            } else {
-                // Default: proceed — resume the paused order in the bot
-                if (decision.getBotOrderId() != null && !decision.getBotOrderId().isBlank()) {
-                    boolean resumed = instagramBotClient.resumeOrder(decision.getBotOrderId());
-                    log.info(
-                            "Auto-proceed timeout for order {} — bot resume: {}", orderId, resumed);
-                }
-                telegramBotService.sendPlainMessage(
-                        String.format(
-                                "⏰ Решение по заказу #%d истекло — заказ возобновлён автоматически",
-                                orderId));
+                        e.getMessage(),
+                        e);
             }
         }
+    }
+
+    /** Process a single expired cancel decision in its own transaction. */
+    @Transactional
+    public void processExpiredDecision(Long orderId, String defaultAction) {
+        Optional<CancelPendingDecision> decisionOpt =
+                cancelDecisionService.getPendingDecision(orderId);
+        if (decisionOpt.isEmpty()) return; // Already expired or processed
+
+        CancelPendingDecision decision = decisionOpt.get();
+        int timeoutHours = telegramBotProperties.getCancel().getTimeoutHours();
+        boolean expired =
+                decision.getCreatedAt() != null
+                        && decision.getCreatedAt()
+                                .plusHours(timeoutHours)
+                                .isBefore(java.time.LocalDateTime.now());
+        if (!expired) return;
+
+        log.info(
+                "Cancel decision for order {} has expired, applying default action: {}",
+                orderId,
+                defaultAction);
+
+        // Perform the money/DB action FIRST. If it throws, the transaction rolls back and we never
+        // touch Redis/Telegram — the decision survives for the next tick instead of being lost.
+        if ("cancel".equalsIgnoreCase(defaultAction)) {
+            applyDefaultCancel(
+                    orderId,
+                    decision.getBotOrderId(),
+                    decision.getCompletedCount(),
+                    decision.getOriginalCount());
+        } else {
+            // Default: proceed — resume the paused order in the bot
+            if (decision.getBotOrderId() != null && !decision.getBotOrderId().isBlank()) {
+                boolean resumed = instagramBotClient.resumeOrder(decision.getBotOrderId());
+                log.info("Auto-proceed timeout for order {} — bot resume: {}", orderId, resumed);
+            }
+            telegramBotService.sendPlainMessage(
+                    String.format(
+                            "⏰ Решение по заказу #%d истекло — заказ возобновлён автоматически",
+                            orderId));
+        }
+
+        // Cleanup only after the action succeeded.
+        telegramBotService.removeInlineKeyboard(decision.getTelegramMessageId());
+        cancelDecisionService.removePendingDecision(orderId);
     }
 
     private void applyDefaultCancel(

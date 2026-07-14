@@ -7,10 +7,11 @@ import com.smmpanel.dto.telegram.CancelPendingDecision;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -116,17 +117,21 @@ public class CancelDecisionService {
      * TTL-expired keys are already gone — this returns currently active ones.
      */
     public List<Long> getAllPendingOrderIds() {
-        Set<String> keys = stringRedisTemplate.keys(KEY_PREFIX + "*");
+        // SCAN, not KEYS: KEYS blocks the single-threaded Redis server for the whole keyspace on
+        // every 10-minute scheduler tick (and admin page load), which stalls all other clients as
+        // the keyspace grows. SCAN iterates in bounded batches without blocking.
         List<Long> orderIds = new ArrayList<>();
-        if (keys == null) return orderIds;
-        for (String k : keys) {
-            Long ttl = stringRedisTemplate.getExpire(k, TimeUnit.SECONDS);
-            if (ttl != null && ttl > 0) {
-                try {
-                    String suffix = k.substring(KEY_PREFIX.length());
-                    orderIds.add(Long.parseLong(suffix));
-                } catch (NumberFormatException e) {
-                    log.warn("Invalid cancel pending key: {}", k);
+        ScanOptions options = ScanOptions.scanOptions().match(KEY_PREFIX + "*").count(200).build();
+        try (Cursor<String> cursor = stringRedisTemplate.scan(options)) {
+            while (cursor.hasNext()) {
+                String k = cursor.next();
+                Long ttl = stringRedisTemplate.getExpire(k, TimeUnit.SECONDS);
+                if (ttl != null && ttl > 0) {
+                    try {
+                        orderIds.add(Long.parseLong(k.substring(KEY_PREFIX.length())));
+                    } catch (NumberFormatException e) {
+                        log.warn("Invalid cancel pending key: {}", k);
+                    }
                 }
             }
         }

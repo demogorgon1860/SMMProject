@@ -45,6 +45,9 @@ public class NotificationService {
     @Value("${app.notifications.admin-email:admin@smmpanel.com}")
     private String adminEmail;
 
+    @Value("${app.notifications.finance-email:}")
+    private String financeEmail;
+
     private static final DateTimeFormatter DATE_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -212,24 +215,30 @@ public class NotificationService {
 
     // Private helper methods
     private void sendEmailNotification(User user, String subject, String message) {
-        if (!emailEnabled || user.getEmail() == null || user.getEmail().isEmpty()) {
-            log.debug(
-                    "Email notification skipped for user {} - email disabled or no email",
-                    user.getUsername());
+        if (user == null) {
+            log.debug("Email notification skipped — null user");
+            return;
+        }
+        sendEmailToAddress(user.getEmail(), subject, message);
+    }
+
+    private void sendEmailToAddress(String email, String subject, String message) {
+        if (!emailEnabled || email == null || email.isEmpty()) {
+            log.debug("Email notification skipped — email disabled or no address");
             return;
         }
 
         try {
             SimpleMailMessage mailMessage = new SimpleMailMessage();
             mailMessage.setFrom(fromEmail);
-            mailMessage.setTo(user.getEmail());
+            mailMessage.setTo(email);
             mailMessage.setSubject(subject);
             mailMessage.setText(message);
 
             mailSender.send(mailMessage);
-            log.info("Email notification sent to {}: {}", user.getEmail(), subject);
+            log.info("Email notification sent to {}: {}", email, subject);
         } catch (Exception e) {
-            log.error("Failed to send email to {}: {}", user.getEmail(), e.getMessage());
+            log.error("Failed to send email to {}: {}", email, e.getMessage());
         }
     }
 
@@ -402,12 +411,16 @@ public class NotificationService {
     /** Notify finance team about manual intervention required */
     public void notifyFinanceTeam(String message) {
         try {
-            String subject = "Manual Intervention Required";
-            String financeEmail = "finance@smmpanel.com"; // Configure via properties
-
-            sendEmailNotification(null, subject, message);
+            if (financeEmail == null || financeEmail.isBlank()) {
+                log.warn(
+                        "Finance notification not sent (app.notifications.finance-email unset): {}",
+                        message);
+                return;
+            }
+            // Send to the finance address directly. The old code passed a null User, which NPE'd
+            // inside sendEmailNotification and was swallowed — finance was never actually notified.
+            sendEmailToAddress(financeEmail, "Manual Intervention Required", message);
             log.info("Notified finance team: {}", message);
-
         } catch (Exception e) {
             log.error("Failed to notify finance team: {}", e.getMessage());
         }

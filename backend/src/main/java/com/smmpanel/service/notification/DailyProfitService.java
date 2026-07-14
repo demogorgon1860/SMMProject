@@ -48,7 +48,9 @@ public class DailyProfitService {
         Object val = stringRedisTemplate.opsForHash().get(todayKey(), FIELD_TOTAL);
         if (val == null) return BigDecimal.ZERO;
         try {
-            return new BigDecimal(val.toString());
+            // HINCRBYFLOAT accumulates in double; round to cents so the report and the persisted
+            // daily_profit_summary carry an exact 2-decimal money value instead of float drift.
+            return new BigDecimal(val.toString()).setScale(2, java.math.RoundingMode.HALF_UP);
         } catch (NumberFormatException e) {
             return BigDecimal.ZERO;
         }

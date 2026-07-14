@@ -48,6 +48,10 @@ public class AdminService {
     private final com.smmpanel.service.integration.InstagramService instagramService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
+    // Self-reference so per-item bulk actions run through the Spring proxy and their
+    // @Transactional(REQUIRES_NEW) actually takes effect (a same-bean call would ignore it).
+    private final org.springframework.beans.factory.ObjectProvider<AdminService> selfProvider;
+
     @Transactional(readOnly = true)
     @Cacheable("dashboard-stats")
     public DashboardStats getDashboardStats() {
@@ -358,8 +362,10 @@ public class AdminService {
         return buildOrdersResponse(orders);
     }
 
-    /** Map an order page to the {orders, totalPages, totalElements, currentPage, pageSize} envelope
-     * the admin Orders table expects. */
+    /**
+     * Map an order page to the {orders, totalPages, totalElements, currentPage, pageSize} envelope
+     * the admin Orders table expects.
+     */
     private Map<String, Object> buildOrdersResponse(Page<Order> orders) {
         List<AdminOrderDto> orderDtos =
                 orders.getContent().stream()
@@ -385,9 +391,9 @@ public class AdminService {
 
         for (Long orderId : request.getOrderIds()) {
             try {
-                // CRITICAL FIX: Use separate transaction for each action
-                // This prevents partial bulk operation inconsistencies
-                performSingleBulkAction(orderId, request, operator);
+                // Separate transaction for each action (via the self proxy so REQUIRES_NEW
+                // actually applies) — prevents one item's failure from tainting the others.
+                selfProvider.getObject().performSingleBulkAction(orderId, request, operator);
                 processed++;
             } catch (Exception e) {
                 String errorMsg =
@@ -429,7 +435,7 @@ public class AdminService {
 
     @Transactional(
             propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
-    private void performSingleBulkAction(Long orderId, BulkActionRequest request, User operator) {
+    public void performSingleBulkAction(Long orderId, BulkActionRequest request, User operator) {
         switch (request.getAction().toLowerCase()) {
             case "stop":
                 stopOrder(orderId, request.getReason());
@@ -1340,16 +1346,11 @@ public class AdminService {
         if (adjustmentAmount.compareTo(BigDecimal.ZERO) > 0) {
             balanceService.addBalance(user, adjustmentAmount, null, reason);
         } else {
-            // For negative adjustments, we need to handle differently
-            BigDecimal currentBalance = user.getBalance();
-            BigDecimal newBalance = currentBalance.add(adjustmentAmount);
-
-            if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
-                throw new IllegalArgumentException("Adjustment would result in negative balance");
-            }
-
-            user.setBalance(newBalance);
-            userRepository.save(user);
+            // Negative adjustment: route through BalanceService.deductBalance so it takes a
+            // pessimistic row lock (no lost-update race) and writes a BalanceTransaction audit row.
+            // A direct setBalance bypassed both and left no audit trail. deductBalance takes a
+            // positive magnitude and throws InsufficientBalanceException if it would go negative.
+            balanceService.deductBalance(user, adjustmentAmount.abs(), null, reason);
         }
 
         log.info(
@@ -1357,6 +1358,18 @@ public class AdminService {
                 user.getUsername(),
                 adjustmentAmount,
                 reason);
+    }
+
+    @Transactional
+    public void setUserActive(Long userId, boolean active) {
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("User not found: " + userId));
+        user.setActive(active);
+        userRepository.save(user);
+        log.info("Set user {} active={}", user.getUsername(), active);
     }
 
     @Transactional

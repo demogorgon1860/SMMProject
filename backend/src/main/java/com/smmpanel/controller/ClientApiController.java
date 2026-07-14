@@ -43,6 +43,7 @@ public class ClientApiController {
     private final ServiceRepository serviceRepository;
     private final ServiceService serviceService;
     private final BalanceService balanceService;
+    private final com.smmpanel.service.refill.RefillRequestService refillRequestService;
 
     /**
      * PRODUCTION-READY: GET endpoint for read-only operations Supports: balance, services, status,
@@ -491,11 +492,18 @@ public class ClientApiController {
             }
 
             User user = validateApiKeyAndGetUser(apiKey);
-            // Note: Refill functionality needs to be implemented in OrderService
-            // For now, return success response
-            log.info("Refill requested for order {} by user {}", orderId, user.getUsername());
 
-            return ResponseEntity.ok(Map.of("refill", orderId, "status", "Success"));
+            // Create a real refill request (createRequest validates that the order belongs to this
+            // user). Previously this returned a fake "Success" without doing anything.
+            var refill = refillRequestService.createRequest(user, orderId, "Perfect Panel API");
+            log.info(
+                    "Refill request {} created for order {} by user {}",
+                    refill.getId(),
+                    orderId,
+                    user.getUsername());
+
+            // Perfect Panel clients expect a refill id back in the "refill" field.
+            return ResponseEntity.ok(Map.of("refill", refill.getId(), "status", "Success"));
 
         } catch (Exception e) {
             log.error("Failed to refill order: {}", e.getMessage());
@@ -638,20 +646,15 @@ public class ClientApiController {
                                                 + user.getBalance()));
             }
 
-            // Create all orders (transactional - all succeed or all fail)
+            // Create all orders atomically — all succeed or all roll back (no partial charge on a
+            // mid-batch failure). Bot dispatch is deferred to after the batch commits.
+            List<OrderResponse> orderResponses =
+                    orderService.createOrdersBatch(validOrders, user.getUsername());
+
             List<Map<String, Object>> createdOrders = new ArrayList<>();
             BigDecimal actualTotalCharge = BigDecimal.ZERO;
 
-            for (CreateOrderRequest orderRequest : validOrders) {
-                OrderResponse orderResponse =
-                        orderService.createOrder(orderRequest, user.getUsername());
-
-                // Refresh user to get latest balance
-                user =
-                        userRepository
-                                .findById(user.getId())
-                                .orElseThrow(() -> new ApiException("User not found"));
-
+            for (OrderResponse orderResponse : orderResponses) {
                 Map<String, Object> orderResult = new HashMap<>();
                 orderResult.put("order", orderResponse.getId());
                 orderResult.put("charge", orderResponse.getCharge());
@@ -667,6 +670,12 @@ public class ClientApiController {
                 actualTotalCharge =
                         actualTotalCharge.add(new BigDecimal(orderResponse.getCharge()));
             }
+
+            // Refresh user once for the final balance in the response.
+            user =
+                    userRepository
+                            .findById(user.getId())
+                            .orElseThrow(() -> new ApiException("User not found"));
 
             // Build response
             Map<String, Object> response = new HashMap<>();

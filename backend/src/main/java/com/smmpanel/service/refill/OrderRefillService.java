@@ -71,7 +71,7 @@ public class OrderRefillService {
      * Create a refill using the legacy default quantity (full original for COMPLETED, undelivered
      * remainder for PARTIAL). Kept for the admin manual-override path.
      */
-    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public RefillResponse createRefill(Long orderId) {
         return createRefill(orderId, null);
     }
@@ -82,7 +82,14 @@ public class OrderRefillService {
      * actions — re-delivering ONLY what dropped — instead of the legacy default. Still subject to
      * the {@code <= 0} guard and the 1.5x cap.
      */
-    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    // READ_COMMITTED (not REPEATABLE_READ) is deliberate: the pessimistic order-row lock in
+    // acquireOrderLockForRefill serializes concurrent refills for the same order, and
+    // READ_COMMITTED
+    // makes the anti-duplication checks below re-read the latest committed data so the second
+    // caller
+    // actually sees the first caller's just-created refill (returning a clean 409) instead of a
+    // stale snapshot that misses it (duplicate refill) or a serialization-error 500.
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public RefillResponse createRefill(Long orderId, Integer overrideRefillQuantity) {
         log.info(
                 "[REFILL] Creating refill for order {} (override={})",

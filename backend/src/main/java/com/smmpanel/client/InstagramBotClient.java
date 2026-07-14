@@ -151,6 +151,12 @@ public class InstagramBotClient {
      */
     public InstagramOrderResponse createOrder(InstagramOrderRequest request) {
         int size = botInstances.size();
+        if (size == 0) {
+            log.error(
+                    "No Instagram bot instances configured (INSTAGRAM_BOT_URLS/URL empty) — cannot"
+                            + " create order");
+            return null;
+        }
         int startIdx = (rrCounter.getAndIncrement() & Integer.MAX_VALUE) % size;
         for (int i = 0; i < size; i++) {
             String instance = botInstances.get((startIdx + i) % size);
@@ -666,7 +672,7 @@ public class InstagramBotClient {
         }
 
         Map<String, Object> allComponents = new LinkedHashMap<>();
-        String worstStatus = "healthy";
+        int downCount = 0;
 
         for (int i = 0; i < botInstances.size(); i++) {
             String instance = botInstances.get(i);
@@ -685,11 +691,16 @@ public class InstagramBotClient {
             allComponents.put(label, botInfo);
 
             if ("error".equals(health.getStatus()) || "unhealthy".equals(health.getStatus())) {
-                if (!"error".equals(worstStatus)) {
-                    worstStatus = "degraded";
-                }
+                downCount++;
             }
         }
+
+        // healthy = all up; degraded = some up; error = every instance down (full outage). The old
+        // code could never report "error", so a total outage looked merely "degraded".
+        String worstStatus =
+                downCount == 0
+                        ? "healthy"
+                        : downCount == botInstances.size() ? "error" : "degraded";
 
         return InstagramHealthResponse.builder()
                 .status(worstStatus)
@@ -1027,6 +1038,13 @@ public class InstagramBotClient {
                                 () -> {
                                     try {
                                         return supplier.get();
+                                    } catch (RuntimeException e) {
+                                        // Preserve the original type (e.g. RestTemplate's
+                                        // ResourceAccessException) so the retry and circuit-breaker
+                                        // exception predicates can actually match connectivity
+                                        // failures. Wrapping everything in a bare RuntimeException
+                                        // silently disabled both.
+                                        throw e;
                                     } catch (Exception e) {
                                         throw new RuntimeException(e);
                                     }

@@ -217,7 +217,8 @@ class RefillRequestServiceTest {
     }
 
     @Test
-    @DisplayName("createRequest: window-days = 0 → lifetime refill, even a very old order is accepted")
+    @DisplayName(
+            "createRequest: window-days = 0 → lifetime refill, even a very old order is accepted")
     void createRequest_unlimited_window_accepts_old_order() {
         ReflectionTestUtils.setField(service, "refillWindowDays", 0); // unlimited
         Order order = completedOrder(ORDER_ID, user);
@@ -260,8 +261,9 @@ class RefillRequestServiceTest {
     }
 
     @Test
-    @DisplayName("createRequest: re-refill allowed — a prior APPROVED refill no longer blocks a new"
-            + " request (lifetime refills)")
+    @DisplayName(
+            "createRequest: re-refill allowed — a prior APPROVED refill no longer blocks a new"
+                    + " request (lifetime refills)")
     void createRequest_allows_resubmit_after_approved() {
         Order order = completedOrder(ORDER_ID, user);
         stubEligibleOrder(order);
@@ -331,7 +333,8 @@ class RefillRequestServiceTest {
                             return r;
                         });
 
-        RefillBatchResponse resp = service.createRequests(List.of(ORDER_ID, 404L, ORDER_ID), "note");
+        RefillBatchResponse resp =
+                service.createRequests(List.of(ORDER_ID, 404L, ORDER_ID), "note");
 
         // ORDER_ID de-duplicated → 2 distinct ids processed.
         assertThat(resp.getResults()).hasSize(2);
@@ -381,10 +384,7 @@ class RefillRequestServiceTest {
     @DisplayName("bindCheck: no-op when the request already left CHECKING")
     void bindCheck_noop_when_not_checking() {
         RefillRequest req =
-                RefillRequest.builder()
-                        .id(REQUEST_ID)
-                        .status(RefillRequest.Status.PENDING)
-                        .build();
+                RefillRequest.builder().id(REQUEST_ID).status(RefillRequest.Status.PENDING).build();
         when(refillRequestRepository.findById(REQUEST_ID)).thenReturn(Optional.of(req));
 
         service.bindCheck(REQUEST_ID, 55L);

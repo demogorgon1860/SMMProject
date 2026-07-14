@@ -43,7 +43,15 @@ public class CorrelationIdFilter extends HttpFilter {
 
     private String getCorrelationIdFromHeader(final HttpServletRequest request) {
         String correlationId = request.getHeader(CORRELATION_ID_HEADER);
-        return StringUtils.hasText(correlationId) ? correlationId : generateCorrelationId();
+        // The header is client-controlled and gets written into MDC/logs — sanitize it to prevent
+        // log injection (embedded newlines/control chars). Accept only a short safe token,
+        // otherwise generate our own id.
+        if (StringUtils.hasText(correlationId)
+                && correlationId.length() <= 64
+                && correlationId.matches("[A-Za-z0-9._-]+")) {
+            return correlationId;
+        }
+        return generateCorrelationId();
     }
 
     private String generateCorrelationId() {

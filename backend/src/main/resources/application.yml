@@ -659,6 +659,8 @@ app:
     bot:
       url: ${INSTAGRAM_BOT_URL:http://45.142.211.90:8080}
       urls: ${INSTAGRAM_BOT_URLS:}
+      # Also the HMAC key used to verify inbound bot webhooks (X-Webhook-Signature). The bot signs
+      # with this same shared key, so no separate webhook secret is needed.
       api-key: ${INSTAGRAM_BOT_API_KEY:}
       callback-url: ${INSTAGRAM_CALLBACK_BASE_URL:https://smmworld.vip}
       timeout: ${INSTAGRAM_BOT_TIMEOUT:30000}
@@ -858,6 +860,30 @@ resilience4j:
           - org.springframework.web.client.ResourceAccessException
         ignore-exceptions:
           - java.lang.IllegalArgumentException
+      # Instagram Bot per-instance retries — MUST match the exact names used in
+      # InstagramBotClient (retryRegistry.retry("instagramBotWrite"/"instagramBotRead")),
+      # otherwise they silently fall back to the bare default config and never retry
+      # RestTemplate connectivity failures (ResourceAccessException).
+      instagramBotWrite:
+        max-attempts: ${INSTAGRAM_RETRY_MAX_ATTEMPTS:3}
+        wait-duration: ${INSTAGRAM_RETRY_WAIT_DURATION:PT2S}
+        exponential-backoff-multiplier: 2.0
+        retry-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.client.ResourceAccessException
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
+      instagramBotRead:
+        max-attempts: ${INSTAGRAM_RETRY_MAX_ATTEMPTS:3}
+        wait-duration: ${INSTAGRAM_RETRY_WAIT_DURATION:PT2S}
+        exponential-backoff-multiplier: 2.0
+        retry-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.client.ResourceAccessException
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
       # Cryptomus API Retry
       cryptomus-api:
         max-attempts: ${CRYPTOMUS_RETRY_MAX_ATTEMPTS:3}
@@ -887,7 +913,12 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus,loggers,kafka,env,threaddump,heapdump
+        # SECURITY: /actuator/** is permitAll, so the default web exposure must NOT include
+        # sensitive endpoints. env/threaddump/heapdump leak configuration and memory (secrets),
+        # and loggers can be flipped to DEBUG by anyone. Only health/info/metrics/prometheus are
+        # safe to expose unauthenticated for monitoring. Do not re-add the others without also
+        # locking /actuator down in SecurityConfig.
+        include: health,info,metrics,prometheus
       base-path: /actuator
     jmx:
       exposure:

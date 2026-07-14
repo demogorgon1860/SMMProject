@@ -28,6 +28,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -59,7 +60,6 @@ public class OrderService {
     private final UserRepository userRepository;
     private final ServiceRepository serviceRepository;
     private final BalanceService balanceService;
-    private final OrderStateManagementService orderStateManagementService;
     private final EventSourcingService eventSourcingService;
     private final CqrsReadModelService cqrsReadModelService;
     private final ApiKeyService apiKeyService;
@@ -1288,6 +1288,21 @@ public class OrderService {
         return url;
     }
 
+    /**
+     * True only for links a bot order can actually target: a canonical {@code
+     * https://www.instagram.com/<path>} with a non-empty path. Inputs are expected to have already
+     * passed through {@link #normalizeInstagramUrl}. Non-Instagram or path-less URLs (and
+     * unnormalizable garbage that stayed on another host) return false.
+     */
+    static boolean isInstagramUrl(String url) {
+        if (url == null) {
+            return false;
+        }
+        String prefix = "https://www.instagram.com/";
+        return url.regionMatches(true, 0, prefix, 0, prefix.length())
+                && url.length() > prefix.length();
+    }
+
     // Additional methods required by the interface
     public OrderResponse createOrder(CreateOrderRequest request, String username) {
         User user =
@@ -1305,6 +1320,22 @@ public class OrderService {
                         .build();
 
         return createOrder(orderCreateRequest, username);
+    }
+
+    /**
+     * Create a batch of orders atomically. All succeed or all roll back — the inner {@link
+     * #createOrder(OrderCreateRequest, String)} calls join this REQUIRED transaction, so a failure
+     * on any order undoes the charges and orders already created in the batch. This is the "all
+     * succeed or all fail" guarantee the mass endpoint previously only claimed in a comment.
+     */
+    @Transactional
+    public List<OrderResponse> createOrdersBatch(
+            List<CreateOrderRequest> requests, String username) {
+        List<OrderResponse> results = new ArrayList<>(requests.size());
+        for (CreateOrderRequest request : requests) {
+            results.add(createOrder(request, username));
+        }
+        return results;
     }
 
     @Transactional
@@ -1328,6 +1359,15 @@ public class OrderService {
 
         // Validate user has access to this service
         serviceService.validateUserAccessToService(user, service.getId());
+
+        // Validate the link resolves to a real Instagram target BEFORE charging. Bean Validation
+        // on the DTO does not run on this hand-built path, so without this an arbitrary URL would
+        // be forwarded verbatim to the bot. normalizeInstagramUrl canonicalizes valid inputs
+        // (bare handles, m./instagram.com, /reel/…) to https://www.instagram.com/<path>.
+        if (!isInstagramUrl(normalizeInstagramUrl(request.getLink()))) {
+            throw new OrderValidationException(
+                    "Invalid link: a valid Instagram URL (post or profile) is required");
+        }
 
         // Handle custom comments services - auto-calculate quantity from comments
         int effectiveQuantity = request.getQuantity();
@@ -1373,6 +1413,35 @@ public class OrderService {
 
         // Calculate charge based on effective quantity
         BigDecimal charge = calculateCharge(service, effectiveQuantity);
+
+        // Platform-wide minimum-charge floor. No-op when the setting is 0/unset. Previously this
+        // guard lived only in the unreachable createOrderWithApiKey path, so admins who set a
+        // minimum saw it silently ignored on the live order path.
+        BigDecimal minCharge =
+                appSettingsService.getDecimal(
+                        AppSettingsService.KEY_MIN_ORDER_CHARGE, BigDecimal.ZERO);
+        if (minCharge.signum() > 0 && charge.compareTo(minCharge) < 0) {
+            throw new OrderValidationException(
+                    String.format(
+                            "Order amount $%s is below the minimum charge of $%s",
+                            charge.toPlainString(), minCharge.toPlainString()));
+        }
+
+        // Per-user concurrent-orders cap. 0 = unlimited (skip). Same intent as above — this was
+        // configured in admin settings but never enforced on the live path.
+        int maxConcurrent =
+                appSettingsService.getInt(AppSettingsService.KEY_MAX_CONCURRENT_ORDERS, 0);
+        if (maxConcurrent > 0) {
+            long inFlight =
+                    orderRepository.countByUserIdAndStatusIn(
+                            user.getId(), QUOTA_COUNTING_INFLIGHT_STATUSES);
+            if (inFlight >= maxConcurrent) {
+                throw new OrderQuotaExceededException(
+                        String.format(
+                                "Concurrent orders limit reached: %d in-flight, max %d",
+                                inFlight, maxConcurrent));
+            }
+        }
 
         // Check balance
         if (user.getBalance().compareTo(charge) < 0) {

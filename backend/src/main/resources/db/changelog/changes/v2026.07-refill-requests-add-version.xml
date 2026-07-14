@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!--
+      Optimistic-lock version column for refill_requests. Without it, a concurrent
+      approve()/reject() (or approve vs. the auto-scheduler finalize) could last-write-wins
+      overwrite each other and desync the request row from the refill it actually created.
+      Hibernate's @Version maps to this column; existing rows default to 0.
+    -->
+    <changeSet id="v2026.07-refill-requests-add-version" author="dev">
+        <preConditions onFail="MARK_RAN" onError="MARK_RAN">
+            <not><columnExists tableName="refill_requests" columnName="version"/></not>
+        </preConditions>
+        <addColumn tableName="refill_requests">
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <rollback>
+            <dropColumn tableName="refill_requests" columnName="version"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -188,9 +188,12 @@ public class SecurityConfig {
                 // before auth work happens, so a maintenance window doesn't burn DB/Redis time on
                 // requests we're going to reject anyway.
                 .addFilterBefore(maintenanceFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                // Rate limiting MUST run AFTER authentication so it can bucket by authenticated
+                // user (and apply the admin bypass). Placed before it, the SecurityContext is
+                // still empty and every request falls back to IP bucketing.
+                .addFilterAfter(rateLimitFilter, JwtAuthenticationFilter.class)
                 // OAuth2 login disabled - handlers removed
                 .oauth2Login(oauth2 -> oauth2.disable());
 

@@ -217,15 +217,24 @@ public class User implements UserDetails {
      * cascade / mappedBy plumbing — they're never useful as part of an API response, and exposing
      * them would also dump unbounded data per user.
      */
+    // NOTE: cascade is PERSIST+MERGE only — NOT ALL. CascadeType.ALL includes REMOVE, which would
+    // hard-delete a user's entire order and financial history on user deletion, contradicting the
+    // DB schema's ON DELETE SET NULL that deliberately preserves these records for AML/audit.
     @JsonIgnore
-    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @OneToMany(
+            mappedBy = "user",
+            fetch = FetchType.LAZY,
+            cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @BatchSize(size = 25)
     @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
     @Singular
     private List<Order> orders;
 
     @JsonIgnore
-    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @OneToMany(
+            mappedBy = "user",
+            fetch = FetchType.LAZY,
+            cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @BatchSize(size = 20)
     @Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
     @Singular("balanceTransaction")

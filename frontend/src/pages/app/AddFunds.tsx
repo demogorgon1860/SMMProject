@@ -13,7 +13,7 @@ import {
 import { balanceAPI, depositsAPI } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import type { Deposit } from '../../types';
-import { fmtMoney } from '../../lib/utils';
+import { fmtMoney, toNum } from '../../lib/utils';
 
 // =====================================================================
 // Add Funds — minimal flow:
@@ -52,8 +52,11 @@ export function AddFundsPage() {
           setRecent(arr);
         }
         if (bal.status === 'fulfilled') {
-          const b = bal.value as { balance?: number };
-          if (typeof b.balance === 'number') updateBalance(b.balance);
+          // balance comes back as a BigDecimal-string, so a `typeof === 'number'` guard never
+          // fired and the polled balance never reached the store. Coerce with toNum.
+          const b = bal.value as { balance?: number | string };
+          const n = toNum(b.balance);
+          if (Number.isFinite(n)) updateBalance(n);
         }
       } finally {
         if (!cancelled) setLoadingRecent(false);

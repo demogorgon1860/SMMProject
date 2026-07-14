@@ -250,16 +250,15 @@ public class RefillCheckService {
     }
 
     /**
-     * The order whose delivered set the bot should measure: the latest <em>settled</em>
-     * (COMPLETED / PARTIAL) refill of {@code original} if one exists, otherwise {@code original}
-     * itself. This realizes the "check the last refill" rule — each refill tops up the previous
-     * delivery's drop, so the next check measures the most recent batch.
+     * The order whose delivered set the bot should measure: the latest <em>settled</em> (COMPLETED
+     * / PARTIAL) refill of {@code original} if one exists, otherwise {@code original} itself. This
+     * realizes the "check the last refill" rule — each refill tops up the previous delivery's drop,
+     * so the next check measures the most recent batch.
      */
     private Order resolveCheckTarget(Order original) {
         return orderRepository
                 .findFirstByRefillParentIdAndStatusInOrderByIdDesc(
-                        original.getId(),
-                        List.of(OrderStatus.COMPLETED, OrderStatus.PARTIAL))
+                        original.getId(), List.of(OrderStatus.COMPLETED, OrderStatus.PARTIAL))
                 .orElse(original);
     }
 
@@ -385,9 +384,9 @@ public class RefillCheckService {
 
     /**
      * Assert the order's service is drop-checkable (a single action: like / follow / comment).
-     * Throws {@link IllegalStateException} with a customer-facing message otherwise — used by {@code
-     * RefillRequestService.createRequest} to reject combo services at submit time, so the user gets
-     * instant per-order feedback instead of discovering it later in their refill history.
+     * Throws {@link IllegalStateException} with a customer-facing message otherwise — used by
+     * {@code RefillRequestService.createRequest} to reject combo services at submit time, so the
+     * user gets instant per-order feedback instead of discovering it later in their refill history.
      */
     public void assertSingleActionService(Order order) {
         InstagramOrderType type = resolveType(order);

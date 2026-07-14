@@ -83,6 +83,15 @@ public class RefillRequestService {
     }
 
     /**
+     * Same as {@link #createRequest(Long, String)} but for callers authenticated outside the
+     * SecurityContext (e.g. the Perfect Panel /api/v2 API-key path). {@code createOne} validates
+     * that the order belongs to {@code user}.
+     */
+    public RefillRequestResponse createRequest(User user, Long orderId, String userNote) {
+        return RefillRequestResponse.from(createOne(user, orderId, userNote));
+    }
+
+    /**
      * Submit several orders at once (the Refill page paste-list). Each order is validated and
      * inserted independently so one bad id never fails the batch. Ids are de-duplicated preserving
      * input order.
@@ -146,8 +155,8 @@ public class RefillRequestService {
     /**
      * Validate one order and insert a CHECKING request for it (or return the existing in-flight
      * request idempotently). Throws {@link ResourceNotFoundException} (404) for unknown / not-owned
-     * orders and {@link IllegalStateException} for every other ineligibility so the batch caller can
-     * surface a per-order reason.
+     * orders and {@link IllegalStateException} for every other ineligibility so the batch caller
+     * can surface a per-order reason.
      */
     private RefillRequest createOne(User user, Long orderId, String userNote) {
         // Eager-fetch user + service: the batch path runs without a surrounding transaction (for
@@ -281,8 +290,10 @@ public class RefillRequestService {
                 RefillRequest.Status.CHECKING);
     }
 
-    /** Bind a freshly-started drop-check to a CHECKING request and count the attempt. No-op if the
-     * request is no longer CHECKING (race with another tick / admin action). */
+    /**
+     * Bind a freshly-started drop-check to a CHECKING request and count the attempt. No-op if the
+     * request is no longer CHECKING (race with another tick / admin action).
+     */
     @Transactional
     public void bindCheck(Long requestId, Long checkId) {
         RefillRequest req = refillRequestRepository.findById(requestId).orElse(null);
@@ -324,7 +335,8 @@ public class RefillRequestService {
             refillRequestRepository.save(req);
             log.info(
                     "Refill request {} (order {}) → NO_DROP — nothing dropped",
-                    requestId, req.getOrderId());
+                    requestId,
+                    req.getOrderId());
         }
     }
 

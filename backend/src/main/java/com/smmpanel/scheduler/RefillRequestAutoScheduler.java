@@ -26,9 +26,9 @@ import org.springframework.stereotype.Component;
  * <ul>
  *   <li><b>DONE</b> → finalize (PENDING if drop &gt; 0, else NO_DROP).
  *   <li><b>RUNNING</b> → wait ({@code RefillCheckScheduler} is polling it).
- *   <li><b>none / FAILED</b> → (re)start a check, subject to the per-tick start cap, the per-request
- *       attempt budget, and an overall age ceiling. When the budget/age is exhausted the request is
- *       FAILED so the customer can resubmit.
+ *   <li><b>none / FAILED</b> → (re)start a check, subject to the per-tick start cap, the
+ *       per-request attempt budget, and an overall age ceiling. When the budget/age is exhausted
+ *       the request is FAILED so the customer can resubmit.
  * </ul>
  *
  * <p>Like {@code RefillCheckScheduler} / {@code TelegramScheduler} this is a single-runner (one
@@ -44,11 +44,15 @@ public class RefillRequestAutoScheduler {
     private final RefillCheckService refillCheckService;
     private final OrderRepository orderRepository;
 
-    /** Max NEW bot checks kicked off per tick — bounds the load a big paste-list puts on the bot. */
+    /**
+     * Max NEW bot checks kicked off per tick — bounds the load a big paste-list puts on the bot.
+     */
     @Value("${app.refill.auto.max-starts-per-tick:5}")
     private int maxStartsPerTick;
 
-    /** Max bot checks started for one request before we give up (each started check counts once). */
+    /**
+     * Max bot checks started for one request before we give up (each started check counts once).
+     */
     @Value("${app.refill.auto.max-check-attempts:3}")
     private int maxCheckAttempts;
 
@@ -108,7 +112,8 @@ public class RefillRequestAutoScheduler {
                 }
 
                 try {
-                    RefillCheck check = refillCheckService.startCheckForAuto(order, req.getUserId());
+                    RefillCheck check =
+                            refillCheckService.startCheckForAuto(order, req.getUserId());
                     refillRequestService.bindCheck(req.getId(), check.getId());
                     startsThisTick++;
                 } catch (IllegalStateException permanent) {
@@ -135,6 +140,7 @@ public class RefillRequestAutoScheduler {
 
     private static boolean olderThan(RefillRequest req, int minutes) {
         return req.getCreatedAt() != null
-                && req.getCreatedAt().isBefore(LocalDateTime.now().minus(Duration.ofMinutes(minutes)));
+                && req.getCreatedAt()
+                        .isBefore(LocalDateTime.now().minus(Duration.ofMinutes(minutes)));
     }
 }

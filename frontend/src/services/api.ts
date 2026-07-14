@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios';
+import type { InternalAxiosRequestConfig } from 'axios';
 import type { RefillBatchResponse } from '../types';
 
 // =====================================================================
@@ -10,6 +11,8 @@ import type { RefillBatchResponse } from '../types';
 const api = axios.create({
   baseURL: '/api',
   headers: { 'Content-Type': 'application/json' },
+  // Fail a hung backend/bot-proxy call instead of leaving the UI spinning forever.
+  timeout: 30000,
 });
 
 // Inject Bearer token on every request.
@@ -19,31 +22,83 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Global 401 handler: bounce to /login on session-expired ONLY. Endpoints that
-// can return 401 as a legitimate input-validation result (login form, password
-// confirmation) must be skipped — otherwise a typo on the password field
-// would log the user out of the entire app.
+// Global 401 handler. On session-expired we first try a SILENT token refresh (the refresh token
+// lives in an HttpOnly cookie sent automatically same-origin; /v1/auth/refresh only needs the
+// Bearer header the request interceptor already attaches). Only if the refresh itself fails do we
+// bounce to /login — an expired access token no longer logs the user out mid-session.
+//
+// Endpoints that return 401 as a legitimate input-validation result (login form, password
+// confirmation) are skipped — otherwise a typo on the password field would trigger this flow.
+let isRefreshing = false;
+let refreshWaiters: Array<(token: string | null) => void> = [];
+
+function flushRefreshWaiters(token: string | null): void {
+  refreshWaiters.forEach((cb) => cb(token));
+  refreshWaiters = [];
+}
+
+function forceLogout(): void {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  localStorage.removeItem('refreshToken');
+  window.location.href = '/login';
+}
+
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError) => {
-    const url = error.config?.url ?? '';
-    // /auth/* — login/register/forgot/reset/verify-email all return 401 on bad input
-    // /me/password — this is now 422 server-side, but kept here as belt-and-braces
-    //                in case a deployment lag returns 401 from an old container
-    // /me/account  — DELETE re-asks for the password and returns 422 on mismatch; if a stale
-    //                container ever returns 401, we still don't want to bounce the user out
-    //                while they're staring at a delete-confirmation modal.
+  async (error: AxiosError) => {
+    const original = error.config as (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined;
+    const url = original?.url ?? '';
+
     const isInputValidationEndpoint =
       /\/auth\/(login|register|forgot|reset|verify)/.test(url) ||
       /\/me\/password\b/.test(url) ||
       /\/me\/account\b/.test(url);
+    // Never try to refresh the refresh/login calls themselves — that would loop.
+    const isAuthFlowEndpoint = /\/auth\/(refresh|login|register|logout)\b/.test(url);
 
-    if (error.response?.status === 401 && !isInputValidationEndpoint) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+    if (
+      error.response?.status !== 401 ||
+      isInputValidationEndpoint ||
+      isAuthFlowEndpoint ||
+      !original ||
+      original._retried
+    ) {
+      return Promise.reject(error);
     }
-    return Promise.reject(error);
+
+    original._retried = true;
+
+    // A refresh is already in flight — queue this request until it resolves.
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        refreshWaiters.push((token) => {
+          if (!token) {
+            reject(error);
+            return;
+          }
+          original.headers.Authorization = `Bearer ${token}`;
+          resolve(api(original));
+        });
+      });
+    }
+
+    isRefreshing = true;
+    try {
+      const { data } = await api.post('/v1/auth/refresh');
+      const newToken: string | undefined = data?.accessToken;
+      if (!newToken) throw new Error('No access token in refresh response');
+      localStorage.setItem('token', newToken);
+      flushRefreshWaiters(newToken);
+      original.headers.Authorization = `Bearer ${newToken}`;
+      return api(original);
+    } catch (refreshErr) {
+      flushRefreshWaiters(null);
+      forceLogout();
+      return Promise.reject(refreshErr);
+    } finally {
+      isRefreshing = false;
+    }
   },
 );
 
@@ -534,6 +589,10 @@ export const adminAPI = {
 
   updateUserRole: (userId: number, role: 'USER' | 'ADMIN' | 'OPERATOR') =>
     api.put(`/v2/admin/users/${userId}/role`, { role }).then((r) => r.data),
+
+  // Suspend / re-activate a user (toggles the active flag; does NOT change their role).
+  setUserActive: (userId: number, active: boolean) =>
+    api.put(`/v2/admin/users/${userId}/status`, { active }).then((r) => r.data),
 
   bulkOrderAction: (data: { orderIds: number[]; action: string; reason?: string }) =>
     api.post('/v2/admin/orders/bulk-actions', data).then((r) => r.data),

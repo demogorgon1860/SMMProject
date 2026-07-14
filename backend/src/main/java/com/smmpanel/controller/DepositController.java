@@ -12,6 +12,7 @@ import com.smmpanel.service.integration.CryptomusService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +39,7 @@ public class DepositController {
     @Operation(
             summary = "Create a new deposit",
             description = "Creates a new Cryptomus payment for balance top-up")
-    public ResponseEntity<?> createDeposit(@RequestBody CreateDepositRequest request) {
+    public ResponseEntity<?> createDeposit(@Valid @RequestBody CreateDepositRequest request) {
         try {
             User user = getCurrentUser();
             CreateDepositResponse response =

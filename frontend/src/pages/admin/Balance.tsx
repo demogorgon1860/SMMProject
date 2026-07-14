@@ -19,6 +19,8 @@ import {
 } from '../../components/ui';
 import type { BalanceTransaction, TransactionType } from '../../types';
 import { fmtMoney } from '../../lib/utils';
+import { adminAPI } from '../../services/api';
+import { unwrapList } from '../../lib/api';
 
 const PAGE_SIZE = 30;
 
@@ -196,7 +198,44 @@ function ManualAdjustModal({ open, onClose }: { open: boolean; onClose: () => vo
   const [direction, setDirection] = useState<'credit' | 'debit'>('credit');
   const [reason, setReason] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const valid = identifier.trim() && amount > 0 && reason.trim().length >= 10 && confirm === 'CONFIRM';
+
+  // Resolve the "email or id" field to a numeric user id, then post the adjustment. A negative
+  // amount debits (the backend routes it through deductBalance with a locked row + audit trail).
+  const postAdjustment = async () => {
+    if (!valid || submitting) return;
+    setSubmitting(true);
+    try {
+      const trimmed = identifier.trim();
+      let userId: number | null = null;
+      if (/^\d+$/.test(trimmed)) {
+        userId = Number(trimmed);
+      } else {
+        const res = await adminAPI.getUsers(0, 5, trimmed);
+        const list = unwrapList<{ id: number; email?: string; username?: string }>(res, ['users']);
+        const match =
+          list.find(
+            (u) =>
+              u.email?.toLowerCase() === trimmed.toLowerCase() ||
+              u.username?.toLowerCase() === trimmed.toLowerCase(),
+          ) ?? list[0];
+        userId = match?.id ?? null;
+      }
+      if (!userId) {
+        toast('User not found.', 'error');
+        return;
+      }
+      const signedAmount = direction === 'debit' ? -amount : amount;
+      await adminAPI.adjustUserBalance(userId, signedAmount, reason);
+      toast('Manual adjustment posted.', 'success');
+      onClose();
+    } catch {
+      toast('Adjustment failed.', 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
   return (
     <Modal
       open={open}
@@ -208,15 +247,8 @@ function ManualAdjustModal({ open, onClose }: { open: boolean; onClose: () => vo
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            variant="danger"
-            disabled={!valid}
-            onClick={() => {
-              toast('Manual adjustment posted.', 'success');
-              onClose();
-            }}
-          >
-            Post adjustment
+          <Button variant="danger" disabled={!valid || submitting} onClick={postAdjustment}>
+            {submitting ? 'Posting…' : 'Post adjustment'}
           </Button>
         </>
       }

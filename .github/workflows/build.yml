@@ -30,7 +30,13 @@ jobs:
           path: ~/.gradle/caches
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
           restore-keys: ${{ runner.os }}-gradle
-      - name: Build and analyze
+      # Tests + spotless + assemble — this is the gating step for the build.
+      - name: Build and test
+        run: cd backend && ./gradlew build --info
+      # SonarQube analysis is best-effort: it must not fail CI when the Sonar
+      # subscription/token is unavailable. Re-enable gating once Sonar is active.
+      - name: SonarQube analysis (non-blocking)
+        continue-on-error: true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: cd backend && ./gradlew build sonar --info
+        run: cd backend && ./gradlew sonar --info

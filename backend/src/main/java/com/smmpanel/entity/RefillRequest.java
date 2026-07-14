@@ -58,6 +58,13 @@ public class RefillRequest {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Optimistic lock: prevents concurrent approve()/reject() (or approve vs the auto-scheduler)
+    // from silently overwriting each other and desyncing the request from the refill it created.
+    @Version
+    @Column(name = "version", nullable = false)
+    @Builder.Default
+    private Long version = 0L;
+
     @Column(name = "order_id", nullable = false)
     private Long orderId;
 
@@ -125,8 +132,8 @@ public class RefillRequest {
     private LocalDateTime botCheckedAt;
 
     /**
-     * How many times the auto-scheduler has kicked off a bot drop-check for this request. Bounds the
-     * retry budget so a permanently-unreachable check eventually transitions to {@link
+     * How many times the auto-scheduler has kicked off a bot drop-check for this request. Bounds
+     * the retry budget so a permanently-unreachable check eventually transitions to {@link
      * Status#FAILED} instead of looping forever.
      */
     @Column(name = "check_attempts", nullable = false)

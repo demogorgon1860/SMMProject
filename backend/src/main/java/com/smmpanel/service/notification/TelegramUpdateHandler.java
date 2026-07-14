@@ -95,8 +95,11 @@ public class TelegramUpdateHandler {
     }
 
     private void handleProceed(Long orderId, Integer messageId) {
+        // Atomically claim the decision — this both fetches it and removes it in one Redis op, so a
+        // concurrent Cancel tap cannot also claim it. Whoever loses the race sees "already
+        // decided".
         Optional<CancelPendingDecision> decisionOpt =
-                callbackTxService.readPendingDecision(orderId);
+                callbackTxService.claimPendingDecision(orderId);
         if (decisionOpt.isEmpty()) {
             telegramBotService.editMessageText(
                     messageId,
@@ -104,8 +107,6 @@ public class TelegramUpdateHandler {
             return;
         }
 
-        // Remove decision first so a stray second click or scheduler tick sees "already decided".
-        callbackTxService.removePendingDecision(orderId);
         telegramBotService.editMessageText(
                 messageId, String.format("⏳ Заказ #%d: возобновляем в боте...", orderId));
 
@@ -130,8 +131,10 @@ public class TelegramUpdateHandler {
     }
 
     private void handleCancel(Long orderId, Integer messageId) {
+        // Atomically claim the decision (see handleProceed) so a concurrent Proceed cannot also
+        // act.
         Optional<CancelPendingDecision> decisionOpt =
-                callbackTxService.readPendingDecision(orderId);
+                callbackTxService.claimPendingDecision(orderId);
         if (decisionOpt.isEmpty()) {
             telegramBotService.editMessageText(
                     messageId,
@@ -150,6 +153,9 @@ public class TelegramUpdateHandler {
             res = callbackTxService.performCancelTx(orderId, completedCount);
         } catch (Exception e) {
             log.error("Transactional cancel failed for order {}: {}", orderId, e.getMessage(), e);
+            // Refund tx failed and rolled back — put the decision back so the timeout scheduler (or
+            // a retry) can act on it rather than leaving the order silently stuck paused.
+            callbackTxService.restorePendingDecision(orderId, decision);
             telegramBotService.editMessageText(
                     messageId,
                     String.format("❌ Заказ #%d: ошибка при рефанде. Проверьте админку.", orderId));

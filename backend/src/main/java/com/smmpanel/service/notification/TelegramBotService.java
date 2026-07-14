@@ -178,6 +178,18 @@ public class TelegramBotService {
 
         Integer messageId = sendMessageWithInlineKeyboard(text, order.getId());
 
+        // Only store the decision if the approval message actually reached Telegram. Storing it on
+        // a failed send would start the 4h auto-action timer for a message the admin never saw —
+        // the order would be auto-proceeded/cancelled with no human input. Leaving it unstored lets
+        // the dual result path (RabbitMQ + webhook) retry the notification naturally.
+        if (messageId == null) {
+            log.error(
+                    "Failed to send cancel-approval message for order {} — NOT storing a pending"
+                            + " decision (no silent 4h auto-action without admin visibility)",
+                    order.getId());
+            return;
+        }
+
         CancelPendingDecision decision =
                 CancelPendingDecision.builder()
                         .orderId(order.getId())

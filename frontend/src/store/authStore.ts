@@ -7,6 +7,8 @@ interface AuthState {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  /** False until checkAuth() has verified the persisted token with the backend once. */
+  authChecked: boolean;
   error: string | null;
 
   login: (username: string, password: string) => Promise<void>;
@@ -84,6 +86,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   token: initialToken,
   isAuthenticated: !!initialToken,
   isLoading: false,
+  // If there's no persisted token there's nothing to verify, so we're already "checked".
+  authChecked: !initialToken,
   error: null,
 
   login: async (username: string, password: string) => {
@@ -148,18 +152,18 @@ export const useAuthStore = create<AuthState>((set) => ({
   checkAuth: async () => {
     const token = readString('token');
     if (!token) {
-      set({ isAuthenticated: false, user: null });
+      set({ isAuthenticated: false, user: null, authChecked: true });
       return;
     }
 
     try {
       const user = await authAPI.getCurrentUser();
       writeJSON('user', user);
-      set({ user: user ?? null, isAuthenticated: !!user });
+      set({ user: user ?? null, isAuthenticated: !!user, authChecked: true });
     } catch (error) {
       writeString('token', null);
       writeJSON('user', null);
-      set({ isAuthenticated: false, user: null });
+      set({ isAuthenticated: false, user: null, authChecked: true });
     }
   },
 

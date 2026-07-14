@@ -824,4 +824,7 @@
     <!-- Automatic refill checking: check_attempts counter + active (CHECKING|PENDING) unique index -->
     <include file="db/changelog/changes/v2026.06-refill-auto-check.xml"/>
 
+    <!-- Optimistic-lock version column on refill_requests (concurrent approve/reject guard) -->
+    <include file="db/changelog/changes/v2026.07-refill-requests-add-version.xml"/>
+
 </databaseChangeLog>

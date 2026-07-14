@@ -103,6 +103,12 @@ export function AdminUsersPage() {
     );
   };
 
+  const onStatusChanged = (userId: number, active: boolean) => {
+    setUsers((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, status: active ? 'active' : 'suspended' } : u)),
+    );
+  };
+
   return (
     <>
       <PageHeader
@@ -231,6 +237,7 @@ export function AdminUsersPage() {
         user={openUser}
         onClose={() => setOpenId(null)}
         onAdjust={() => openUser && setAdjustFor(openUser)}
+        onStatusChanged={onStatusChanged}
       />
 
       <AdjustBalanceModal
@@ -252,9 +259,10 @@ interface UserDrawerProps {
   user: AdminUser | null;
   onClose: () => void;
   onAdjust: () => void;
+  onStatusChanged: (userId: number, active: boolean) => void;
 }
 
-function UserDrawer({ user, onClose, onAdjust }: UserDrawerProps) {
+function UserDrawer({ user, onClose, onAdjust, onStatusChanged }: UserDrawerProps) {
   const toast = useToast();
   const [tab, setTab] = useState<'overview' | 'orders' | 'balance' | 'apikeys' | 'actions'>('overview');
 
@@ -287,9 +295,22 @@ function UserDrawer({ user, onClose, onAdjust }: UserDrawerProps) {
             size="sm"
             icon="shield"
             onClick={() => {
+              const active = isUserActive(user);
+              const nextActive = !active;
+              const ok = window.confirm(
+                active
+                  ? `Suspend @${user.username}? They lose access immediately.`
+                  : `Re-activate @${user.username}?`,
+              );
+              if (!ok) return;
+              // Toggle the ACTIVE flag via the status endpoint — NOT the role endpoint (which
+              // previously always set role=USER and silently stripped ADMIN).
               adminAPI
-                .updateUserRole(user.id, isUserActive(user) ? 'USER' : 'USER')
-                .then(() => toast(isUserActive(user) ? 'User suspended.' : 'User unsuspended.', 'success'))
+                .setUserActive(user.id, nextActive)
+                .then(() => {
+                  toast(nextActive ? 'User unsuspended.' : 'User suspended.', 'success');
+                  onStatusChanged(user.id, nextActive);
+                })
                 .catch(() => toast('Action failed.', 'error'));
             }}
           >

@@ -82,9 +82,10 @@ public class WebhookController {
         } catch (Exception e) {
             log.error("Failed to process Cryptomus webhook: {}", e.getMessage(), e);
 
-            // Return error response
+            // Do NOT echo the exception message back to the caller (it can leak internal detail —
+            // SQL text, field names). Log it server-side; return a generic error.
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("status", "error", "message", e.getMessage()));
+                    .body(Map.of("status", "error"));
         }
     }
 
@@ -112,22 +113,22 @@ public class WebhookController {
      * @return Client IP address
      */
     private String getClientIpAddress(HttpServletRequest request) {
-        // Check X-Forwarded-For header (set by load balancers/proxies)
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            // X-Forwarded-For can contain multiple IPs: "client, proxy1, proxy2"
-            // The first IP is the original client
-            String[] ips = xForwardedFor.split(",");
-            return ips[0].trim();
-        }
-
-        // Check X-Real-IP header (alternative header used by some proxies)
+        // SECURITY: The FIRST entry of X-Forwarded-For is client-controlled and trivially spoofed,
+        // so it must never be used for an allow-list. Our nginx sets `X-Real-IP $remote_addr`
+        // (overwriting any client value) and appends the real peer to X-Forwarded-For via
+        // `$proxy_add_x_forwarded_for`, so the trustworthy client IP is X-Real-IP, and failing
+        // that the LAST X-Forwarded-For entry (the hop nginx appended).
         String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isEmpty()) {
+        if (xRealIp != null && !xRealIp.isBlank()) {
             return xRealIp.trim();
         }
 
-        // Fallback to remote address
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isBlank()) {
+            String[] ips = xForwardedFor.split(",");
+            return ips[ips.length - 1].trim();
+        }
+
         return request.getRemoteAddr();
     }
 }

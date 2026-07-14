@@ -48,6 +48,23 @@ public class TelegramCallbackTxService {
         return cancelDecisionService.getPendingDecision(orderId);
     }
 
+    /**
+     * Atomically claim the decision (Redis GETDEL). Exactly one caller can win, so a
+     * near-simultaneous Proceed and Cancel double-tap can no longer both act on the same order
+     * (which previously resumed the bot AND refunded the customer). Returns empty if the decision
+     * was already claimed/expired.
+     */
+    public Optional<CancelPendingDecision> claimPendingDecision(Long orderId) {
+        return cancelDecisionService.claimPendingDecision(orderId);
+    }
+
+    /**
+     * Put a claimed decision back if the follow-up action failed, so timeout handling can retry.
+     */
+    public void restorePendingDecision(Long orderId, CancelPendingDecision decision) {
+        cancelDecisionService.storePendingDecision(orderId, decision);
+    }
+
     public void removePendingDecision(Long orderId) {
         cancelDecisionService.removePendingDecision(orderId);
     }

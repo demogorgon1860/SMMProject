@@ -89,6 +89,9 @@ export function RefillPage() {
   }, [hasChecking]);
 
   const submit = async () => {
+    // Guard at the top so BOTH the Submit button and the Enter-key handler are covered — otherwise
+    // hitting Enter (or Enter + click) fires concurrent batch submissions.
+    if (submitting) return;
     const ids = parseIds(input);
     if (ids.length === 0) {
       toast('Enter one or more order numbers', 'error');

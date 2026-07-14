@@ -652,8 +652,7 @@ public interface OrderRepository
             value =
                     "SELECT o FROM Order o JOIN FETCH o.user u JOIN FETCH o.service s "
                             + "WHERE o.user = :user AND o.id IN :ids",
-            countQuery =
-                    "SELECT COUNT(o) FROM Order o WHERE o.user = :user AND o.id IN :ids")
+            countQuery = "SELECT COUNT(o) FROM Order o WHERE o.user = :user AND o.id IN :ids")
     Page<Order> searchByUserAndIdIn(
             @Param("user") User user,
             @Param("ids") java.util.Collection<Long> ids,
@@ -815,8 +814,8 @@ public interface OrderRepository
     long countByRefillParentIdAndStatus(Long refillParentId, OrderStatus status);
 
     /**
-     * Latest <em>settled</em> refill order of a parent (highest id = most recent), restricted to the
-     * given statuses (COMPLETED / PARTIAL). Used by the drop-check to measure the most recent
+     * Latest <em>settled</em> refill order of a parent (highest id = most recent), restricted to
+     * the given statuses (COMPLETED / PARTIAL). Used by the drop-check to measure the most recent
      * delivery batch: once an order has been refilled, the next drop is checked against the latest
      * refill, not the original (the original's already-dropped accounts were covered by that
      * refill). Returns empty when the order has no settled refill yet → caller checks the original.

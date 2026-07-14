@@ -323,7 +323,8 @@ class RefillCheckServiceTest {
         latestRefill.setIsRefill(true);
         when(orderRepository.findFirstByRefillParentIdAndStatusInOrderByIdDesc(eq(99L), any()))
                 .thenReturn(Optional.of(latestRefill));
-        when(refillCheckRepository.findFirstByOrderIdAndStatusOrderByRequestedAtDesc(eq(99L), any()))
+        when(refillCheckRepository.findFirstByOrderIdAndStatusOrderByRequestedAtDesc(
+                        eq(99L), any()))
                 .thenReturn(Optional.empty());
         when(instagramBotClient.refillCheck("150"))
                 .thenReturn(

@@ -10,9 +10,9 @@ public final class OrderSearchUtil {
     private OrderSearchUtil() {}
 
     /**
-     * Hard cap on how many ids one search resolves to. Bounds the resulting {@code IN (:ids)} clause
-     * so a deliberately huge paste-list can't turn the search into a slow/oversized query. Well
-     * above any realistic manual search (the batch refill submit is separately capped at 100).
+     * Hard cap on how many ids one search resolves to. Bounds the resulting {@code IN (:ids)}
+     * clause so a deliberately huge paste-list can't turn the search into a slow/oversized query.
+     * Well above any realistic manual search (the batch refill submit is separately capped at 100).
      */
     public static final int MAX_IDS = 200;
 

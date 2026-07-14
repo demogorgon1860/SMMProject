@@ -1289,9 +1289,9 @@ public class OrderService {
     }
 
     /**
-     * True only for links a bot order can actually target: a canonical
-     * {@code https://www.instagram.com/<path>} with a non-empty path. Inputs are expected to have
-     * already passed through {@link #normalizeInstagramUrl}. Non-Instagram or path-less URLs (and
+     * True only for links a bot order can actually target: a canonical {@code
+     * https://www.instagram.com/<path>} with a non-empty path. Inputs are expected to have already
+     * passed through {@link #normalizeInstagramUrl}. Non-Instagram or path-less URLs (and
      * unnormalizable garbage that stayed on another host) return false.
      */
     static boolean isInstagramUrl(String url) {
@@ -1299,7 +1299,8 @@ public class OrderService {
             return false;
         }
         String prefix = "https://www.instagram.com/";
-        return url.regionMatches(true, 0, prefix, 0, prefix.length()) && url.length() > prefix.length();
+        return url.regionMatches(true, 0, prefix, 0, prefix.length())
+                && url.length() > prefix.length();
     }
 
     // Additional methods required by the interface
@@ -1322,13 +1323,14 @@ public class OrderService {
     }
 
     /**
-     * Create a batch of orders atomically. All succeed or all roll back — the inner
-     * {@link #createOrder(OrderCreateRequest, String)} calls join this REQUIRED transaction, so a
-     * failure on any order undoes the charges and orders already created in the batch. This is the
-     * "all succeed or all fail" guarantee the mass endpoint previously only claimed in a comment.
+     * Create a batch of orders atomically. All succeed or all roll back — the inner {@link
+     * #createOrder(OrderCreateRequest, String)} calls join this REQUIRED transaction, so a failure
+     * on any order undoes the charges and orders already created in the batch. This is the "all
+     * succeed or all fail" guarantee the mass endpoint previously only claimed in a comment.
      */
     @Transactional
-    public List<OrderResponse> createOrdersBatch(List<CreateOrderRequest> requests, String username) {
+    public List<OrderResponse> createOrdersBatch(
+            List<CreateOrderRequest> requests, String username) {
         List<OrderResponse> results = new ArrayList<>(requests.size());
         for (CreateOrderRequest request : requests) {
             results.add(createOrder(request, username));

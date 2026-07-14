@@ -362,8 +362,10 @@ public class AdminService {
         return buildOrdersResponse(orders);
     }
 
-    /** Map an order page to the {orders, totalPages, totalElements, currentPage, pageSize} envelope
-     * the admin Orders table expects. */
+    /**
+     * Map an order page to the {orders, totalPages, totalElements, currentPage, pageSize} envelope
+     * the admin Orders table expects.
+     */
     private Map<String, Object> buildOrdersResponse(Page<Order> orders) {
         List<AdminOrderDto> orderDtos =
                 orders.getContent().stream()

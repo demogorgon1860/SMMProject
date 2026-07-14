@@ -96,7 +96,8 @@ public class TelegramUpdateHandler {
 
     private void handleProceed(Long orderId, Integer messageId) {
         // Atomically claim the decision — this both fetches it and removes it in one Redis op, so a
-        // concurrent Cancel tap cannot also claim it. Whoever loses the race sees "already decided".
+        // concurrent Cancel tap cannot also claim it. Whoever loses the race sees "already
+        // decided".
         Optional<CancelPendingDecision> decisionOpt =
                 callbackTxService.claimPendingDecision(orderId);
         if (decisionOpt.isEmpty()) {
@@ -130,7 +131,8 @@ public class TelegramUpdateHandler {
     }
 
     private void handleCancel(Long orderId, Integer messageId) {
-        // Atomically claim the decision (see handleProceed) so a concurrent Proceed cannot also act.
+        // Atomically claim the decision (see handleProceed) so a concurrent Proceed cannot also
+        // act.
         Optional<CancelPendingDecision> decisionOpt =
                 callbackTxService.claimPendingDecision(orderId);
         if (decisionOpt.isEmpty()) {

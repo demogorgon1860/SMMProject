@@ -41,7 +41,8 @@ public class TelegramWebhookController {
 
         // Fail closed: without a configured secret we cannot authenticate the caller, and an
         // unauthenticated callback_query can trigger a real refund (cancel_do:{orderId}). Reject
-        // rather than trust. Operators MUST set TELEGRAM_WEBHOOK_SECRET and re-register the webhook.
+        // rather than trust. Operators MUST set TELEGRAM_WEBHOOK_SECRET and re-register the
+        // webhook.
         if (!StringUtils.hasText(configuredSecret)) {
             log.error(
                     "Rejecting Telegram webhook: TELEGRAM_WEBHOOK_SECRET is not configured — set it"

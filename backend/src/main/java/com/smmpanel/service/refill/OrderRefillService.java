@@ -83,8 +83,10 @@ public class OrderRefillService {
      * the {@code <= 0} guard and the 1.5x cap.
      */
     // READ_COMMITTED (not REPEATABLE_READ) is deliberate: the pessimistic order-row lock in
-    // acquireOrderLockForRefill serializes concurrent refills for the same order, and READ_COMMITTED
-    // makes the anti-duplication checks below re-read the latest committed data so the second caller
+    // acquireOrderLockForRefill serializes concurrent refills for the same order, and
+    // READ_COMMITTED
+    // makes the anti-duplication checks below re-read the latest committed data so the second
+    // caller
     // actually sees the first caller's just-created refill (returning a clean 409) instead of a
     // stale snapshot that misses it (duplicate refill) or a serialization-error 500.
     @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)

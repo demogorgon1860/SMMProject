@@ -43,13 +43,13 @@ public class InstagramWebhookController {
         if (!verifySignature) {
             log.warn(
                     "⚠️  Instagram webhook signature verification is DISABLED"
-                        + " (app.instagram.webhook.verify-signature=false) — callbacks are"
-                        + " unauthenticated.");
+                            + " (app.instagram.webhook.verify-signature=false) — callbacks are"
+                            + " unauthenticated.");
         } else if (!StringUtils.hasText(botApiKey)) {
             log.warn(
-                    "⚠️  app.instagram.bot.api-key is empty — Instagram webhook signatures cannot be"
-                        + " verified, so POST /api/webhook/instagram accepts unauthenticated"
-                        + " callbacks.");
+                    "⚠️  app.instagram.bot.api-key is empty — Instagram webhook signatures cannot"
+                            + " be verified, so POST /api/webhook/instagram accepts unauthenticated"
+                            + " callbacks.");
         }
     }
 

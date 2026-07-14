@@ -132,8 +132,8 @@ public class RefillRequest {
     private LocalDateTime botCheckedAt;
 
     /**
-     * How many times the auto-scheduler has kicked off a bot drop-check for this request. Bounds the
-     * retry budget so a permanently-unreachable check eventually transitions to {@link
+     * How many times the auto-scheduler has kicked off a bot drop-check for this request. Bounds
+     * the retry budget so a permanently-unreachable check eventually transitions to {@link
      * Status#FAILED} instead of looping forever.
      */
     @Column(name = "check_attempts", nullable = false)

@@ -58,7 +58,9 @@ public class TelegramCallbackTxService {
         return cancelDecisionService.claimPendingDecision(orderId);
     }
 
-    /** Put a claimed decision back if the follow-up action failed, so timeout handling can retry. */
+    /**
+     * Put a claimed decision back if the follow-up action failed, so timeout handling can retry.
+     */
     public void restorePendingDecision(Long orderId, CancelPendingDecision decision) {
         cancelDecisionService.storePendingDecision(orderId, decision);
     }

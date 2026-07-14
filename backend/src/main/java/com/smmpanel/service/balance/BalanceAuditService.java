@@ -31,7 +31,8 @@ public class BalanceAuditService {
     // Self-reference so the reconciliation write runs through the proxy in its OWN writable
     // transaction — the enclosing reconcile method is @Transactional(readOnly = true), and a
     // same-bean call would both ignore @Transactional and inherit that read-only context.
-    private final org.springframework.beans.factory.ObjectProvider<BalanceAuditService> selfProvider;
+    private final org.springframework.beans.factory.ObjectProvider<BalanceAuditService>
+            selfProvider;
 
     /** Creates a comprehensive audit log entry for balance transactions */
     @Transactional(propagation = Propagation.REQUIRES_NEW)

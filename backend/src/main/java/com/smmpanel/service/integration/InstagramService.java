@@ -485,10 +485,10 @@ public class InstagramService {
     }
 
     /**
-     * Handle an explicit "partial" callback. Previously this status fell through to an
-     * "Unknown callback status" warning on the webhook path, leaving the order un-refunded and
-     * stuck while the RabbitMQ path handled it — a direct money-loss divergence. Semantics mirror
-     * the RabbitMQ consumer and handleOrderCompleted's under-delivery branch.
+     * Handle an explicit "partial" callback. Previously this status fell through to an "Unknown
+     * callback status" warning on the webhook path, leaving the order un-refunded and stuck while
+     * the RabbitMQ path handled it — a direct money-loss divergence. Semantics mirror the RabbitMQ
+     * consumer and handleOrderCompleted's under-delivery branch.
      */
     private void handleOrderPartial(Order order, InstagramWebhookCallback callback) {
         int completed = callback.getCompleted() != null ? callback.getCompleted() : 0;
@@ -499,7 +499,8 @@ public class InstagramService {
                 order.getQuantity());
 
         // Persist the count fields the bot reported (same set as the other terminal handlers).
-        if (callback.getStartLikeCount() != null) order.setStartLikeCount(callback.getStartLikeCount());
+        if (callback.getStartLikeCount() != null)
+            order.setStartLikeCount(callback.getStartLikeCount());
         if (callback.getStartFollowerCount() != null)
             order.setStartFollowerCount(callback.getStartFollowerCount());
         if (callback.getStartCommentCount() != null)
@@ -638,9 +639,9 @@ public class InstagramService {
     }
 
     /**
-     * Resolve the bot-side order id for a panel order. Prefers the durable entity field
-     * (populated on both the RabbitMQ and webhook paths) and falls back to the Redis cache, which
-     * only the legacy HTTP dispatch path writes. Returns null when it cannot be determined.
+     * Resolve the bot-side order id for a panel order. Prefers the durable entity field (populated
+     * on both the RabbitMQ and webhook paths) and falls back to the Redis cache, which only the
+     * legacy HTTP dispatch path writes. Returns null when it cannot be determined.
      */
     private String resolveBotOrderId(Order order, Long orderId) {
         if (order != null && StringUtils.hasText(order.getInstagramBotOrderId())) {
@@ -664,10 +665,10 @@ public class InstagramService {
     }
 
     /**
-     * Cancel an Instagram order (admin action) AND refund the customer for the undelivered
-     * portion. Previously this cancelled the order but never issued a refund — a direct
-     * customer-money-loss bug. A terminal-state guard prevents double-refunding an order that a
-     * webhook/consumer already settled.
+     * Cancel an Instagram order (admin action) AND refund the customer for the undelivered portion.
+     * Previously this cancelled the order but never issued a refund — a direct customer-money-loss
+     * bug. A terminal-state guard prevents double-refunding an order that a webhook/consumer
+     * already settled.
      */
     @Transactional
     public boolean cancelOrder(Long orderId) {
@@ -680,7 +681,10 @@ public class InstagramService {
         // Already settled (COMPLETED/PARTIAL/CANCELLED) — refund was handled at that point.
         // Refunding again here would double-credit the customer.
         if (order.getStatus() != null && order.getStatus().isTerminal()) {
-            log.info("Order {} already terminal ({}) — cancel is a no-op", orderId, order.getStatus());
+            log.info(
+                    "Order {} already terminal ({}) — cancel is a no-op",
+                    orderId,
+                    order.getStatus());
             return false;
         }
 

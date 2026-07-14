@@ -75,8 +75,10 @@ export function MiniLine({ data, height = 140, color = 'var(--accent)', fill = t
   const h = height - pad.t - pad.b;
   const max = Math.max(...values) * 1.1 || 1;
   const min = 0;
+  // Guard the single-point case: (values.length - 1) would be 0 and produce NaN x-coords.
+  const denom = values.length > 1 ? values.length - 1 : 1;
   const points = values.map((v, i) => {
-    const x = pad.l + (i / (values.length - 1)) * w;
+    const x = pad.l + (i / denom) * w;
     const y = pad.t + h - ((v - min) / (max - min || 1)) * h;
     return [x, y] as const;
   });

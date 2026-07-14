@@ -104,7 +104,15 @@ export function AdminPaymentsPage() {
           </span>
         }
         actions={
-          <Button variant="secondary" size="sm" icon="refresh" onClick={() => toast('Sync queued.', 'success')}>
+          // No backend Cryptomus-sync endpoint exists, so this must not fake a "Sync queued"
+          // success. Disabled until one is built (deposits already reconcile via webhook + poll).
+          <Button
+            variant="secondary"
+            size="sm"
+            icon="refresh"
+            disabled
+            title="No manual Cryptomus sync endpoint yet — deposits reconcile automatically via webhook and polling."
+          >
             Sync with Cryptomus
           </Button>
         }

@@ -11,6 +11,8 @@ import type { RefillBatchResponse } from '../types';
 const api = axios.create({
   baseURL: '/api',
   headers: { 'Content-Type': 'application/json' },
+  // Fail a hung backend/bot-proxy call instead of leaving the UI spinning forever.
+  timeout: 30000,
 });
 
 // Inject Bearer token on every request.

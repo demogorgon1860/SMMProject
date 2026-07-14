@@ -144,15 +144,20 @@ public class BalanceTransaction {
      * verifier to detect tampering (compare against the stored {@code auditHash}).
      */
     public String computeExpectedAuditHash() {
+        // Amounts are normalized to the DB column scale (2) so the hash is identical whether built
+        // from the in-memory value (scale 8) at persist or from the reloaded, DB-truncated scale-2
+        // value at verification — otherwise the verifier reports a false mismatch on every row.
+        // createdAt is intentionally excluded: it's set by @CreationTimestamp (Hibernate) and is
+        // not reliably populated when this runs inside @PrePersist, so it never survived the
+        // round-trip either. The money fields + immutable transactionId remain covered.
         String dataToHash =
                 String.format(
-                        "%s|%s|%s|%s|%s|%s|%s",
+                        "%s|%s|%s|%s|%s|%s",
                         user != null ? user.getId() : "null",
-                        amount != null ? amount.toString() : "null",
-                        balanceBefore != null ? balanceBefore.toString() : "null",
-                        balanceAfter != null ? balanceAfter.toString() : "null",
+                        money(amount),
+                        money(balanceBefore),
+                        money(balanceAfter),
                         transactionType != null ? transactionType.toString() : "null",
-                        createdAt != null ? createdAt.toString() : "null",
                         transactionId != null ? transactionId : "null");
 
         try {
@@ -171,6 +176,11 @@ public class BalanceTransaction {
             log.error("Failed to generate audit hash for transaction {}", transactionId, e);
             return null;
         }
+    }
+
+    /** Money value at the DB column scale (2) so the hash survives a persist→reload round-trip. */
+    private static String money(java.math.BigDecimal v) {
+        return v == null ? "null" : v.setScale(2, java.math.RoundingMode.HALF_UP).toString();
     }
 
     public enum ReconciliationStatus {

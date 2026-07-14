@@ -1,5 +1,6 @@
 package com.smmpanel.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smmpanel.dto.instagram.InstagramHealthResponse;
 import com.smmpanel.dto.instagram.InstagramWebhookCallback;
 import com.smmpanel.service.integration.InstagramService;
@@ -7,6 +8,8 @@ import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Map;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,38 +25,63 @@ import org.springframework.web.bind.annotation.*;
 public class InstagramWebhookController {
 
     private final InstagramService instagramService;
+    private final ObjectMapper objectMapper;
 
-    @Value("${app.instagram.bot.webhook-secret:}")
-    private String webhookSecret;
+    // The bot HMAC-signs every HTTP webhook: X-Webhook-Signature = hex(HMAC-SHA256(body)) with the
+    // SAME shared key the panel authenticates to the bot with (EXTERNAL_API_KEY on the bot ==
+    // app.instagram.bot.api-key here). We verify with that key — no separate secret to distribute,
+    // and the secret never travels on the wire.
+    @Value("${app.instagram.bot.api-key:}")
+    private String botApiKey;
+
+    // Emergency off-switch (no redeploy needed) in case of a key mismatch after rotation.
+    @Value("${app.instagram.webhook.verify-signature:true}")
+    private boolean verifySignature;
 
     @PostConstruct
-    void warnIfNoSecret() {
-        if (!StringUtils.hasText(webhookSecret)) {
+    void warnIfUnverified() {
+        if (!verifySignature) {
             log.warn(
-                    "⚠️  INSTAGRAM_WEBHOOK_SECRET is empty — POST /api/webhook/instagram accepts"
-                        + " unauthenticated callbacks, which can be forged to trigger refunds or"
-                        + " fake completions. Set it and configure the bot to send X-Webhook-Secret.");
+                    "⚠️  Instagram webhook signature verification is DISABLED"
+                        + " (app.instagram.webhook.verify-signature=false) — callbacks are"
+                        + " unauthenticated.");
+        } else if (!StringUtils.hasText(botApiKey)) {
+            log.warn(
+                    "⚠️  app.instagram.bot.api-key is empty — Instagram webhook signatures cannot be"
+                        + " verified, so POST /api/webhook/instagram accepts unauthenticated"
+                        + " callbacks.");
         }
     }
 
-    /** Webhook endpoint for Instagram bot callbacks. Called when an order completes or fails. */
+    /**
+     * Webhook endpoint for Instagram bot callbacks. Takes the RAW body so the HMAC is verified over
+     * the exact bytes the bot signed (re-serializing a parsed object would change them).
+     */
     @PostMapping("/webhook/instagram")
     public ResponseEntity<Map<String, String>> handleInstagramWebhook(
-            @RequestBody InstagramWebhookCallback callback,
-            @RequestHeader(value = "X-Webhook-Secret", required = false) String secret) {
+            @RequestBody byte[] rawBody,
+            @RequestHeader(value = "X-Webhook-Signature", required = false) String signature) {
 
-        // Authenticate the caller when a secret is configured (fail-closed). When unset we accept
-        // but the startup warning above flags the exposure — this keeps the money-critical result
-        // path working until the bot is rolled out with the header.
-        if (StringUtils.hasText(webhookSecret)) {
-            byte[] expected = webhookSecret.getBytes(StandardCharsets.UTF_8);
-            byte[] provided = secret == null ? new byte[0] : secret.getBytes(StandardCharsets.UTF_8);
-            if (!MessageDigest.isEqual(expected, provided)) {
-                log.warn(
-                        "Rejected Instagram webhook with invalid secret: external_id={}",
-                        callback.getExternalId());
+        // Verify the bot's HMAC signature over the exact received bytes (fail-closed) unless
+        // verification is disabled or no key is configured.
+        if (verifySignature && StringUtils.hasText(botApiKey)) {
+            String expected = hmacSha256Hex(rawBody, botApiKey);
+            if (expected == null
+                    || !StringUtils.hasText(signature)
+                    || !MessageDigest.isEqual(
+                            expected.getBytes(StandardCharsets.UTF_8),
+                            signature.getBytes(StandardCharsets.UTF_8))) {
+                log.warn("Rejected Instagram webhook: missing/invalid X-Webhook-Signature");
                 return ResponseEntity.status(401).body(Map.of("status", "unauthorized"));
             }
+        }
+
+        final InstagramWebhookCallback callback;
+        try {
+            callback = objectMapper.readValue(rawBody, InstagramWebhookCallback.class);
+        } catch (Exception e) {
+            log.warn("Rejected Instagram webhook: unparseable body ({} bytes)", rawBody.length);
+            return ResponseEntity.badRequest().body(Map.of("status", "bad_request"));
         }
 
         log.info(
@@ -70,6 +98,24 @@ public class InstagramWebhookController {
             // Return 500 (not 200) so the bot retries a genuinely failed delivery, and do NOT
             // leak the exception message to the caller.
             return ResponseEntity.status(500).body(Map.of("status", "error"));
+        }
+    }
+
+    /** HMAC-SHA256(body) as lowercase hex — matches the bot's utils.WebhookService.signPayload. */
+    private String hmacSha256Hex(byte[] body, String key) {
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            byte[] digest = mac.doFinal(body);
+            StringBuilder sb = new StringBuilder(digest.length * 2);
+            for (byte b : digest) {
+                sb.append(Character.forDigit((b >> 4) & 0xF, 16));
+                sb.append(Character.forDigit(b & 0xF, 16));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            log.error("Failed to compute webhook HMAC: {}", e.getMessage());
+            return null;
         }
     }
 

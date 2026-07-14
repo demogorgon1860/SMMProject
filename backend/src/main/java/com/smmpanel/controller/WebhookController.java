@@ -82,9 +82,10 @@ public class WebhookController {
         } catch (Exception e) {
             log.error("Failed to process Cryptomus webhook: {}", e.getMessage(), e);
 
-            // Return error response
+            // Do NOT echo the exception message back to the caller (it can leak internal detail —
+            // SQL text, field names). Log it server-side; return a generic error.
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("status", "error", "message", e.getMessage()));
+                    .body(Map.of("status", "error"));
         }
     }
 

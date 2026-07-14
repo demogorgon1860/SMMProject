@@ -672,7 +672,7 @@ public class InstagramBotClient {
         }
 
         Map<String, Object> allComponents = new LinkedHashMap<>();
-        String worstStatus = "healthy";
+        int downCount = 0;
 
         for (int i = 0; i < botInstances.size(); i++) {
             String instance = botInstances.get(i);
@@ -691,11 +691,16 @@ public class InstagramBotClient {
             allComponents.put(label, botInfo);
 
             if ("error".equals(health.getStatus()) || "unhealthy".equals(health.getStatus())) {
-                if (!"error".equals(worstStatus)) {
-                    worstStatus = "degraded";
-                }
+                downCount++;
             }
         }
+
+        // healthy = all up; degraded = some up; error = every instance down (full outage). The old
+        // code could never report "error", so a total outage looked merely "degraded".
+        String worstStatus =
+                downCount == 0
+                        ? "healthy"
+                        : downCount == botInstances.size() ? "error" : "degraded";
 
         return InstagramHealthResponse.builder()
                 .status(worstStatus)

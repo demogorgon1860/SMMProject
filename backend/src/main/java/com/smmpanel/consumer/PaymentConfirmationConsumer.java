@@ -236,22 +236,29 @@ public class PaymentConfirmationConsumer {
             return;
         }
 
-        // 2. Check if already processed
-        if (deposit.getStatus() == PaymentStatus.COMPLETED) {
-            log.info(
-                    "Payment already processed for transaction: {}",
-                    confirmation.getTransactionId());
-            return;
-        }
-
-        // 3. Get the user
+        // 2. Get the user (before the CAS, so a missing user can't leave the deposit marked
+        //    COMPLETED without a credit).
         User user = deposit.getUser();
         if (user == null) {
             log.error("User not found for deposit: {}", deposit.getId());
             return;
         }
 
-        // 4. Update user balance
+        // 3. Atomic CAS completion guard — only the caller that flips PENDING/PROCESSING ->
+        //    COMPLETED credits the wallet. This replaces a non-atomic check-then-act that would
+        //    double-credit if the same transaction were delivered twice concurrently, and matches
+        //    the live Cryptomus webhook/poll path.
+        int updated =
+                balanceDepositRepository.markCompletedIfNotAlready(
+                        deposit.getId(), LocalDateTime.now());
+        if (updated == 0) {
+            log.info(
+                    "Payment already processed for transaction: {}",
+                    confirmation.getTransactionId());
+            return;
+        }
+
+        // 4. Credit the wallet
         BigDecimal amount = confirmation.getAmount();
         balanceService.addToBalance(
                 user,
@@ -259,7 +266,7 @@ public class PaymentConfirmationConsumer {
                 String.format(
                         "Deposit confirmed - Transaction: %s", confirmation.getTransactionId()));
 
-        // 5. Update deposit status
+        // 5. Record the confirmed amount (status + confirmedAt already set by the CAS above).
         deposit.setStatus(PaymentStatus.COMPLETED);
         deposit.setConfirmedAt(LocalDateTime.now());
         deposit.setConfirmedAmount(amount);

@@ -1412,6 +1412,35 @@ public class OrderService {
         // Calculate charge based on effective quantity
         BigDecimal charge = calculateCharge(service, effectiveQuantity);
 
+        // Platform-wide minimum-charge floor. No-op when the setting is 0/unset. Previously this
+        // guard lived only in the unreachable createOrderWithApiKey path, so admins who set a
+        // minimum saw it silently ignored on the live order path.
+        BigDecimal minCharge =
+                appSettingsService.getDecimal(
+                        AppSettingsService.KEY_MIN_ORDER_CHARGE, BigDecimal.ZERO);
+        if (minCharge.signum() > 0 && charge.compareTo(minCharge) < 0) {
+            throw new OrderValidationException(
+                    String.format(
+                            "Order amount $%s is below the minimum charge of $%s",
+                            charge.toPlainString(), minCharge.toPlainString()));
+        }
+
+        // Per-user concurrent-orders cap. 0 = unlimited (skip). Same intent as above — this was
+        // configured in admin settings but never enforced on the live path.
+        int maxConcurrent =
+                appSettingsService.getInt(AppSettingsService.KEY_MAX_CONCURRENT_ORDERS, 0);
+        if (maxConcurrent > 0) {
+            long inFlight =
+                    orderRepository.countByUserIdAndStatusIn(
+                            user.getId(), QUOTA_COUNTING_INFLIGHT_STATUSES);
+            if (inFlight >= maxConcurrent) {
+                throw new OrderQuotaExceededException(
+                        String.format(
+                                "Concurrent orders limit reached: %d in-flight, max %d",
+                                inFlight, maxConcurrent));
+            }
+        }
+
         // Check balance
         if (user.getBalance().compareTo(charge) < 0) {
             throw new OrderValidationException("Insufficient balance");

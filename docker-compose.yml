@@ -246,10 +246,7 @@ services:
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-smm_admin}
-      # No inline default — the rabbitmq broker (RABBITMQ_DEFAULT_PASS below) already requires
-      # RABBITMQ_PASSWORD to be set, so prod always has it. A committed fallback password is a
-      # leaked secret. NOTE: the old default is in git history — rotate it on the broker.
-      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-RabbitMQ_Secure_2025}
       SPRING_RABBITMQ_VIRTUAL_HOST: ${RABBITMQ_VHOST:-smm}
       # Disable OpenTelemetry/Jaeger tracing completely
       OTEL_SDK_DISABLED: true

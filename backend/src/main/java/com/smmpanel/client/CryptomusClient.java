@@ -41,7 +41,10 @@ public class CryptomusClient {
     @Value("${app.cryptomus.api.url:https://api.cryptomus.com/v1}")
     private String apiUrl;
 
-    @Value("${app.cryptomus.api.url:https://api.cryptomus.com/v2}")
+    // Distinct property key from apiUrl above — they previously shared app.cryptomus.api.url, so
+    // apiUrlV2 silently resolved to the v1 base and the admin transaction-list feature hit the
+    // wrong endpoint.
+    @Value("${app.cryptomus.api.url-v2:https://api.cryptomus.com/v2}")
     private String apiUrlV2;
 
     // Payment API Key (used for all operations)

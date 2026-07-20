@@ -2,13 +2,13 @@ package com.smmpanel.service.order;
 
 import com.smmpanel.config.OrderSerializationProperties;
 import com.smmpanel.dto.instagram.InstagramOrderResponse;
+import com.smmpanel.dto.instagram.InstagramOrderType;
 import com.smmpanel.entity.Order;
 import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.repository.jpa.OrderRepository;
 import com.smmpanel.service.balance.BalanceService;
 import com.smmpanel.service.integration.InstagramService;
 import java.math.BigDecimal;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -18,17 +18,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Per-URL serialization of order dispatch. Orders that target the SAME normalized {@code link} are
- * handed to the bot one at a time (FIFO by id); the rest wait in PENDING until the active one
- * reaches a terminal state. See {@link OrderSerializationProperties} for the why.
+ * Metric-aware per-URL serialization of order dispatch. Orders that target the SAME normalized
+ * {@code link} serialize only when their affected-metric sets OVERLAP: two likes orders wait for
+ * each other, but a likes order and a comments order on the same link run in parallel (their
+ * start-count baselines — like vs comment counts — are independent). See {@link
+ * OrderSerializationProperties} for the why.
  *
  * <p>The single critical section is {@link #pumpUrl(String)}: under a per-URL Postgres advisory
- * lock it asks "is this URL busy?" and, if not, dispatches the lowest-id PENDING order. It is
- * called from three places — the creation Kafka consumer (immediate dispatch when the URL is free),
- * the order completion paths (release the next when the active one finishes, via {@link
- * #pumpUrlAsync}), and {@code OrderSerializationSweeper} (the authoritative backstop). All three
- * are idempotent under the lock, so duplicate/overlapping calls can only no-op, never
- * double-dispatch.
+ * lock it computes the link's occupied metrics and dispatches every FIFO-by-id PENDING waiter whose
+ * metrics don't overlap them. It is called from three places — the creation Kafka consumer, the
+ * order completion paths (via {@link #pumpUrlAsync}), and {@code OrderSerializationSweeper} (the
+ * authoritative backstop). All three are idempotent under the lock, so duplicate/overlapping calls
+ * can only no-op, never double-dispatch a conflicting metric.
  */
 @Slf4j
 @Service
@@ -36,12 +37,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class OrderSerializationService {
 
     /**
-     * Hard cap on dispatch attempts within one pump. A pump normally dispatches one order and
-     * stops; it only loops when a dispatch hard-fails (bot business error → CANCELLED+refund, never
-     * occupied the URL) and we move straight to the next waiter. The cap is a runaway guard — each
-     * iteration moves an order out of PENDING (the same-tx flush makes the next query skip it), so
-     * the loop is already bounded, but a cap turns any unexpected non-progress into a logged
-     * back-off, not a spin.
+     * Runaway guard: max actual bot-dispatch attempts within one pump. Conflicting waiters are
+     * skipped without a bot call and don't count; successful dispatches are naturally bounded to 3
+     * (one per metric). Hitting this cap therefore means a storm of hard-failing orders on the link
+     * — back off and let the sweeper retry rather than making hundreds of sequential bot calls
+     * while holding the advisory lock.
      */
     private static final int MAX_DISPATCH_ATTEMPTS = 100;
 
@@ -63,10 +63,14 @@ public class OrderSerializationService {
     }
 
     /**
-     * The gate. Under a per-URL advisory lock: if the URL is already occupied, do nothing;
-     * otherwise dispatch the lowest-id PENDING order for that link. Must run in a transaction (the
-     * advisory lock is transaction-scoped) — callers reach it through the Spring proxy, never via
-     * {@code this}.
+     * The gate. Under a per-URL advisory lock: compute the URL's currently-occupied metrics (the
+     * bitwise-OR of the masks of the orders occupying it), then dispatch every lowest-id-first
+     * PENDING waiter whose metrics do NOT overlap an occupied metric. Independent metrics (e.g.
+     * likes vs comments on the same link) dispatch together; same-metric orders serialize so the
+     * bot's start-count scout never reads a baseline another order is mutating. A conflicting
+     * waiter is left PENDING and re-pumped when the occupying order finishes. Must run in a
+     * transaction (the advisory lock is transaction-scoped) — callers reach it through the Spring
+     * proxy, never via {@code this}.
      */
     @Transactional
     public void pumpUrl(String link) {
@@ -76,29 +80,53 @@ public class OrderSerializationService {
         // Serialize the whole check-and-dispatch against any other pump for the same link.
         orderRepository.acquireUrlSerializationLock(link);
 
-        // Re-read committed state under the lock (never trust a passed-in entity).
-        if (orderRepository.existsByLinkAndStatusIn(link, props.getActiveStatuses())) {
-            return; // URL busy — the active order will trigger the next pump when it finishes.
+        // Occupied metrics = OR of the masks of the orders occupying this URL. Re-read committed
+        // state under the lock (never trust a passed-in entity).
+        int occupied = 0;
+        for (Integer mask :
+                orderRepository.findMetricMasksByLinkAndStatusIn(link, props.getActiveStatuses())) {
+            occupied |= effectiveMask(mask);
+        }
+        if (occupied == InstagramOrderType.METRIC_ALL) {
+            return; // every metric busy — no waiter can dispatch; an active order re-pumps on
+            // finish.
         }
 
-        for (int attempt = 0; attempt < MAX_DISPATCH_ATTEMPTS; attempt++) {
-            List<Order> next =
-                    orderRepository.findOrdersByLinkAndStatusOrderById(
-                            link, OrderStatus.PENDING, PageRequest.of(0, 1));
-            if (next.isEmpty()) {
-                return; // nothing waiting
+        // Dispatch each waiting order whose metrics don't overlap an occupied metric, FIFO by id.
+        // The scan is bounded (dispatchScanLimit); it also stops early once every metric is busy.
+        int attempts = 0;
+        for (Order order :
+                orderRepository.findOrdersByLinkAndStatusOrderById(
+                        link,
+                        OrderStatus.PENDING,
+                        PageRequest.of(0, props.getDispatchScanLimit()))) {
+            int mask = effectiveMask(order.getMetricMask());
+            if ((mask & occupied) != 0) {
+                continue; // conflicts with an active order on a shared metric — keep waiting
             }
-            Order order = next.get(0);
+            if (++attempts > MAX_DISPATCH_ATTEMPTS) {
+                log.warn(
+                        "pumpUrl({}) hit {} dispatch attempts — backing off; sweeper will retry",
+                        link,
+                        MAX_DISPATCH_ATTEMPTS);
+                return;
+            }
             if (dispatchOrderToBot(order)) {
-                return; // order now occupies the URL — done
+                occupied |= mask; // now occupies its metrics
+                if (occupied == InstagramOrderType.METRIC_ALL) {
+                    return; // nothing else can dispatch
+                }
             }
-            // Hard dispatch failure cancelled the order without occupying the URL; try the next
-            // one.
+            // Hard dispatch failure cancelled the order without occupying the URL — try the next.
         }
-        log.warn(
-                "pumpUrl({}) hit max dispatch attempts ({}) — backing off; sweeper will retry",
-                link,
-                MAX_DISPATCH_ATTEMPTS);
+    }
+
+    /**
+     * A 0 (or legacy-null) mask means the order's affected metrics are unknown — treat it as ALL so
+     * it serializes conservatively (against everything) rather than "conflicts with nothing".
+     */
+    private static int effectiveMask(Integer mask) {
+        return (mask == null || mask == 0) ? InstagramOrderType.METRIC_ALL : mask;
     }
 
     /**

@@ -72,6 +72,20 @@ public class Order {
 
     private Integer remains;
 
+    /**
+     * Affected-metric bitmask (like=1, comment=2, follow=4) for metric-aware per-URL serialization.
+     * Two same-link orders dispatch one-at-a-time only when their masks OVERLAP; independent
+     * metrics (e.g. likes vs comments) run in parallel. Snapshotted from the service category at
+     * creation.
+     *
+     * <p>Defaults to 7 (ALL) so any unset/legacy order serializes conservatively — never 0, which
+     * would mean "conflicts with nothing" and break serialization. NO {@code @Builder.Default} on
+     * purpose: with {@code @NoArgsConstructor}, {@code new Order()} runs this field initializer
+     * (7); {@code @Builder.Default} would move it into the builder and leave the no-arg path at 0.
+     */
+    @Column(name = "metric_mask", nullable = false)
+    private int metricMask = 7;
+
     @Enumerated(EnumType.STRING)
     @Type(value = PostgreSQLEnumType.class)
     @Column(name = "status", nullable = false, columnDefinition = "order_status")

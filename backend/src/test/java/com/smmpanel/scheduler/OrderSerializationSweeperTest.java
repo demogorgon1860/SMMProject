@@ -1,6 +1,7 @@
 package com.smmpanel.scheduler;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
@@ -54,7 +55,7 @@ class OrderSerializationSweeperTest {
 
     @Test
     void orphanLinksGetPumped() {
-        when(repo.findLinksWithPendingAndNoActive(any(), any()))
+        when(repo.findLinksWithDispatchablePending(any(), anyInt()))
                 .thenReturn(List.of("urlA", "urlB"));
         when(repo.findStuckActiveLinks(any(), any(), any())).thenReturn(List.of());
 
@@ -67,7 +68,7 @@ class OrderSerializationSweeperTest {
 
     @Test
     void stuckLinkAlertsOnce() {
-        when(repo.findLinksWithPendingAndNoActive(any(), any())).thenReturn(List.of());
+        when(repo.findLinksWithDispatchablePending(any(), anyInt())).thenReturn(List.of());
         when(repo.findStuckActiveLinks(any(), any(), any())).thenReturn(List.of("urlStuck"));
 
         sweeper.sweep();
@@ -79,7 +80,7 @@ class OrderSerializationSweeperTest {
     @Test
     void stuckAlertSuppressedByCooldown() {
         when(valueOps.setIfAbsent(anyString(), anyString(), anyLong(), any())).thenReturn(false);
-        when(repo.findLinksWithPendingAndNoActive(any(), any())).thenReturn(List.of());
+        when(repo.findLinksWithDispatchablePending(any(), anyInt())).thenReturn(List.of());
         when(repo.findStuckActiveLinks(any(), any(), any())).thenReturn(List.of("urlStuck"));
 
         sweeper.sweep();

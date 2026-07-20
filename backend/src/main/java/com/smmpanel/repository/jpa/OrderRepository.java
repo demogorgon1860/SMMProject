@@ -392,9 +392,6 @@ public interface OrderRepository
     @Query(value = "SELECT pg_advisory_xact_lock(hashtext(:link))", nativeQuery = true)
     Object acquireUrlSerializationLock(@Param("link") String link);
 
-    /** True if any order for this link currently occupies the URL (status in the active set). */
-    boolean existsByLinkAndStatusIn(String link, java.util.Collection<OrderStatus> statuses);
-
     /**
      * Waiting orders for a link in a given status, oldest first (id ASC = FIFO: 30000 → 30001 → …).
      * JOIN FETCH user+service so the dispatch path has them without a lazy round-trip. Call with a
@@ -407,18 +404,42 @@ public interface OrderRepository
             @Param("link") String link, @Param("status") OrderStatus status, Pageable pageable);
 
     /**
-     * Sweeper backstop — links that have ≥1 PENDING order but NO order currently occupying the URL.
-     * These need a pump (the active order reached terminal via a path that did not fire a pump, or
-     * a pump was missed across a restart). Ordered/limited by the caller's {@code Pageable}.
+     * Sweeper backstop — distinct links that have a PENDING order actually DISPATCHABLE right now:
+     * one whose affected metrics do NOT overlap the link's currently-occupied metrics (the bitwise
+     * OR of the masks of its active orders). Catches both the classic orphan (no active order →
+     * occupied 0 → everything dispatchable) AND a disjoint-metric waiter behind an active order
+     * (e.g. comments behind likes) after a missed pump — WITHOUT waking the pump for every
+     * steady-state busy link whose whole backlog conflicts with what's already running.
+     *
+     * <p>Native (bit_or / bitwise-AND aren't portable JPQL). {@code metric_mask} defaults to 7
+     * (ALL); a 0 mask can't arise via any creation path, and if one somehow did it would only be
+     * over-included here (a harmless extra pump), never wrongly excluded. Backed by
+     * idx_orders_link_status_id (partial on non-terminal status) for the correlated active lookup.
      */
     @Query(
-            "SELECT DISTINCT o.link FROM Order o"
-                    + " WHERE o.status = com.smmpanel.entity.OrderStatus.PENDING"
-                    + " AND o.link NOT IN"
-                    + " (SELECT o2.link FROM Order o2 WHERE o2.status IN :activeStatuses)")
-    List<String> findLinksWithPendingAndNoActive(
-            @Param("activeStatuses") java.util.Collection<OrderStatus> activeStatuses,
-            Pageable pageable);
+            value =
+                    "SELECT DISTINCT p.link FROM orders p"
+                            + " WHERE p.status = 'PENDING'"
+                            + " AND (p.metric_mask & COALESCE("
+                            + "   (SELECT bit_or(a.metric_mask) FROM orders a"
+                            + "    WHERE a.link = p.link AND a.status::text IN (:activeStatuses)),"
+                            + "   0)) = 0"
+                            + " LIMIT :limit",
+            nativeQuery = true)
+    List<String> findLinksWithDispatchablePending(
+            @Param("activeStatuses") java.util.Collection<String> activeStatuses,
+            @Param("limit") int limit);
+
+    /**
+     * Metric masks of the orders currently occupying a URL (status in the active set). The caller
+     * bitwise-ORs these into the link's "occupied metrics" to decide which PENDING orders may
+     * dispatch in parallel — a waiter dispatches only when its mask does NOT overlap the occupied
+     * set (independent metrics like likes vs comments run together; same-metric orders serialize).
+     */
+    @Query("SELECT o.metricMask FROM Order o WHERE o.link = :link AND o.status IN :statuses")
+    List<Integer> findMetricMasksByLinkAndStatusIn(
+            @Param("link") String link,
+            @Param("statuses") java.util.Collection<OrderStatus> statuses);
 
     /**
      * Sweeper alert — links whose occupying order has been stuck (its {@code updatedAt} is older

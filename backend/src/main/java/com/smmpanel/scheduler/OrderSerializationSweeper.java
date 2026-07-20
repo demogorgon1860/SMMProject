@@ -21,9 +21,11 @@ import org.springframework.stereotype.Component;
  * complete, …) and hooking each is fragile. This sweeper guarantees correctness regardless:
  *
  * <ul>
- *   <li><b>Orphan release</b>: any link with PENDING orders waiting but NO order occupying the URL
- *       gets pumped (covers an unhooked terminal path, a rolled-back/missed pump, or a panel
- *       restart between the completion commit and the pump).
+ *   <li><b>Orphan release</b>: every link with PENDING orders waiting gets pumped — the pump is
+ *       metric-aware and idempotent, dispatching any non-conflicting waiter (including one behind
+ *       an active order on a disjoint metric) and no-opping on a fully-occupied link. Covers an
+ *       unhooked terminal path, a rolled-back/missed pump, or a panel restart between the
+ *       completion commit and the pump.
  *   <li><b>Stuck alert</b>: any link whose occupying order is stuck (not terminal, {@code
  *       updatedAt} older than the threshold) while PENDING orders wait → a System Health Telegram
  *       alert (per-link cooldown). Per the product decision the queue is NOT auto-released — an
@@ -63,17 +65,23 @@ public class OrderSerializationSweeper {
         }
     }
 
-    /** Pump every link that has PENDING orders waiting but no order occupying the URL. */
+    /**
+     * Pump every link that has a currently-DISPATCHABLE PENDING order — one whose metrics don't
+     * overlap what's already running on that link. Bounded to genuinely-dispatchable links (not
+     * every steady-state busy link) so the sweep stays cheap; the pump then dispatches the
+     * non-conflicting waiter(s), including a disjoint-metric order behind an active one after a
+     * missed pump, and any conflicting backlog stays put.
+     */
     private void releaseOrphans() {
+        List<String> activeStatusNames =
+                props.getActiveStatuses().stream().map(Enum::name).toList();
         List<String> links =
-                orderRepository.findLinksWithPendingAndNoActive(
-                        props.getActiveStatuses(), PageRequest.of(0, props.getSweepBatchSize()));
+                orderRepository.findLinksWithDispatchablePending(
+                        activeStatusNames, props.getSweepBatchSize());
         if (links.isEmpty()) {
             return;
         }
-        log.info(
-                "Per-URL sweep: {} link(s) with waiting orders and a free URL — pumping",
-                links.size());
+        log.info("Per-URL sweep: {} link(s) with a dispatchable waiter — pumping", links.size());
         for (String link : links) {
             // Fire async (asyncExecutor pool) so a backlog burst doesn't pin a size-4 scheduler
             // thread on sequential bot calls; each pump still serializes per-link under the lock.

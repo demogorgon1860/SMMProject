@@ -1482,6 +1482,12 @@ public class OrderService {
         order.setUser(user);
         order.setService(service);
         order.setLink(normalizeInstagramUrl(request.getLink())); // Normalize /reel/, /reels/ → /p/
+        // Metric-aware per-URL serialization: snapshot which counts this order mutates (like=1,
+        // comment=2, follow=4) so a same-link order only queues behind an OVERLAPPING metric
+        // (e.g. likes vs comments run in parallel; two likes serialize).
+        order.setMetricMask(
+                com.smmpanel.dto.instagram.InstagramOrderType.metricMaskForCategory(
+                        service.getCategory()));
         order.setQuantity(effectiveQuantity);
         order.setCharge(charge);
         order.setRemains(effectiveQuantity);

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="v2026.07-add-orders-metric-mask" author="dev">
+        <comment>
+            Per-URL serialization is now metric-aware. Previously ALL same-link orders dispatched
+            one-at-a-time; but the start-count baseline is per-metric (like/comment/follower counts are
+            independent), so a likes order and a comments order on the same link never interfere and
+            should run in parallel. metric_mask holds the order's affected-metric bitmask
+            (like=1, comment=2, follow=4; a composite like_comment=3, like_comment_follow=7),
+            snapshotted from the service category at creation. Two same-link orders conflict — and are
+            serialized — only when their masks overlap (bitwise AND != 0).
+
+            Existing rows default to 7 (ALL) = conservative: they keep serializing against everything
+            (the old link-only behavior) until they drain, so there is zero behavioral change for
+            in-flight orders. ADD COLUMN ... NOT NULL DEFAULT of a constant is metadata-only on
+            PostgreSQL 11+ (no table rewrite / lock). orders is partitioned by created_at; PostgreSQL
+            propagates the column to every existing and future partition automatically.
+        </comment>
+        <sql>
+            ALTER TABLE orders ADD COLUMN IF NOT EXISTS metric_mask SMALLINT NOT NULL DEFAULT 7;
+        </sql>
+        <rollback>
+            <sql>ALTER TABLE orders DROP COLUMN IF EXISTS metric_mask;</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

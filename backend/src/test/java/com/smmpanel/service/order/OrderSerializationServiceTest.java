@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 import com.smmpanel.config.OrderSerializationProperties;
 import com.smmpanel.dto.instagram.InstagramOrderResponse;
+import com.smmpanel.dto.instagram.InstagramOrderType;
 import com.smmpanel.entity.Order;
 import com.smmpanel.entity.OrderStatus;
 import com.smmpanel.entity.User;
@@ -25,10 +26,18 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 
-/** Unit tests for the per-URL dispatch gate {@link OrderSerializationService}. */
+/**
+ * Unit tests for the metric-aware per-URL dispatch gate {@link OrderSerializationService}. Two
+ * same-link orders serialize only when their affected-metric masks overlap; independent metrics
+ * (e.g. likes vs comments) dispatch in parallel.
+ */
 class OrderSerializationServiceTest {
 
     private static final String URL = "https://www.instagram.com/p/ABC1234567/";
+    private static final int LIKE = InstagramOrderType.METRIC_LIKE; // 1
+    private static final int COMMENT = InstagramOrderType.METRIC_COMMENT; // 2
+    private static final int FOLLOW = InstagramOrderType.METRIC_FOLLOW; // 4
+    private static final int LIKE_COMMENT = LIKE | COMMENT; // 3
 
     private OrderRepository repo;
     private InstagramService instagram;
@@ -47,14 +56,30 @@ class OrderSerializationServiceTest {
         service = new OrderSerializationService(repo, instagram, balance, props, self);
     }
 
-    private Order order(long id) {
+    private Order order(long id, int mask) {
         Order o = mock(Order.class);
         when(o.getId()).thenReturn(id);
         when(o.getLink()).thenReturn(URL);
         when(o.getQuantity()).thenReturn(100);
         when(o.getCharge()).thenReturn(new BigDecimal("5.00"));
         when(o.getUser()).thenReturn(mock(User.class));
+        when(o.getMetricMask()).thenReturn(mask);
         return o;
+    }
+
+    /** No active orders occupy the URL. */
+    private void urlFree() {
+        when(repo.findMetricMasksByLinkAndStatusIn(eq(URL), any())).thenReturn(List.of());
+    }
+
+    /** The given metric masks currently occupy the URL. */
+    private void urlOccupiedBy(Integer... masks) {
+        when(repo.findMetricMasksByLinkAndStatusIn(eq(URL), any())).thenReturn(List.of(masks));
+    }
+
+    private void pending(Order... orders) {
+        when(repo.findOrdersByLinkAndStatusOrderById(eq(URL), eq(OrderStatus.PENDING), any()))
+                .thenReturn(List.of(orders));
     }
 
     private static InstagramOrderResponse ok(String botId) {
@@ -79,23 +104,21 @@ class OrderSerializationServiceTest {
     }
 
     @Test
-    void busyUrlTakesLockButDoesNotDispatch() {
-        when(repo.existsByLinkAndStatusIn(eq(URL), any())).thenReturn(true);
+    void fullyOccupiedUrlTakesLockButDoesNotDispatch() {
+        urlOccupiedBy(InstagramOrderType.METRIC_ALL); // every metric busy
 
         service.pumpUrl(URL);
 
         verify(repo).acquireUrlSerializationLock(URL);
-        verify(repo).existsByLinkAndStatusIn(eq(URL), any());
         verify(repo, never()).findOrdersByLinkAndStatusOrderById(any(), any(), any());
         verify(instagram, never()).createInstagramOrder(any());
     }
 
     @Test
     void freeUrlDispatchesLowestPending() {
-        when(repo.existsByLinkAndStatusIn(eq(URL), any())).thenReturn(false);
-        Order o = order(30000);
-        when(repo.findOrdersByLinkAndStatusOrderById(eq(URL), eq(OrderStatus.PENDING), any()))
-                .thenReturn(List.of(o));
+        urlFree();
+        Order o = order(30000, LIKE);
+        pending(o);
         when(instagram.createInstagramOrder(o)).thenReturn(ok("bot-1"));
 
         service.pumpUrl(URL);
@@ -108,7 +131,7 @@ class OrderSerializationServiceTest {
 
     @Test
     void nothingPendingIsANoOpAfterLock() {
-        when(repo.existsByLinkAndStatusIn(eq(URL), any())).thenReturn(false);
+        urlFree();
         when(repo.findOrdersByLinkAndStatusOrderById(eq(URL), eq(OrderStatus.PENDING), any()))
                 .thenReturn(List.of());
 
@@ -118,33 +141,99 @@ class OrderSerializationServiceTest {
         verify(instagram, never()).createInstagramOrder(any());
     }
 
+    // ---------- The fix: metric-aware conflict ----------
+
     @Test
-    void hardFailureCancelsRefundsThenTriesNext() {
-        when(repo.existsByLinkAndStatusIn(eq(URL), any())).thenReturn(false);
-        Order bad = order(30000);
-        Order good = order(30001);
-        // 1st pick → bad (dispatch fails → cancelled), 2nd pick → good (succeeds)
-        when(repo.findOrdersByLinkAndStatusOrderById(eq(URL), eq(OrderStatus.PENDING), any()))
-                .thenReturn(List.of(bad))
-                .thenReturn(List.of(good));
+    void likesAndCommentsOnSameLinkDispatchInParallel() {
+        urlFree();
+        Order likes = order(30000, LIKE);
+        Order comments = order(30001, COMMENT);
+        pending(likes, comments);
+        when(instagram.createInstagramOrder(likes)).thenReturn(ok("b-like"));
+        when(instagram.createInstagramOrder(comments)).thenReturn(ok("b-comment"));
+
+        service.pumpUrl(URL);
+
+        // Independent metrics → BOTH go out together (this is the bug being fixed).
+        verify(likes).setStatus(OrderStatus.IN_PROGRESS);
+        verify(comments).setStatus(OrderStatus.IN_PROGRESS);
+        verify(instagram).createInstagramOrder(likes);
+        verify(instagram).createInstagramOrder(comments);
+    }
+
+    @Test
+    void twoLikeOrdersOnSameLinkSerialize() {
+        urlFree();
+        Order first = order(30000, LIKE);
+        Order second = order(30001, LIKE);
+        pending(first, second);
+        when(instagram.createInstagramOrder(first)).thenReturn(ok("b1"));
+
+        service.pumpUrl(URL);
+
+        // Same metric → only the lowest-id one dispatches; the second stays PENDING.
+        verify(instagram).createInstagramOrder(first);
+        verify(first).setStatus(OrderStatus.IN_PROGRESS);
+        verify(instagram, never()).createInstagramOrder(second);
+        verify(second, never()).setStatus(OrderStatus.IN_PROGRESS);
+    }
+
+    @Test
+    void activeLikesBlocksMoreLikesButNotComments() {
+        urlOccupiedBy(LIKE); // a likes order is already running on this link
+        Order moreLikes = order(30000, LIKE);
+        Order comments = order(30001, COMMENT);
+        pending(moreLikes, comments);
+        when(instagram.createInstagramOrder(comments)).thenReturn(ok("b-comment"));
+
+        service.pumpUrl(URL);
+
+        verify(instagram, never()).createInstagramOrder(moreLikes); // conflicts with active likes
+        verify(instagram).createInstagramOrder(comments); // independent metric → dispatched
+        verify(comments).setStatus(OrderStatus.IN_PROGRESS);
+    }
+
+    @Test
+    void compositeActiveBlocksAnyOverlappingMetric() {
+        urlOccupiedBy(LIKE_COMMENT); // a like_comment order occupies like + comment
+        Order likes = order(30000, LIKE);
+        Order comments = order(30001, COMMENT);
+        Order follows = order(30002, FOLLOW);
+        pending(likes, comments, follows);
+        when(instagram.createInstagramOrder(follows)).thenReturn(ok("b-follow"));
+
+        service.pumpUrl(URL);
+
+        verify(instagram, never()).createInstagramOrder(likes); // overlaps like
+        verify(instagram, never()).createInstagramOrder(comments); // overlaps comment
+        verify(instagram).createInstagramOrder(follows); // follow is free → dispatched
+    }
+
+    @Test
+    void hardFailureDoesNotOccupyTheUrlSoNextSameMetricDispatches() {
+        urlFree();
+        Order bad = order(30000, LIKE);
+        Order good =
+                order(30001, LIKE); // same metric — only reachable because `bad` never occupied
+        pending(bad, good);
         when(instagram.createInstagramOrder(bad)).thenReturn(fail("boom"));
         when(instagram.createInstagramOrder(good)).thenReturn(ok("bot-2"));
 
         service.pumpUrl(URL);
 
-        // bad cancelled + fully refunded
+        // bad cancelled + fully refunded, never occupied the URL
         verify(bad).setStatus(OrderStatus.CANCELLED);
         verify(balance).refund(any(), eq(new BigDecimal("5.00")), eq(bad), anyString());
         verify(bad).setCharge(BigDecimal.ZERO);
-        // then good dispatched
+        // then good dispatched — single batch fetch, no re-query loop
         verify(good).setStatus(OrderStatus.IN_PROGRESS);
-        verify(repo, times(2))
+        verify(repo, times(1))
                 .findOrdersByLinkAndStatusOrderById(eq(URL), eq(OrderStatus.PENDING), any());
     }
 
     @Test
     void dispatchOrderToBotSuccessReturnsTrue() {
-        Order o = order(1);
+        Order o = order(1, LIKE);
         when(instagram.createInstagramOrder(o)).thenReturn(ok("b"));
 
         assertThat(service.dispatchOrderToBot(o)).isTrue();
@@ -155,7 +244,7 @@ class OrderSerializationServiceTest {
 
     @Test
     void dispatchOrderToBotBotErrorReturnsFalseAndRefunds() {
-        Order o = order(1);
+        Order o = order(1, LIKE);
         when(instagram.createInstagramOrder(o)).thenReturn(fail("nope"));
 
         assertThat(service.dispatchOrderToBot(o)).isFalse();

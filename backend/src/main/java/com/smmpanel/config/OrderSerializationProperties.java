@@ -8,12 +8,13 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 /**
- * Per-URL order serialization. When several orders target the SAME (normalized) link, they are
- * dispatched to the bot one-at-a-time: one is IN_PROGRESS, the rest wait in PENDING, and the next
- * (lowest id = FIFO) is released only when the active one reaches a terminal state. This keeps the
- * bot's start-count scout from reading a baseline that another order is already mutating.
+ * Metric-aware per-URL order serialization. When several orders target the SAME (normalized) link,
+ * ones whose affected metrics OVERLAP (like/comment/follow) are dispatched one-at-a-time — one
+ * IN_PROGRESS, the rest waiting in PENDING (lowest id = FIFO), released as the active one reaches a
+ * terminal state — so the bot's start-count scout never reads a baseline another order is mutating.
+ * Orders on independent metrics (e.g. likes vs comments) run in parallel.
  *
- * <p>When {@code enabled=false} the panel falls back to today's immediate dispatch (zero behavioral
+ * <p>When {@code enabled=false} the panel falls back to immediate dispatch (zero behavioral
  * change), so this is a safe runtime kill-switch.
  */
 @Data
@@ -47,6 +48,16 @@ public class OrderSerializationProperties {
 
     /** Max candidate links processed per sweep pass (bounds a backlog burst). */
     private int sweepBatchSize = 500;
+
+    /**
+     * Max PENDING waiters scanned per {@code pumpUrl} pass when picking which non-conflicting
+     * orders to dispatch in parallel. A link rarely has more than a handful of waiters, and the
+     * scan stops early once every metric (like/comment/follow) is occupied. A waiter beyond this
+     * bound (only on a link with a huge same-metric backlog hiding a different-metric order) is
+     * picked up by the next pump or the sweeper — no worse than the previous link-only
+     * serialization.
+     */
+    private int dispatchScanLimit = 200;
 
     /**
      * An active order whose {@code updatedAt} is older than this is considered "stuck" (lost

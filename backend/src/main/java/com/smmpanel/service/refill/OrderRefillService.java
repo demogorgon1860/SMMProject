@@ -347,6 +347,10 @@ public class OrderRefillService {
                         .user(original.getUser())
                         .service(original.getService())
                         .link(original.getLink())
+                        // Same link + service as the parent → same affected-metric mask (the
+                        // builder
+                        // has no default for this primitive, so set it explicitly, else it'd be 0).
+                        .metricMask(original.getMetricMask())
                         .quantity(refillQuantity)
                         .charge(BigDecimal.ZERO)
                         .startCount(0)

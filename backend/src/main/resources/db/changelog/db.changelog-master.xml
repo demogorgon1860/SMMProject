@@ -827,4 +827,8 @@
     <!-- Optimistic-lock version column on refill_requests (concurrent approve/reject guard) -->
     <include file="db/changelog/changes/v2026.07-refill-requests-add-version.xml"/>
 
+    <!-- Metric-aware per-URL serialization: orders.metric_mask (like=1/comment=2/follow=4) so
+         same-link orders serialize only when their affected metrics overlap -->
+    <include file="db/changelog/changes/v2026.07-add-orders-metric-mask.xml"/>
+
 </databaseChangeLog>

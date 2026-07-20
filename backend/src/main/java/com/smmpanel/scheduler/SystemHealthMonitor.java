@@ -87,8 +87,8 @@ public class SystemHealthMonitor {
                             cfg.getWindowHours(), cfg.getMinErrors(), cfg.getTopN());
             if (stats == null || stats.isEmpty()) {
                 log.info(
-                        "System Health: no problem profiles in last {}h (>= {} errors) — skipping"
-                                + " digest",
+                        "System Health: no qualifying profiles in last {}h (>= {} button-not-found"
+                                + " or any logged-out session) — skipping digest",
                         cfg.getWindowHours(),
                         cfg.getMinErrors());
                 return;
@@ -161,17 +161,19 @@ public class SystemHealthMonitor {
             List<ProfileErrorStat> stats, int windowHours, int minErrors) {
         StringBuilder sb = new StringBuilder();
         sb.append(
-                String.format("⚠️ Топ профилей по ошибкам (за %dч, ≥%d)", windowHours, minErrors));
+                String.format(
+                        "⚠️ Проблемные профили (за %dч): не в логине или ≥%d ненайденных кнопок",
+                        windowHours, minErrors));
         int rank = 1;
         for (ProfileErrorStat s : stats) {
             sb.append(
                     String.format(
-                            "%n%d. %s — %d ошиб. (%d fail / %d profile_failed) из %d действий",
+                            "%n%d. %s — 🔴 не в логине: %d · 🔶 кнопка не найдена: %d (из %d"
+                                    + " действий)",
                             rank++,
                             s.getProfileAdsPowerId(),
-                            s.errorCount(),
-                            s.getFailed(),
-                            s.getProfileFailed(),
+                            s.getLoggedOut(),
+                            s.getTransientAction(),
                             s.getTotalActions()));
         }
         return sb.toString();

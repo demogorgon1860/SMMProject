@@ -852,15 +852,34 @@ public class InstagramBotClient {
      */
     public List<ProfileErrorStat> getProfileErrorStats(int windowHours, int minErrors, int topN) {
         Map<String, ProfileErrorStat> merged = new LinkedHashMap<>();
+        int reached = 0;
         for (String instance : botInstances) {
-            for (ProfileErrorStat st :
-                    fetchProfileErrorStats(instance, windowHours, minErrors, topN)) {
+            List<ProfileErrorStat> perInstance =
+                    fetchProfileErrorStats(instance, windowHours, minErrors, topN);
+            if (perInstance == null) continue; // unreachable / bad response — already WARN-logged
+            reached++;
+            for (ProfileErrorStat st : perInstance) {
                 if (st.getProfileAdsPowerId() == null) continue;
                 merged.merge(st.getProfileAdsPowerId(), st, ProfileErrorStat::combine);
             }
         }
+        // Distinguish "fleet healthy" (reached >= 1, nothing qualified) from "could not fetch
+        // anywhere" (reached == 0) — otherwise the caller reads an empty result as all-clear.
+        if (reached == 0 && !botInstances.isEmpty()) {
+            log.warn(
+                    "System Health: could not reach ANY of {} bot instance(s) for profile stats —"
+                            + " an empty digest here is NOT 'all healthy'",
+                    botInstances.size());
+        }
         return merged.values().stream()
-                .sorted(Comparator.comparingInt(ProfileErrorStat::errorCount).reversed())
+                // Rank logged-out sessions first (need a manual re-login), then button-not-found,
+                // then the headline total — mirrors the bot's ORDER BY so the merged top-N is
+                // stable.
+                .sorted(
+                        Comparator.comparingInt(ProfileErrorStat::getLoggedOut)
+                                .thenComparingInt(ProfileErrorStat::getTransientAction)
+                                .thenComparingInt(ProfileErrorStat::errorCount)
+                                .reversed())
                 .limit(Math.max(0, topN))
                 .toList();
     }
@@ -868,7 +887,9 @@ public class InstagramBotClient {
     /**
      * Fetch one bot instance's profile error leaderboard. Uses the standard (10s) template — this
      * is a non-interactive analytics call, not a Telegram-callback hot path, so the 3s fast budget
-     * is too tight. Returns an empty list on any failure.
+     * is too tight. Returns {@code null} on a hard failure (unreachable, non-2xx, or an unexpected
+     * response shape) — distinct from a successful-but-empty list — so the caller can tell "this
+     * bot is healthy with nothing to report" from "this bot could not be fetched".
      */
     @SuppressWarnings("unchecked")
     private List<ProfileErrorStat> fetchProfileErrorStats(
@@ -880,10 +901,20 @@ public class InstagramBotClient {
                             instance, windowHours, minErrors, topN);
             ResponseEntity<Map> resp = restTemplate.getForEntity(url, Map.class);
             if (!resp.getStatusCode().is2xxSuccessful() || resp.getBody() == null) {
-                return List.of();
+                log.warn(
+                        "getProfileErrorStats({}) — non-2xx/empty body: {}",
+                        instance,
+                        resp.getStatusCode());
+                return null;
             }
             Object profilesObj = resp.getBody().get("profiles");
-            if (!(profilesObj instanceof List)) return List.of();
+            if (!(profilesObj instanceof List)) {
+                log.warn(
+                        "getProfileErrorStats({}) — unexpected response shape (no 'profiles'"
+                                + " array)",
+                        instance);
+                return null;
+            }
             List<Map<String, Object>> rows = (List<Map<String, Object>>) profilesObj;
             List<ProfileErrorStat> out = new ArrayList<>(rows.size());
             for (Map<String, Object> row : rows) {
@@ -892,6 +923,8 @@ public class InstagramBotClient {
                                 .profileAdsPowerId(asString(row.get("profile_adspower_id")))
                                 .failed(asInt(row.get("failed")))
                                 .profileFailed(asInt(row.get("profile_failed")))
+                                .loggedOut(asInt(row.get("logged_out")))
+                                .transientAction(asInt(row.get("transient_action")))
                                 .totalActions(asInt(row.get("total_actions")))
                                 .lastAt(asString(row.get("last_at")))
                                 .build());
@@ -899,7 +932,7 @@ public class InstagramBotClient {
             return out;
         } catch (Exception e) {
             log.warn("getProfileErrorStats({}) failed: {}", instance, e.getMessage());
-            return List.of();
+            return null;
         }
     }
 

@@ -6,9 +6,13 @@ import lombok.Data;
 
 /**
  * Per-AdsPower-profile error tally over a time window, as returned by the bot's {@code GET
- * /api/profiles/errors} endpoint and surfaced in the System Health digest. {@code failed} and
- * {@code profileFailed} are kept separate so operators can tell a broken/banned account
- * (profile_failed) from a generic action failure (failed). Ranking uses their sum.
+ * /api/profiles/errors} endpoint and surfaced in the System Health digest. The fault classes are
+ * kept separate so operators can act on each: {@code loggedOut} (the login-required subset of
+ * {@code profileFailed}) means the profile needs a manual re-login; {@code transientAction} means
+ * the profile kept failing to find the action button/element (a logged-out or action-blocked
+ * profile also surfaces here); {@code profileFailed} is all account-level failures (incl. bans);
+ * {@code failed} is a generic action failure (often a target issue). The bot only returns profiles
+ * that qualify (>= minErrors transient_action OR >= 1 logged-out); ranking puts logged-out first.
  */
 @Data
 @Builder
@@ -18,12 +22,19 @@ public class ProfileErrorStat {
     private String profileAdsPowerId;
     private int failed;
     private int profileFailed;
+    private int loggedOut;
+    private int transientAction;
     private int totalActions;
     private String lastAt; // ISO-8601 timestamp of the most recent action in the window
 
-    /** Total profile-fault errors used for ranking. */
+    /**
+     * Headline total of fault rows for display. {@code loggedOut} is a labelled SUBSET of {@code
+     * profileFailed}, so it is intentionally NOT added here (that would double-count). Ranking is
+     * done by {@link com.smmpanel.client.InstagramBotClient} with an explicit multi-key comparator
+     * (logged-out first, then transient), not by this sum.
+     */
     public int errorCount() {
-        return failed + profileFailed;
+        return failed + profileFailed + transientAction;
     }
 
     /**
@@ -37,6 +48,8 @@ public class ProfileErrorStat {
                 .profileAdsPowerId(profileAdsPowerId)
                 .failed(failed + other.failed)
                 .profileFailed(profileFailed + other.profileFailed)
+                .loggedOut(loggedOut + other.loggedOut)
+                .transientAction(transientAction + other.transientAction)
                 .totalActions(totalActions + other.totalActions)
                 .lastAt(maxIso(lastAt, other.lastAt))
                 .build();

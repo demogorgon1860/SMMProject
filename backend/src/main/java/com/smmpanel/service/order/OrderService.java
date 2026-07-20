@@ -1517,16 +1517,18 @@ public class OrderService {
 
         order = orderRepository.save(order);
 
+        // Send Telegram notification for the new order. notifyNewOrder() ALREADY defers the actual
+        // send to after-commit and drops it on rollback (it wraps AfterCommitRunner internally), so
+        // now that this path is transactional a failed deduct below will NOT fire a phantom alert.
+        // Do NOT wrap this call in AfterCommitRunner here — the inner registration would then run
+        // during the outer after-commit phase, too late to be invoked, and the notification is
+        // lost.
+        telegramNotificationService.notifyNewOrder(order);
+
         // Deduct balance in the SAME transaction as the order save (see the @Transactional entry
         // overload createOrder(CreateOrderRequest, ...)). A failure here now rolls the order back
         // instead of leaving a committed, unpaid PENDING order behind.
         balanceService.deductBalance(user, charge, order, "Order #" + order.getId());
-
-        // Notify admin only AFTER the order + charge commit — a rollback (e.g. a deduct failure)
-        // must not fire a "new order" alert for an order that never persisted.
-        final Order committedOrder = order;
-        com.smmpanel.util.AfterCommitRunner.runAfterCommit(
-                () -> telegramNotificationService.notifyNewOrder(committedOrder));
 
         // Dispatch Instagram order for async processing
         if (isInstagramOrder(order)) {

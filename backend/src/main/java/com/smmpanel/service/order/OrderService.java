@@ -1315,7 +1315,24 @@ public class OrderService {
                 && url.length() > prefix.length();
     }
 
-    // Additional methods required by the interface
+    // Additional methods required by the interface.
+    //
+    // MUST be @Transactional. This is the REAL entry point for both POST /api/v1/orders and
+    // Perfect Panel POST /api/v2?action=add (via ClientApiController.handleAddOrder). It delegates
+    // to the createOrder(OrderCreateRequest, ...) overload below through a plain this.* call, which
+    // bypasses the Spring proxy — so that overload's own @Transactional does NOT take effect on
+    // this path. Without a transaction opened HERE, orderRepository.save() commits in its own
+    // micro-transaction and the subsequent balanceService.deductBalance() runs in a SEPARATE
+    // transaction: any failure in deduct (e.g. a concurrency abort or a balance race) would leave a
+    // committed, UNPAID order behind. Opening the transaction here makes order-save + deduct
+    // atomic,
+    // and places deductBalance's pessimistic row lock inside a READ_COMMITTED transaction (which
+    // blocks-and-rereads) instead of its own standalone tx (which, at higher isolation, aborted
+    // with
+    // SQLSTATE 40001 under the reseller's concurrent-order load). It also makes the after-commit
+    // Kafka publish below actually fire after commit as documented, rather than falling back
+    // inline.
+    @Transactional(isolation = Isolation.READ_COMMITTED, rollbackFor = Exception.class)
     public OrderResponse createOrder(CreateOrderRequest request, String username) {
         User user =
                 userRepository
@@ -1500,11 +1517,16 @@ public class OrderService {
 
         order = orderRepository.save(order);
 
-        // Send Telegram notification for new order
-        telegramNotificationService.notifyNewOrder(order);
-
-        // Deduct balance
+        // Deduct balance in the SAME transaction as the order save (see the @Transactional entry
+        // overload createOrder(CreateOrderRequest, ...)). A failure here now rolls the order back
+        // instead of leaving a committed, unpaid PENDING order behind.
         balanceService.deductBalance(user, charge, order, "Order #" + order.getId());
+
+        // Notify admin only AFTER the order + charge commit — a rollback (e.g. a deduct failure)
+        // must not fire a "new order" alert for an order that never persisted.
+        final Order committedOrder = order;
+        com.smmpanel.util.AfterCommitRunner.runAfterCommit(
+                () -> telegramNotificationService.notifyNewOrder(committedOrder));
 
         // Dispatch Instagram order for async processing
         if (isInstagramOrder(order)) {

@@ -309,7 +309,14 @@ public class ClientApiController {
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            log.error("Failed to create order: {}", e.getMessage());
+            // Log the full exception (type + stack trace) so prod-log verification can tell a
+            // transient concurrency failure apart from a routine business rejection — the previous
+            // "{}", e.getMessage() form dropped both the class and the stack.
+            log.error(
+                    "Failed to create order for user {}: {}",
+                    user.getUsername(),
+                    e.getMessage(),
+                    e);
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }

@@ -210,6 +210,34 @@ class OrderSerializationServiceTest {
     }
 
     @Test
+    void activeOrderWithUnknownZeroMaskIsTreatedAsAllAndBlocksEverything() {
+        urlOccupiedBy(0); // a legacy/unknown-mask active order — effectiveMask(0) → ALL
+
+        service.pumpUrl(URL);
+
+        // occupied becomes ALL, so the waiter scan is never even reached and nothing dispatches
+        verify(repo).acquireUrlSerializationLock(URL);
+        verify(repo, never()).findOrdersByLinkAndStatusOrderById(any(), any(), any());
+        verify(instagram, never()).createInstagramOrder(any());
+    }
+
+    @Test
+    void waiterWithUnknownZeroMaskOccupiesAllMetricsAndBlocksTheRest() {
+        urlFree();
+        Order unknown =
+                order(30000, 0); // effectiveMask(0) → ALL: occupies every metric on dispatch
+        Order likes = order(30001, LIKE);
+        pending(unknown, likes);
+        when(instagram.createInstagramOrder(unknown)).thenReturn(ok("b-unknown"));
+
+        service.pumpUrl(URL);
+
+        verify(instagram).createInstagramOrder(unknown); // dispatched (nothing occupied yet)
+        verify(unknown).setStatus(OrderStatus.IN_PROGRESS);
+        verify(instagram, never()).createInstagramOrder(likes); // now ALL occupied → likes blocked
+    }
+
+    @Test
     void hardFailureDoesNotOccupyTheUrlSoNextSameMetricDispatches() {
         urlFree();
         Order bad = order(30000, LIKE);

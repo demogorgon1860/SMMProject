@@ -111,9 +111,21 @@ public class OrderService {
     private static final String REDIS_ORDER_PROGRESS = "order:progress:";
     private static final int REDIS_PROGRESS_TTL_HOURS = 24;
 
-    /** CRITICAL: Create order with API key (Perfect Panel compatibility) */
+    /**
+     * CRITICAL: Create order with API key (Perfect Panel compatibility).
+     *
+     * <p>Runs at READ_COMMITTED (not REPEATABLE_READ) on purpose. Balance safety comes from the
+     * pessimistic row lock inside {@code checkAndDeductBalance} ({@code SELECT ... FOR NO KEY
+     * UPDATE}), which serializes concurrent deductions on the same user row correctly. Under
+     * REPEATABLE_READ that same locking read aborts with SQLSTATE 40001 ("could not serialize
+     * access due to concurrent update") whenever a concurrent transaction has already touched the
+     * row — which is exactly the reseller's pattern (many orders under one API-key user). The whole
+     * method then rolls back ({@code rollbackFor = Exception.class}) with no retry, so the order
+     * silently fails. READ_COMMITTED makes the locking read block-and-reread instead of aborting,
+     * matching the core {@code createOrder} path which has always run at READ_COMMITTED.
+     */
     @Transactional(
-            isolation = Isolation.REPEATABLE_READ,
+            isolation = Isolation.READ_COMMITTED,
             propagation = Propagation.REQUIRED,
             timeout = 30,
             rollbackFor = Exception.class)

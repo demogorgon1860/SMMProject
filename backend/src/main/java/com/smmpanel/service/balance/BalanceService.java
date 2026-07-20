@@ -16,11 +16,11 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
@@ -78,12 +78,12 @@ public class BalanceService {
      * @throws InvalidAmountException if the amount is invalid
      */
     @Transactional(
-            isolation = Isolation.SERIALIZABLE,
+            isolation = Isolation.READ_COMMITTED,
             propagation = Propagation.REQUIRED,
             timeout = 10,
             rollbackFor = Exception.class)
     @Retryable(
-            value = {ObjectOptimisticLockingFailureException.class},
+            value = {ConcurrencyFailureException.class},
             maxAttemptsExpression = "#{@balanceService.maxRetryAttempts}",
             backoff =
                     @Backoff(
@@ -160,12 +160,12 @@ public class BalanceService {
      * @throws InvalidAmountException if the amount is invalid
      */
     @Transactional(
-            isolation = Isolation.SERIALIZABLE,
+            isolation = Isolation.READ_COMMITTED,
             propagation = Propagation.REQUIRED,
             timeout = 10,
             rollbackFor = Exception.class)
     @Retryable(
-            value = {ObjectOptimisticLockingFailureException.class},
+            value = {ConcurrencyFailureException.class},
             maxAttemptsExpression = "#{@balanceService.maxRetryAttempts}",
             backoff =
                     @Backoff(
@@ -183,12 +183,12 @@ public class BalanceService {
     // 3-arg sibling do NOT protect a direct call here, and a same-bean delegation would ignore
     // them.
     @Transactional(
-            isolation = Isolation.SERIALIZABLE,
+            isolation = Isolation.READ_COMMITTED,
             propagation = Propagation.REQUIRED,
             timeout = 10,
             rollbackFor = Exception.class)
     @Retryable(
-            value = {ObjectOptimisticLockingFailureException.class},
+            value = {ConcurrencyFailureException.class},
             maxAttemptsExpression = "#{@balanceService.maxRetryAttempts}",
             backoff =
                     @Backoff(
@@ -241,12 +241,12 @@ public class BalanceService {
     }
 
     @Transactional(
-            isolation = Isolation.SERIALIZABLE,
+            isolation = Isolation.READ_COMMITTED,
             propagation = Propagation.REQUIRED,
             timeout = 10,
             rollbackFor = Exception.class)
     @Retryable(
-            value = {ObjectOptimisticLockingFailureException.class},
+            value = {ConcurrencyFailureException.class},
             maxAttemptsExpression = "#{@balanceService.maxRetryAttempts}",
             backoff =
                     @Backoff(
@@ -391,12 +391,12 @@ public class BalanceService {
      * @throws ResourceNotFoundException if either user is not found
      */
     @Transactional(
-            isolation = Isolation.SERIALIZABLE,
+            isolation = Isolation.READ_COMMITTED,
             propagation = Propagation.REQUIRED,
             timeout = 15,
             rollbackFor = Exception.class)
     @Retryable(
-            value = {ObjectOptimisticLockingFailureException.class},
+            value = {ConcurrencyFailureException.class},
             maxAttemptsExpression = "#{@balanceService.maxRetryAttempts}",
             backoff =
                     @Backoff(
@@ -506,12 +506,12 @@ public class BalanceService {
      * @return New balance after adjustment
      */
     @Transactional(
-            isolation = Isolation.SERIALIZABLE,
+            isolation = Isolation.READ_COMMITTED,
             propagation = Propagation.REQUIRED,
             timeout = 10,
             rollbackFor = Exception.class)
     @Retryable(
-            value = {ObjectOptimisticLockingFailureException.class},
+            value = {ConcurrencyFailureException.class},
             maxAttemptsExpression = "#{@balanceService.maxRetryAttempts}",
             backoff =
                     @Backoff(
@@ -604,13 +604,13 @@ public class BalanceService {
      * @return true if balance was successfully reserved
      */
     @Transactional(
-            isolation = Isolation.SERIALIZABLE,
+            isolation = Isolation.READ_COMMITTED,
             propagation = Propagation.REQUIRED,
             timeout = 5,
             rollbackFor = Exception.class,
             readOnly = true)
     @Retryable(
-            value = {ObjectOptimisticLockingFailureException.class},
+            value = {ConcurrencyFailureException.class},
             maxAttemptsExpression = "#{@balanceService.maxRetryAttempts}",
             backoff =
                     @Backoff(
@@ -657,12 +657,12 @@ public class BalanceService {
      * @return true if balance was sufficient and deducted, false otherwise
      */
     @Transactional(
-            isolation = Isolation.SERIALIZABLE,
+            isolation = Isolation.READ_COMMITTED,
             propagation = Propagation.REQUIRED,
             timeout = 10,
             rollbackFor = Exception.class)
     @Retryable(
-            value = {ObjectOptimisticLockingFailureException.class},
+            value = {ConcurrencyFailureException.class},
             maxAttemptsExpression = "#{@balanceService.maxRetryAttempts}",
             backoff =
                     @Backoff(

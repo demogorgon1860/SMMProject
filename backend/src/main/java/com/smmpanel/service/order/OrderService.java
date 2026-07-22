@@ -147,6 +147,13 @@ public class OrderService {
                 throw new OrderValidationException("Invalid API key");
             }
 
+            // Lock the user's balance row up front, before the quota/insert queries can auto-flush a
+            // stale pre-loaded User (same rationale as createOrder(OrderCreateRequest,...)). Keeps the
+            // lock order (user-row THEN quota-advisory) identical across ALL order-creation paths, so
+            // even if this path is revived it can't deadlock against the primary path. NOTE: this
+            // method is currently unreachable/dead — kept consistent to avoid a future footgun.
+            balanceService.lockUserForUpdate(user.getId());
+
             // 2. Validate service
             com.smmpanel.entity.Service service =
                     serviceRepository
@@ -1332,7 +1339,11 @@ public class OrderService {
     // SQLSTATE 40001 under the reseller's concurrent-order load). It also makes the after-commit
     // Kafka publish below actually fire after commit as documented, rather than falling back
     // inline.
-    @Transactional(isolation = Isolation.READ_COMMITTED, rollbackFor = Exception.class)
+    // timeout=30: the per-user balance row lock is now taken at the top of the delegated
+    // createOrder(OrderCreateRequest,...) and held for the whole transaction (quota checks, order
+    // insert, deduct). A bounded transaction timeout ensures a pathologically slow query can't hold
+    // that lock — and block every other order/balance operation for the same user — indefinitely.
+    @Transactional(isolation = Isolation.READ_COMMITTED, timeout = 30, rollbackFor = Exception.class)
     public OrderResponse createOrder(CreateOrderRequest request, String username) {
         User user =
                 userRepository

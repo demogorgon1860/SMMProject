@@ -2,7 +2,6 @@ package com.smmpanel.repository.jpa;
 
 import com.smmpanel.entity.User;
 import com.smmpanel.entity.UserRole;
-import jakarta.persistence.LockModeType;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -11,7 +10,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -52,10 +50,13 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     @Query("SELECT u FROM User u WHERE u.apiKeyLookupHash = :lookupHash AND u.isActive = true")
     Optional<User> findByApiKeyLookupHashAndIsActiveTrue(@Param("lookupHash") String lookupHash);
 
-    // Pessimistic locking for balance operations to prevent race conditions
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT u FROM User u WHERE u.id = :id")
-    Optional<User> findByIdWithLock(@Param("id") Long id);
+    // NOTE: a JPQL @Lock(PESSIMISTIC_WRITE) "findByIdWithLock" used to live here. It was REMOVED
+    // because a JPQL/native query forces Hibernate to auto-flush the persistence context BEFORE it
+    // executes — and when the caller had pre-loaded the User earlier in the same transaction, that
+    // pre-query flush persisted the stale User and lost the @Version race, throwing
+    // StaleObjectStateException before the lock was even acquired (the User#856 order-create
+    // incident). Lock a User via BalanceService.lockAndRefreshUser / lockUserForUpdate instead
+    // (entityManager.find + refresh(PESSIMISTIC_WRITE), which are NOT queries and do not auto-flush).
 
     // ADDED: Missing custom query methods
     @Query(

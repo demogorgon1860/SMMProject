@@ -1375,6 +1375,14 @@ public class OrderService {
                         .findByUsername(username)
                         .orElseThrow(() -> new OrderValidationException("User not found"));
 
+        // Lock the user's balance row up front, while the persistence context is still clean, and
+        // hold it for the whole transaction. This serializes concurrent same-user order creation so
+        // that NO later query in this method — the quota checks (incl. a native full-flush query),
+        // the order insert, or the deduct — can auto-flush a now-stale pre-loaded User and lose the
+        // @Version race. That upstream flush, not just the deduct site, was the User#856
+        // StaleObjectStateException failure class. See BalanceService.lockUserForUpdate.
+        balanceService.lockUserForUpdate(user.getId());
+
         // Get service
         com.smmpanel.entity.Service service =
                 serviceRepository

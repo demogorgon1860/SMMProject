@@ -93,14 +93,45 @@ public class BalanceService {
      * <p>Returns the same managed object the caller passed when it was already in the persistence
      * context (JPA identity map), so an in-flight {@code order.getUser()} stays in sync — the reason
      * refresh-in-place is used rather than detach + reload.
+     *
+     * <p><b>Invariant for callers:</b> {@code refresh} DISCARDS any pending in-memory changes on the
+     * User. Never mutate a non-balance User field (and expect it to persist) earlier in the same
+     * transaction that then calls into one of these balance methods on the same instance — the
+     * mutation would be silently dropped here. Balance/totalSpent are always set AFTER this call.
      */
     private User lockAndRefreshUser(Long userId) {
         User managedUser = entityManager.find(User.class, userId);
         if (managedUser == null) {
             throw new ResourceNotFoundException("User not found with id: " + userId);
         }
-        entityManager.refresh(managedUser, LockModeType.PESSIMISTIC_WRITE);
+        try {
+            entityManager.refresh(managedUser, LockModeType.PESSIMISTIC_WRITE);
+        } catch (jakarta.persistence.EntityNotFoundException e) {
+            // Row hard-deleted between find() and the locking refresh() (only reachable via the
+            // GDPR hard-delete cron — users are otherwise soft-deleted). Surface the same clean
+            // not-found signal the old single-statement lock query produced, not a raw 500.
+            throw new ResourceNotFoundException("User not found with id: " + userId);
+        }
         return managedUser;
+    }
+
+    /**
+     * Acquire and hold the per-user balance row lock for a caller whose enclosing transaction must
+     * mutate that user's balance later (e.g. {@code OrderService.createOrder}, which loads the User
+     * up front and then runs several JPQL/native queries — quota checks, order insert — before
+     * charging).
+     *
+     * <p>Call this at the TOP of the transaction, immediately after loading the User and before any
+     * other query runs. Holding {@code FOR NO KEY UPDATE} from that point serializes concurrent
+     * same-user order creation, so no later auto-flush (including a native query's full flush) can
+     * persist a stale User and lose the {@code @Version} race — closing the failure class at every
+     * query point in the transaction, not just at the balance-mutation site. {@link
+     * Propagation#MANDATORY} enforces that a caller transaction already exists (a lock outside a
+     * transaction would be pointless and immediately released).
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void lockUserForUpdate(Long userId) {
+        lockAndRefreshUser(userId);
     }
 
     /**

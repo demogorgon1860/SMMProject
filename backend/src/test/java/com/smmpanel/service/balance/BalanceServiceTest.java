@@ -19,6 +19,7 @@ import com.smmpanel.exception.ResourceNotFoundException;
 import com.smmpanel.repository.jpa.BalanceTransactionRepository;
 import com.smmpanel.repository.jpa.UserRepository;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.math.BigDecimal;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -74,7 +75,7 @@ class BalanceServiceTest {
     @DisplayName("deductBalance: happy path — user balance reduces, ledger row written")
     void deduct_happy() {
         User u = userWithBalance(1L, new BigDecimal("100.00"));
-        when(userRepository.findByIdWithLock(1L)).thenReturn(Optional.of(u));
+        when(entityManager.find(User.class, 1L)).thenReturn(u);
         Order order = orderFor(50L, u);
 
         service.deductBalance(u, new BigDecimal("30.00"), order, "test deduction");
@@ -82,7 +83,7 @@ class BalanceServiceTest {
         // Regression guard: the locked User instance MUST be refreshed so its @Version/balance
         // reflect the lock-winner's committed row (see commit cff8a95f — stale-cache fix for
         // User#856). Deleting the entityManager.refresh(...) line must fail this test.
-        verify(entityManager).refresh(u);
+        verify(entityManager).refresh(u, LockModeType.PESSIMISTIC_WRITE);
 
         ArgumentCaptor<BalanceTransaction> tx = ArgumentCaptor.forClass(BalanceTransaction.class);
         verify(transactionRepository, times(1)).save(tx.capture());
@@ -99,7 +100,7 @@ class BalanceServiceTest {
     @DisplayName("deductBalance: insufficient funds → InsufficientBalanceException, no writes")
     void deduct_insufficient() {
         User u = userWithBalance(1L, new BigDecimal("5.00"));
-        when(userRepository.findByIdWithLock(1L)).thenReturn(Optional.of(u));
+        when(entityManager.find(User.class, 1L)).thenReturn(u);
 
         assertThatThrownBy(() -> service.deductBalance(u, new BigDecimal("30.00"), null, "x"))
                 .isInstanceOf(InsufficientBalanceException.class);
@@ -128,7 +129,7 @@ class BalanceServiceTest {
     @DisplayName("deductBalance: missing user → ResourceNotFound (no silent failure)")
     void deduct_user_missing() {
         User u = userWithBalance(99L, new BigDecimal("100.00"));
-        when(userRepository.findByIdWithLock(99L)).thenReturn(Optional.empty());
+        when(entityManager.find(User.class, 99L)).thenReturn(null);
 
         assertThatThrownBy(() -> service.deductBalance(u, new BigDecimal("1"), null, "x"))
                 .isInstanceOf(ResourceNotFoundException.class);
@@ -142,7 +143,7 @@ class BalanceServiceTest {
     @DisplayName("refund: writes a REFUND row with positive amount and increments balance")
     void refund_partial_amount() {
         User u = userWithBalance(1L, new BigDecimal("10.00"));
-        when(userRepository.findByIdWithLock(1L)).thenReturn(Optional.of(u));
+        when(entityManager.find(User.class, 1L)).thenReturn(u);
         Order order = orderFor(50L, u);
         // Partial refund formula: charge * (1 - completed/quantity) computed by the caller.
         // Here: charge=$10, completed=80, quantity=100 → refund = $10 * 0.20 = $2.
@@ -151,7 +152,7 @@ class BalanceServiceTest {
         service.refund(u, partialRefund, order, "partial refund completed=80/100");
 
         // Regression guard: refund also locks + refreshes the User (commit cff8a95f).
-        verify(entityManager).refresh(u);
+        verify(entityManager).refresh(u, LockModeType.PESSIMISTIC_WRITE);
 
         ArgumentCaptor<BalanceTransaction> tx = ArgumentCaptor.forClass(BalanceTransaction.class);
         verify(transactionRepository).save(tx.capture());
@@ -168,7 +169,7 @@ class BalanceServiceTest {
     @DisplayName("refund: full refund (charge * 1.0 when completed=0) credits the full charge")
     void refund_full_amount() {
         User u = userWithBalance(1L, new BigDecimal("0.00"));
-        when(userRepository.findByIdWithLock(1L)).thenReturn(Optional.of(u));
+        when(entityManager.find(User.class, 1L)).thenReturn(u);
         BigDecimal fullRefund = new BigDecimal("15.00");
 
         service.refund(u, fullRefund, null, "full refund");
@@ -196,7 +197,7 @@ class BalanceServiceTest {
     @DisplayName("addBalance: deposit increments balance and writes DEPOSIT ledger row")
     void addBalance_deposit_records_ledger() {
         User u = userWithBalance(1L, new BigDecimal("5.00"));
-        when(userRepository.findByIdWithLock(1L)).thenReturn(Optional.of(u));
+        when(entityManager.find(User.class, 1L)).thenReturn(u);
 
         BigDecimal newBalance =
                 service.addBalance(u, new BigDecimal("10.00"), null, "Welcome credit");
@@ -204,7 +205,7 @@ class BalanceServiceTest {
         assertThat(newBalance).isEqualByComparingTo("15.00");
         assertThat(u.getBalance()).isEqualByComparingTo("15.00");
         // Regression guard: addBalance also locks + refreshes the User (commit cff8a95f).
-        verify(entityManager).refresh(u);
+        verify(entityManager).refresh(u, LockModeType.PESSIMISTIC_WRITE);
         ArgumentCaptor<BalanceTransaction> tx = ArgumentCaptor.forClass(BalanceTransaction.class);
         verify(transactionRepository).save(tx.capture());
         assertThat(tx.getValue().getTransactionType()).isEqualTo(TransactionType.DEPOSIT);
@@ -220,14 +221,14 @@ class BalanceServiceTest {
     @DisplayName("checkAndDeductBalance: deducts iff sufficient funds; returns true on success")
     void checkAndDeduct_sufficient_returns_true() {
         User u = userWithBalance(1L, new BigDecimal("50.00"));
-        when(userRepository.findByIdWithLock(1L)).thenReturn(Optional.of(u));
+        when(entityManager.find(User.class, 1L)).thenReturn(u);
 
         boolean ok = service.checkAndDeductBalance(u, new BigDecimal("30.00"), null, "x");
 
         assertThat(ok).isTrue();
         assertThat(u.getBalance()).isEqualByComparingTo("20.00");
         // Regression guard: the atomic guard also locks + refreshes the User (commit cff8a95f).
-        verify(entityManager).refresh(u);
+        verify(entityManager).refresh(u, LockModeType.PESSIMISTIC_WRITE);
     }
 
     @Test
@@ -235,7 +236,7 @@ class BalanceServiceTest {
             "checkAndDeductBalance: returns false on insufficient funds, no writes, no exception")
     void checkAndDeduct_insufficient_returns_false() {
         User u = userWithBalance(1L, new BigDecimal("5.00"));
-        when(userRepository.findByIdWithLock(1L)).thenReturn(Optional.of(u));
+        when(entityManager.find(User.class, 1L)).thenReturn(u);
 
         boolean ok = service.checkAndDeductBalance(u, new BigDecimal("30.00"), null, "x");
 
@@ -318,8 +319,8 @@ class BalanceServiceTest {
     void transfer_locks_and_records_both_sides() {
         User from = userWithBalance(1L, new BigDecimal("100.00"));
         User to = userWithBalance(2L, new BigDecimal("0.00"));
-        when(userRepository.findByIdWithLock(1L)).thenReturn(Optional.of(from));
-        when(userRepository.findByIdWithLock(2L)).thenReturn(Optional.of(to));
+        when(entityManager.find(User.class, 1L)).thenReturn(from);
+        when(entityManager.find(User.class, 2L)).thenReturn(to);
 
         service.transferBalance(1L, 2L, new BigDecimal("25.00"), "transfer");
 
@@ -340,8 +341,8 @@ class BalanceServiceTest {
     void transfer_insufficient_source() {
         User from = userWithBalance(1L, new BigDecimal("5.00"));
         User to = userWithBalance(2L, BigDecimal.ZERO);
-        when(userRepository.findByIdWithLock(1L)).thenReturn(Optional.of(from));
-        when(userRepository.findByIdWithLock(2L)).thenReturn(Optional.of(to));
+        when(entityManager.find(User.class, 1L)).thenReturn(from);
+        when(entityManager.find(User.class, 2L)).thenReturn(to);
 
         assertThatThrownBy(() -> service.transferBalance(1L, 2L, new BigDecimal("100.00"), "x"))
                 .isInstanceOf(InsufficientBalanceException.class);

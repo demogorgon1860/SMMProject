@@ -6,6 +6,7 @@ import com.smmpanel.exception.*;
 import com.smmpanel.repository.jpa.BalanceTransactionRepository;
 import com.smmpanel.repository.jpa.UserRepository;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
@@ -69,6 +70,40 @@ public class BalanceService {
     }
 
     /**
+     * Take the per-user balance row lock and load the freshly-committed state under it, returning
+     * the managed {@link User} instance to mutate.
+     *
+     * <p><b>Why not a JPQL {@code findByIdWithLock} query.</b> A JPQL/native query forces Hibernate
+     * to <i>auto-flush the persistence context before it executes</i>. When a caller already loaded
+     * this same User earlier in the transaction (e.g. {@code OrderService.createOrder} loads it via
+     * {@code findByUsername} before charging), that pre-execution flush tries to persist the
+     * caller's now-stale User and loses the {@code @Version} race to a concurrently-committed
+     * balance change — throwing {@code StaleObjectStateException} <i>before</i> the {@code FOR NO KEY
+     * UPDATE} lock is ever acquired. Both the lock and any post-query refresh are therefore too late.
+     * This was the real cause of the reseller {@code User#856} order-create failures.
+     *
+     * <p><b>How this avoids it.</b> {@link EntityManager#find} and {@link EntityManager#refresh} are
+     * <i>not</i> queries, so neither triggers an auto-flush. We first obtain the managed instance
+     * (find never locks and never flushes), then {@code refresh(..., PESSIMISTIC_WRITE)} acquires the
+     * row lock <i>and</i> reloads the winner's committed {@code @Version} + balance in a single
+     * statement — discarding any spurious dirty state Hibernate detected on the cached instance.
+     * Because the lock is held from this point through commit, the eventual balance {@code UPDATE}
+     * flushes on top of fresh state and cannot lose the version race.
+     *
+     * <p>Returns the same managed object the caller passed when it was already in the persistence
+     * context (JPA identity map), so an in-flight {@code order.getUser()} stays in sync — the reason
+     * refresh-in-place is used rather than detach + reload.
+     */
+    private User lockAndRefreshUser(Long userId) {
+        User managedUser = entityManager.find(User.class, userId);
+        if (managedUser == null) {
+            throw new ResourceNotFoundException("User not found with id: " + userId);
+        }
+        entityManager.refresh(managedUser, LockModeType.PESSIMISTIC_WRITE);
+        return managedUser;
+    }
+
+    /**
      * Deducts the specified amount from the user's balance with optimistic locking.
      *
      * @param user The user to deduct balance from
@@ -98,22 +133,10 @@ public class BalanceService {
         Objects.requireNonNull(amount, "Amount cannot be null");
         validateAmount(amount);
 
-        // Use pessimistic locking to prevent race conditions
-        User managedUser =
-                userRepository
-                        .findByIdWithLock(user.getId())
-                        .orElseThrow(
-                                () ->
-                                        new ResourceNotFoundException(
-                                                "User not found with id: " + user.getId()));
-        // Refresh the committed @Version + balance under the pessimistic lock. A caller may already
-        // hold this User in the persistence context (e.g. createOrder loads it via findByUsername
-        // before deducting), so findByIdWithLock returns that cached instance WITHOUT refreshing
-        // its
-        // 1st-level-cached version. The lock serializes us, but without this refresh a concurrent
-        // balance change that committed first makes our UPDATE fail with StaleObjectStateException.
-        // Refreshing reloads the winner's committed state so our mutation applies on top of it.
-        entityManager.refresh(managedUser);
+        // Take the balance row lock and load fresh committed state under it. See lockAndRefreshUser:
+        // acquiring the lock via find + refresh (not a JPQL query) avoids the pre-query auto-flush
+        // that made a pre-loaded, stale User fail with StaleObjectStateException before the lock.
+        User managedUser = lockAndRefreshUser(user.getId());
 
         BigDecimal currentBalance = managedUser.getBalance();
         BigDecimal amountToDeduct = amount.setScale(SCALE, ROUNDING_MODE);
@@ -212,22 +235,10 @@ public class BalanceService {
         Objects.requireNonNull(amount, "Amount cannot be null");
         validateAmount(amount);
 
-        // Use pessimistic locking to prevent race conditions
-        User managedUser =
-                userRepository
-                        .findByIdWithLock(user.getId())
-                        .orElseThrow(
-                                () ->
-                                        new ResourceNotFoundException(
-                                                "User not found with id: " + user.getId()));
-        // Refresh the committed @Version + balance under the pessimistic lock. A caller may already
-        // hold this User in the persistence context (e.g. createOrder loads it via findByUsername
-        // before deducting), so findByIdWithLock returns that cached instance WITHOUT refreshing
-        // its
-        // 1st-level-cached version. The lock serializes us, but without this refresh a concurrent
-        // balance change that committed first makes our UPDATE fail with StaleObjectStateException.
-        // Refreshing reloads the winner's committed state so our mutation applies on top of it.
-        entityManager.refresh(managedUser);
+        // Take the balance row lock and load fresh committed state under it. See lockAndRefreshUser:
+        // acquiring the lock via find + refresh (not a JPQL query) avoids the pre-query auto-flush
+        // that made a pre-loaded, stale User fail with StaleObjectStateException before the lock.
+        User managedUser = lockAndRefreshUser(user.getId());
 
         BigDecimal currentBalance = managedUser.getBalance();
         BigDecimal amountToAdd = amount.setScale(SCALE, ROUNDING_MODE);
@@ -277,22 +288,10 @@ public class BalanceService {
         Objects.requireNonNull(amount, "Amount cannot be null");
         validateAmount(amount);
 
-        // Use pessimistic locking to prevent race conditions
-        User managedUser =
-                userRepository
-                        .findByIdWithLock(user.getId())
-                        .orElseThrow(
-                                () ->
-                                        new ResourceNotFoundException(
-                                                "User not found with id: " + user.getId()));
-        // Refresh the committed @Version + balance under the pessimistic lock. A caller may already
-        // hold this User in the persistence context (e.g. createOrder loads it via findByUsername
-        // before deducting), so findByIdWithLock returns that cached instance WITHOUT refreshing
-        // its
-        // 1st-level-cached version. The lock serializes us, but without this refresh a concurrent
-        // balance change that committed first makes our UPDATE fail with StaleObjectStateException.
-        // Refreshing reloads the winner's committed state so our mutation applies on top of it.
-        entityManager.refresh(managedUser);
+        // Take the balance row lock and load fresh committed state under it. See lockAndRefreshUser:
+        // acquiring the lock via find + refresh (not a JPQL query) avoids the pre-query auto-flush
+        // that made a pre-loaded, stale User fail with StaleObjectStateException before the lock.
+        User managedUser = lockAndRefreshUser(user.getId());
 
         BigDecimal currentBalance = managedUser.getBalance();
         BigDecimal refundAmount = amount.setScale(SCALE, ROUNDING_MODE);
@@ -446,24 +445,11 @@ public class BalanceService {
         Long firstUserId = fromUserId < toUserId ? fromUserId : toUserId;
         Long secondUserId = fromUserId < toUserId ? toUserId : fromUserId;
 
-        User firstUser =
-                userRepository
-                        .findByIdWithLock(firstUserId)
-                        .orElseThrow(
-                                () ->
-                                        new ResourceNotFoundException(
-                                                "User not found with id: " + firstUserId));
-        User secondUser =
-                userRepository
-                        .findByIdWithLock(secondUserId)
-                        .orElseThrow(
-                                () ->
-                                        new ResourceNotFoundException(
-                                                "User not found with id: " + secondUserId));
-        // Refresh both under their locks (see deductBalance) so a pre-loaded, stale @Version can't
-        // fail the transfer with StaleObjectStateException under concurrency.
-        entityManager.refresh(firstUser);
-        entityManager.refresh(secondUser);
+        // Lock + refresh both in ascending-id order (see lockAndRefreshUser) so a pre-loaded, stale
+        // @Version can't fail the transfer with StaleObjectStateException, and the consistent lock
+        // ordering prevents deadlocks between two concurrent transfers on the same pair.
+        User firstUser = lockAndRefreshUser(firstUserId);
+        User secondUser = lockAndRefreshUser(secondUserId);
 
         User fromUser = firstUserId.equals(fromUserId) ? firstUser : secondUser;
         User toUser = firstUserId.equals(fromUserId) ? secondUser : firstUser;
@@ -706,22 +692,10 @@ public class BalanceService {
         Objects.requireNonNull(amount, "Amount cannot be null");
         validateAmount(amount);
 
-        // Use pessimistic locking to prevent race conditions
-        User managedUser =
-                userRepository
-                        .findByIdWithLock(user.getId())
-                        .orElseThrow(
-                                () ->
-                                        new ResourceNotFoundException(
-                                                "User not found with id: " + user.getId()));
-        // Refresh the committed @Version + balance under the pessimistic lock. A caller may already
-        // hold this User in the persistence context (e.g. createOrder loads it via findByUsername
-        // before deducting), so findByIdWithLock returns that cached instance WITHOUT refreshing
-        // its
-        // 1st-level-cached version. The lock serializes us, but without this refresh a concurrent
-        // balance change that committed first makes our UPDATE fail with StaleObjectStateException.
-        // Refreshing reloads the winner's committed state so our mutation applies on top of it.
-        entityManager.refresh(managedUser);
+        // Take the balance row lock and load fresh committed state under it. See lockAndRefreshUser:
+        // acquiring the lock via find + refresh (not a JPQL query) avoids the pre-query auto-flush
+        // that made a pre-loaded, stale User fail with StaleObjectStateException before the lock.
+        User managedUser = lockAndRefreshUser(user.getId());
 
         BigDecimal currentBalance = managedUser.getBalance();
         BigDecimal amountToDeduct = amount.setScale(SCALE, ROUNDING_MODE);

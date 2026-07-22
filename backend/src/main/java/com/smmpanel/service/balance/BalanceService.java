@@ -5,6 +5,7 @@ import com.smmpanel.entity.*;
 import com.smmpanel.exception.*;
 import com.smmpanel.repository.jpa.BalanceTransactionRepository;
 import com.smmpanel.repository.jpa.UserRepository;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
@@ -54,6 +55,7 @@ public class BalanceService {
     private final TransactionTemplate balanceTransactionTemplate;
     private final TransactionTemplate readOnlyTransactionTemplate;
     private final BalanceAuditService balanceAuditService;
+    private final EntityManager entityManager;
 
     /** Validates the amount is positive and has proper scale */
     private void validateAmount(BigDecimal amount) {
@@ -104,6 +106,14 @@ public class BalanceService {
                                 () ->
                                         new ResourceNotFoundException(
                                                 "User not found with id: " + user.getId()));
+        // Refresh the committed @Version + balance under the pessimistic lock. A caller may already
+        // hold this User in the persistence context (e.g. createOrder loads it via findByUsername
+        // before deducting), so findByIdWithLock returns that cached instance WITHOUT refreshing
+        // its
+        // 1st-level-cached version. The lock serializes us, but without this refresh a concurrent
+        // balance change that committed first makes our UPDATE fail with StaleObjectStateException.
+        // Refreshing reloads the winner's committed state so our mutation applies on top of it.
+        entityManager.refresh(managedUser);
 
         BigDecimal currentBalance = managedUser.getBalance();
         BigDecimal amountToDeduct = amount.setScale(SCALE, ROUNDING_MODE);
@@ -210,6 +220,14 @@ public class BalanceService {
                                 () ->
                                         new ResourceNotFoundException(
                                                 "User not found with id: " + user.getId()));
+        // Refresh the committed @Version + balance under the pessimistic lock. A caller may already
+        // hold this User in the persistence context (e.g. createOrder loads it via findByUsername
+        // before deducting), so findByIdWithLock returns that cached instance WITHOUT refreshing
+        // its
+        // 1st-level-cached version. The lock serializes us, but without this refresh a concurrent
+        // balance change that committed first makes our UPDATE fail with StaleObjectStateException.
+        // Refreshing reloads the winner's committed state so our mutation applies on top of it.
+        entityManager.refresh(managedUser);
 
         BigDecimal currentBalance = managedUser.getBalance();
         BigDecimal amountToAdd = amount.setScale(SCALE, ROUNDING_MODE);
@@ -267,6 +285,14 @@ public class BalanceService {
                                 () ->
                                         new ResourceNotFoundException(
                                                 "User not found with id: " + user.getId()));
+        // Refresh the committed @Version + balance under the pessimistic lock. A caller may already
+        // hold this User in the persistence context (e.g. createOrder loads it via findByUsername
+        // before deducting), so findByIdWithLock returns that cached instance WITHOUT refreshing
+        // its
+        // 1st-level-cached version. The lock serializes us, but without this refresh a concurrent
+        // balance change that committed first makes our UPDATE fail with StaleObjectStateException.
+        // Refreshing reloads the winner's committed state so our mutation applies on top of it.
+        entityManager.refresh(managedUser);
 
         BigDecimal currentBalance = managedUser.getBalance();
         BigDecimal refundAmount = amount.setScale(SCALE, ROUNDING_MODE);
@@ -434,6 +460,10 @@ public class BalanceService {
                                 () ->
                                         new ResourceNotFoundException(
                                                 "User not found with id: " + secondUserId));
+        // Refresh both under their locks (see deductBalance) so a pre-loaded, stale @Version can't
+        // fail the transfer with StaleObjectStateException under concurrency.
+        entityManager.refresh(firstUser);
+        entityManager.refresh(secondUser);
 
         User fromUser = firstUserId.equals(fromUserId) ? firstUser : secondUser;
         User toUser = firstUserId.equals(fromUserId) ? secondUser : firstUser;
@@ -684,6 +714,14 @@ public class BalanceService {
                                 () ->
                                         new ResourceNotFoundException(
                                                 "User not found with id: " + user.getId()));
+        // Refresh the committed @Version + balance under the pessimistic lock. A caller may already
+        // hold this User in the persistence context (e.g. createOrder loads it via findByUsername
+        // before deducting), so findByIdWithLock returns that cached instance WITHOUT refreshing
+        // its
+        // 1st-level-cached version. The lock serializes us, but without this refresh a concurrent
+        // balance change that committed first makes our UPDATE fail with StaleObjectStateException.
+        // Refreshing reloads the winner's committed state so our mutation applies on top of it.
+        entityManager.refresh(managedUser);
 
         BigDecimal currentBalance = managedUser.getBalance();
         BigDecimal amountToDeduct = amount.setScale(SCALE, ROUNDING_MODE);

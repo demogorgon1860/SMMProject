@@ -18,6 +18,7 @@ import com.smmpanel.exception.InvalidAmountException;
 import com.smmpanel.exception.ResourceNotFoundException;
 import com.smmpanel.repository.jpa.BalanceTransactionRepository;
 import com.smmpanel.repository.jpa.UserRepository;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -49,6 +50,7 @@ class BalanceServiceTest {
     @Mock private TransactionTemplate balanceTransactionTemplate;
     @Mock private TransactionTemplate readOnlyTransactionTemplate;
     @Mock private BalanceAuditService balanceAuditService;
+    @Mock private EntityManager entityManager;
 
     @InjectMocks private BalanceService service;
 

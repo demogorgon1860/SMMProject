@@ -79,6 +79,11 @@ class BalanceServiceTest {
 
         service.deductBalance(u, new BigDecimal("30.00"), order, "test deduction");
 
+        // Regression guard: the locked User instance MUST be refreshed so its @Version/balance
+        // reflect the lock-winner's committed row (see commit cff8a95f — stale-cache fix for
+        // User#856). Deleting the entityManager.refresh(...) line must fail this test.
+        verify(entityManager).refresh(u);
+
         ArgumentCaptor<BalanceTransaction> tx = ArgumentCaptor.forClass(BalanceTransaction.class);
         verify(transactionRepository, times(1)).save(tx.capture());
         BalanceTransaction recorded = tx.getValue();
@@ -145,6 +150,9 @@ class BalanceServiceTest {
 
         service.refund(u, partialRefund, order, "partial refund completed=80/100");
 
+        // Regression guard: refund also locks + refreshes the User (commit cff8a95f).
+        verify(entityManager).refresh(u);
+
         ArgumentCaptor<BalanceTransaction> tx = ArgumentCaptor.forClass(BalanceTransaction.class);
         verify(transactionRepository).save(tx.capture());
         BalanceTransaction t = tx.getValue();
@@ -195,6 +203,8 @@ class BalanceServiceTest {
 
         assertThat(newBalance).isEqualByComparingTo("15.00");
         assertThat(u.getBalance()).isEqualByComparingTo("15.00");
+        // Regression guard: addBalance also locks + refreshes the User (commit cff8a95f).
+        verify(entityManager).refresh(u);
         ArgumentCaptor<BalanceTransaction> tx = ArgumentCaptor.forClass(BalanceTransaction.class);
         verify(transactionRepository).save(tx.capture());
         assertThat(tx.getValue().getTransactionType()).isEqualTo(TransactionType.DEPOSIT);
@@ -216,6 +226,8 @@ class BalanceServiceTest {
 
         assertThat(ok).isTrue();
         assertThat(u.getBalance()).isEqualByComparingTo("20.00");
+        // Regression guard: the atomic guard also locks + refreshes the User (commit cff8a95f).
+        verify(entityManager).refresh(u);
     }
 
     @Test

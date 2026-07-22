@@ -415,16 +415,18 @@ public interface OrderRepository
      * (ALL); a 0 mask can't arise via any creation path, and if one somehow did it would only be
      * over-included here (a harmless extra pump), never wrongly excluded. Backed by
      * idx_orders_link_status_id (partial on non-terminal status) for the correlated active lookup.
+     *
+     * <p>Uses {@code CAST(a.status AS text)}, NOT the Postgres {@code ::text} shorthand —
+     * Hibernate's native-query parameter parser treats {@code :} as a named-param marker and
+     * mangles {@code ::} into a single {@code :}, producing a runtime "syntax error at or near :".
+     * CAST has no colon and is parser-safe.
      */
     @Query(
             value =
-                    "SELECT DISTINCT p.link FROM orders p"
-                            + " WHERE p.status = 'PENDING'"
-                            + " AND (p.metric_mask & COALESCE("
-                            + "   (SELECT bit_or(a.metric_mask) FROM orders a"
-                            + "    WHERE a.link = p.link AND a.status::text IN (:activeStatuses)),"
-                            + "   0)) = 0"
-                            + " LIMIT :limit",
+                    "SELECT DISTINCT p.link FROM orders p WHERE p.status = 'PENDING' AND"
+                        + " (p.metric_mask & COALESCE(   (SELECT bit_or(a.metric_mask) FROM orders"
+                        + " a    WHERE a.link = p.link AND CAST(a.status AS text) IN"
+                        + " (:activeStatuses)),   0)) = 0 LIMIT :limit",
             nativeQuery = true)
     List<String> findLinksWithDispatchablePending(
             @Param("activeStatuses") java.util.Collection<String> activeStatuses,

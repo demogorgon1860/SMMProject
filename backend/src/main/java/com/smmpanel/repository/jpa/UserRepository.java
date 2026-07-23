@@ -50,13 +50,13 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     @Query("SELECT u FROM User u WHERE u.apiKeyLookupHash = :lookupHash AND u.isActive = true")
     Optional<User> findByApiKeyLookupHashAndIsActiveTrue(@Param("lookupHash") String lookupHash);
 
-    // NOTE: a JPQL @Lock(PESSIMISTIC_WRITE) "findByIdWithLock" used to live here. It was REMOVED
-    // because a JPQL/native query forces Hibernate to auto-flush the persistence context BEFORE it
-    // executes — and when the caller had pre-loaded the User earlier in the same transaction, that
-    // pre-query flush persisted the stale User and lost the @Version race, throwing
-    // StaleObjectStateException before the lock was even acquired (the User#856 order-create
-    // incident). Lock a User via BalanceService.lockAndRefreshUser / lockUserForUpdate instead
-    // (entityManager.find + refresh(PESSIMISTIC_WRITE), which are NOT queries and do not auto-flush).
+    // NOTE: a JPQL @Lock(PESSIMISTIC_WRITE) "findByIdWithLock" used to live here. Do NOT re-add ad-hoc
+    // User locking — lock via BalanceService.lockAndRefreshUser / lockUserForUpdate ONLY. That helper
+    // encodes BOTH hard-won User#856 incident lessons: (1) a JPQL/native query auto-flushes the
+    // persistence context first, so it must never run while a dirty, stale User sits in the context
+    // (guarded by locking at the top of the transaction); (2) em.lock/em.find/em.refresh with a
+    // LockModeType on an already-managed versioned entity VERSION-CHECKS the cached @Version and
+    // throws StaleObjectStateException on any concurrent commit — the lock must be an id-only query.
 
     // ADDED: Missing custom query methods
     @Query(

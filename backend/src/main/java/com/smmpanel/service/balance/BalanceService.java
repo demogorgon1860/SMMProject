@@ -73,22 +73,23 @@ public class BalanceService {
      * Take the per-user balance row lock and load the freshly-committed state under it, returning
      * the managed {@link User} instance to mutate.
      *
-     * <p><b>Why not a JPQL {@code findByIdWithLock} query.</b> A JPQL/native query forces Hibernate
-     * to <i>auto-flush the persistence context before it executes</i>. When a caller already loaded
-     * this same User earlier in the transaction (e.g. {@code OrderService.createOrder} loads it via
-     * {@code findByUsername} before charging), that pre-execution flush tries to persist the
-     * caller's now-stale User and loses the {@code @Version} race to a concurrently-committed
-     * balance change — throwing {@code StaleObjectStateException} <i>before</i> the {@code FOR NO KEY
-     * UPDATE} lock is ever acquired. Both the lock and any post-query refresh are therefore too late.
-     * This was the real cause of the reseller {@code User#856} order-create failures.
+     * <p><b>The two failure modes this must survive</b> (both hit prod as {@code User#856}):
      *
-     * <p><b>How this avoids it.</b> {@link EntityManager#find} and {@link EntityManager#refresh} are
-     * <i>not</i> queries, so neither triggers an auto-flush. We first obtain the managed instance
-     * (find never locks and never flushes), then {@code refresh(..., PESSIMISTIC_WRITE)} acquires the
-     * row lock <i>and</i> reloads the winner's committed {@code @Version} + balance in a single
-     * statement — discarding any spurious dirty state Hibernate detected on the cached instance.
-     * Because the lock is held from this point through commit, the eventual balance {@code UPDATE}
-     * flushes on top of fresh state and cannot lose the version race.
+     * <ol>
+     *   <li><b>Pre-query auto-flush of a dirty stale User.</b> Any JPQL/native query auto-flushes
+     *       the persistence context first; if a pre-loaded User is dirty with a stale {@code
+     *       @Version}, that flush loses the version race before any lock exists. Guarded by taking
+     *       this lock at the TOP of the transaction (clean context — see {@link #lockUserForUpdate})
+     *       and holding it to commit, which keeps the in-memory {@code @Version} in sync for every
+     *       later flush.
+     *   <li><b>Version-checked lock upgrade.</b> Acquiring a pessimistic lock via {@code
+     *       em.lock}/{@code em.find}/{@code em.refresh} with a {@code LockModeType} on an
+     *       already-managed versioned entity makes Hibernate verify the CACHED version ({@code
+     *       SELECT id ... WHERE id=? AND version=?}) — a concurrent commit between the caller's
+     *       load and this call throws {@code StaleObjectStateException} even though we were about
+     *       to reload anyway. Guarded by locking with an id-only query (no version predicate),
+     *       which just blocks until the winner commits, then refreshing under the held lock.
+     * </ol>
      *
      * <p>Returns the same managed object the caller passed when it was already in the persistence
      * context (JPA identity map), so an in-flight {@code order.getUser()} stays in sync — the reason
@@ -100,16 +101,45 @@ public class BalanceService {
      * mutation would be silently dropped here. Balance/totalSpent are always set AFTER this call.
      */
     private User lockAndRefreshUser(Long userId) {
-        User managedUser = entityManager.find(User.class, userId);
-        if (managedUser == null) {
+        // Acquire the row lock with an ID-ONLY query: it renders "WHERE id=? FOR NO KEY UPDATE"
+        // with NO @Version predicate, so it simply BLOCKS until a concurrent writer commits and
+        // then takes the lock — it can never lose a version race. Do NOT acquire the lock via
+        // em.lock/em.find/em.refresh with a LockModeType on an already-managed versioned entity:
+        // Hibernate's lock-upgrade path issues "SELECT id ... WHERE id=? AND version=?" using the
+        // CACHED (possibly stale) version and throws StaleObjectStateException when any committed
+        // writer bumped it after our load — that exact race hit prod twice on 2026-07-23 (the
+        // milliseconds between createOrder's findByUsername and this lock).
+        //
+        // The query's pre-execution auto-flush is safe at every call site: at lockUserForUpdate
+        // (top of createOrder) the persistence context is still clean, and inside the balance
+        // methods the row lock taken at the top of createOrder keeps the in-memory @Version in
+        // sync with the row for the whole transaction, so flushing our own pending update cannot
+        // conflict.
+        //
+        // WARNING: keep this query a bare single-entity id lookup. Adding a JOIN FETCH, DISTINCT,
+        // pagination, or aggregation would push Hibernate into "follow-on locking" — it then locks
+        // each result row separately via the version-checked LockingStrategy, silently
+        // reintroducing the exact StaleObjectStateException race this method exists to prevent.
+        List<User> locked =
+                entityManager
+                        .createQuery("SELECT u FROM User u WHERE u.id = :id", User.class)
+                        .setParameter("id", userId)
+                        .setLockMode(LockModeType.PESSIMISTIC_WRITE)
+                        .getResultList();
+        if (locked.isEmpty()) {
             throw new ResourceNotFoundException("User not found with id: " + userId);
         }
+        // Identity map: this is the SAME managed instance the caller already holds (if any), but
+        // the query does NOT overwrite its cached field values — reload them under the held lock.
+        User managedUser = locked.get(0);
         try {
-            entityManager.refresh(managedUser, LockModeType.PESSIMISTIC_WRITE);
+            // Plain (unlocked) refresh: an id-only re-read with no version check. Under the held
+            // FOR NO KEY UPDATE lock it observes the winner's committed @Version + balance.
+            entityManager.refresh(managedUser);
         } catch (jakarta.persistence.EntityNotFoundException e) {
-            // Row hard-deleted between find() and the locking refresh() (only reachable via the
-            // GDPR hard-delete cron — users are otherwise soft-deleted). Surface the same clean
-            // not-found signal the old single-statement lock query produced, not a raw 500.
+            // Row hard-deleted between the lock and the refresh (only reachable via the GDPR
+            // hard-delete cron — users are otherwise soft-deleted). Surface a clean not-found
+            // signal, not a raw 500.
             throw new ResourceNotFoundException("User not found with id: " + userId);
         }
         return managedUser;
@@ -164,9 +194,9 @@ public class BalanceService {
         Objects.requireNonNull(amount, "Amount cannot be null");
         validateAmount(amount);
 
-        // Take the balance row lock and load fresh committed state under it. See lockAndRefreshUser:
-        // acquiring the lock via find + refresh (not a JPQL query) avoids the pre-query auto-flush
-        // that made a pre-loaded, stale User fail with StaleObjectStateException before the lock.
+        // Take the balance row lock and load fresh committed state under it. See lockAndRefreshUser
+        // for the id-only-query-lock + plain-refresh mechanism and why every version-checked
+        // alternative (em.lock/find/refresh with a LockModeType) loses races to concurrent commits.
         User managedUser = lockAndRefreshUser(user.getId());
 
         BigDecimal currentBalance = managedUser.getBalance();
@@ -266,9 +296,9 @@ public class BalanceService {
         Objects.requireNonNull(amount, "Amount cannot be null");
         validateAmount(amount);
 
-        // Take the balance row lock and load fresh committed state under it. See lockAndRefreshUser:
-        // acquiring the lock via find + refresh (not a JPQL query) avoids the pre-query auto-flush
-        // that made a pre-loaded, stale User fail with StaleObjectStateException before the lock.
+        // Take the balance row lock and load fresh committed state under it. See lockAndRefreshUser
+        // for the id-only-query-lock + plain-refresh mechanism and why every version-checked
+        // alternative (em.lock/find/refresh with a LockModeType) loses races to concurrent commits.
         User managedUser = lockAndRefreshUser(user.getId());
 
         BigDecimal currentBalance = managedUser.getBalance();
@@ -319,9 +349,9 @@ public class BalanceService {
         Objects.requireNonNull(amount, "Amount cannot be null");
         validateAmount(amount);
 
-        // Take the balance row lock and load fresh committed state under it. See lockAndRefreshUser:
-        // acquiring the lock via find + refresh (not a JPQL query) avoids the pre-query auto-flush
-        // that made a pre-loaded, stale User fail with StaleObjectStateException before the lock.
+        // Take the balance row lock and load fresh committed state under it. See lockAndRefreshUser
+        // for the id-only-query-lock + plain-refresh mechanism and why every version-checked
+        // alternative (em.lock/find/refresh with a LockModeType) loses races to concurrent commits.
         User managedUser = lockAndRefreshUser(user.getId());
 
         BigDecimal currentBalance = managedUser.getBalance();
@@ -723,9 +753,9 @@ public class BalanceService {
         Objects.requireNonNull(amount, "Amount cannot be null");
         validateAmount(amount);
 
-        // Take the balance row lock and load fresh committed state under it. See lockAndRefreshUser:
-        // acquiring the lock via find + refresh (not a JPQL query) avoids the pre-query auto-flush
-        // that made a pre-loaded, stale User fail with StaleObjectStateException before the lock.
+        // Take the balance row lock and load fresh committed state under it. See lockAndRefreshUser
+        // for the id-only-query-lock + plain-refresh mechanism and why every version-checked
+        // alternative (em.lock/find/refresh with a LockModeType) loses races to concurrent commits.
         User managedUser = lockAndRefreshUser(user.getId());
 
         BigDecimal currentBalance = managedUser.getBalance();

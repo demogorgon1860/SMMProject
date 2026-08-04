@@ -293,7 +293,7 @@ export function TransactionsPage() {
           <div className="flex-1 min-w-[240px]">
             <Tabs value={tab} onChange={setTab} tabs={TYPE_TABS} />
           </div>
-          <div className="ml-auto flex items-center gap-2 py-2 pr-4">
+          <div className="ml-auto flex flex-wrap items-center gap-2 py-2 pr-4">
             <DateRangePicker
               from={dateFrom}
               to={dateTo}
@@ -307,7 +307,7 @@ export function TransactionsPage() {
               placeholder="Search reason / id / order"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              containerClassName="min-w-[260px]"
+              containerClassName="min-w-[180px] flex-1"
             />
           </div>
         </div>
@@ -328,7 +328,8 @@ export function TransactionsPage() {
             }
           />
         ) : (
-          <table className="tbl-u">
+          <div className="overflow-x-auto">
+          <table className="tbl-u min-w-[720px]">
             <thead>
               <tr>
                 <th />
@@ -374,6 +375,7 @@ export function TransactionsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
 

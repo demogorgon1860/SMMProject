@@ -130,6 +130,7 @@ function DecisionsTab({ pending, setPending }: { pending: PendingDecision[]; set
           subtitle="When the bot circuit-breaker pauses an order it shows up here within seconds."
         />
       ) : (
+        <div className="overflow-x-auto">
         <table className="tbl">
           <thead>
             <tr>
@@ -196,6 +197,7 @@ function DecisionsTab({ pending, setPending }: { pending: PendingDecision[]; set
             })}
           </tbody>
         </table>
+        </div>
       )}
       <div className="border-t border-border bg-bg-sunken px-4 py-3 text-[11.5px] text-fg-subtle">
         Decisions are stored in Redis (<code className="font-mono">telegram:cancel_pending:&#123;orderId&#125;</code>) with a 4-hour TTL.
@@ -216,6 +218,7 @@ function HistoryTab() {
 
   return (
     <Card className="p-0">
+      <div className="overflow-x-auto">
       <table className="tbl">
         <thead>
           <tr>
@@ -240,6 +243,7 @@ function HistoryTab() {
           ))}
         </tbody>
       </table>
+      </div>
     </Card>
   );
 }

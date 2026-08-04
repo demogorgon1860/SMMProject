@@ -316,7 +316,8 @@ function RecentOrders({ orders, loading }: { orders: Order[]; loading: boolean }
           }
         />
       ) : (
-        <table className="tbl-u">
+        <div className="overflow-x-auto">
+        <table className="tbl-u min-w-[720px]">
           <thead>
             <tr>
               <th>ID</th>
@@ -374,6 +375,7 @@ function RecentOrders({ orders, loading }: { orders: Order[]; loading: boolean }
             })}
           </tbody>
         </table>
+        </div>
       )}
     </Card>
   );

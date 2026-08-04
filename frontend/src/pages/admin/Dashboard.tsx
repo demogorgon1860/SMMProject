@@ -346,6 +346,7 @@ function RecentOrdersTable({ orders }: { orders: Order[] }) {
     return <div className="p-8 text-center text-[13px] text-fg-subtle">No orders yet today.</div>;
   }
   return (
+    <div className="overflow-x-auto">
     <table className="tbl">
       <thead>
         <tr>
@@ -378,6 +379,7 @@ function RecentOrdersTable({ orders }: { orders: Order[] }) {
         ))}
       </tbody>
     </table>
+    </div>
   );
 }
 

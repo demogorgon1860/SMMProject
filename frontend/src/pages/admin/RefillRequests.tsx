@@ -206,6 +206,7 @@ function RefillRequestsInner({ embedded }: { embedded: boolean }) {
             />
           ) : (
             <>
+            <div className="overflow-x-auto">
             <table className="tbl">
               <thead>
                 <tr>
@@ -231,6 +232,7 @@ function RefillRequestsInner({ embedded }: { embedded: boolean }) {
                 ))}
               </tbody>
             </table>
+            </div>
             {total > PAGE_SIZE && (
               <Pagination page={page} total={total} pageSize={PAGE_SIZE} onPage={setPage} />
             )}

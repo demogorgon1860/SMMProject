@@ -163,6 +163,7 @@ export function AdminPaymentsPage() {
             <Empty icon="card" title="No payments match" />
           ) : (
             <>
+              <div className="overflow-x-auto">
               <table className="tbl">
                 <thead>
                   <tr>
@@ -220,6 +221,7 @@ export function AdminPaymentsPage() {
                   })}
                 </tbody>
               </table>
+              </div>
               <Pagination page={page} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} />
             </>
           )}

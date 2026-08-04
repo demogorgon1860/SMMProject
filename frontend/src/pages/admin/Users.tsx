@@ -163,6 +163,7 @@ export function AdminUsersPage() {
             <Empty icon="users" title="No users match" subtitle="Adjust filters above." />
           ) : (
             <>
+              <div className="overflow-x-auto">
               <table className="tbl">
                 <thead>
                   <tr>
@@ -227,6 +228,7 @@ export function AdminUsersPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
               <Pagination page={page} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} />
             </>
           )}

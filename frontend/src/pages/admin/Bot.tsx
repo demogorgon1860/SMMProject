@@ -552,6 +552,7 @@ function QueueSnapshot({ id }: { id: string }) {
           <Empty title="No orders" subtitle="The bot's queue is empty right now." />
         </Card>
       ) : (
+        <div className="overflow-x-auto">
         <table className="tbl">
           <thead>
             <tr>
@@ -583,6 +584,7 @@ function QueueSnapshot({ id }: { id: string }) {
             })}
           </tbody>
         </table>
+        </div>
       )}
     </Section>
   );

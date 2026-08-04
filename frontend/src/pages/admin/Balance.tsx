@@ -115,6 +115,7 @@ export function AdminBalancePage() {
             />
           ) : (
             <>
+              <div className="overflow-x-auto">
               <table className="tbl">
                 <thead>
                   <tr>
@@ -164,6 +165,7 @@ export function AdminBalancePage() {
                   ))}
                 </tbody>
               </table>
+              </div>
               <Pagination page={page} total={filtered.length} pageSize={PAGE_SIZE} onPage={setPage} />
             </>
           )}

@@ -204,7 +204,8 @@ export function AddFundsPage() {
         ) : recent.length === 0 ? (
           <div className="p-12 text-center text-[13px] text-fg-subtle">No deposits yet — make your first one above.</div>
         ) : (
-          <table className="tbl-u">
+          <div className="overflow-x-auto">
+          <table className="tbl-u min-w-[640px]">
             <thead>
               <tr>
                 <th>ID</th>
@@ -232,6 +233,7 @@ export function AddFundsPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
     </div>

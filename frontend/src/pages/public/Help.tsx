@@ -166,7 +166,8 @@ function TicketsTab() {
   }
   return (
     <Card className="p-0">
-      <table className="tbl-u">
+      <div className="overflow-x-auto">
+      <table className="tbl-u min-w-[720px]">
         <thead>
           <tr>
             <th>ID</th>
@@ -193,6 +194,7 @@ function TicketsTab() {
           ))}
         </tbody>
       </table>
+      </div>
     </Card>
   );
 }

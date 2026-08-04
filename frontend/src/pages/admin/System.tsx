@@ -394,6 +394,7 @@ function ErrorsTab() {
           />
         </div>
       ) : (
+        <div className="overflow-x-auto">
         <table className="tbl">
           <thead>
             <tr>
@@ -481,6 +482,7 @@ function ErrorsTab() {
             })}
           </tbody>
         </table>
+        </div>
       )}
     </Section>
   );
@@ -561,6 +563,7 @@ function QueuesTab() {
             />
           </div>
         ) : (
+          <div className="overflow-x-auto">
           <table className="tbl">
             <thead>
               <tr>
@@ -637,6 +640,7 @@ function QueuesTab() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </Section>
 

@@ -116,6 +116,7 @@ export function AdminServicesPage() {
           </Card>
         ) : view === 'table' ? (
           <Card className="p-0">
+            <div className="overflow-x-auto">
             <table className="tbl">
               <thead>
                 <tr>
@@ -159,6 +160,7 @@ export function AdminServicesPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </Card>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

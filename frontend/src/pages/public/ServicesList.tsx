@@ -75,7 +75,8 @@ export function ServicesListPage() {
             ) : filtered.length === 0 ? (
               <div className="p-12 text-center text-[13px] text-fg-subtle">No services match "{q}".</div>
             ) : (
-              <table className="tbl-u">
+              <div className="overflow-x-auto">
+              <table className="tbl-u min-w-[720px]">
                 <thead>
                   <tr>
                     <th>ID</th>
@@ -110,6 +111,7 @@ export function ServicesListPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </Card>
         )}

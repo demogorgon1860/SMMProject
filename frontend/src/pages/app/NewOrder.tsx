@@ -44,9 +44,7 @@ export function NewOrderPage() {
   const rawBalance = useAuthStore((s) => s.user?.balance);
   const balance = toNum(rawBalance);
 
-  // Deep-link support: the Services catalog and other pages link here as
-  // /new-order?service=<id> to jump straight to that service. Read once — the
-  // value is applied when the service list loads (see the fetch effect below).
+  // Deep-link support for /new-order?service=<id> (e.g. the Services catalog "Order" button).
   const [searchParams] = useSearchParams();
 
   const [services, setServices] = useState<Service[]>([]);
@@ -67,20 +65,26 @@ export function NewOrderPage() {
         // /v1/service/services wraps in PerfectPanelResponse `{ success, data: [...] }`; legacy
         // paths return `{ services: [...] }` or a Spring Page. unwrapList handles all.
         const arr = unwrapList<Service>(data, ['services']);
-        const live = arr.filter((s) => s.active !== false && s.isActive !== false);
-        setServices(live);
-        if (live.length > 0 && selectedId == null) {
-          // Honor ?service=<id> when it maps to a service the user actually has (e.g. arriving
-          // from an "Order" button on the Services catalog); otherwise fall back to the first one.
-          const wantedId = Number(searchParams.get('service')) || null;
-          const preselect =
-            wantedId != null && live.some((s) => s.id === wantedId) ? wantedId : live[0].id;
-          setSelectedId(preselect);
-        }
+        setServices(arr.filter((s) => s.active !== false && s.isActive !== false));
       })
       .catch(() => toast('Could not load services.', 'error'))
       .finally(() => setLoading(false));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Pick the selected service. Reacts to the ?service=<id> deep link and to the list loading —
+  // NOT to manual picker clicks (those change neither the URL nor `services`), so it never fights
+  // the user's choice. A param naming a service the user has → jump to it; anything else (missing /
+  // non-numeric / not in their list) → keep the current pick, or default to the first on first load.
+  const serviceParam = searchParams.get('service');
+  useEffect(() => {
+    if (services.length === 0) return;
+    const wantedId = Number(serviceParam) || null;
+    if (wantedId != null && services.some((s) => s.id === wantedId)) {
+      setSelectedId(wantedId);
+    } else {
+      setSelectedId((cur) => (cur == null ? services[0].id : cur));
+    }
+  }, [serviceParam, services]);
 
   const filtered = useMemo(
     () => services.filter((s) => (s.name?.toLowerCase() ?? '').includes(search.trim().toLowerCase())),

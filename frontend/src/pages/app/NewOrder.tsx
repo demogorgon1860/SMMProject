@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Badge,
   Button,
@@ -44,6 +44,11 @@ export function NewOrderPage() {
   const rawBalance = useAuthStore((s) => s.user?.balance);
   const balance = toNum(rawBalance);
 
+  // Deep-link support: the Services catalog and other pages link here as
+  // /new-order?service=<id> to jump straight to that service. Read once — the
+  // value is applied when the service list loads (see the fetch effect below).
+  const [searchParams] = useSearchParams();
+
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [cat, setCat] = useState<'ig' | 'tt' | 'x' | 'tg'>('ig');
@@ -64,7 +69,14 @@ export function NewOrderPage() {
         const arr = unwrapList<Service>(data, ['services']);
         const live = arr.filter((s) => s.active !== false && s.isActive !== false);
         setServices(live);
-        if (live.length > 0 && selectedId == null) setSelectedId(live[0].id);
+        if (live.length > 0 && selectedId == null) {
+          // Honor ?service=<id> when it maps to a service the user actually has (e.g. arriving
+          // from an "Order" button on the Services catalog); otherwise fall back to the first one.
+          const wantedId = Number(searchParams.get('service')) || null;
+          const preselect =
+            wantedId != null && live.some((s) => s.id === wantedId) ? wantedId : live[0].id;
+          setSelectedId(preselect);
+        }
       })
       .catch(() => toast('Could not load services.', 'error'))
       .finally(() => setLoading(false));

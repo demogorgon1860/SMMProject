@@ -128,7 +128,7 @@ export function AppServicesPage() {
                     </td>
                     <td className="text-right font-mono">{fmtMoney(priceOf(s))}</td>
                     <td className="text-right">
-                      <Link to="/new-order">
+                      <Link to={`/new-order?service=${s.id}`}>
                         <Button size="sm" variant="secondary" iconRight="arrow-right">
                           Order
                         </Button>

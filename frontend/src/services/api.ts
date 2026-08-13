@@ -22,6 +22,17 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Unauthenticated client for genuinely PUBLIC reads. It never attaches a Bearer token, so an
+// endpoint that branches on the caller (e.g. GET /v1/service/services returns the per-user
+// allow-list when a JWT is present, the full catalog otherwise) always returns the public view.
+// Used by the landing marketing catalog, which must show the full list even when a logged-in
+// client happens to be browsing it — their filtered list lives on the in-app /services page.
+const publicApi = axios.create({
+  baseURL: '/api',
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 30000,
+});
+
 // Global 401 handler. On session-expired we first try a SILENT token refresh (the refresh token
 // lives in an HttpOnly cookie sent automatically same-origin; /v1/auth/refresh only needs the
 // Bearer header the request interceptor already attaches). Only if the refresh itself fails do we
@@ -240,7 +251,12 @@ export const refillAPI = {
 // Services catalog (user)
 // =====================================================================
 export const serviceAPI = {
+  // Authenticated: returns the caller's allow-listed services (or the full catalog if the user is
+  // unrestricted / admin). Used by the in-app /services page and New order.
   list: () => api.get('/v1/service/services').then((r) => r.data),
+  // Public marketing catalog: always the full active list, never per-user filtered, even if a
+  // token is in localStorage. See publicApi above.
+  listPublic: () => publicApi.get('/v1/service/services').then((r) => r.data),
 };
 
 // =====================================================================

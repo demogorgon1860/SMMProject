@@ -87,6 +87,7 @@ const TermsPage = lazyNamed(() => import('./pages/public/legal/Terms'), 'TermsPa
 // might never log in.
 const AddFundsPage = lazyNamed(() => import('./pages/app/AddFunds'), 'AddFundsPage');
 const NewOrderPage = lazyNamed(() => import('./pages/app/NewOrder'), 'NewOrderPage');
+const AppServicesPage = lazyNamed(() => import('./pages/app/Services'), 'AppServicesPage');
 const OrdersPage = lazyNamed(() => import('./pages/app/Orders'), 'OrdersPage');
 const RefillPage = lazyNamed(() => import('./pages/app/Refill'), 'RefillPage');
 const ProfilePage = lazyNamed(() => import('./pages/app/Profile'), 'ProfilePage');
@@ -210,6 +211,7 @@ function App() {
               >
                 <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="new-order" element={<NewOrderPage />} />
+                <Route path="services" element={<AppServicesPage />} />
                 <Route path="orders" element={<OrdersPage />} />
                 <Route path="orders/:id" element={<OrdersPage />} />
                 <Route path="refill" element={<RefillPage />} />

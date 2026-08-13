@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="v2026.08-add-user-service-access" author="dev">
+        <comment>
+            Per-user service visibility (allow-list). A user with >= 1 row here can see AND order ONLY
+            the listed services; a user with 0 rows is unrestricted (sees every active service);
+            admins always bypass. Enforced in ServiceService.getActiveServicesForUser /
+            validateUserAccessToService and at order creation (OrderService.createOrder,
+            ClientApiController add / multi-add).
+
+            This table already exists in production (created out-of-band before it was under
+            migration control), so CREATE TABLE IF NOT EXISTS makes this a no-op there. The point of
+            the changeset is fresh environments: without the table, the authenticated
+            /api/v1/service/services path throws because countAccessEntriesForUser queries a missing
+            relation. Idempotent SQL (matches the repo's existing "IF NOT EXISTS" changeset style)
+            keeps prod untouched while giving new envs an identical schema.
+        </comment>
+        <sql>
+            CREATE TABLE IF NOT EXISTS user_service_access (
+                user_id    BIGINT NOT NULL REFERENCES users(id),
+                service_id BIGINT NOT NULL REFERENCES services(id),
+                PRIMARY KEY (user_id, service_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_usa_user_id ON user_service_access (user_id);
+        </sql>
+        <!-- Empty rollback on purpose: the table pre-exists in production with real access rows, so a
+             rollback must never DROP it and lose that data. On a fresh env this changeset created it,
+             but we still prefer a manual drop over an automatic destructive rollback. -->
+        <rollback/>
+    </changeSet>
+
+</databaseChangeLog>

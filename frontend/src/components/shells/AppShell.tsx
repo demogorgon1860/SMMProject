@@ -25,6 +25,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
   { to: '/new-order', label: 'New order', icon: 'plus' },
+  { to: '/services', label: 'Services', icon: 'grid' },
   { to: '/orders', label: 'Orders', icon: 'list' },
   { to: '/refill', label: 'Refill', icon: 'refresh' },
   { to: '/transactions', label: 'Transactions', icon: 'receipt' },

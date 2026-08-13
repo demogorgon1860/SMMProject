@@ -831,4 +831,8 @@
          same-link orders serialize only when their affected metrics overlap -->
     <include file="db/changelog/changes/v2026.07-add-orders-metric-mask.xml"/>
 
+    <!-- Per-user service visibility allow-list (user_service_access). Version-controls a table that
+         already exists in prod so fresh environments get it too. -->
+    <include file="db/changelog/changes/v2026.08-add-user-service-access.xml"/>
+
 </databaseChangeLog>

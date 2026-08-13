@@ -23,7 +23,7 @@ export function ServicesListPage() {
   useEffect(() => {
     let cancelled = false;
     serviceAPI
-      .list()
+      .listPublic()
       .then((data: unknown) => {
         if (cancelled) return;
         // /v1/service/services wraps in PerfectPanelResponse `{ success, data: [...] }`; some

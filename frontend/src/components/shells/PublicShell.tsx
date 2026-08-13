@@ -30,7 +30,7 @@ export function PublicShell({ variant = 'light', children }: PublicShellProps) {
 }
 
 const PUBLIC_NAV_LINKS = [
-  // { to: '/services-list', label: 'Services' },
+  { to: '/services-list', label: 'Services' },
   { to: '/pricing', label: 'Pricing' },
   { to: '/docs', label: 'API' },
   { to: '/help', label: 'Help' },

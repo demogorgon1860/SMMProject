@@ -35,6 +35,36 @@ const CATS = [
 
 const PRESETS = [100, 250, 500, 1000, 2500, 5000];
 
+// Link-shape rule, mirroring the backend: LIKES/COMMENTS act on a specific post or reel, FOLLOWERS
+// act on an account profile. Composite or unknown categories accept either shape.
+type LinkNeed = 'post' | 'profile' | 'any';
+
+function categoryLinkNeed(category?: string): LinkNeed {
+  const c = (category ?? '').toUpperCase();
+  const post = c.includes('LIKE') || c.includes('COMMENT');
+  const follow = c.includes('FOLLOW');
+  if (post && !follow) return 'post';
+  if (follow && !post) return 'profile';
+  return 'any';
+}
+
+const RESERVED_IG_SEGMENTS = ['p', 'reel', 'reels', 'tv', 'stories', 'explore', 's', 'tagged'];
+
+// Best-effort classification for the pre-submit hint only — the backend re-validates authoritatively
+// on the normalized URL, so this just needs to catch the obvious post-vs-profile mismatch.
+function instagramLinkKind(raw: string): 'post' | 'profile' | 'other' {
+  const s = raw.trim();
+  if (!s) return 'other';
+  if (/instagram\.com\/(?:p|reel|reels|tv)\//i.test(s)) return 'post';
+  // bare handle / @handle — but not a reserved section word typed alone (e.g. "stories"), which the
+  // backend would wrap then reject, so it must not show a green "profile" check here.
+  const bare = s.match(/^@?([a-z0-9._]{1,30})$/i);
+  if (bare && !RESERVED_IG_SEGMENTS.includes(bare[1].toLowerCase())) return 'profile';
+  const m = s.match(/instagram\.com\/@?([a-z0-9._]+)\/?(?:\?.*)?$/i);
+  if (m && !RESERVED_IG_SEGMENTS.includes(m[1].toLowerCase())) return 'profile';
+  return 'other';
+}
+
 export function NewOrderPage() {
   const toast = useToast();
   const updateBalance = useAuthStore((s) => s.updateBalance);
@@ -115,6 +145,7 @@ export function NewOrderPage() {
   const rate = selected?.rate ?? selected?.pricePer1000 ?? selected?.pricePerThousand ?? 0;
   const min = selected?.min ?? selected?.minOrder ?? 50;
   const max = selected?.max ?? selected?.maxOrder ?? 100000;
+  const linkNeed = categoryLinkNeed(selected?.category);
 
   // For Custom-Comments services the quantity is the line count, not the number
   // typed into the (hidden) Quantity input. The bot dispatches one comment per
@@ -127,6 +158,14 @@ export function NewOrderPage() {
       { label: 'Service selected', ok: !!selected },
       { label: 'Link provided', ok: link.trim().length > 6 },
     ];
+    // Shape must match the service: likes/comments need a post/reel, followers need a profile.
+    if (selected && linkNeed !== 'any' && link.trim().length > 0) {
+      const kind = instagramLinkKind(link);
+      list.push({
+        label: linkNeed === 'post' ? 'Link is a post or reel' : 'Link is a profile',
+        ok: linkNeed === 'post' ? kind === 'post' : kind === 'profile',
+      });
+    }
     if (isCustom) {
       list.push({
         label: `Comments count in range (${fmtInt(min)}–${fmtInt(max)})`,
@@ -144,7 +183,7 @@ export function NewOrderPage() {
     }
     list.push({ label: 'Sufficient balance', ok: charge <= balance });
     return list;
-  }, [selected, link, qty, min, max, isCustom, commentLines, overLengthLines, charge, balance]);
+  }, [selected, link, linkNeed, qty, min, max, isCustom, commentLines, overLengthLines, charge, balance]);
 
   const allValid = checks.every((c) => c.ok);
 
@@ -358,12 +397,27 @@ export function NewOrderPage() {
             <div className="text-[14px] font-semibold">Configure your order</div>
             <div className="mt-4 grid grid-cols-1 gap-x-6 md:grid-cols-2">
               <div className="md:col-span-2">
-                <Field label="Target link" hint={link ? '' : 'Paste an Instagram URL'}>
+                <Field
+                  label="Target link"
+                  hint={
+                    link
+                      ? ''
+                      : linkNeed === 'post'
+                        ? 'Paste a post or reel link'
+                        : linkNeed === 'profile'
+                          ? 'Paste a profile link'
+                          : 'Paste an Instagram URL'
+                  }
+                >
                   <Input
                     block
                     inputSize="lg"
                     icon="link"
-                    placeholder="https://instagram.com/p/CY9k3a/"
+                    placeholder={
+                      linkNeed === 'profile'
+                        ? 'https://instagram.com/username'
+                        : 'https://instagram.com/p/CY9k3a/'
+                    }
                     value={link}
                     onChange={(e) => setLink(e.target.value)}
                   />

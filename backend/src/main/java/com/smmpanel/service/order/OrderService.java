@@ -1322,6 +1322,55 @@ public class OrderService {
                 && url.length() > prefix.length();
     }
 
+    private static final String IG_PREFIX = "https://www.instagram.com/";
+
+    /**
+     * First path segment of a normalized {@code https://www.instagram.com/<seg>/...} URL, lowercased
+     * ("" if there is no path). Input must be {@link #normalizeInstagramUrl} output.
+     */
+    private static String firstInstagramPathSegment(String normalizedUrl) {
+        if (normalizedUrl == null
+                || !normalizedUrl.startsWith(IG_PREFIX)
+                || normalizedUrl.length() <= IG_PREFIX.length()) {
+            return "";
+        }
+        String path = normalizedUrl.substring(IG_PREFIX.length());
+        int slash = path.indexOf('/');
+        return (slash >= 0 ? path.substring(0, slash) : path).toLowerCase();
+    }
+
+    /**
+     * True for a link to a specific piece of content — a post/reel ({@code /p/<code>/}; reels are
+     * normalized to {@code /p/}) or IGTV ({@code /tv/<code>/}). This is what LIKE and COMMENT orders
+     * act on. Input must be {@link #normalizeInstagramUrl} output.
+     */
+    static boolean isPostUrl(String normalizedUrl) {
+        String seg = firstInstagramPathSegment(normalizedUrl);
+        return seg.equals("p") || seg.equals("tv");
+    }
+
+    /**
+     * True for a link to an account profile — a single, non-reserved path segment
+     * ({@code https://www.instagram.com/<handle>/}). This is what FOLLOW orders act on. Multi-segment
+     * paths (a post, or a profile sub-tab like {@code /tagged/}) and reserved sections
+     * ({@code /stories/}, {@code /explore/}, …) return false. Input must be
+     * {@link #normalizeInstagramUrl} output.
+     */
+    static boolean isProfileUrl(String normalizedUrl) {
+        if (normalizedUrl == null
+                || !normalizedUrl.startsWith(IG_PREFIX)
+                || normalizedUrl.length() <= IG_PREFIX.length()) {
+            return false;
+        }
+        String path = normalizedUrl.substring(IG_PREFIX.length());
+        if (path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        return !path.isEmpty()
+                && path.indexOf('/') < 0
+                && !RESERVED_PATH_SEGMENTS.contains(path.toLowerCase());
+    }
+
     // Additional methods required by the interface.
     //
     // MUST be @Transactional. This is the REAL entry point for both POST /api/v1/orders and
@@ -1411,10 +1460,38 @@ public class OrderService {
         // Validate the link resolves to a real Instagram target BEFORE charging. Bean Validation
         // on the DTO does not run on this hand-built path, so without this an arbitrary URL would
         // be forwarded verbatim to the bot. normalizeInstagramUrl canonicalizes valid inputs
-        // (bare handles, m./instagram.com, /reel/…) to https://www.instagram.com/<path>.
-        if (!isInstagramUrl(normalizeInstagramUrl(request.getLink()))) {
+        // (bare handles, m./instagram.com, /reel/…) to https://www.instagram.com/<path>. Normalize
+        // ONCE here and reuse the result for the shape check, storage, and quota below.
+        String normalizedLink = normalizeInstagramUrl(request.getLink());
+        if (!isInstagramUrl(normalizedLink)) {
             throw new OrderValidationException(
                     "Invalid link: a valid Instagram URL (post or profile) is required");
+        }
+
+        // The link SHAPE must match what the service acts on: LIKES and COMMENTS target a specific
+        // post/reel, FOLLOWERS target an account profile. Derived from the same metric bitmask used
+        // for serialization, so the rule can never drift from the like/comment/follow classification.
+        // A composite (a post metric AND follow) or an unrecognized category (METRIC_ALL fallback)
+        // maps to both flags and accepts either shape, so this can't reject a valid multi-metric order.
+        int metricMask =
+                com.smmpanel.dto.instagram.InstagramOrderType.metricMaskForCategory(
+                        service.getCategory());
+        boolean needsPost =
+                (metricMask
+                                & (com.smmpanel.dto.instagram.InstagramOrderType.METRIC_LIKE
+                                        | com.smmpanel.dto.instagram.InstagramOrderType.METRIC_COMMENT))
+                        != 0;
+        boolean needsProfile =
+                (metricMask & com.smmpanel.dto.instagram.InstagramOrderType.METRIC_FOLLOW) != 0;
+        if (needsPost && !needsProfile && !isPostUrl(normalizedLink)) {
+            throw new OrderValidationException(
+                    "This service needs a link to a specific post or reel"
+                            + " (e.g. https://www.instagram.com/p/…), not a profile link.");
+        }
+        if (needsProfile && !needsPost && !isProfileUrl(normalizedLink)) {
+            throw new OrderValidationException(
+                    "This service needs a link to a profile"
+                            + " (e.g. https://www.instagram.com/username), not a post link.");
         }
 
         // Handle custom comments services - auto-calculate quantity from comments
@@ -1500,13 +1577,12 @@ public class OrderService {
         Order order = new Order();
         order.setUser(user);
         order.setService(service);
-        order.setLink(normalizeInstagramUrl(request.getLink())); // Normalize /reel/, /reels/ → /p/
+        order.setLink(normalizedLink); // canonical https://www.instagram.com/<path>/ (reels → /p/)
         // Metric-aware per-URL serialization: snapshot which counts this order mutates (like=1,
         // comment=2, follow=4) so a same-link order only queues behind an OVERLAPPING metric
-        // (e.g. likes vs comments run in parallel; two likes serialize).
-        order.setMetricMask(
-                com.smmpanel.dto.instagram.InstagramOrderType.metricMaskForCategory(
-                        service.getCategory()));
+        // (e.g. likes vs comments run in parallel; two likes serialize). Same mask computed for the
+        // link-shape check above.
+        order.setMetricMask(metricMask);
         order.setQuantity(effectiveQuantity);
         order.setCharge(charge);
         order.setRemains(effectiveQuantity);

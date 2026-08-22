@@ -37,7 +37,6 @@ export function AdminSettingsPage() {
 }
 
 // Server-side keys — must match constants in AppSettingsService.java.
-const KEY_MIN_ORDER_CHARGE = 'platform.fee.min_order_charge';
 const KEY_MARKUP_PERCENT = 'platform.fee.markup_percent';
 const KEY_CRYPTOMUS_PASSTHROUGH = 'platform.fee.cryptomus_passthrough_pct';
 const KEY_ORDERS_PER_MINUTE = 'rate.orders_per_minute_per_user';
@@ -45,7 +44,7 @@ const KEY_API_PER_MINUTE = 'rate.api_per_minute_per_user';
 const KEY_MAX_CONCURRENT = 'rate.max_concurrent_orders_per_user';
 const KEY_MAINTENANCE = 'maintenance.enabled';
 
-const FEES_KEYS = [KEY_MIN_ORDER_CHARGE, KEY_MARKUP_PERCENT, KEY_CRYPTOMUS_PASSTHROUGH] as const;
+const FEES_KEYS = [KEY_MARKUP_PERCENT, KEY_CRYPTOMUS_PASSTHROUGH] as const;
 const LIMITS_KEYS = [KEY_ORDERS_PER_MINUTE, KEY_API_PER_MINUTE, KEY_MAX_CONCURRENT] as const;
 
 function GeneralTab() {
@@ -153,7 +152,6 @@ function GeneralTab() {
     );
   }
 
-  const minCharge = settings[KEY_MIN_ORDER_CHARGE];
   const markup = settings[KEY_MARKUP_PERCENT];
   const cryptomus = settings[KEY_CRYPTOMUS_PASSTHROUGH];
   const ordersPerMin = settings[KEY_ORDERS_PER_MINUTE];
@@ -162,17 +160,7 @@ function GeneralTab() {
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-      <Section title="Platform fees" subtitle="Drives min-order rejection, /v1/services rate display, and credited deposit amount">
-        <Field label="Min order charge (USD)" hint={minCharge?.description}>
-          <Input
-            block
-            type="number"
-            step="0.01"
-            min={0}
-            value={draft[KEY_MIN_ORDER_CHARGE] ?? ''}
-            onChange={(e) => setDraft((d) => ({ ...d, [KEY_MIN_ORDER_CHARGE]: e.target.value }))}
-          />
-        </Field>
+      <Section title="Platform fees" subtitle="Drives /v1/services rate display and credited deposit amount">
         <Field label="Markup on service rate (%)" hint={markup?.description}>
           <Input
             block

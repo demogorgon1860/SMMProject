@@ -24,7 +24,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * Typed accessor for {@link AppSetting} key/value store.
  *
  * <p>Reads are cached on the {@code app-settings} cache (Redis, 60s TTL). Writes go through {@link
- * #put(String, String, User)} which evicts the cache so enforcement code (rate limits, min charge,
+ * #put(String, String, User)} which evicts the cache so enforcement code (rate limits, markup,
  * maintenance flag) sees the new value within ~60s in any case and immediately on the same node.
  *
  * <p>Defensive defaults: every typed accessor takes a fallback used when the key is missing OR the
@@ -40,6 +40,10 @@ public class AppSettingsService {
 
     // Setting keys (referenced from enforcement code; centralized here so a typo
     // surfaces at compile time instead of as a silently-missing setting at runtime).
+    // NO LONGER ENFORCED: the per-order minimum-charge floor was removed from OrderService because
+    // orders are paid from prepaid balance (no per-order payment cost) and it made a service's own
+    // minimum quantity un-orderable. Kept only so any existing DB row/reads don't error; do not
+    // re-wire it as a per-order reject. A minimum-spend guard, if ever needed, belongs at deposit.
     public static final String KEY_MIN_ORDER_CHARGE = "platform.fee.min_order_charge";
     public static final String KEY_MARKUP_PERCENT = "platform.fee.markup_percent";
     public static final String KEY_CRYPTOMUS_PASSTHROUGH_PCT =

@@ -214,18 +214,10 @@ public class OrderService {
             // 5. Calculate charge based on effective quantity (markup applied if configured)
             BigDecimal charge = calculateCharge(service, effectiveQuantity);
 
-            // 5a. Reject orders below the configured platform-wide minimum charge.
-            // This is a money-floor — guarantees the panel doesn't process sub-cent orders that
-            // cost more in payment processing than they earn.
-            BigDecimal minCharge =
-                    appSettingsService.getDecimal(
-                            AppSettingsService.KEY_MIN_ORDER_CHARGE, BigDecimal.ZERO);
-            if (minCharge.signum() > 0 && charge.compareTo(minCharge) < 0) {
-                throw new OrderValidationException(
-                        String.format(
-                                "Order amount $%s is below the minimum charge of $%s",
-                                charge.toPlainString(), minCharge.toPlainString()));
-            }
+            // 5a. (Removed) per-order minimum-charge floor — see the note in
+            // createOrder(OrderCreateRequest, String). Orders draw from prepaid balance, and the
+            // floor made a service's own minimum quantity un-orderable. Per-service min_order is the
+            // authoritative order minimum.
 
             // 5b. Concurrent-orders quota — count this user's in-flight orders and reject if at
             // or above the configured cap. 0 means "unlimited" (skip the check entirely).
@@ -1539,18 +1531,13 @@ public class OrderService {
         // Calculate charge based on effective quantity
         BigDecimal charge = calculateCharge(service, effectiveQuantity);
 
-        // Platform-wide minimum-charge floor. No-op when the setting is 0/unset. Previously this
-        // guard lived only in the unreachable createOrderWithApiKey path, so admins who set a
-        // minimum saw it silently ignored on the live order path.
-        BigDecimal minCharge =
-                appSettingsService.getDecimal(
-                        AppSettingsService.KEY_MIN_ORDER_CHARGE, BigDecimal.ZERO);
-        if (minCharge.signum() > 0 && charge.compareTo(minCharge) < 0) {
-            throw new OrderValidationException(
-                    String.format(
-                            "Order amount $%s is below the minimum charge of $%s",
-                            charge.toPlainString(), minCharge.toPlainString()));
-        }
+        // NOTE: a per-order minimum-charge floor used to live here (platform.fee.min_order_charge).
+        // Removed on purpose — it made a service's own configured minimum quantity un-orderable
+        // (e.g. a 10-like order at a low rate falls below a $0.05 floor and was rejected, even though
+        // 10 is the service's advertised minimum). Orders are paid from prepaid balance, so there is
+        // no per-order payment-processing cost for such a floor to protect against; any minimum-spend
+        // guard belongs at deposit time, not per order. The authoritative order minimum is the
+        // per-service min_order, enforced by the quantity-range check above.
 
         // Per-user concurrent-orders cap. 0 = unlimited (skip). Same intent as above — this was
         // configured in admin settings but never enforced on the live path.

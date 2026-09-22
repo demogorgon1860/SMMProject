@@ -134,8 +134,9 @@ public class AdminTelegramController {
 
     /**
      * Returns one entry per day in the requested month with the profit, completed, and partial
-     * counts. Uses {@code daily_profit_summary} (persisted by {@code DailyProfitService} at 23:55)
-     * — Redis-buffered counters for the current day are not exposed here.
+     * counts. Uses {@code daily_profit_summary} (persisted by {@code TelegramScheduler} at midnight
+     * in {@code app.telegram.profit.zone}, so dates are business-zone days) — Redis-buffered
+     * counters for the current day are not exposed here.
      */
     @GetMapping("/profit")
     public ResponseEntity<List<Map<String, Object>>> profit(

@@ -634,6 +634,10 @@ app:
       default-action: ${TELEGRAM_CANCEL_DEFAULT_ACTION:proceed}
     profit:
       redis-ttl-days: ${TELEGRAM_PROFIT_REDIS_TTL_DAYS:8}
+      # A profit "day" = calendar day in this zone (DST-aware region id, NOT the container's UTC).
+      # Counters are bucketed by it and the daily report fires at its midnight for the day that
+      # just ended.
+      zone: ${TELEGRAM_PROFIT_ZONE:Europe/Chisinau}
     # "System Health" group — separate chat for infra alerts (bot-down + worst-error
     # profiles). Same bot token; the bot must be added to this group. Blank chat-id =>
     # health alerts disabled (no fallback to the main order chat). Set

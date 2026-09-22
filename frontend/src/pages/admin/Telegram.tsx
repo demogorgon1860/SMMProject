@@ -311,7 +311,7 @@ function ProfitTab() {
       <Section title={`Day report · ${year}-${String(month + 1).padStart(2, '0')}-${String(selected).padStart(2, '0')}`}>
         <div>
           <Money value={day?.profit ?? 0} size="lg" />
-          <div className="mt-1 text-[11.5px] text-fg-subtle">Daily profit · posted at 23:55</div>
+          <div className="mt-1 text-[11.5px] text-fg-subtle">Daily profit · posted at 00:00 (Moldova)</div>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3">
           <KV k="Orders completed" v={fmtInt(Math.floor((day?.profit ?? 0) / 4))} mono />

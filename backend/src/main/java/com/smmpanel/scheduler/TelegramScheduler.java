@@ -11,11 +11,14 @@ import com.smmpanel.service.notification.CancelDecisionService;
 import com.smmpanel.service.notification.DailyProfitService;
 import com.smmpanel.service.notification.TelegramBotService;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,17 +40,61 @@ public class TelegramScheduler {
     // not open a new transaction), isolating one order's failure from the rest of the batch.
     private final ObjectProvider<TelegramScheduler> selfProvider;
 
-    /** Send daily profit report at 23:55. */
-    @Scheduled(cron = "0 55 23 * * *")
+    /** Last day reported by this JVM — stops the startup catch-up racing the midnight run. */
+    private LocalDate lastReportedDay;
+
+    /**
+     * Daily profit report at midnight in the business zone ({@code app.telegram.profit.zone},
+     * Moldova by default) for the day that just ended. The same property sets the day boundary of
+     * the counters in {@link DailyProfitService}, so the send time and the counted day can't drift
+     * apart. The zone placeholder default must match {@code TelegramBotProperties.Profit#zone}.
+     */
+    @Scheduled(cron = "0 0 0 * * *", zone = "${app.telegram.profit.zone:Europe/Chisinau}")
     public void sendDailyReport() {
         if (!telegramBotProperties.isEnabled()) return;
+        reportDay(dailyProfitService.dayClosedByMidnightRun());
+    }
+
+    /**
+     * Catch-up for a missed midnight run. Spring never replays a cron that fired while the app was
+     * down, so a restart or outage across midnight (e.g. a deploy at 00:30, or the first start
+     * after moving the report off 23:55 UTC) would otherwise lose that day's report and its
+     * calendar row for good. If the last closed day has counters but no persisted summary, report
+     * it now. A day whose summary exists is left alone, so a normal restart re-sends nothing.
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    public void catchUpMissedDailyReport() {
+        if (!telegramBotProperties.isEnabled()) return;
         try {
-            String report = dailyProfitService.buildDailyReportText();
-            telegramBotService.sendPlainMessage(report);
-            dailyProfitService.persistDailyReport();
-            log.info("Daily profit report sent and persisted");
+            LocalDate day = dailyProfitService.lastClosedBusinessDay();
+            if (dailyProfitService.hasPersistedReport(day)
+                    || !dailyProfitService.hasCounters(day)) {
+                return;
+            }
+            log.warn("Daily profit report for {} was missed (app down across midnight)", day);
+            reportDay(day);
         } catch (Exception e) {
-            log.error("Failed to send daily profit report: {}", e.getMessage(), e);
+            log.error("Daily profit report catch-up failed: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Persist and send are independent: the DB row backs the admin profit calendar and must not be
+     * lost to a Telegram outage (previously a failed send skipped the persist), and vice versa.
+     */
+    private synchronized void reportDay(LocalDate day) {
+        if (day.equals(lastReportedDay)) return;
+        lastReportedDay = day;
+        try {
+            dailyProfitService.persistDailyReport(day);
+        } catch (Exception e) {
+            log.error("Failed to persist daily profit summary for {}: {}", day, e.getMessage(), e);
+        }
+        try {
+            telegramBotService.sendPlainMessage(dailyProfitService.buildDailyReportText(day));
+            log.info("Daily profit report for {} sent", day);
+        } catch (Exception e) {
+            log.error("Failed to send daily profit report for {}: {}", day, e.getMessage(), e);
         }
     }
 

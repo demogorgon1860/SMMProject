@@ -42,6 +42,15 @@ public class TelegramBotProperties {
     @Data
     public static class Profit {
         private int redisTtlDays = 8;
+
+        /**
+         * Business time zone that defines a profit "day": the Redis counters are bucketed by the
+         * calendar date in this zone, and the daily report fires at this zone's midnight for the
+         * day that just ended. Must NOT be the JVM zone (prod containers run in UTC). A region id
+         * (not a fixed offset) so DST is followed. Keep this default in sync with the {@code zone}
+         * placeholder default on {@code TelegramScheduler#sendDailyReport}.
+         */
+        private String zone = "Europe/Chisinau";
     }
 
     /**

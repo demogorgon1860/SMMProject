@@ -138,9 +138,11 @@ When the Instagram bot hits the circuit breaker (10 consecutive errors), it **pa
 - AdsPower comments are **NOT** cleaned when order is paused — only cleaned on actual complete/cancel (admin may resume the order)
 
 #### Daily Profit Report
-- Scheduler (`TelegramScheduler`) fires at `23:55` cron
+- Scheduler (`TelegramScheduler`) fires at `00:00` in `app.telegram.profit.zone` (default `Europe/Chisinau`, DST-aware) and reports the day that **just ended**
+- A "day" is a calendar day in that zone, NOT the container's UTC — Redis keys and `daily_profit_summary.report_date` both use the business-zone date
 - Counts COMPLETED + PARTIAL orders accumulated in Redis during the day
-- Sends formatted report to admin chat, then persists to `daily_profit_summary` table
+- Persists to `daily_profit_summary`, then sends the report to the admin chat — independently (a Telegram failure does not skip the persist)
+- Startup catch-up (`ApplicationReadyEvent`): if yesterday has Redis counters but no `daily_profit_summary` row (app was down/restarting at midnight), the missed report is persisted and sent
 - Redis keys: `telegram:profit:{yyyy-MM-dd}` (hash: `total`, `completed_count`, `partial_count`), TTL = 8 days
 
 #### Webhook registration
@@ -160,6 +162,7 @@ app:
       default-action: proceed   # proceed | cancel
     profit:
       redis-ttl-days: 8
+      zone: Europe/Chisinau   # TELEGRAM_PROFIT_ZONE; defines the report "day" + midnight send time
 ```
 
 #### Notification events

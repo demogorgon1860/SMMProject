@@ -835,4 +835,8 @@
          already exists in prod so fresh environments get it too. -->
     <include file="db/changelog/changes/v2026.08-add-user-service-access.xml"/>
 
+    <!-- Index for the per-user MAX(user_order_number) + 1 that every order creation runs under the
+         user's balance row lock (reseller throughput) -->
+    <include file="db/changelog/changes/v2026.09-orders-user-order-number-index.xml"/>
+
 </databaseChangeLog>

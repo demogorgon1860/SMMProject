@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="v2026.09-orders-user-order-number-index" author="dev">
+        <preConditions onFail="MARK_RAN">
+            <columnExists tableName="orders" columnName="user_order_number"/>
+        </preConditions>
+        <comment>
+            Every order creation numbers the order with MAX(user_order_number) + 1 for its user, and
+            does so while holding that user's balance row lock — so a reseller's concurrent orders
+            queue behind this query one at a time. Without an index it read every one of the user's
+            orders across all partitions (prod, reseller User#856: ~57k rows, ~44 ms per order,
+            growing with every order). With (user_id, user_order_number) PostgreSQL answers it with
+            one backward index-only probe per partition (~1 ms). The user's /orders list, which
+            sorts by user_order_number, benefits too.
+
+            orders is partitioned by created_at: an index on the parent is created on every existing
+            partition and automatically on every future one (PartitionMaintenanceScheduler).
+            CREATE INDEX CONCURRENTLY is not supported on a partitioned parent; a plain build takes a
+            SHARE lock on each partition only for the build (~0.1 s for ~60k rows), and Liquibase runs
+            at application startup, before the panel accepts orders.
+        </comment>
+        <sql>
+            CREATE INDEX IF NOT EXISTS idx_orders_user_order_number
+                ON orders (user_id, user_order_number);
+        </sql>
+        <rollback>
+            <sql>DROP INDEX IF EXISTS idx_orders_user_order_number;</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -11,6 +11,7 @@ import com.smmpanel.exception.ResourceNotFoundException;
 import com.smmpanel.producer.OrderEventProducer;
 import com.smmpanel.repository.jpa.OrderRefillRepository;
 import com.smmpanel.repository.jpa.OrderRepository;
+import com.smmpanel.service.balance.BalanceService;
 import com.smmpanel.util.AfterCommitRunner;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -54,6 +55,7 @@ public class OrderRefillService {
     private final OrderRepository orderRepository;
     private final OrderRefillRepository orderRefillRepository;
     private final OrderEventProducer orderEventProducer;
+    private final BalanceService balanceService;
 
     /**
      * Max refills allowed per original order. {@code 0} (or negative) = UNLIMITED — our policy is
@@ -82,13 +84,12 @@ public class OrderRefillService {
      * actions — re-delivering ONLY what dropped — instead of the legacy default. Still subject to
      * the {@code <= 0} guard and the 1.5x cap.
      */
-    // READ_COMMITTED (not REPEATABLE_READ) is deliberate: the pessimistic order-row lock in
-    // acquireOrderLockForRefill serializes concurrent refills for the same order, and
-    // READ_COMMITTED
-    // makes the anti-duplication checks below re-read the latest committed data so the second
-    // caller
-    // actually sees the first caller's just-created refill (returning a clean 409) instead of a
-    // stale snapshot that misses it (duplicate refill) or a serialization-error 500.
+    // READ_COMMITTED (not REPEATABLE_READ) is deliberate: the owner + order-row locks in
+    // acquireOrderLockForRefill serialize concurrent refills for the same order, and
+    // READ_COMMITTED makes the anti-duplication checks below re-read the latest committed data so
+    // the second caller actually sees the first caller's just-created refill (returning a clean
+    // 409) instead of a stale snapshot that misses it (duplicate refill) or a serialization-error
+    // 500.
     @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public RefillResponse createRefill(Long orderId, Integer overrideRefillQuantity) {
         log.info(
@@ -214,10 +215,29 @@ public class OrderRefillService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Lock, then load, the order to refill. Locks are taken in the platform-wide order — the
+     * owner's balance row first (as createOrder and every refund path do), then the order row — so
+     * a refill can't deadlock with the reseller's order traffic; the user lock also serializes this
+     * refill's {@code user_order_number = MAX + 1} with the user's concurrent orders. Both locks
+     * are scalar statements: the previous {@code @Lock} JOIN FETCH query fell back to per-row
+     * version-checked locks (Hibernate follow-on locking) and failed with StaleObjectStateException
+     * whenever the reseller's orders moved the user's row (User#856). The order is loaded after the
+     * locks, so it reflects the latest committed state.
+     */
     private Order acquireOrderLockForRefill(Long orderId) {
-        log.debug("[REFILL] Acquiring pessimistic lock for order {}", orderId);
+        log.debug("[REFILL] Acquiring owner + order locks for order {}", orderId);
+        Long userId =
+                orderRepository
+                        .findUserIdById(orderId)
+                        .orElseThrow(
+                                () ->
+                                        new ResourceNotFoundException(
+                                                "Order not found with id: " + orderId));
+        balanceService.lockUserForUpdate(userId);
+        orderRepository.lockRowById(orderId);
         return orderRepository
-                .findByIdWithLock(orderId)
+                .findByIdWithDetails(orderId)
                 .orElseThrow(
                         () -> new ResourceNotFoundException("Order not found with id: " + orderId));
     }

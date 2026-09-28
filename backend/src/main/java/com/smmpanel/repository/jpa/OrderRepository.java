@@ -819,16 +819,20 @@ public interface OrderRepository
 
     // ==================== REFILL OPERATIONS ====================
 
+    /** The owning user's id, read without loading the Order entity. */
+    @Query("SELECT o.user.id FROM Order o WHERE o.id = :id")
+    Optional<Long> findUserIdById(@Param("id") Long id);
+
     /**
-     * Find order by ID with PESSIMISTIC WRITE lock Prevents concurrent refill creation for the same
-     * order Used during refill creation to ensure atomicity
+     * Row lock on one order, as a scalar statement; call inside a transaction, after locking the
+     * owner via BalanceService.lockUserForUpdate (platform-wide lock order: user row, then order
+     * rows). Do NOT lock orders through an entity-returning {@code @Lock} query instead: Hibernate
+     * version-checks entities a lock materializes — and with a JOIN FETCH falls back to per-row
+     * version-checked follow-on locks on every joined entity (User, Service) — so the lock itself
+     * failed with StaleObjectStateException under the reseller's order traffic (User#856).
      */
-    @Query(
-            "SELECT o FROM Order o LEFT JOIN FETCH o.service LEFT JOIN FETCH o.user WHERE o.id ="
-                    + " :id")
-    @org.springframework.data.jpa.repository.Lock(
-            jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
-    Optional<Order> findByIdWithLock(@Param("id") Long id);
+    @Query(value = "SELECT id FROM orders WHERE id = :id FOR NO KEY UPDATE", nativeQuery = true)
+    List<Long> lockRowById(@Param("id") Long id);
 
     /**
      * Count pending refill orders for a given parent order Prevents duplicate refills when one is

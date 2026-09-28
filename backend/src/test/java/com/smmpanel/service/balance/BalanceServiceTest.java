@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -22,14 +23,16 @@ import com.smmpanel.repository.jpa.BalanceTransactionRepository;
 import com.smmpanel.repository.jpa.UserRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
-import jakarta.persistence.TypedQuery;
+import jakarta.persistence.Query;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import org.hibernate.jpa.HibernateHints;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -56,8 +59,7 @@ class BalanceServiceTest {
     @Mock private TransactionTemplate readOnlyTransactionTemplate;
     @Mock private BalanceAuditService balanceAuditService;
     @Mock private EntityManager entityManager;
-    @Mock private TypedQuery<User> lockQuery;
-    @Mock private TypedQuery<User> secondLockQuery;
+    @Mock private Query lockQuery;
 
     @InjectMocks private BalanceService service;
 
@@ -74,39 +76,31 @@ class BalanceServiceTest {
     }
 
     // ---------------------------------------------------------------
-    // Lock-acquisition stubs. BalanceService locks the balance row with an ID-ONLY JPQL query
-    // (setLockMode(PESSIMISTIC_WRITE), NO @Version predicate — a version-checked lock upgrade
-    // loses races to concurrent commits; see lockAndRefreshUser) and then reloads state with a
-    // plain entityManager.refresh under the held lock.
+    // Lock-acquisition stubs. BalanceService takes the balance row lock with a SCALAR native query
+    // ("SELECT id ... FOR NO KEY UPDATE") that materializes no entity — any entity-returning lock
+    // makes Hibernate version-check an already-managed User and reject the order that waited for
+    // the lock (User#856; see lockAndRefreshUser) — then em.find + a plain em.refresh under it.
+    // The real-database behavior is covered by UserBalanceLockIntegrationTest.
     // ---------------------------------------------------------------
 
-    /** The id-only lock query finds and locks the given user. */
-    private void stubLockedUser(User u) {
-        when(entityManager.createQuery(anyString(), eq(User.class))).thenReturn(lockQuery);
-        when(lockQuery.setParameter(eq("id"), any())).thenReturn(lockQuery);
-        when(lockQuery.setLockMode(LockModeType.PESSIMISTIC_WRITE)).thenReturn(lockQuery);
-        when(lockQuery.getResultList()).thenReturn(List.of(u));
+    /** The row-lock query finds (and locks) each user's row; em.find resolves them by id. */
+    private void stubLockedUsers(User... users) {
+        stubLockQuery(List.of(1L));
+        for (User u : users) {
+            when(entityManager.find(User.class, u.getId())).thenReturn(u);
+        }
     }
 
-    /** The id-only lock query finds no row (user missing). */
+    /** The row-lock query finds no row (user missing). */
     private void stubUserMissing() {
-        when(entityManager.createQuery(anyString(), eq(User.class))).thenReturn(lockQuery);
-        when(lockQuery.setParameter(eq("id"), any())).thenReturn(lockQuery);
-        when(lockQuery.setLockMode(LockModeType.PESSIMISTIC_WRITE)).thenReturn(lockQuery);
-        when(lockQuery.getResultList()).thenReturn(List.of());
+        stubLockQuery(List.of());
     }
 
-    /** Two sequential lock queries (transfer locks in ascending-id order: first, then second). */
-    private void stubLockedUsers(User first, User second) {
-        when(entityManager.createQuery(anyString(), eq(User.class)))
-                .thenReturn(lockQuery, secondLockQuery);
+    private void stubLockQuery(List<?> lockedRows) {
+        when(entityManager.createNativeQuery(anyString())).thenReturn(lockQuery);
         when(lockQuery.setParameter(eq("id"), any())).thenReturn(lockQuery);
-        when(lockQuery.setLockMode(LockModeType.PESSIMISTIC_WRITE)).thenReturn(lockQuery);
-        when(lockQuery.getResultList()).thenReturn(List.of(first));
-        when(secondLockQuery.setParameter(eq("id"), any())).thenReturn(secondLockQuery);
-        when(secondLockQuery.setLockMode(LockModeType.PESSIMISTIC_WRITE))
-                .thenReturn(secondLockQuery);
-        when(secondLockQuery.getResultList()).thenReturn(List.of(second));
+        when(lockQuery.setHint(anyString(), any())).thenReturn(lockQuery);
+        when(lockQuery.getResultList()).thenReturn(lockedRows);
     }
 
     // ---------------------------------------------------------------
@@ -117,17 +111,29 @@ class BalanceServiceTest {
     @DisplayName("deductBalance: happy path — user balance reduces, ledger row written")
     void deduct_happy() {
         User u = userWithBalance(1L, new BigDecimal("100.00"));
-        stubLockedUser(u);
+        stubLockedUsers(u);
         Order order = orderFor(50L, u);
 
         service.deductBalance(u, new BigDecimal("30.00"), order, "test deduction");
 
-        // Regression guards for the User#856 incident: the row MUST be locked via the id-only
-        // query with PESSIMISTIC_WRITE (no version-checked lock upgrade), and the locked instance
-        // MUST then be refreshed so its @Version/balance reflect the lock-winner's committed row.
-        // Deleting either line in lockAndRefreshUser must fail this test.
-        verify(lockQuery).setLockMode(LockModeType.PESSIMISTIC_WRITE);
-        verify(entityManager).refresh(u);
+        // Regression guards for the User#856 incident: the row lock MUST be a scalar statement
+        // (nothing materialized, so Hibernate has no managed User to version-check), flushing the
+        // same User space the old JPQL lock did, and the User MUST be refreshed only AFTER the
+        // lock so its @Version/balance reflect the lock-winner's committed row.
+        ArgumentCaptor<String> lockSql = ArgumentCaptor.forClass(String.class);
+        verify(entityManager).createNativeQuery(lockSql.capture());
+        assertThat(lockSql.getValue())
+                .isEqualTo("SELECT id FROM users WHERE id = :id FOR NO KEY UPDATE");
+        verify(lockQuery).setParameter("id", 1L);
+        verify(lockQuery).setHint(HibernateHints.HINT_NATIVE_SPACES, User.class);
+        InOrder lockThenReload = inOrder(lockQuery, entityManager);
+        lockThenReload.verify(lockQuery).getResultList();
+        lockThenReload.verify(entityManager).refresh(u);
+        // ...and no entity-returning or version-checked lock anywhere.
+        verify(entityManager, never()).createQuery(anyString(), eq(User.class));
+        verify(entityManager, never()).lock(any(), any(LockModeType.class));
+        verify(entityManager, never()).find(eq(User.class), any(), any(LockModeType.class));
+        verify(entityManager, never()).refresh(any(), any(LockModeType.class));
 
         ArgumentCaptor<BalanceTransaction> tx = ArgumentCaptor.forClass(BalanceTransaction.class);
         verify(transactionRepository, times(1)).save(tx.capture());
@@ -144,7 +150,7 @@ class BalanceServiceTest {
     @DisplayName("deductBalance: insufficient funds → InsufficientBalanceException, no writes")
     void deduct_insufficient() {
         User u = userWithBalance(1L, new BigDecimal("5.00"));
-        stubLockedUser(u);
+        stubLockedUsers(u);
 
         assertThatThrownBy(() -> service.deductBalance(u, new BigDecimal("30.00"), null, "x"))
                 .isInstanceOf(InsufficientBalanceException.class);
@@ -187,7 +193,7 @@ class BalanceServiceTest {
     @DisplayName("refund: writes a REFUND row with positive amount and increments balance")
     void refund_partial_amount() {
         User u = userWithBalance(1L, new BigDecimal("10.00"));
-        stubLockedUser(u);
+        stubLockedUsers(u);
         Order order = orderFor(50L, u);
         // Partial refund formula: charge * (1 - completed/quantity) computed by the caller.
         // Here: charge=$10, completed=80, quantity=100 → refund = $10 * 0.20 = $2.
@@ -213,7 +219,7 @@ class BalanceServiceTest {
     @DisplayName("refund: full refund (charge * 1.0 when completed=0) credits the full charge")
     void refund_full_amount() {
         User u = userWithBalance(1L, new BigDecimal("0.00"));
-        stubLockedUser(u);
+        stubLockedUsers(u);
         BigDecimal fullRefund = new BigDecimal("15.00");
 
         service.refund(u, fullRefund, null, "full refund");
@@ -241,7 +247,7 @@ class BalanceServiceTest {
     @DisplayName("addBalance: deposit increments balance and writes DEPOSIT ledger row")
     void addBalance_deposit_records_ledger() {
         User u = userWithBalance(1L, new BigDecimal("5.00"));
-        stubLockedUser(u);
+        stubLockedUsers(u);
 
         BigDecimal newBalance =
                 service.addBalance(u, new BigDecimal("10.00"), null, "Welcome credit");
@@ -265,7 +271,7 @@ class BalanceServiceTest {
     @DisplayName("checkAndDeductBalance: deducts iff sufficient funds; returns true on success")
     void checkAndDeduct_sufficient_returns_true() {
         User u = userWithBalance(1L, new BigDecimal("50.00"));
-        stubLockedUser(u);
+        stubLockedUsers(u);
 
         boolean ok = service.checkAndDeductBalance(u, new BigDecimal("30.00"), null, "x");
 
@@ -280,7 +286,7 @@ class BalanceServiceTest {
             "checkAndDeductBalance: returns false on insufficient funds, no writes, no exception")
     void checkAndDeduct_insufficient_returns_false() {
         User u = userWithBalance(1L, new BigDecimal("5.00"));
-        stubLockedUser(u);
+        stubLockedUsers(u);
 
         boolean ok = service.checkAndDeductBalance(u, new BigDecimal("30.00"), null, "x");
 
@@ -361,12 +367,17 @@ class BalanceServiceTest {
     @Test
     @DisplayName("transferBalance: locks both users in a stable order, writes both ledger rows")
     void transfer_locks_and_records_both_sides() {
-        User from = userWithBalance(1L, new BigDecimal("100.00"));
-        User to = userWithBalance(2L, new BigDecimal("0.00"));
-        stubLockedUsers(from, to);
+        // Transfer from the HIGHER id to the lower one: the locks must still be taken in
+        // ascending-id order, so two opposite transfers between the same pair can't deadlock.
+        User to = userWithBalance(1L, new BigDecimal("0.00"));
+        User from = userWithBalance(2L, new BigDecimal("100.00"));
+        stubLockedUsers(to, from);
 
-        service.transferBalance(1L, 2L, new BigDecimal("25.00"), "transfer");
+        service.transferBalance(2L, 1L, new BigDecimal("25.00"), "transfer");
 
+        InOrder ascendingIds = inOrder(entityManager);
+        ascendingIds.verify(entityManager).find(User.class, 1L);
+        ascendingIds.verify(entityManager).find(User.class, 2L);
         assertThat(from.getBalance()).isEqualByComparingTo("75.00");
         assertThat(to.getBalance()).isEqualByComparingTo("25.00");
         verify(transactionRepository, times(2)).save(any(BalanceTransaction.class));

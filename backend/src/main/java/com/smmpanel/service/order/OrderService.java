@@ -147,11 +147,11 @@ public class OrderService {
                 throw new OrderValidationException("Invalid API key");
             }
 
-            // Lock the user's balance row up front, before the quota/insert queries can auto-flush a
-            // stale pre-loaded User (same rationale as createOrder(OrderCreateRequest,...)). Keeps the
-            // lock order (user-row THEN quota-advisory) identical across ALL order-creation paths, so
-            // even if this path is revived it can't deadlock against the primary path. NOTE: this
-            // method is currently unreachable/dead — kept consistent to avoid a future footgun.
+            // Lock the user's balance row up front and hold it for the whole transaction (same
+            // rationale as createOrder(OrderCreateRequest,...)). Keeps the lock order (user-row
+            // THEN quota-advisory) identical across ALL order-creation paths, so even if this path
+            // is revived it can't deadlock against the primary path. NOTE: this method is
+            // currently unreachable/dead — kept consistent to avoid a future footgun.
             balanceService.lockUserForUpdate(user.getId());
 
             // 2. Validate service
@@ -1427,12 +1427,13 @@ public class OrderService {
                         .findByUsername(username)
                         .orElseThrow(() -> new OrderValidationException("User not found"));
 
-        // Lock the user's balance row up front, while the persistence context is still clean, and
-        // hold it for the whole transaction. This serializes concurrent same-user order creation so
-        // that NO later query in this method — the quota checks (incl. a native full-flush query),
-        // the order insert, or the deduct — can auto-flush a now-stale pre-loaded User and lose the
-        // @Version race. That upstream flush, not just the deduct site, was the User#856
-        // StaleObjectStateException failure class. See BalanceService.lockUserForUpdate.
+        // Lock the user's balance row up front and hold it for the whole transaction: concurrent
+        // orders from the same user (resellers send bursts) queue here one at a time, so the
+        // balance check, the concurrent-orders cap and the user_order_number = max + 1 below all
+        // see the previous order's committed state. The lock also refreshes `user` to that state.
+        // It is safe with `user` already loaded above — see BalanceService.lockAndRefreshUser for
+        // why the lock must not materialize the User (User#856: every order that waited here was
+        // rejected with StaleObjectStateException).
         balanceService.lockUserForUpdate(user.getId());
 
         // Get service

@@ -1,6 +1,5 @@
 package com.smmpanel.controller;
 
-import com.smmpanel.dto.request.DepositRequest;
 import com.smmpanel.dto.response.BalanceResponse;
 import com.smmpanel.dto.response.TransactionHistoryResponse;
 import com.smmpanel.entity.OrderStatus;
@@ -57,27 +56,10 @@ public class BalanceController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/deposit")
-    @Operation(
-            summary = "Add funds to balance",
-            description = "Adds funds to user balance (admin only in production)")
-    public ResponseEntity<Map<String, Object>> deposit(@RequestBody DepositRequest request) {
-        User user = getCurrentUser();
-
-        // In production, this would integrate with payment gateway
-        // For now, allow manual deposits for testing
-        BigDecimal newBalance =
-                balanceService.addBalance(
-                        user, request.getAmount(), "Manual deposit: " + request.getDescription());
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("newBalance", newBalance);
-        response.put("message", "Funds added successfully");
-
-        log.info("Deposit of {} for user: {}", request.getAmount(), user.getUsername());
-        return ResponseEntity.ok(response);
-    }
+    // NOTE: POST /deposit used to live here. It credited ANY amount to the caller's own balance
+    // with no payment and no role check — any registered account could mint funds. Do not re-add
+    // it: balances are topped up only by paid Cryptomus deposits (DepositController) or by an
+    // admin via PUT /api/v2/admin/users/{userId}/balance (AdminService.adjustUserBalance).
 
     @GetMapping("/transactions")
     @Operation(

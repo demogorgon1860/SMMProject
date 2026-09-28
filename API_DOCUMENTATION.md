@@ -479,28 +479,7 @@ Authorization: Bearer <token>
 }
 ```
 
-#### 2. Add Funds (Deposit)
-```http
-POST /api/v1/balance/deposit
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "amount": "50.00",
-  "description": "Payment via Cryptomus"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "newBalance": "150.00",
-  "message": "Funds added successfully"
-}
-```
-
-#### 3. Get Transaction History
+#### 2. Get Transaction History
 ```http
 GET /api/v1/balance/transactions?page=0&size=20
 Authorization: Bearer <token>
@@ -536,7 +515,7 @@ Authorization: Bearer <token>
 }
 ```
 
-#### 4. Get Recent Transactions
+#### 3. Get Recent Transactions
 ```http
 GET /api/v1/balance/transactions/recent
 Authorization: Bearer <token>
@@ -544,7 +523,7 @@ Authorization: Bearer <token>
 
 **Response:** Returns last 10 transactions in same format as transaction history
 
-#### 5. Check Sufficient Funds
+#### 4. Check Sufficient Funds
 ```http
 POST /api/v1/balance/check-funds
 Authorization: Bearer <token>

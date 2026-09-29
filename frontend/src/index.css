@@ -315,6 +315,23 @@ html.dark[data-accent='amber'] {
     color: #e5e5e5;
   }
 
+  /* Landing hero on the 3D logo's night sky (SpaceSky paints it). It is dark in both themes,
+     so it takes the dark theme's light accents (same values as html.dark[data-accent]). */
+  .space-hero {
+    background: #04060f;
+    color: #e5e5e5;
+    --accent-2: #a5b4fc;
+  }
+  html[data-accent='violet'] .space-hero {
+    --accent-2: #c4b5fd;
+  }
+  html[data-accent='emerald'] .space-hero {
+    --accent-2: #6ee7b7;
+  }
+  html[data-accent='amber'] .space-hero {
+    --accent-2: #fcd34d;
+  }
+
   /* Hero accent overlays */
   .hero-bg {
     position: absolute;

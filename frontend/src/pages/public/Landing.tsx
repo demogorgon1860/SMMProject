@@ -1,4 +1,7 @@
+import { useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { SpaceSky } from '../../components/brand/SpaceSky';
+import { Logo3D } from '../../components/brand/logo3d';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Badge, Button, Card, Icon, SocialTile } from '../../components/ui';
 import {
@@ -19,17 +22,40 @@ import { cn } from '../../lib/utils';
 
 export function LandingPage() {
   const { theme } = useTheme();
-  return theme === 'dark' ? <LandingDark /> : <LandingLight />;
+  // The 3D logo's fly-in intro plays once per visit to the landing page — not again when
+  // the theme toggle swaps the layout and remounts the hero.
+  const introPending = useRef(true);
+  const shouldPlayIntro = useCallback(() => {
+    const play = introPending.current;
+    introPending.current = false;
+    return play;
+  }, []);
+  return theme === 'dark' ? (
+    <LandingDark shouldPlayIntro={shouldPlayIntro} />
+  ) : (
+    <LandingLight shouldPlayIntro={shouldPlayIntro} />
+  );
 }
+
+interface HeroIntroProps {
+  shouldPlayIntro: () => boolean;
+}
+
+// Hero logo column: on phones the logo comes first so the intro is seen on arrival — except on
+// short screens (landscape phones), where it would push the headline off the first screen. Sized
+// by the viewport height too.
+const HERO_LOGO_COLUMN = 'order-first lg:order-none [@media(max-height:560px)]:order-none';
+const HERO_LOGO_SIZE =
+  'max-w-[min(300px,40vh)] sm:max-w-[min(400px,50vh)] lg:max-w-[min(540px,70vh)]';
 
 // ---------------------------------------------------------------------
 // Variant — dark crypto-native (renders when theme = dark)
 // ---------------------------------------------------------------------
 
-function LandingDark() {
+function LandingDark({ shouldPlayIntro }: HeroIntroProps) {
   return (
     <>
-      <Hero />
+      <Hero shouldPlayIntro={shouldPlayIntro} />
       <LiveOrdersTicker />
       <ValueProps />
       <Categories />
@@ -41,14 +67,14 @@ function LandingDark() {
   );
 }
 
-function Hero() {
+// The hero sits on the 3D logo's night sky in both themes, so both variants share it.
+function Hero({ shouldPlayIntro }: HeroIntroProps) {
   return (
-    <section className="section-dark relative overflow-hidden">
-      <div className="hero-bg" />
-      <div className="grid-lines absolute inset-0 opacity-50" />
+    <section className="space-hero relative overflow-hidden">
+      <SpaceSky />
       <div className="container-app relative z-10 grid grid-cols-1 items-center gap-12 py-20 lg:grid-cols-[1.1fr_1fr] lg:py-32">
         <div>
-          <OrdersLast24hBadge tone="dark" />
+          <OrdersLast24hBadge />
           <h1 className="display-1 text-white">
             Real delivery,
             <br />
@@ -79,6 +105,9 @@ function Hero() {
           </div>
         </div>
         {/* <TopServicesCard tone="dark" /> */}
+        <div className={HERO_LOGO_COLUMN}>
+          <Logo3D shouldPlayIntro={shouldPlayIntro} className={HERO_LOGO_SIZE} />
+        </div>
       </div>
     </section>
   );
@@ -171,17 +200,12 @@ function TopServicesCard({ tone = 'dark' }: { tone?: 'dark' | 'light' }) {
 }
 
 // OrdersLast24hBadge — small "X orders in the last 24h" pill rendered at the
-// very top of both Hero variants. Sourced from /api/v1/stats/public so it
+// very top of the Hero. Sourced from /api/v1/stats/public so it
 // matches whatever the public stats endpoint reports. Hides itself while the
 // first request is in flight (returns a same-size placeholder so the hero
 // doesn't reflow when the number lands) and on outright failure.
-function OrdersLast24hBadge({ tone }: { tone: 'dark' | 'light' }) {
+function OrdersLast24hBadge() {
   const stats = usePublicStats();
-  const shell =
-    tone === 'dark'
-      ? 'mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 font-mono text-[12px] text-white/80'
-      : 'mb-5 inline-flex items-center gap-2 rounded-full border border-border bg-bg-elev px-3 py-1 font-mono text-[12px] text-fg-muted';
-  const dot = tone === 'dark' ? 'bg-emerald-400' : 'bg-success';
 
   // Defensive: hide the badge if the API didn't surface a number for any
   // reason (loading, network error, unexpected shape, partial response).
@@ -190,8 +214,8 @@ function OrdersLast24hBadge({ tone }: { tone: 'dark' | 'light' }) {
     return <div className="mb-5" style={{ minHeight: 28 }} aria-hidden="true" />;
   }
   return (
-    <div className={shell}>
-      <span className={cn('pulse-dot inline-block h-[6px] w-[6px] rounded-full', dot)} />
+    <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 font-mono text-[12px] text-white/80">
+      <span className="pulse-dot inline-block h-[6px] w-[6px] rounded-full bg-emerald-400" />
       {stats.ordersLast24h.toLocaleString('en-US')} IG orders in the last 24h
     </div>
   );
@@ -463,49 +487,10 @@ function CTABanner() {
 // Variant — light editorial (renders when theme = light)
 // ---------------------------------------------------------------------
 
-function LandingLight() {
+function LandingLight({ shouldPlayIntro }: HeroIntroProps) {
   return (
     <>
-      <section className="relative overflow-hidden bg-bg">
-        <div className="hero-bg" />
-        <div className="container-app relative z-10 py-20 lg:py-28">
-          <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[1.1fr_1fr]">
-            <div>
-              <OrdersLast24hBadge tone="light" />
-              <h1 className="display-1">
-                Real delivery,
-                <br />
-                <span className="text-accent">every order.</span>
-              </h1>
-              <p className="lede mt-5 max-w-[540px]">
-                SMMWorld is the Instagram growth network. We don't resell — every like, follow, and
-                comment is delivered by us directly. Real quality, lifetime refill, crypto only.
-              </p>
-              <div className="mt-8 flex flex-wrap items-center gap-3">
-                {/* TEMP: registration closed — restore by uncommenting
-                <Link to="/register">
-                  <Button variant="primary" size="xl" iconRight="arrow-right">
-                    Get started
-                  </Button>
-                </Link>
-                */}
-                {/* TEMP: services catalog hidden — restore with the Services nav link
-                <Link to="/services-list">
-                  <Button variant="secondary" size="xl">
-                    Browse services
-                  </Button>
-                </Link>
-                */}
-                <span className="ml-2 text-[13px] text-fg-subtle">
-                  Free $5 credit · no card · pay only with crypto
-                </span>
-              </div>
-            </div>
-            {/* <TopServicesCard tone="light" /> */}
-          </div>
-        </div>
-      </section>
-
+      <Hero shouldPlayIntro={shouldPlayIntro} />
       <LiveOrdersStripLight />
       <ValuePropsLight />
       <CategoriesLight />
